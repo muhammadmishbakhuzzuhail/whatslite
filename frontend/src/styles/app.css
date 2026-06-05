@@ -295,6 +295,12 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .bubble.txt { position: relative; }
 .bubble.txt .meta { position: absolute; right: 11px; bottom: 6px;
   float: none; clear: none; margin: 0; }
+/* Ada blok terjemahan di bawah teks → waktu TAK boleh absolute (akan nimpa
+   baris terjemahan). Alirkan di bawah tr-block, rata kanan; spacer dimatikan. */
+.bubble.txt.withtr .meta { position: static; float: none; clear: both;
+  display: flex; justify-content: flex-end; align-items: center; gap: 4px;
+  margin: 3px 0 0; }
+.bubble.txt.withtr .text .t-spacer { display: none; }
 .ticks { width: 16px; height: 12px; stroke: var(--text2); stroke-width: 1.7; }
 .ticks.read { stroke: var(--tick); }
 

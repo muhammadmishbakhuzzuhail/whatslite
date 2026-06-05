@@ -230,6 +230,7 @@
   {/if}
 
   <div class="bubble {bubbleClass} {msg.type === 'deleted' ? 'deleted' : ''}"
+    class:withtr={!!translated}
     class:hascap={(msg.type === 'image' || msg.type === 'video') && caption}
     class:nohead={(msg.type === 'image' || msg.type === 'video') && !(showSender || msg.forwarded || msg.quote)}>
     {#if msg.type !== "deleted" && !$selectMode}

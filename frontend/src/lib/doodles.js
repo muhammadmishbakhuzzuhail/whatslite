@@ -80,7 +80,7 @@ function buildSVG(cat, stroke) {
 // alpha: opacity garis. Default sangat samar (latar chat). Swatch pakai lebih
 // tinggi agar pratinjau tetap kebaca di kotak kecil.
 export function doodleURI(cat, dark, alpha) {
-  const a = alpha != null ? alpha : (dark ? 0.015 : 0.025);
+  const a = alpha != null ? alpha : (dark ? 0.04 : 0.05);
   return buildSVG(cat, dark ? `rgba(255,255,255,${a})` : `rgba(15,23,32,${a})`);
 }
 

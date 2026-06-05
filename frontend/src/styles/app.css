@@ -733,3 +733,6 @@ button.info-row:hover { background: var(--hover); }
 .msg.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .sel-check { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text2); display: grid; place-items: center; font-size: 13px; color: #fff; z-index: 3; }
 .sel-check.on { background: var(--accent); border-color: var(--accent); }
+
+/* Drag-drop gambar ke composer */
+.composer.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; background: color-mix(in srgb, var(--accent) 8%, transparent); }

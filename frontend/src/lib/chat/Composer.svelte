@@ -32,6 +32,23 @@
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
+  // --- drag-drop & tempel gambar ---
+  let dragOver = false;
+  function kindOfFile(type) { return type.startsWith("video/") ? "video" : type.startsWith("image/") ? "image" : type.startsWith("audio/") ? "voice" : "document"; }
+  async function sendOneFile(f) {
+    const dataURI = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+    await sendMediaMessage(chatId, kindOfFile(f.type), "", f.name, dataURI);
+  }
+  function onDrop(e) {
+    e.preventDefault(); dragOver = false;
+    const files = [...(e.dataTransfer?.files || [])];
+    files.forEach(sendOneFile);
+  }
+  function onPaste(e) {
+    const items = [...(e.clipboardData?.items || [])];
+    const imgs = items.filter((it) => it.type.startsWith("image/")).map((it) => it.getAsFile()).filter(Boolean);
+    if (imgs.length) { e.preventDefault(); imgs.forEach(sendOneFile); }
+  }
   // --- GIF (Giphy) ---
   let gifOpen = false;
   function openGif() { attachOpen = false; gifOpen = true; }
@@ -199,6 +216,8 @@
   }
 </script>
 
+<svelte:window on:paste={onPaste} />
+
 {#if $editDraft}
   <div class="reply-bar">
     <div class="rb-body">
@@ -318,7 +337,10 @@
   </div>
 {/if}
 
-<footer class="composer">
+<footer class="composer {dragOver ? 'dragover' : ''}"
+  on:dragover|preventDefault={() => (dragOver = true)}
+  on:dragleave={() => (dragOver = false)}
+  on:drop={onDrop}>
   <button class="icon-btn" aria-label={$t("emoji")} on:click={() => (emojiOpen = !emojiOpen)}>
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg>
   </button>

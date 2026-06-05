@@ -44,6 +44,12 @@
 
 <div class="gif-panel">
   <input class="gif-search" placeholder="{$t('search')} GIF" bind:value={q} />
+  <div class="gif-cats">
+    {#each ["trending","lol","love","sad","wow","ok","thanks","hi","bye","angry","dance","clap"] as c}
+      <button class="gif-cat {(/(^|\s)/.test(q) && q.trim().toLowerCase()===c) || (c==='trending'&&!q.trim()) ? 'on' : ''}"
+        on:click={() => (q = c === "trending" ? "" : c)}>{c}</button>
+    {/each}
+  </div>
   <div class="gif-grid">
     {#if loading}
       <div class="gif-empty">…</div>

@@ -882,3 +882,15 @@ button.info-row:hover { background: var(--hover); }
 .fab-badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
   background: var(--accent); color: #fff; border-radius: 9px; font-size: 11px; font-weight: 700;
   display: grid; place-items: center; }
+
+/* Kategori GIF (chip) */
+.gif-cats { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 8px; }
+.gif-cats .gif-cat { flex: 0 0 auto; border: 0; background: var(--bg2); color: var(--text2);
+  border-radius: 12px; padding: 4px 10px; font-size: 12px; cursor: pointer; text-transform: capitalize; }
+.gif-cats .gif-cat.on { background: var(--accent); color: #fff; }
+
+/* Spoiler ||teks|| */
+.spoiler { background: rgba(127,127,127,.35); color: transparent; border-radius: 4px; cursor: pointer;
+  filter: blur(.3px); transition: color .15s, background .15s; }
+.spoiler::selection { color: transparent; }
+.spoiler.on { background: rgba(127,127,127,.16); color: inherit; cursor: text; filter: none; }

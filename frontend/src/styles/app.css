@@ -600,11 +600,15 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
   border-radius: 4px; padding: 5px 10px; overflow: hidden; }
 .rb-name { font-size: 13px; font-weight: 600; color: var(--quote-bar); }
 .rb-text { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.emoji-panel { background: var(--head-bg); border-top: 1px solid var(--divider);
-  padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
-.emoji-panel .emoji { border: 0; background: 0; cursor: pointer; font-size: 22px;
-  width: 40px; height: 40px; border-radius: 8px; line-height: 1; }
-.emoji-panel .emoji:hover { background: var(--hover); }
+/* Panel emoji penuh (emoji-picker-element) — popup di atas composer. */
+.emoji-panel { position: absolute; bottom: 68px; left: 8px; z-index: 40;
+  border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; }
+.emoji-panel emoji-picker {
+  width: min(352px, 90vw); height: 400px;
+  --background: var(--bg); --border-color: var(--line);
+  --input-border-color: var(--line); --indicator-color: var(--accent);
+  --emoji-size: 1.4rem; }
+.emoji-panel .emoji-none { background: var(--bg); padding: 28px; text-align: center; color: var(--text2); width: 300px; }
 
 /* ====================== KUNCI APLIKASI (PIN) ====================== */
 .lock-screen { height: 100vh; display: flex; flex-direction: column; align-items: center;

@@ -1,7 +1,7 @@
 <script>
   import { tick } from "svelte";
   import { get } from "svelte/store";
-  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft } from "../../stores.js";
+  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft, theme } from "../../stores.js";
   import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
@@ -159,19 +159,16 @@
   }
 
   // Emoji + kata kunci (cari ID/EN) → filter di picker.
-  const EMOJI_KW = {
-    "😀": "senyum smile grin", "😂": "tawa lol laugh nangis", "🥰": "cinta love sayang", "😍": "cinta love naksir heart",
-    "😎": "keren cool kacamata", "🤔": "mikir think hmm", "😅": "keringat nervous", "😭": "nangis cry sedih sad",
-    "😡": "marah angry kesal", "👍": "jempol like bagus good thumbs", "👎": "jelek dislike bad", "🙏": "doa pray makasih thanks tolong",
-    "👏": "tepuk clap bagus", "🙌": "hore yay angkat", "💪": "kuat strong otot", "🔥": "api fire keren mantap",
-    "✨": "kilau sparkle wow", "🎉": "pesta party selamat congrats", "❤️": "cinta love hati heart", "💔": "patah hati broken",
-    "😴": "tidur sleep ngantuk", "🤝": "salaman deal jabat", "👀": "lihat eyes mata", "🤣": "ngakak rofl lol tawa",
-    "😊": "senyum happy senang", "😘": "cium kiss sayang", "😢": "sedih sad nangis", "🤯": "kaget mind blown wow",
-    "🥳": "pesta party rayakan", "😱": "kaget shock takut", "💯": "seratus perfect mantap", "✅": "centang check selesai done ok",
-  };
-  const EMOJIS = Object.keys(EMOJI_KW);
-  let emojiQuery = "";
-  $: emojiList = emojiQuery.trim() ? EMOJIS.filter((e) => (EMOJI_KW[e] || "").includes(emojiQuery.trim().toLowerCase()) || e === emojiQuery.trim()) : EMOJIS;
+  // Emoji picker penuh (set Unicode + kategori + search + skin-tone + recents)
+  // via emoji-picker-element. Modul + data di-load LAZY saat pertama dibuka.
+  let emojiReady = false;
+  async function ensureEmoji() {
+    if (emojiReady) return;
+    await import("emoji-picker-element");
+    emojiReady = true;
+  }
+  function onEmojiClick(e) { if (e.detail?.unicode) addEmoji(e.detail.unicode); }
+  async function toggleEmoji() { if (!emojiOpen) await ensureEmoji(); emojiOpen = !emojiOpen; }
 
   function send() {
     if (!value.trim()) return;
@@ -273,12 +270,13 @@
 {/if}
 
 {#if emojiOpen}
+  <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (emojiOpen = false)}></button>
   <div class="emoji-panel">
-    <input class="emoji-search" placeholder="{$t('search')}…" bind:value={emojiQuery} />
-    <div class="emoji-grid">
-      {#each emojiList as e}<button class="emoji" on:click={() => addEmoji(e)}>{e}</button>{/each}
-      {#if emojiList.length === 0}<span class="emoji-none">{$t("no_match")}</span>{/if}
-    </div>
+    {#if emojiReady}
+      <emoji-picker class={$theme === "dark" ? "dark" : "light"} on:emoji-click={onEmojiClick}></emoji-picker>
+    {:else}
+      <div class="emoji-none">…</div>
+    {/if}
   </div>
 {/if}
 
@@ -364,7 +362,7 @@
   on:dragover|preventDefault={() => (dragOver = true)}
   on:dragleave={() => (dragOver = false)}
   on:drop={onDrop}>
-  <button class="icon-btn" aria-label={$t("emoji")} on:click={() => (emojiOpen = !emojiOpen)}>
+  <button class="icon-btn" aria-label={$t("emoji")} on:click={toggleEmoji}>
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg>
   </button>
   <button class="icon-btn" aria-label={$t("attach")} on:click={toggleAttach}>

@@ -1,5 +1,5 @@
 <script>
-  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang } from "../../stores.js";
+  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn } from "../../stores.js";
   import { getProfile, getSettingsItems } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import { initial } from "../util.js";
@@ -76,6 +76,13 @@
       <select class="lang-select" bind:value={$translateLang}>
         {#each TRANSLATE_LANGS as l}<option value={l.code}>{l.name}</option>{/each}
       </select>
+    </div>
+
+    <!-- Suara notifikasi -->
+    <div class="settings-item" role="button" tabindex="0" on:click={() => soundOn.update((v) => !v)} on:keydown={(e) => e.key === "Enter" && soundOn.update((v) => !v)}>
+      <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>
+      <div class="grow"><div class="si-name">{$t("notif_sound")}</div><div class="si-desc">{$soundOn ? $t("active") : $t("off")}</div></div>
+      <span class="switch {$soundOn ? '' : 'off'}"></span>
     </div>
 
     <!-- Privasi -->

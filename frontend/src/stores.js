@@ -25,6 +25,29 @@ translateLang.subscribe((v) => { try { localStorage.setItem("wa-tr-lang", v); } 
 // Lightbox media fullscreen: {url, type:"image"|"video", caption} | null
 export const lightbox = writable(null);
 
+// Suara notifikasi (WebAudio, tanpa aset). Persist.
+let storedSound = null;
+try { storedSound = localStorage.getItem("wa-sound"); } catch (e) {}
+export const soundOn = writable(storedSound !== "0");
+soundOn.subscribe((v) => { try { localStorage.setItem("wa-sound", v ? "1" : "0"); } catch (e) {} });
+let _actx = null;
+function playNotifSound() {
+  if (!get(soundOn)) return;
+  try {
+    _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = _actx.currentTime;
+    const o = _actx.createOscillator(), g = _actx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, t);
+    o.frequency.setValueAtTime(660, t + 0.09);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(g); g.connect(_actx.destination);
+    o.start(t); o.stop(t + 0.26);
+  } catch (e) {}
+}
+
 export const railView = writable(params.get("view") || "chats");
 export const infoOpen = writable(params.get("info") === "1");
 export const loggedIn = writable(data.LIVE ? false : params.get("screen") !== "qr");
@@ -351,7 +374,7 @@ if (data.LIVE) {
     const focused = typeof document !== "undefined" && document.hasFocus();
     if (get(activeChatId) === chat && focused) return;
     const c = get(chats).find((x) => x.id === chat);
-    if (c && !c.muted) data.notify(c.name, c.preview || "Pesan baru");
+    if (c && !c.muted) { data.notify(c.name, c.preview || "Pesan baru"); playNotifSound(); }
   });
   data.onEvent("wa:sync", () => {
     syncing.set(false);

@@ -1,6 +1,6 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
-  import { infoOpen, chatStatus, typingChats } from "../../stores.js";
+  import { infoOpen, chatStatus, typingChats, inChatSearch } from "../../stores.js";
   import { avatarUrl } from "../../services/data.js";
   import { t } from "../i18n.js";
   export let chat;
@@ -22,7 +22,7 @@
     <button class="icon-btn" title={$t("video_call")}>
       <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>
     </button>
-    <button class="icon-btn" title={$t("search")}>
+    <button class="icon-btn" title={$t("search")} on:click={() => inChatSearch.set(true)}>
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     </button>
     <button class="icon-btn" title={$t("menu")}>

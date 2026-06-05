@@ -10,12 +10,30 @@
   import Lightbox from "./lib/chat/Lightbox.svelte";
   import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
   import Toast from "./lib/Toast.svelte";
-  import { theme, infoOpen, loggedIn, lockState } from "./stores.js";
+  import { theme, infoOpen, loggedIn, lockState, inChatSearch, activeChatId, newChatOpen, lightbox, forwardDraft } from "./stores.js";
   import { locale } from "./lib/i18n.js";
 
   $: document.documentElement.setAttribute("data-theme", $theme);
   $: document.documentElement.setAttribute("lang", $locale);
+
+  // Shortcut keyboard global.
+  function onKey(e) {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key.toLowerCase() === "f") {
+      if ($activeChatId) { e.preventDefault(); inChatSearch.set(true); }
+    } else if (mod && e.key.toLowerCase() === "k") {
+      e.preventDefault(); newChatOpen.set(true);
+    } else if (e.key === "Escape") {
+      // tutup overlay teratas (urutan prioritas).
+      if ($lightbox) lightbox.set(null);
+      else if ($forwardDraft) forwardDraft.set(null);
+      else if ($inChatSearch) inChatSearch.set(false);
+      else if ($infoOpen) infoOpen.set(false);
+    }
+  }
 </script>
+
+<svelte:window on:keydown={onKey} />
 
 {#if $lockState !== "off"}
   <AppLock />

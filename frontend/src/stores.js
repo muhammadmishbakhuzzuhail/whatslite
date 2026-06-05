@@ -25,6 +25,18 @@ translateLang.subscribe((v) => { try { localStorage.setItem("wa-tr-lang", v); } 
 // Lightbox media fullscreen: {url, type:"image"|"video", caption} | null
 export const lightbox = writable(null);
 
+// Pencarian dalam satu chat (toggle dari header).
+export const inChatSearch = writable(false);
+
+// Wallpaper chat (CSS warna/gradien). Persist + terapkan ke --chat-bg.
+let storedWp = null;
+try { storedWp = localStorage.getItem("wa-wallpaper"); } catch (e) {}
+export const wallpaper = writable(storedWp || "");
+wallpaper.subscribe((v) => {
+  try { localStorage.setItem("wa-wallpaper", v); } catch (e) {}
+  if (typeof document !== "undefined") document.documentElement.style.setProperty("--chat-bg", v || "transparent");
+});
+
 // Suara notifikasi (WebAudio, tanpa aset). Persist.
 let storedSound = null;
 try { storedSound = localStorage.getItem("wa-sound"); } catch (e) {}

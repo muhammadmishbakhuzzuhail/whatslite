@@ -1,5 +1,6 @@
 <script>
-  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn } from "../../stores.js";
+  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, wallpaper } from "../../stores.js";
+  const WALLPAPERS = ["", "#0b141a", "#1f2c34", "#0c1f1a", "linear-gradient(135deg,#0b141a,#1f3a34)", "#ece5dd", "#e3dccb", "linear-gradient(135deg,#dfe9f3,#e2d1c3)"];
   import { getProfile, getSettingsItems } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import { initial } from "../util.js";
@@ -76,6 +77,19 @@
       <select class="lang-select" bind:value={$translateLang}>
         {#each TRANSLATE_LANGS as l}<option value={l.code}>{l.name}</option>{/each}
       </select>
+    </div>
+
+    <!-- Wallpaper chat -->
+    <div class="settings-item" style="align-items:flex-start">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="9" cy="9" r="1.5"/></svg>
+      <div class="grow">
+        <div class="si-name">{$t("wallpaper")}</div>
+        <div class="wp-swatches">
+          {#each WALLPAPERS as wp}
+            <button class="wp-sw {$wallpaper === wp ? 'on' : ''}" style="background:{wp || 'transparent'}" title={wp || $t("wp_none")} on:click={() => wallpaper.set(wp)}>{wp === "" ? "∅" : ""}</button>
+          {/each}
+        </div>
+      </div>
     </div>
 
     <!-- Suara notifikasi -->

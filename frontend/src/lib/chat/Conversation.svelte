@@ -2,14 +2,27 @@
   import ConvHeader from "./ConvHeader.svelte";
   import MessageList from "./MessageList.svelte";
   import Composer from "./Composer.svelte";
-  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction, selectMode, selectedIdx, clearSelect, deleteSelected, forwardSelected } from "../../stores.js";
+  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction, selectMode, selectedIdx, clearSelect, deleteSelected, forwardSelected, inChatSearch } from "../../stores.js";
   import { t } from "../i18n.js";
 
   $: chat = $chats.find((c) => c.id === $activeChatId);
   $: if ($activeChatId != null) { loadMessages($activeChatId); openChat($activeChatId); }
   $: messages = $allMessages[$activeChatId] || [];
   let _lastChat = null;
-  $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); }
+  $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); inChatSearch.set(false); }
+
+  // Pencarian dalam chat.
+  let scQuery = "";
+  let scIdx = 0;
+  $: scMatches = scQuery.trim().length < 2 ? [] : messages.filter((m) => (m.text || "").toLowerCase().includes(scQuery.trim().toLowerCase()));
+  $: if ($inChatSearch && scMatches.length && scIdx >= scMatches.length) scIdx = 0;
+  function scGo(d) {
+    if (!scMatches.length) return;
+    scIdx = (scIdx + d + scMatches.length) % scMatches.length;
+    jumpMsg.set(scMatches[scIdx].id);
+  }
+  function scClose() { inChatSearch.set(false); scQuery = ""; scIdx = 0; }
+  $: if (scQuery && scMatches.length) { jumpMsg.set(scMatches[scIdx]?.id); }
   // Foto profil (peer & pengirim grup) dimuat lazy via /avatar di komponen Avatar.
 
   // Pesan tersemat: turunan dari pesan termuat (reaktif thd pin/unpin + versi).
@@ -48,6 +61,18 @@
           <b>{$t("pinned")}{pinned.length > 1 ? ` (${pinned.length})` : ""}:</b> {topPin.text || `(${$t("media_generic")})`}
         </div>
         <button title={$t("unpin")} on:click={unpinTop} style="margin-left:auto;background:none;border:0;color:var(--text2);cursor:pointer;font-size:14px;padding:4px 8px">✕</button>
+      </div>
+    {/if}
+    {#if $inChatSearch}
+      <div class="sc-bar">
+        <svg viewBox="0 0 24 24" class="sc-ico"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <!-- svelte-ignore a11y-autofocus -->
+        <input autofocus placeholder={$t("search")} bind:value={scQuery}
+          on:keydown={(e) => { if (e.key === "Enter") scGo(e.shiftKey ? -1 : 1); if (e.key === "Escape") scClose(); }} />
+        <span class="sc-count">{scMatches.length ? `${scIdx + 1}/${scMatches.length}` : (scQuery.length > 1 ? "0/0" : "")}</span>
+        <button class="icon-btn" disabled={!scMatches.length} on:click={() => scGo(-1)} title="↑"><svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg></button>
+        <button class="icon-btn" disabled={!scMatches.length} on:click={() => scGo(1)} title="↓"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="icon-btn" on:click={scClose} title={$t("close")}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
     {/if}
     <MessageList {messages} group={!!chat.group} chatId={chat.id} peerName={chat.name} />

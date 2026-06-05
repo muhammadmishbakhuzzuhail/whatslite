@@ -28,11 +28,8 @@
     </button>
     <button class="rail-btn {$railView === 'contacts' ? 'active' : ''}" title={$t("rail_contacts")} on:click={() => go("contacts")}>
       <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 3h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8z"/>
-        <path d="M8 3v18"/>
-        <path d="M5 7.5h3M5 12h3M5 16.5h3"/>
-        <circle cx="13.5" cy="10" r="2.3"/>
-        <path d="M9.8 16.2c.4-1.7 1.9-2.7 3.7-2.7s3.3 1 3.7 2.7"/>
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>
       </svg>
     </button>
     <button class="rail-btn meta-ai" title={$t("rail_meta")}><span class="ai-ring"></span></button>

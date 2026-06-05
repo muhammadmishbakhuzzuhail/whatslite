@@ -195,13 +195,24 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .badge { background: var(--badge); color: #fff; font-size: 12px; font-weight: 600;
   min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px;
   display: grid; align-items: center; justify-items: center; margin-left: 8px; }
+/* Tombol generik (modal/sticker create): sebelumnya tak ada style → tampak polos. */
+.btn-ghost { border: 0; background: var(--bg2); color: var(--text); border-radius: 10px;
+  padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; transition: background .12s; }
+.btn-ghost:hover { background: var(--hover); }
+.btn-accent { border: 0; background: var(--accent); color: #fff; border-radius: 10px;
+  padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; transition: background .12s; }
+.btn-accent:hover { background: var(--accent-deep); }
+.btn-accent:disabled { opacity: .5; cursor: default; }
+
 .row-icons { display: flex; gap: 4px; color: var(--text2); }
 .row-icons svg { width: 16px; height: 16px; }
 .pin svg { transform: rotate(45deg); }
 
 /* ---------- PERCAKAPAN ---------- */
-.conversation { flex: 1; min-width: 0; display: flex; flex-direction: column;
+.conversation { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column;
   position: relative; /* anchor popup composer (attach/emoji/gif/stiker) ke kolom chat */
+  /* min-height:0 + overflow:hidden → HANYA .messages yang scroll (cegah scrollbar
+     ke-2 dari .conversation yang menggeser scrollbar pesan ke dalam). */
   /* Tema chat: warna solid (--chat-bg-col) + doodle opsional (--chat-doodle) di
      atas, atau gradien (--chat-bg-img) sbg layer bawah. Lihat stores.applyChatTheme. */
   background-color: var(--chat-bg-col, var(--wallpaper));
@@ -221,7 +232,8 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 
 .msg-wrap { flex: 1; position: relative; display: flex; min-height: 0; min-width: 0; }
 .messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px 4%; min-height: 0; min-width: 0;
-  display: flex; flex-direction: column; gap: 3px; }
+  display: flex; flex-direction: column; gap: 3px;
+  scrollbar-gutter: stable; } /* gutter tetap → lebar konten tak berubah saat scrollbar muncul/hilang */
 .scroll-fab { position: absolute; right: 18px; bottom: 16px; width: 42px; height: 42px;
   border-radius: 50%; border: 0; cursor: pointer; z-index: 5;
   background: var(--in-bg); color: var(--text2);

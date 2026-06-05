@@ -125,8 +125,10 @@ func (a *App) SearchStickers(query string) []GifDTO {
 			continue
 		}
 		m := r.Media[0]
-		preview := first(m["tinygif_transparent"].URL, m["nanogif_transparent"].URL, m["tinygif"].URL)
-		full := first(m["webp_transparent"].URL, m["gif_transparent"].URL, m["png_transparent"].URL, m["gif"].URL)
+		// HANYA format transparan (stiker tanpa background). Tanpa fallback ke
+		// "gif" biasa yang punya latar.
+		preview := first(m["tinygif_transparent"].URL, m["nanogif_transparent"].URL)
+		full := first(m["webp_transparent"].URL, m["gif_transparent"].URL, m["png_transparent"].URL)
 		if preview == "" || full == "" {
 			continue
 		}

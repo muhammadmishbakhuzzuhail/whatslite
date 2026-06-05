@@ -1,7 +1,5 @@
 <script>
-  import { railView, theme, effectiveTheme, chatTheme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn } from "../../stores.js";
-  import { CHAT_THEMES, chatThemeSwatch } from "../chatThemes.js";
-  import { doodleURI } from "../doodles.js";
+  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn } from "../../stores.js";
   import { getProfile, getSettingsItems } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import { initial } from "../util.js";
@@ -10,7 +8,6 @@
   const settingsItems = getSettingsItems();
   const THEME_MODES = ["light", "dark", "system"];
   const toggleLock = () => ($pinSet ? removePin() : beginSetPin());
-  $: ctDark = $effectiveTheme === "dark";
 
   const icons = {
     key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="4"/><path d="M11 11l8 8M16 16l2-2M19 19l2-2"/></svg>',
@@ -82,23 +79,6 @@
       <select class="lang-select" bind:value={$translateLang}>
         {#each TRANSLATE_LANGS as l}<option value={l.code}>{l.name}</option>{/each}
       </select>
-    </div>
-
-    <!-- Tema latar chat (kurasi ala WhatsApp) -->
-    <div class="settings-item" style="align-items:flex-start">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="9" cy="9" r="1.5"/></svg>
-      <div class="grow">
-        <div class="si-name">{$t("chat_theme")}</div>
-        <div class="ct-swatches">
-          {#each CHAT_THEMES as ct}
-            <button class="ct-sw {$chatTheme === ct.id ? 'on' : ''}" title={ct.label}
-              style="background-color:{chatThemeSwatch(ct.id, ctDark)};{ct.cat ? `background-image:url(\"${doodleURI(ct.cat, ctDark, ctDark ? 0.5 : 0.4)}\");background-size:118px;` : ''}"
-              on:click={() => chatTheme.set(ct.id)}>
-              <span class="ct-name">{ct.label}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
     </div>
 
     <!-- Suara notifikasi -->

@@ -1,8 +1,6 @@
 import { writable, get, derived } from "svelte/store";
 import * as data from "./services/data.js";
 import { t } from "./lib/i18n.js";
-import { chatThemeById } from "./lib/chatThemes.js";
-import { doodleURI } from "./lib/doodles.js";
 const tr = (k) => get(t)(k);
 
 const params = new URLSearchParams(location.search);
@@ -49,30 +47,6 @@ export const mediaDraft = writable(null);
 
 // Pencarian dalam satu chat (toggle dari header).
 export const inChatSearch = writable(false);
-
-// Tema latar chat (kurasi ala WhatsApp, lihat lib/chatThemes.js). Persist id.
-let storedChatTheme = null;
-try { storedChatTheme = localStorage.getItem("wa-chat-theme"); } catch (e) {}
-export const chatTheme = writable(params.get("ctheme") || storedChatTheme || "default");
-chatTheme.subscribe((v) => { try { localStorage.setItem("wa-chat-theme", v); } catch (e) {} });
-
-// Terapkan warna/doodle latar chat sesuai (tema chat × mode app aktif).
-function applyChatTheme(id, dark) {
-  if (typeof document === "undefined") return;
-  const th = chatThemeById(id);
-  const bg = dark ? th.dark : th.light;
-  const root = document.documentElement.style;
-  // Gradien hanya valid sbg background-image; warna solid sbg background-color.
-  const isGrad = /gradient\(/.test(bg);
-  root.setProperty("--chat-bg-col", isGrad ? "transparent" : bg);
-  root.setProperty("--chat-bg-img", isGrad ? bg : "none");
-  // Doodle: kategori (SVG bertema) → Default (PNG WhatsApp) → tak ada (Polos).
-  const doodle = th.cat ? `url("${doodleURI(th.cat, dark)}")`
-    : th.doodle ? "var(--wa-doodle)" : "none";
-  root.setProperty("--chat-doodle", doodle);
-}
-derived([chatTheme, effectiveTheme], ([$ct, $et]) => [$ct, $et])
-  .subscribe(([ct, et]) => applyChatTheme(ct, et === "dark"));
 
 // Suara notifikasi (WebAudio, tanpa aset). Persist.
 let storedSound = null;

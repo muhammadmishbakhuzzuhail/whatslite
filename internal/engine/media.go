@@ -10,11 +10,17 @@ import (
 	"io"
 	"net/http"
 
+	"time"
+
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"google.golang.org/protobuf/proto"
 )
+
+// picHTTP = klien khusus fetch foto CDN dgn timeout → koneksi macet tak bikin
+// goroutine (mis. RequestPhotos × 8) menggantung selamanya.
+var picHTTP = &http.Client{Timeout: 20 * time.Second}
 
 // ProfilePictureRaw mengambil foto profil sebagai BYTES (utk di-cache ke FILE).
 // (nil, nil) = tak ada foto (negatif). Dipanggil LAZY (avatar terlihat saja).
@@ -31,7 +37,7 @@ func (e *Engine) ProfilePictureRaw(jid string) ([]byte, error) {
 	if err != nil || info == nil || info.URL == "" {
 		return nil, nil // tak ada foto
 	}
-	resp, err := http.Get(info.URL)
+	resp, err := picHTTP.Get(info.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +65,7 @@ func (e *Engine) newsletterPicRaw(j types.JID) ([]byte, error) {
 	if url == "" {
 		return nil, nil // tak ada foto
 	}
-	resp, err := http.Get(url)
+	resp, err := picHTTP.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +97,7 @@ func (e *Engine) ProfilePicture(jid string) string {
 	if err != nil || info == nil || info.URL == "" {
 		return cache("") // negatif-cache: jangan tembak ulang
 	}
-	resp, err := http.Get(info.URL)
+	resp, err := picHTTP.Get(info.URL)
 	if err != nil {
 		return ""
 	}

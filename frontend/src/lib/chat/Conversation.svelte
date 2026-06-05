@@ -2,14 +2,15 @@
   import ConvHeader from "./ConvHeader.svelte";
   import MessageList from "./MessageList.svelte";
   import Composer from "./Composer.svelte";
-  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction, selectMode, selectedIdx, clearSelect, deleteSelected, forwardSelected, inChatSearch } from "../../stores.js";
+  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction, selectMode, selectedIdx, clearSelect, deleteSelected, forwardSelected, inChatSearch, replyDraft, editDraft } from "../../stores.js";
   import { t } from "../i18n.js";
 
   $: chat = $chats.find((c) => c.id === $activeChatId);
   $: if ($activeChatId != null) { loadMessages($activeChatId); openChat($activeChatId); }
   $: messages = $allMessages[$activeChatId] || [];
   let _lastChat = null;
-  $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); inChatSearch.set(false); }
+  // Ganti chat → reset state per-chat (cegah draft balas/edit "bocor" ke chat lain).
+  $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); inChatSearch.set(false); replyDraft.set(null); editDraft.set(null); }
 
   // Pencarian dalam chat.
   let scQuery = "";

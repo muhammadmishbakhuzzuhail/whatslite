@@ -70,7 +70,7 @@
     </span>
     <div style="min-width:0">
       <h2 style="font-size:16px;display:flex;gap:5px;align-items:center">{active.name}{#if active.verified}<span class="ch-verif">✓</span>{/if}</h2>
-      <div style="font-size:12px;color:var(--text2)">{active.subscribers.toLocaleString()} {$t("ch_subs")}</div>
+      <div style="font-size:12px;color:var(--text2)">{(active.subscribers ?? 0).toLocaleString()} {$t("ch_subs")}</div>
     </div>
   </header>
   <div class="ch-feed">
@@ -122,7 +122,7 @@
             </span>
             <div class="ch-meta">
               <div class="ch-name">{c.name}{#if c.verified}<span class="ch-verif">✓</span>{/if}</div>
-              <div class="ch-sub">{c.subscribers.toLocaleString()} {$t("ch_subs")}</div>
+              <div class="ch-sub">{(c.subscribers ?? 0).toLocaleString()} {$t("ch_subs")}</div>
             </div>
             {#if following.has(c.jid)}
               <span class="ch-followed">✓</span>
@@ -148,7 +148,7 @@
           </span>
           <div class="ch-meta">
             <div class="ch-name">{c.name}{#if c.verified}<span class="ch-verif">✓</span>{/if}</div>
-            <div class="ch-sub">{c.subscribers.toLocaleString()} {$t("ch_subs")}</div>
+            <div class="ch-sub">{(c.subscribers ?? 0).toLocaleString()} {$t("ch_subs")}</div>
           </div>
           <button class="ch-act" title={c.muted ? $t("unmute") : $t("mute")} on:click|stopPropagation={() => toggleMute(c)}>{c.muted ? "🔕" : "🔔"}</button>
           <button class="ch-act" title={$t("ch_unfollow")} on:click|stopPropagation={() => doUnfollow(c)}>✕</button>

@@ -12,6 +12,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -95,7 +96,16 @@ func (a *App) Startup(ctx context.Context) {
 	a.wq = make(chan func(), 8192)
 	go func() {
 		for fn := range a.wq {
-			fn()
+			// Recover per-tugas: satu panic (nil deref/proto buruk) tak boleh
+			// membunuh drainer → kalau mati, SEMUA tulis DB berikutnya senyap hilang.
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						runtime.LogError(a.ctx, fmt.Sprintf("bg write panic: %v", r))
+					}
+				}()
+				fn()
+			}()
 		}
 	}()
 	a.mediaDir = filepath.Join(dataDir, "media")
@@ -193,6 +203,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	// Pesan ditarik/dihapus-untuk-semua (oleh siapa pun) → tandai placeholder.
 	eng.OnRevoke(func(chat, msgID, sender string) {
+		chat = eng.CanonicalJID(chat) // samakan dgn OnMessage (row tersimpan di JID kanonik)
 		a.bg(func() {
 			_ = store.MarkDeleted(a.ctx, chat, msgID)
 			runtime.EventsEmit(a.ctx, "wa:message", chat)
@@ -200,6 +211,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	// Pin/mute/arsip dari perangkat lain (mis. di-pin dari HP) → sinkron ke DB lokal.
 	eng.OnChatAction(func(jid, action string, on bool) {
+		jid = eng.CanonicalJID(jid)
 		a.bg(func() {
 			switch action {
 			case "pin":
@@ -229,6 +241,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {
+		chat = eng.CanonicalJID(chat)
 		// Receipt grup = puluhan id × banyak penerima; tulis batch off-loop.
 		if a.store != nil && len(ids) > 0 {
 			a.bg(func() {
@@ -245,6 +258,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if a.store == nil {
 			return
 		}
+		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			_ = a.store.EditText(a.ctx, chat, msgID, newText)
 			runtime.EventsEmit(a.ctx, "wa:message", chat)
@@ -255,6 +269,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if a.store == nil {
 			return
 		}
+		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			_ = a.store.SetReaction(a.ctx, chat, targetID, sender, emoji, time.Now())
 			runtime.EventsEmit(a.ctx, "wa:message", chat)
@@ -265,6 +280,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if a.store == nil {
 			return
 		}
+		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			m, err := a.store.GetMessage(a.ctx, chat, pollID)
 			if err != nil {
@@ -279,6 +295,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	// Pin/unpin dari perangkat atau anggota lain → perbarui banner tersemat.
 	eng.OnPinInChat(func(chat, msgID string, pinned bool) {
+		chat = eng.CanonicalJID(chat)
 		if a.store != nil {
 			_ = a.store.SetPinnedInChat(a.ctx, chat, msgID, pinned)
 		}

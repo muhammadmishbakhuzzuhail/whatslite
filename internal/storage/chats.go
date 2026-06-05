@@ -230,6 +230,69 @@ func (s *Store) SetUnread(ctx context.Context, jid string, n int) error {
 	return err
 }
 
+// MergeChat memindahkan seluruh pesan + metadata dari fromJID ke toJID lalu
+// menghapus baris fromJID. Dipakai utk menyatukan chat ganda @lid↔nomor (lihat
+// engine.CanonicalJID). last_ts/unread mengambil nilai tertinggi; nama non-kosong
+// dipertahankan. ON CONFLICT pada (chat_jid,id) → pesan duplikat di-skip.
+func (s *Store) MergeChat(ctx context.Context, fromJID, toJID string) error {
+	if fromJID == toJID || fromJID == "" || toJID == "" {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Pastikan baris tujuan ada (salin metadata sumber bila belum).
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO chats (jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me)
+SELECT ?, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me
+FROM chats WHERE jid = ?
+ON CONFLICT(jid) DO UPDATE SET
+	last_ts = MAX(chats.last_ts, excluded.last_ts),
+	unread  = chats.unread + excluded.unread,
+	pinned  = MAX(chats.pinned, excluded.pinned),
+	name    = CASE WHEN chats.name != '' THEN chats.name ELSE excluded.name END`, toJID, fromJID); err != nil {
+		return err
+	}
+	// Pindahkan pesan (skip yg bentrok id), lalu sisa pesan duplikat dibuang.
+	if _, err := tx.ExecContext(ctx, `UPDATE OR IGNORE messages SET chat_jid = ? WHERE chat_jid = ?`, toJID, fromJID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE OR IGNORE messages_fts SET chat_jid = ? WHERE chat_jid = ?`, toJID, fromJID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, fromJID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM messages_fts WHERE chat_jid = ?`, fromJID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE jid = ?`, fromJID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ListChatJIDs mengembalikan semua jid chat (utk pass kanonikalisasi startup).
+func (s *Store) ListChatJIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT jid FROM chats`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var j string
+		if err := rows.Scan(&j); err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, rows.Err()
+}
+
 // DeleteChat menghapus chat beserta pesannya dari penyimpanan lokal.
 func (s *Store) DeleteChat(ctx context.Context, jid string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {

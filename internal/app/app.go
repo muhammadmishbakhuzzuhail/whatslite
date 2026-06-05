@@ -129,14 +129,15 @@ func (a *App) Startup(ctx context.Context) {
 func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// Pesan masuk → simpan ke storage → beri tahu UI (chat JID-nya).
 	eng.OnMessage(func(m engine.IncomingMessage) {
+		chat := eng.CanonicalJID(m.Chat) // satukan @lid↔nomor → 1 chat
 		a.bg(func() {
 			_ = store.SaveMessage(a.ctx, storage.Message{
-				ID: m.ID, ChatJID: m.Chat, Sender: m.Sender, PushName: m.PushName,
+				ID: m.ID, ChatJID: chat, Sender: m.Sender, PushName: m.PushName,
 				Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 				Timestamp: m.Timestamp, FromMe: m.FromMe,
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
 			})
-			runtime.EventsEmit(a.ctx, "wa:message", m.Chat)
+			runtime.EventsEmit(a.ctx, "wa:message", chat)
 		})
 	})
 	// History sync → simpan semua percakapan & riwayat dalam SATU transaksi
@@ -145,12 +146,13 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		chats := make([]storage.HistoryChat, 0, len(convs))
 		msgs := make([]storage.Message, 0, len(convs)*8)
 		for _, c := range convs {
+			cj := eng.CanonicalJID(c.JID) // satukan @lid↔nomor → 1 chat
 			chats = append(chats, storage.HistoryChat{
-				JID: c.JID, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
+				JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
 			})
 			for _, m := range c.Messages {
 				msgs = append(msgs, storage.Message{
-					ID: m.ID, ChatJID: m.Chat, Sender: m.Sender, PushName: m.PushName,
+					ID: m.ID, ChatJID: cj, Sender: m.Sender, PushName: m.PushName,
 					Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 					Timestamp: m.Timestamp, FromMe: m.FromMe, Status: m.Status,
 				})
@@ -158,6 +160,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		}
 		a.bg(func() {
 			_ = store.SaveHistory(a.ctx, chats, msgs, pushnames)
+			a.dedupChats(eng, store)
 			_ = store.RecomputeSummaries(a.ctx)
 			runtime.EventsEmit(a.ctx, "wa:sync", "")
 		})
@@ -167,6 +170,11 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:ready", eng.SelfJID())
 		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
 		go eng.SyncContacts()
+		// Satukan chat ganda @lid↔nomor dari data build lama (lid_map sudah persist).
+		a.bg(func() {
+			a.dedupChats(eng, store)
+			runtime.EventsEmit(a.ctx, "wa:sync", "")
+		})
 		// Ambil subjek grup yang diikuti → perbarui nama chat grup.
 		go func() {
 			gs, err := eng.JoinedGroups(a.ctx)
@@ -276,6 +284,23 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		}
 		runtime.EventsEmit(a.ctx, "wa:message", chat)
 	})
+}
+
+// dedupChats menyatukan baris chat ganda di mana @lid dan nomor menunjuk orang
+// yang sama. Iterasi semua jid chat, hitung bentuk kanonik (engine.CanonicalJID);
+// bila berbeda → merge baris @lid ke baris nomor. Idempoten; dijalankan setelah
+// lid_map terisi (history-sync / connect). Murah: hanya jalan saat ada @lid.
+func (a *App) dedupChats(eng *engine.Engine, store *storage.Store) {
+	jids, err := store.ListChatJIDs(a.ctx)
+	if err != nil {
+		return
+	}
+	for _, j := range jids {
+		canon := eng.CanonicalJID(j)
+		if canon != j {
+			_ = store.MergeChat(a.ctx, j, canon)
+		}
+	}
 }
 
 // OpenChat dipanggil FE saat chat dibuka: subscribe presence + (grup) subtitle anggota.

@@ -92,6 +92,27 @@ func (e *Engine) ResolveName(jid string) (string, bool) {
 	return push, false
 }
 
+// CanonicalJID menyatukan identitas chat 1:1 ke SATU bentuk kanonik agar tak ada
+// chat ganda. whatsmeow kini sering memakai JID privasi (@lid) untuk percakapan
+// yang sama yang sebelumnya tersimpan sebagai nomor (@s.whatsapp.net) → 2 baris
+// chat utk 1 orang. Kanonik = nomor (@s.whatsapp.net) bila pemetaan lid→nomor
+// diketahui; selainnya JID dikembalikan apa adanya (grup/bot/nomor tak berubah).
+func (e *Engine) CanonicalJID(jid string) string {
+	if e == nil || e.Client == nil || e.Client.Store == nil {
+		return jid
+	}
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return jid
+	}
+	if j.Server == types.HiddenUserServer && e.Client.Store.LIDs != nil {
+		if pn, err := e.Client.Store.LIDs.GetPNForLID(context.Background(), j); err == nil && !pn.IsEmpty() {
+			return pn.ToNonAD().String()
+		}
+	}
+	return jid
+}
+
 // ReadableID memberi label terbaca utk chat tanpa nama: nomor "+62…" alih-alih
 // @lid 15-digit mentah. Jembatani @lid → nomor via lid_map bila bisa.
 func (e *Engine) ReadableID(jid string) string {

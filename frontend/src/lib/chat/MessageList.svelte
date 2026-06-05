@@ -164,7 +164,7 @@
     <div class="float-date {floatVisible ? 'on' : ''}"><span>{floatDate}</span></div>
   {/if}
   <div class="messages" bind:this={box} on:scroll={onScroll}>
-    {#each items as it (it.idx)}
+    {#each items as it (it.m.id || it.idx)}
       {#if it.m.type === "day"}
         <div class="day-chip"><span>{it.m.label || $t("today")}</span></div>
       {:else if it.m.type === "system"}

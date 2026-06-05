@@ -2,6 +2,7 @@
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn } from "../../stores.js";
   import { getProfile, getSettingsItems } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
+  import LangPicker from "../common/LangPicker.svelte";
   import { initial } from "../util.js";
   import { t, locale, languages } from "../i18n.js";
   const me = getProfile();
@@ -76,9 +77,7 @@
         <div class="si-name">Bahasa terjemahan</div>
         <div class="si-desc">Pesan diterjemahkan ke bahasa ini</div>
       </div>
-      <select class="lang-select" bind:value={$translateLang}>
-        {#each TRANSLATE_LANGS as l}<option value={l.code}>{l.name}</option>{/each}
-      </select>
+      <LangPicker options={TRANSLATE_LANGS} value={$translateLang} onSelect={(c) => translateLang.set(c)} />
     </div>
 
     <!-- Suara notifikasi -->

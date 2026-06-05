@@ -257,7 +257,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .msg.in { justify-content: flex-start; }
 .msg.out { justify-content: flex-end; }
 /* Bubble modern: radius besar, tanpa ekor, shadow lembut (gaya iMessage 2025). */
-.bubble { position: relative; max-width: 66%; width: fit-content; padding: 8px 13px;
+.bubble { position: relative; max-width: min(66%, 560px); width: fit-content; padding: 8px 13px;
   border-radius: var(--r-lg); box-shadow: var(--shadow); font-size: 14.5px;
   line-height: 1.4; word-wrap: break-word; overflow-wrap: anywhere; }
 .msg.in .bubble { background: var(--in-bg); border-top-left-radius: 6px; }
@@ -986,8 +986,9 @@ button.info-row:hover { background: var(--hover); }
 .float-date.on { opacity: 1; }
 .float-date span { background: var(--bg2); color: var(--text2); font-size: 12px; font-weight: 600;
   padding: 4px 12px; border-radius: 12px; box-shadow: var(--shadow); }
-/* Badge pesan baru di FAB */
-.scroll-fab { position: relative; }
+/* Badge pesan baru di FAB (FAB sendiri tetap position:absolute dari atas →
+   konteks utk badge sudah ada; JANGAN override jadi relative atau FAB jadi
+   flex-item di .msg-wrap → muncul kanan-atas & nyempitin scrollbar). */
 .fab-badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
   background: var(--accent); color: #fff; border-radius: 9px; font-size: 11px; font-weight: 700;
   display: grid; align-items: center; justify-items: center; }

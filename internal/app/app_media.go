@@ -102,6 +102,17 @@ func (a *App) serveMedia(w http.ResponseWriter, r *http.Request) {
 	// cache miss → unduh dari proto tersimpan → tulis file
 	protoB64, err := a.store.GetMedia(a.ctx, chat, id)
 	if err != nil || protoB64 == "" {
+		// Fallback: pesan terkirim menyimpan data-URI penuh di kolom thumb
+		// (tanpa proto). Sajikan itu agar gambar/video keluar tetap tampil.
+		if m, e := a.store.GetMessage(a.ctx, chat, id); e == nil && strings.HasPrefix(m.Thumb, "data:") {
+			if mime, raw, e2 := decodeDataURI(m.Thumb); e2 == nil && len(raw) > 0 {
+				path := base + extForMime(mime)
+				_ = os.WriteFile(path, raw, 0o644)
+				w.Header().Set("Cache-Control", "max-age=31536000")
+				http.ServeFile(w, r, path)
+				return
+			}
+		}
 		http.NotFound(w, r)
 		return
 	}

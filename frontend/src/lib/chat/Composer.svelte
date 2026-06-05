@@ -1,8 +1,8 @@
 <script>
   import { tick } from "svelte";
   import { get } from "svelte/store";
-  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats } from "../../stores.js";
-  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker } from "../../services/data.js";
+  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft } from "../../stores.js";
+  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
   import { t } from "../i18n.js";
@@ -35,19 +35,35 @@
   // --- drag-drop & tempel gambar ---
   let dragOver = false;
   function kindOfFile(type) { return type.startsWith("video/") ? "video" : type.startsWith("image/") ? "image" : type.startsWith("audio/") ? "voice" : "document"; }
-  async function sendOneFile(f) {
-    const dataURI = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-    await sendMediaMessage(chatId, kindOfFile(f.type), "", f.name, dataURI);
+  function fileToDataURI(f) { return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); }); }
+  // Gambar/video → modal pratinjau + caption. Dokumen/audio → kirim langsung.
+  async function previewFile(f, viewOnce = false) {
+    const kind = kindOfFile(f.type);
+    const dataURI = await fileToDataURI(f);
+    if (kind === "image" || kind === "video") mediaDraft.set({ chatId, kind, name: f.name, dataURI, viewOnce });
+    else await sendMediaMessage(chatId, kind, "", f.name, dataURI);
+  }
+  // Media dari web (URL) → unduh sisi Go → pratinjau.
+  async function previewUrl(url) {
+    pushToast($t("fetching_media"), "ok");
+    const dataURI = await fetchRemoteMedia(url);
+    if (!dataURI) { pushToast($t("media_fetch_fail")); return; }
+    mediaDraft.set({ chatId, kind: dataURI.startsWith("data:video") ? "video" : "image", name: "web", dataURI });
   }
   function onDrop(e) {
     e.preventDefault(); dragOver = false;
     const files = [...(e.dataTransfer?.files || [])];
-    files.forEach(sendOneFile);
+    if (files.length) { files.forEach((f) => previewFile(f)); return; }
+    const uri = e.dataTransfer?.getData("text/uri-list") || e.dataTransfer?.getData("text/plain") || "";
+    const m = uri.match(/https?:\/\/[^\s"]+/);
+    if (m) previewUrl(m[0]);
   }
   function onPaste(e) {
     const items = [...(e.clipboardData?.items || [])];
-    const imgs = items.filter((it) => it.type.startsWith("image/")).map((it) => it.getAsFile()).filter(Boolean);
-    if (imgs.length) { e.preventDefault(); imgs.forEach(sendOneFile); }
+    const files = items.filter((it) => it.type.startsWith("image/") || it.type.startsWith("video/")).map((it) => it.getAsFile()).filter(Boolean);
+    if (files.length) { e.preventDefault(); files.forEach((f) => previewFile(f)); return; }
+    const text = (e.clipboardData?.getData("text") || "").trim();
+    if (/^https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp|mp4|webm|mov)(\?\S*)?$/i.test(text)) { e.preventDefault(); previewUrl(text); }
   }
   // --- GIF (Giphy) ---
   let gifOpen = false;
@@ -63,11 +79,7 @@
   function onOnce(e) {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
-    if (!f) return;
-    const kind = f.type.startsWith("video/") ? "video" : "image";
-    const r = new FileReader();
-    r.onload = () => sendMediaMessage(chatId, kind, "", f.name, r.result, true);
-    r.readAsDataURL(f);
+    if (f) previewFile(f, true);
   }
   // --- kirim kontak ---
   let contactOpen = false, contactQ = "";
@@ -142,14 +154,8 @@
   }
   async function onFile(e) {
     const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const dataURI = await new Promise((res) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.readAsDataURL(file);
-    });
-    await sendMediaMessage(chatId, kindOf(file.type), "", file.name, dataURI);
     e.target.value = "";
+    if (file) await previewFile(file);
   }
 
   // Emoji + kata kunci (cari ID/EN) → filter di picker.

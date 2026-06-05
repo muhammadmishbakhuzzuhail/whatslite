@@ -8,6 +8,7 @@
   import ForwardModal from "./lib/chat/ForwardModal.svelte";
   import MessageInfoModal from "./lib/chat/MessageInfoModal.svelte";
   import Lightbox from "./lib/chat/Lightbox.svelte";
+  import MediaPreviewModal from "./lib/chat/MediaPreviewModal.svelte";
   import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
   import Toast from "./lib/Toast.svelte";
   import { theme, infoOpen, loggedIn, lockState, inChatSearch, activeChatId, newChatOpen, lightbox, forwardDraft } from "./stores.js";
@@ -48,6 +49,7 @@
     <ForwardModal />
     <MessageInfoModal />
     <Lightbox />
+    <MediaPreviewModal />
     <NewChatModal />
   </div>
 {/if}

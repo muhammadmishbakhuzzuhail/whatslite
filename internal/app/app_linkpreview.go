@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"regexp"
@@ -74,6 +75,38 @@ func (a *App) GetLinkPreview(rawURL string) *LinkPreviewDTO {
 		return nil
 	}
 	return out
+}
+
+// FetchRemoteMedia mengunduh gambar/video dari URL (sisi Go → tanpa CORS) dan
+// mengembalikannya sebagai data-URI untuk dipratinjau & dikirim. "" bila gagal.
+func (a *App) FetchRemoteMedia(rawURL string) string {
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; WhatsAppLite/1.0)")
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	ct := resp.Header.Get("Content-Type")
+	if resp.StatusCode != http.StatusOK || !(strings.HasPrefix(ct, "image/") || strings.HasPrefix(ct, "video/")) {
+		return ""
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20)) // maks 32MB
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = ct[:i]
+	}
+	return "data:" + strings.TrimSpace(ct) + ";base64," + base64.StdEncoding.EncodeToString(data)
 }
 
 func firstNonEmpty(vals ...string) string {

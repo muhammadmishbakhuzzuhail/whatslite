@@ -38,6 +38,10 @@ export function ExportChat(arg1) {
   return window['go']['app']['App']['ExportChat'](arg1);
 }
 
+export function FetchRemoteMedia(arg1) {
+  return window['go']['app']['App']['FetchRemoteMedia'](arg1);
+}
+
 export function FollowChannel(arg1) {
   return window['go']['app']['App']['FollowChannel'](arg1);
 }

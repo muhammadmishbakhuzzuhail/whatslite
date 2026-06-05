@@ -350,6 +350,12 @@ export function setGroupPhoto(jid, dataURI) {
   if (LIVE) A.SetGroupPhoto(jid, dataURI);
 }
 
+// Unduh media dari URL web (sisi Go → tanpa CORS) → data-URI. "" bila gagal.
+export async function fetchRemoteMedia(url) {
+  if (LIVE) return A.FetchRemoteMedia(url);
+  return "";
+}
+
 // Pratinjau tautan (OG meta, diambil sisi Go → tanpa CORS). Cache per-URL.
 const _lpCache = {};
 export async function getLinkPreview(url) {

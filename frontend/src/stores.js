@@ -25,6 +25,10 @@ translateLang.subscribe((v) => { try { localStorage.setItem("wa-tr-lang", v); } 
 // Lightbox media fullscreen: {url, type:"image"|"video", caption} | null
 export const lightbox = writable(null);
 
+// Draft kirim media: pratinjau + caption sebelum dikirim.
+// {chatId, kind, name, dataURI, viewOnce?} | null
+export const mediaDraft = writable(null);
+
 // Pencarian dalam satu chat (toggle dari header).
 export const inChatSearch = writable(false);
 

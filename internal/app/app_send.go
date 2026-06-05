@@ -120,6 +120,10 @@ func (a *App) React(chat, msgID, sender, emoji string, fromMe bool) {
 	}
 	if err := a.eng.React(a.ctx, chat, sender, msgID, emoji, fromMe); err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	if a.store != nil {
+		_ = a.store.SetReaction(a.ctx, chat, msgID, a.eng.SelfJID(), emoji, time.Now())
 	}
 }
 

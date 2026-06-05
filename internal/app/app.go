@@ -189,6 +189,22 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			"chat": chat, "ids": ids, "status": status,
 		})
 	})
+	// Edit masuk (lawan sunting pesannya) → perbarui teks lokal.
+	eng.OnEdit(func(chat, msgID, newText string) {
+		if a.store == nil {
+			return
+		}
+		_ = a.store.EditText(a.ctx, chat, msgID, newText)
+		runtime.EventsEmit(a.ctx, "wa:message", chat)
+	})
+	// Reaksi masuk → simpan & beri tahu UI (reload chat aktif).
+	eng.OnReaction(func(chat, targetID, sender, emoji string, fromMe bool) {
+		if a.store == nil {
+			return
+		}
+		_ = a.store.SetReaction(a.ctx, chat, targetID, sender, emoji, time.Now())
+		runtime.EventsEmit(a.ctx, "wa:message", chat)
+	})
 	// Suara polling masuk → cocokkan hash ke opsi, simpan, beri tahu UI.
 	eng.OnPollVote(func(chat, pollID, voter string, selected [][]byte) {
 		if a.store == nil {

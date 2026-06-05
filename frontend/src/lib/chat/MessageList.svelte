@@ -42,11 +42,32 @@
   }
 
   $: items = build(messages, group);
+  function dayLabel(ts) {
+    if (!ts) return "";
+    const d = new Date(ts * 1000), now = new Date();
+    const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((day(now) - day(d)) / 86400000);
+    if (diff <= 0) return $t("today");
+    if (diff === 1) return $t("yesterday");
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+  }
+
   function build(msgs, grp) {
     let prevKey = null;
+    let prevDay = null;
     const out = [];
     msgs.forEach((m, idx) => {
       if (empty(m)) return; // idx tetap index asli (untuk hapus/reaksi)
+      // Sisipkan pemisah hari saat tanggal berganti (abaikan chip/sistem bawaan).
+      if (m.type !== "day" && m.type !== "system" && m.type !== "unread" && m.ts) {
+        const d = new Date(m.ts * 1000);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        if (key !== prevDay) {
+          prevDay = key;
+          out.push({ m: { type: "day", label: dayLabel(m.ts) }, idx: "day-" + idx, firstOfRun: false });
+          prevKey = null;
+        }
+      }
       const isBubble = m.type === "text" || m.type === "image" || m.type === "video" || m.type === "sticker" || m.type === "voice";
       let firstOfRun = true;
       if (isBubble) {
@@ -99,7 +120,7 @@
   <div class="messages" bind:this={box} on:scroll={onScroll}>
     {#each items as it (it.idx)}
       {#if it.m.type === "day"}
-        <div class="day-chip"><span>{$t("today")}</span></div>
+        <div class="day-chip"><span>{it.m.label || $t("today")}</span></div>
       {:else if it.m.type === "system"}
         <div class="system-msg">
           <svg class="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>

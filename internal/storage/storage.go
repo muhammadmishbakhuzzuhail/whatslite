@@ -122,6 +122,15 @@ CREATE INDEX IF NOT EXISTS idx_messages_chat_ts ON messages(chat_jid, ts);
 	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`)
 	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'`)
 	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN pinned_in_chat INTEGER NOT NULL DEFAULT 0`)
+	// Reaksi per (pesan, pengirim) — satu reaksi terakhir per orang.
+	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS reactions (
+		chat_jid TEXT NOT NULL,
+		msg_id   TEXT NOT NULL,
+		sender   TEXT NOT NULL,
+		emoji    TEXT NOT NULL,
+		ts       INTEGER NOT NULL,
+		PRIMARY KEY (chat_jid, msg_id, sender)
+	)`)
 	// Suara polling per-pemilih (satu baris terakhir per voter) → rekap hasil.
 	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS poll_votes (
 		poll_id TEXT NOT NULL,

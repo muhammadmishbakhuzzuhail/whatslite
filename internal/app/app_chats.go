@@ -216,7 +216,53 @@ type MessageDTO struct {
 	Ts        int64        `json:"ts"` // unix detik (kursor pagination)
 	QuoteName string       `json:"quoteName"` // balasan: nama pengirim yg dikutip
 	QuoteText string       `json:"quoteText"` // balasan: preview teks dikutip
-	Mentions  []MentionDTO `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
+	Mentions  []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
+	Reactions []ReactionDTO `json:"reactions"` // reaksi emoji teragregasi
+}
+
+// ReactionDTO = satu emoji teragregasi pada pesan.
+type ReactionDTO struct {
+	Emoji string `json:"emoji"`
+	Count int    `json:"count"`
+	Mine  bool   `json:"mine"`
+}
+
+// attachReactions mengisi field Reactions tiap DTO dari peta reaksi chat.
+func (a *App) attachReactions(out []MessageDTO, chat string) {
+	if a.store == nil || len(out) == 0 {
+		return
+	}
+	rmap, err := a.store.ReactionsForChat(a.ctx, chat)
+	if err != nil || len(rmap) == 0 {
+		return
+	}
+	self := ""
+	if a.eng != nil {
+		self = userPart(a.eng.SelfJID())
+	}
+	for i := range out {
+		rs := rmap[out[i].ID]
+		if len(rs) == 0 {
+			continue
+		}
+		order := []string{}
+		agg := map[string]*ReactionDTO{}
+		for _, r := range rs {
+			d := agg[r.Emoji]
+			if d == nil {
+				d = &ReactionDTO{Emoji: r.Emoji}
+				agg[r.Emoji] = d
+				order = append(order, r.Emoji)
+			}
+			d.Count++
+			if self != "" && userPart(r.Sender) == self {
+				d.Mine = true
+			}
+		}
+		for _, e := range order {
+			out[i].Reactions = append(out[i].Reactions, *agg[e])
+		}
+	}
 }
 
 // GetMessages: 200 pesan terbaru.
@@ -235,7 +281,9 @@ func (a *App) GetMessages(jid string) (out []MessageDTO) {
 	if err != nil {
 		return
 	}
-	return a.toDTO(ms)
+	out = a.toDTO(ms)
+	a.attachReactions(out, jid)
+	return
 }
 
 // GetMessagesBefore: hingga 50 pesan lebih LAMA dari beforeTs (pagination scroll atas).
@@ -253,7 +301,9 @@ func (a *App) GetMessagesBefore(jid string, beforeTs int64) (out []MessageDTO) {
 	if err != nil {
 		return
 	}
-	return a.toDTO(ms)
+	out = a.toDTO(ms)
+	a.attachReactions(out, jid)
+	return
 }
 
 // toDTO memetakan pesan storage → DTO frontend (nama, balasan, mention).

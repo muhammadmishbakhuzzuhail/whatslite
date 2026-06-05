@@ -790,3 +790,11 @@ button.info-row:hover { background: var(--hover); }
 .poll-radio, .poll-opt-txt, .poll-cnt { position:relative; z-index:1; }
 .poll-opt-txt { flex:1; }
 .poll-cnt { font-size:12px; color:var(--text2); font-weight:600; }
+
+/* Bubble dokumen */
+.doc-card { display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; min-width:200px; padding:6px 2px; }
+.doc-ico { width:40px; height:40px; border-radius:9px; background:color-mix(in srgb,var(--accent) 16%,transparent); display:grid; place-items:center; flex:0 0 auto; }
+.doc-ico svg { width:22px; height:22px; fill:none; stroke:var(--accent); stroke-width:2; }
+.doc-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px; }
+.doc-dl svg { width:20px; height:20px; fill:none; stroke:var(--text2); stroke-width:2; }
+.doc-card:hover .doc-dl svg { stroke:var(--accent); }

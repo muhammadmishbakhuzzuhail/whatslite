@@ -233,6 +233,12 @@
         <img class="loc-map" src={mapUrl} alt="" on:error={(e) => (e.target.style.display = 'none')} />
         <span class="loc-lbl"><svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{msg.text || "📍 Lokasi"}</span>
       </button>
+    {:else if msg.type === "document"}
+      <a class="doc-card" href={mediaUrl} download={msg.text || "dokumen"}>
+        <span class="doc-ico"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>
+        <span class="doc-name">{msg.text || "Dokumen"}</span>
+        <span class="doc-dl"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg></span>
+      </a>
     {:else if msg.type === "poll"}
       <div class="poll-card">
         <div class="poll-q"><svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h5"/></svg>{msg.text}</div>

@@ -141,6 +141,46 @@ AND (CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END) < ?`
 	return err
 }
 
+// Reaction = satu reaksi (pengirim + emoji).
+type Reaction struct {
+	Sender string
+	Emoji  string
+}
+
+// SetReaction menyimpan/menghapus reaksi seseorang pada pesan (emoji ""=hapus).
+func (s *Store) SetReaction(ctx context.Context, chatJID, msgID, sender, emoji string, ts time.Time) error {
+	if strings.TrimSpace(emoji) == "" {
+		_, err := s.db.ExecContext(ctx,
+			`DELETE FROM reactions WHERE chat_jid=? AND msg_id=? AND sender=?`, chatJID, msgID, sender)
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO reactions (chat_jid, msg_id, sender, emoji, ts) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(chat_jid, msg_id, sender) DO UPDATE SET emoji=excluded.emoji, ts=excluded.ts`,
+		chatJID, msgID, sender, emoji, ts.Unix())
+	return err
+}
+
+// ReactionsForChat mengembalikan semua reaksi chat, dipetakan per msg_id.
+func (s *Store) ReactionsForChat(ctx context.Context, chatJID string) (map[string][]Reaction, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT msg_id, sender, emoji FROM reactions WHERE chat_jid=?`, chatJID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]Reaction{}
+	for rows.Next() {
+		var id string
+		var r Reaction
+		if err := rows.Scan(&id, &r.Sender, &r.Emoji); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], r)
+	}
+	return out, rows.Err()
+}
+
 // SetPollVote menyimpan suara terbaru seorang pemilih (mengganti yang lama).
 func (s *Store) SetPollVote(ctx context.Context, pollID, voter string, options []string, ts time.Time) error {
 	j, _ := json.Marshal(options)

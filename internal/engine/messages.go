@@ -114,6 +114,26 @@ func (e *Engine) OnPinInChat(fn func(chat, msgID string, pinned bool)) {
 	})
 }
 
+// OnReaction memanggil fn saat reaksi masuk (emoji ""=dilepas). target=pesan
+// yang direaksi, sender=pemberi reaksi.
+func (e *Engine) OnReaction(fn func(chat, targetID, sender, emoji string, fromMe bool)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok {
+			return
+		}
+		r := m.Message.GetReactionMessage()
+		if r == nil || r.GetKey() == nil {
+			return
+		}
+		sender := m.Info.Sender.String()
+		if m.Info.IsFromMe {
+			sender = e.SelfJID()
+		}
+		fn(m.Info.Chat.String(), r.GetKey().GetID(), sender, r.GetText(), m.Info.IsFromMe)
+	})
+}
+
 // OnPollVote memanggil fn saat ada suara polling masuk (sudah didekripsi).
 // selected = hash opsi terpilih; cocokkan via MatchPollHashes.
 func (e *Engine) OnPollVote(fn func(chat, pollID, voter string, selected [][]byte)) {
@@ -148,6 +168,29 @@ func (e *Engine) MatchPollHashes(options []string, selected [][]byte) []string {
 		}
 	}
 	return out
+}
+
+// OnEdit memanggil fn saat sebuah pesan disunting pengirimnya (teks baru).
+func (e *Engine) OnEdit(fn func(chat, msgID, newText string)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok {
+			return
+		}
+		pm := m.Message.GetProtocolMessage()
+		if pm.GetType() != waE2E.ProtocolMessage_MESSAGE_EDIT {
+			return
+		}
+		edited := pm.GetEditedMessage()
+		if edited == nil {
+			return
+		}
+		_, txt, _, _ := describeMessage(edited)
+		if txt == "" {
+			return
+		}
+		fn(m.Info.Chat.String(), pm.GetKey().GetID(), txt)
+	})
 }
 
 // HistoryConversation = satu percakapan dari history sync (sudah disederhanakan).
@@ -289,7 +332,8 @@ func describeMessage(msg *waE2E.Message) (kind, text, thumb, media string) {
 		if name == "" {
 			name = "Dokumen"
 		}
-		return "text", "📄 " + name, "", ""
+		// kind "document": text=nama, media=proto (utk unduh via /media).
+		return "document", name, "", ser()
 	case msg.GetLocationMessage() != nil:
 		lm := msg.GetLocationMessage()
 		name := lm.GetName()

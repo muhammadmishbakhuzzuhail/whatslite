@@ -238,6 +238,22 @@ export namespace app {
 	        this.jid = source["jid"];
 	    }
 	}
+	export class ReactionDTO {
+	    emoji: string;
+	    count: number;
+	    mine: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReactionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.emoji = source["emoji"];
+	        this.count = source["count"];
+	        this.mine = source["mine"];
+	    }
+	}
 	export class MessageDTO {
 	    id: string;
 	    dir: string;
@@ -253,6 +269,7 @@ export namespace app {
 	    quoteName: string;
 	    quoteText: string;
 	    mentions: MentionDTO[];
+	    reactions: ReactionDTO[];
 	
 	    static createFrom(source: any = {}) {
 	        return new MessageDTO(source);
@@ -274,6 +291,7 @@ export namespace app {
 	        this.quoteName = source["quoteName"];
 	        this.quoteText = source["quoteText"];
 	        this.mentions = this.convertValues(source["mentions"], MentionDTO);
+	        this.reactions = this.convertValues(source["reactions"], ReactionDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -384,6 +402,7 @@ export namespace app {
 	        this.about = source["about"];
 	    }
 	}
+	
 	
 	export class SearchHitDTO {
 	    chatJid: string;

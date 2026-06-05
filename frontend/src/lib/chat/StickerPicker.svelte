@@ -142,7 +142,7 @@
   .stk-cell { padding:6px; border:0; background:var(--bg2); border-radius:10px; cursor:pointer; aspect-ratio:1; }
   .stk-cell img { width:100%; height:100%; object-fit:contain; }
   .stk-empty, .stk-busy { grid-column:1/-1; text-align:center; color:var(--text2); padding:28px 12px; }
-  .stk-create { min-height:180px; display:grid; place-items:center; }
+  .stk-create { min-height:180px; display:grid; align-items:center;justify-items:center; }
   .stk-pick { display:flex; flex-direction:column; align-items:center; gap:6px; padding:28px; border:2px dashed var(--line); border-radius:14px; background:none; cursor:pointer; color:var(--text2); width:100%; }
   .stk-pick svg { width:30px; height:30px; fill:none; stroke:var(--accent); stroke-width:2; }
   .stk-pick small { font-size:11px; }

@@ -37,11 +37,11 @@
 {/if}
 
 <style>
-  .lb { position:fixed; inset:0; z-index:80; background:rgba(0,0,0,.92); display:grid; place-items:center; }
+  .lb { position:fixed; inset:0; z-index:80; background:rgba(0,0,0,.92); display:grid; align-items:center;justify-items:center; }
   .lb-media { max-width:94vw; max-height:90vh; object-fit:contain; border-radius:6px; }
   .lb-x { position:absolute; top:18px; right:22px; background:rgba(255,255,255,.12); border:0; color:#fff; width:38px; height:38px; border-radius:50%; font-size:18px; cursor:pointer; }
   .lb-x:hover { background:rgba(255,255,255,.22); }
-  .lb-save { position:absolute; top:18px; right:70px; background:rgba(255,255,255,.12); border:0; color:#fff; width:38px; height:38px; border-radius:50%; cursor:pointer; display:grid; place-items:center; }
+  .lb-save { position:absolute; top:18px; right:70px; background:rgba(255,255,255,.12); border:0; color:#fff; width:38px; height:38px; border-radius:50%; cursor:pointer; display:grid; align-items:center;justify-items:center; }
   .lb-save svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   .lb-save:hover { background:rgba(255,255,255,.22); }
   .lb-cap { position:absolute; bottom:26px; left:0; right:0; text-align:center; color:#fff; font-size:14px; padding:0 24px; text-shadow:0 1px 4px rgba(0,0,0,.7); }

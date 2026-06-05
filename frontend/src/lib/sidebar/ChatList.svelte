@@ -86,7 +86,7 @@
     cursor: pointer; padding: 9px 12px; border-radius: var(--r); text-align: left; }
   .hit-row:hover { background: var(--hover); }
   .hit-av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid;
-    place-items: center; font-weight: 700; font-size: 16px; color: #fff; background: var(--accent); }
+    align-items: center; justify-items: center; font-weight: 700; font-size: 16px; color: #fff; background: var(--accent); }
   .hit-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .hit-top { display: flex; justify-content: space-between; align-items: baseline; }
   .hit-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -198,7 +198,7 @@
 
 <style>
   .info-hero { position: relative; }
-  .hero-photo-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); border: 0; color: #fff; cursor: pointer; display: grid; place-items: center; }
+  .hero-photo-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); border: 0; color: #fff; cursor: pointer; display: grid; align-items: center; justify-items: center; }
   .hero-photo-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
   .iname { display: inline-flex; align-items: center; gap: 8px; }
   .edit-pen { background: none; border: 0; color: var(--text2); cursor: pointer; padding: 2px; }

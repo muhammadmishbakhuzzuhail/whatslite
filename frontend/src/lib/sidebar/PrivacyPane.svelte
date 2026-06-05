@@ -87,6 +87,6 @@
   .pv-row { display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line); }
   .pv-name { flex:1; font-size:14.5px; }
   .pv-blocked { display:flex; align-items:center; gap:12px; padding:9px 16px; }
-  .pv-av { width:38px; height:38px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:600; flex:0 0 auto; }
+  .pv-av { width:38px; height:38px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; flex:0 0 auto; }
   .pv-bname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>

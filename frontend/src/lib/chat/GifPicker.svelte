@@ -72,7 +72,7 @@
   .gif-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-height:300px; overflow-y:auto; }
   .gif-cell { position:relative; padding:0; border:0; background:var(--bg2); border-radius:8px; overflow:hidden; cursor:pointer; aspect-ratio:1; }
   .gif-cell img { width:100%; height:100%; object-fit:cover; display:block; }
-  .gif-load { position:absolute; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.4); color:#fff; }
+  .gif-load { position:absolute; inset:0; display:grid; align-items:center;justify-items:center; background:rgba(0,0,0,.4); color:#fff; }
   .gif-empty { grid-column:1/-1; text-align:center; color:var(--text2); padding:24px; }
   .gif-credit { text-align:center; font-size:10px; color:var(--text2); margin-top:6px; letter-spacing:.5px; }
 </style>

@@ -101,7 +101,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .rail-top, .rail-bottom { display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .rail-btn {
   width: 44px; height: 44px; border-radius: 50%;
-  display: grid; place-items: center; background: transparent; border: 0;
+  display: grid; align-items: center; justify-items: center; background: transparent; border: 0;
   cursor: pointer; color: var(--rail-ico); transition: background .15s;
 }
 .rail-btn:hover { background: rgba(0,0,0,.06); }
@@ -112,6 +112,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .rail-avatar {
   width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
   background: #6a9e3d; color: #fff; font-weight: 600; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
 }
 
 /* ---------- SIDEBAR ---------- */
@@ -130,7 +131,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .head-actions { display: flex; gap: 4px; }
 .icon-btn {
   width: 40px; height: 40px; border-radius: 50%;
-  display: grid; place-items: center; background: transparent; border: 0;
+  display: grid; align-items: center; justify-items: center; background: transparent; border: 0;
   cursor: pointer; color: var(--text2); transition: background .15s;
 }
 .icon-btn:hover { background: rgba(0,0,0,.06); }
@@ -164,7 +165,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    Personal = inisial; grup = ikon people. Pastel via color-mix (WebKit 2.41 OK);
    fallback bg netral bila color-mix tak didukung → tetap terlihat (tak transparan). */
 .avatar { width: 49px; height: 49px; border-radius: 50%; flex-shrink: 0;
-  display: grid; place-items: center; line-height: 1;
+  display: grid; align-items: center; justify-items: center; line-height: 1;
   font-weight: 700; font-size: 19px; text-transform: uppercase;
   color: var(--c, #06b67f);
   background: #dde7f0;
@@ -187,7 +188,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .row-preview .ticks { width: 16px; height: 12px; flex-shrink: 0; }
 .badge { background: var(--badge); color: #fff; font-size: 12px; font-weight: 600;
   min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px;
-  display: grid; place-items: center; margin-left: 8px; }
+  display: grid; align-items: center; justify-items: center; margin-left: 8px; }
 .row-icons { display: flex; gap: 4px; color: var(--text2); }
 .row-icons svg { width: 16px; height: 16px; }
 .pin svg { transform: rotate(45deg); }
@@ -198,7 +199,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
   background-color: var(--wallpaper);
   background-image: var(--wa-doodle);
   background-size: 412px auto; background-repeat: repeat; }
-.empty-conv { flex: 1; display: grid; place-items: center; color: var(--text2);
+.empty-conv { flex: 1; display: grid; align-items: center; justify-items: center; color: var(--text2);
   text-align: center; padding: 24px; }
 .conv-head { height: 60px; padding: 0 18px; background: var(--head-bg); border-bottom: 1px solid var(--divider);
   display: flex; align-items: center; justify-content: space-between; }
@@ -214,7 +215,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .scroll-fab { position: absolute; right: 18px; bottom: 16px; width: 42px; height: 42px;
   border-radius: 50%; border: 0; cursor: pointer; z-index: 5;
   background: var(--in-bg); color: var(--text2);
-  display: grid; place-items: center;
+  display: grid; align-items: center; justify-items: center;
   box-shadow: 0 2px 8px rgba(11,20,26,.18); transition: background .15s, color .15s; }
 .scroll-fab:hover { color: var(--text); }
 .scroll-fab svg { width: 24px; height: 24px; }
@@ -298,14 +299,14 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .img-ph { width: 100%; height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px; color: var(--text2); cursor: pointer; }
 .img-ph .ph-dl { width: 46px; height: 46px; border-radius: 50%;
-  background: rgba(0,0,0,.08); display: grid; place-items: center; }
+  background: rgba(0,0,0,.08); display: grid; align-items: center; justify-items: center; }
 [data-theme="dark"] .img-ph .ph-dl { background: rgba(255,255,255,.12); }
 .img-ph .ph-dl svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .img-ph .ph-lbl { font-size: 12.5px; font-weight: 500; }
 .play-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,.55);
-  display: grid; place-items: center; }
+  display: grid; align-items: center; justify-items: center; }
 .play-badge svg { width: 26px; height: 26px; fill: #fff; stroke: none; }
 .media-loading { position: absolute; top: 50%; left: 50%; width: 28px; height: 28px;
   margin: -14px 0 0 -14px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
@@ -315,7 +316,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 
 .bubble.voice { display: flex; align-items: center; gap: 9px; min-width: 230px; padding: 8px 10px; }
 .play { width: 34px; height: 34px; border-radius: 50%; border: 0; flex-shrink: 0;
-  background: transparent; color: var(--text2); cursor: pointer; display: grid; place-items: center; }
+  background: transparent; color: var(--text2); cursor: pointer; display: grid; align-items: center; justify-items: center; }
 .play svg { fill: currentColor; stroke: none; width: 26px; height: 26px; }
 .wave { flex: 1; display: flex; align-items: center; gap: 3px; height: 26px; }
 .wave span { flex: 1; background: var(--text2); opacity: .55; border-radius: 2px; }
@@ -360,7 +361,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .archived { display: flex; align-items: center; gap: 13px; padding: 12px 16px 12px 13px;
   cursor: pointer; border-bottom: 1px solid var(--divider); }
 .archived:hover { background: var(--hover); }
-.archived .arc-ico { width: 49px; display: grid; place-items: center; color: var(--accent); }
+.archived .arc-ico { width: 49px; display: grid; align-items: center; justify-items: center; color: var(--accent); }
 .archived .arc-ico svg { width: 22px; height: 22px; }
 .archived .arc-label { flex: 1; font-size: 15px; font-weight: 500; }
 .archived .arc-count { font-size: 12px; color: var(--accent); font-weight: 600; }
@@ -468,7 +469,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .profile-field .pf-val svg { width: 18px; height: 18px; color: var(--text2); }
 .profile-field .pf-note { font-size: 12.5px; color: var(--text2); margin-top: 8px; }
 
-.placeholder-pane { flex: 1; display: grid; place-items: center; text-align: center;
+.placeholder-pane { flex: 1; display: grid; align-items: center; justify-items: center; text-align: center;
   color: var(--text2); padding: 24px; background: var(--sidebar-bg); }
 .placeholder-pane .ph-ico svg { width: 64px; height: 64px; opacity: .5; }
 .placeholder-pane .ph-title { font-size: 18px; margin-top: 12px; color: var(--text); }
@@ -479,7 +480,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .rail-btn { position: relative; }
 .rail-badge { position: absolute; top: 3px; right: 5px; background: var(--badge);
   color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px;
-  border-radius: 8px; padding: 0 4px; display: grid; place-items: center; line-height: 1; }
+  border-radius: 8px; padding: 0 4px; display: grid; align-items: center; justify-items: center; line-height: 1; }
 .meta-ai .ai-ring { width: 24px; height: 24px; border-radius: 50%;
   background: conic-gradient(from 90deg, #2ad0ff, #8b5cf6, #ff4fa3, #ffb13d, #2ad0ff); }
 
@@ -493,7 +494,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .notif-banner .nb-text { flex: 1; font-size: 13.5px; color: var(--text2); }
 .notif-banner .nb-link { color: var(--accent); cursor: pointer; font-weight: 500; }
 .notif-banner .nb-close { background: 0; border: 0; cursor: pointer; color: var(--text2);
-  padding: 0; display: grid; place-items: center; }
+  padding: 0; display: grid; align-items: center; justify-items: center; }
 .notif-banner .nb-close svg { width: 18px; height: 18px; }
 
 /* strip pesan tersemat */
@@ -552,7 +553,7 @@ img.avatar { display: block; }
 .conv-splash { flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; text-align: center; padding: 24px; }
 .splash-logo { width: 200px; height: 200px; border-radius: 50%; background: var(--head-bg);
-  display: grid; place-items: center; margin-bottom: 20px; }
+  display: grid; align-items: center; justify-items: center; margin-bottom: 20px; }
 .splash-logo svg { width: 96px; height: 96px; color: var(--text2); opacity: .45; }
 .conv-splash h2 { font-size: 28px; font-weight: 300; color: var(--text); margin-bottom: 8px; }
 .conv-splash p { color: var(--text2); font-size: 14px; max-width: 420px; line-height: 1.5; }
@@ -568,7 +569,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 /* ====================== CONTEXT MENU PESAN ====================== */
 .msg-menu-btn { position: absolute; top: 2px; right: 2px; width: 24px; height: 22px;
   border: 0; cursor: pointer; color: var(--text2); opacity: 0; transition: opacity .12s;
-  display: grid; place-items: center; border-radius: 0 8px 0 8px; }
+  display: grid; align-items: center; justify-items: center; border-radius: 0 8px 0 8px; }
 .msg.in .msg-menu-btn { background: var(--in-bg); }
 .msg.out .msg-menu-btn { background: var(--out-bg); }
 .bubble:hover .msg-menu-btn { opacity: .85; }
@@ -579,7 +580,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
   box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .12s; }
 .bubble:hover .msg-actions, .msg-actions:focus-within { opacity: 1; pointer-events: auto; }
 .msg-actions button { border: 0; background: none; cursor: pointer; width: 28px; height: 28px;
-  border-radius: 50%; display: grid; place-items: center; font-size: 15px; line-height: 1; }
+  border-radius: 50%; display: grid; align-items: center; justify-items: center; font-size: 15px; line-height: 1; }
 .msg-actions button:hover { background: var(--hover); }
 .msg-actions svg { width: 17px; height: 17px; fill: none; stroke: var(--text2); stroke-width: 2; }
 
@@ -630,7 +631,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .lock-screen { height: 100vh; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 18px; background: var(--head-bg); }
 .lock-logo { width: 84px; height: 84px; border-radius: 50%; background: var(--accent);
-  display: grid; place-items: center; }
+  display: grid; align-items: center; justify-items: center; }
 .lock-logo svg { width: 42px; height: 42px; color: #fff; }
 .lock-title { font-size: 17px; color: var(--text); }
 .pin-dots { display: flex; gap: 16px; }
@@ -649,7 +650,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 /* ---------- Menu konteks baris chat ---------- */
 .row-menu-btn { position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
   width: 26px; height: 24px; border: 0; border-radius: 4px; cursor: pointer; opacity: 0;
-  background: var(--hover); color: var(--text2); display: grid; place-items: center;
+  background: var(--hover); color: var(--text2); display: grid; align-items: center; justify-items: center;
   transition: opacity .12s; z-index: 5; }
 .chat-row:hover .row-menu-btn { opacity: 1; }
 .row-menu-btn svg { width: 18px; height: 18px; }
@@ -688,7 +689,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
   border: 0; background: 0; cursor: pointer; padding: 7px 10px; border-radius: var(--r-sm); text-align: left; }
 .mention-item:hover { background: var(--hover); }
 .mi-av { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-  display: grid; place-items: center; font-weight: 700; font-size: 13px;
+  display: grid; align-items: center; justify-items: center; font-weight: 700; font-size: 13px;
   color: #fff; background: var(--accent); text-transform: uppercase; }
 .mi-av.special { background: var(--text2); }
 .mi-name { font-size: 14.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -727,7 +728,7 @@ button.info-row:hover { background: var(--hover); }
 .nc-action { display: flex; align-items: center; gap: 14px; width: 100%; border: 0; background: 0;
   cursor: pointer; padding: 12px 16px; font-size: 15px; color: var(--text); }
 .nc-action:hover { background: var(--hover); }
-.nc-ico { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+.nc-ico { width: 40px; height: 40px; border-radius: 50%; display: grid; align-items: center; justify-items: center;
   background: var(--accent); color: #fff; }
 .nc-name, .nc-search { margin: 6px 12px; padding: 9px 14px; border: 0; border-radius: var(--r-pill);
   background: var(--search-bg); color: var(--text); font-size: 14.5px; outline: 0; }
@@ -761,7 +762,7 @@ button.info-row:hover { background: var(--hover); }
   cursor: pointer; padding: 9px 12px; border-radius: var(--r); text-align: left; }
 .hit-row:hover { background: var(--hover); }
 .hit-av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid;
-  place-items: center; font-weight: 700; font-size: 16px; color: #fff; }
+  align-items: center; justify-items: center; font-weight: 700; font-size: 16px; color: #fff; }
 .hit-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hit-top { display: flex; justify-content: space-between; align-items: baseline; }
 .hit-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -780,7 +781,7 @@ button.info-row:hover { background: var(--hover); }
 .msg.selmode { cursor: pointer; }
 .msg.selmode .msg-menu-btn { display: none; }
 .msg.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.sel-check { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text2); display: grid; place-items: center; font-size: 13px; color: #fff; z-index: 3; }
+.sel-check { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text2); display: grid; align-items: center; justify-items: center; font-size: 13px; color: #fff; z-index: 3; }
 .sel-check.on { background: var(--accent); border-color: var(--accent); }
 
 /* Drag-drop gambar ke composer */
@@ -792,7 +793,7 @@ button.info-row:hover { background: var(--hover); }
 .loc-lbl { display:flex; align-items:center; gap:6px; padding:8px 10px; font-size:13.5px; background:var(--bg2); }
 .loc-lbl svg { width:18px; height:18px; fill:none; stroke:var(--accent); stroke-width:2; flex:0 0 auto; }
 .ctc-card { display:flex; align-items:center; gap:11px; padding:8px 4px; min-width:200px; }
-.ctc-av { width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:600; flex:0 0 auto; }
+.ctc-av { width:40px; height:40px; border-radius:50%; background:var(--accent); color:#fff; display:grid; align-items:center;justify-items:center; font-weight:600; flex:0 0 auto; }
 .ctc-info { display:flex; flex-direction:column; min-width:0; flex:1; }
 .ctc-name { font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ctc-num { font-size:12.5px; color:var(--text2); }
@@ -814,7 +815,7 @@ button.info-row:hover { background: var(--hover); }
 .poll-opt:hover:not(:disabled) { border-color:var(--accent); }
 .poll-opt.voted { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent); }
 .poll-opt:disabled { cursor:default; }
-.poll-radio { width:16px; height:16px; border-radius:50%; border:2px solid var(--text2); display:grid; place-items:center; font-size:10px; color:var(--accent); flex:0 0 auto; }
+.poll-radio { width:16px; height:16px; border-radius:50%; border:2px solid var(--text2); display:grid; align-items:center;justify-items:center; font-size:10px; color:var(--accent); flex:0 0 auto; }
 .poll-opt.voted .poll-radio { border-color:var(--accent); }
 .poll-note { font-size:11.5px; color:var(--text2); }
 
@@ -830,7 +831,7 @@ button.info-row:hover { background: var(--hover); }
 
 /* Pemilih wallpaper di Settings */
 .wp-swatches { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
-.wp-sw { width:30px; height:30px; border-radius:8px; border:2px solid var(--line); cursor:pointer; display:grid; place-items:center; color:var(--text2); font-size:13px; }
+.wp-sw { width:30px; height:30px; border-radius:8px; border:2px solid var(--line); cursor:pointer; display:grid; align-items:center;justify-items:center; color:var(--text2); font-size:13px; }
 .wp-sw.on { border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent); }
 
 /* Poll bar hasil */
@@ -842,7 +843,7 @@ button.info-row:hover { background: var(--hover); }
 
 /* Bubble dokumen */
 .doc-card { display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; min-width:200px; padding:6px 2px; }
-.doc-ico { width:40px; height:40px; border-radius:9px; background:color-mix(in srgb,var(--accent) 16%,transparent); display:grid; place-items:center; flex:0 0 auto; }
+.doc-ico { width:40px; height:40px; border-radius:9px; background:color-mix(in srgb,var(--accent) 16%,transparent); display:grid; align-items:center;justify-items:center; flex:0 0 auto; }
 .doc-ico svg { width:22px; height:22px; fill:none; stroke:var(--accent); stroke-width:2; }
 .doc-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px; }
 .doc-dl svg { width:20px; height:20px; fill:none; stroke:var(--text2); stroke-width:2; }
@@ -881,7 +882,7 @@ button.info-row:hover { background: var(--hover); }
 .scroll-fab { position: relative; }
 .fab-badge { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
   background: var(--accent); color: #fff; border-radius: 9px; font-size: 11px; font-weight: 700;
-  display: grid; place-items: center; }
+  display: grid; align-items: center; justify-items: center; }
 
 /* Kategori GIF (chip) */
 .gif-cats { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 8px; }

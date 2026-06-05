@@ -73,7 +73,7 @@
   .comm { border-bottom:1px solid var(--line); }
   .comm-head { display:flex; align-items:center; gap:13px; padding:11px 14px; cursor:pointer; }
   .comm-head:hover { background:var(--hover); }
-  .comm-av { width:46px; height:46px; border-radius:16px; display:grid; place-items:center; color:#fff; font-weight:600; font-size:18px; flex:0 0 auto; }
+  .comm-av { width:46px; height:46px; border-radius:16px; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; flex:0 0 auto; }
   .comm-meta { flex:1; min-width:0; }
   .comm-name { font-weight:600; font-size:15px; }
   .comm-sub { font-size:12.5px; color:var(--text2); }
@@ -84,7 +84,7 @@
   .comm-groups { padding:2px 0 8px; }
   .comm-grow { display:flex; align-items:center; gap:12px; padding:8px 14px 8px 26px; cursor:pointer; }
   .comm-grow:hover { background:var(--hover); }
-  .comm-gico { width:32px; height:32px; border-radius:10px; background:var(--bg2); display:grid; place-items:center; color:var(--text2); font-weight:600; flex:0 0 auto; }
+  .comm-gico { width:32px; height:32px; border-radius:10px; background:var(--bg2); display:grid; align-items:center;justify-items:center; color:var(--text2); font-weight:600; flex:0 0 auto; }
   .comm-gname { font-size:14px; display:flex; align-items:center; gap:7px; }
   .comm-tag { font-size:10px; background:var(--accent); color:#fff; border-radius:6px; padding:1px 6px; }
 </style>

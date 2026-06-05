@@ -382,7 +382,7 @@
       <div style="overflow-y:auto;flex:1">
         {#each contactList as c (c.id)}
           <button class="am-item" style="width:100%" on:click={() => pickContact(c)}>
-            <span style="width:34px;height:34px;border-radius:50%;background:{c.color};color:#fff;display:grid;place-items:center;font-weight:600">{(c.name||"?")[0]}</span>
+            <span style="width:34px;height:34px;border-radius:50%;background:{c.color};color:#fff;display:grid;align-items:center;justify-items:center;font-weight:600">{(c.name||"?")[0]}</span>
             {c.name}
           </button>
         {/each}

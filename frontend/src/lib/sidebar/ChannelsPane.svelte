@@ -138,12 +138,12 @@
 <style>
   .ch-row { display:flex; align-items:center; gap:13px; padding:10px 14px; cursor:pointer; }
   .ch-row:hover { background:var(--hover); }
-  .ch-av { width:48px; height:48px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:600; font-size:18px; object-fit:cover; flex:0 0 auto; }
+  .ch-av { width:48px; height:48px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; object-fit:cover; flex:0 0 auto; }
   .ch-av.sm { width:38px; height:38px; font-size:15px; }
   .ch-meta { flex:1; min-width:0; }
   .ch-name { font-weight:600; font-size:15px; display:flex; align-items:center; gap:5px; }
   .ch-sub { font-size:12.5px; color:var(--text2); }
-  .ch-verif { color:#fff; background:var(--accent); border-radius:50%; width:15px; height:15px; display:inline-grid; place-items:center; font-size:10px; }
+  .ch-verif { color:#fff; background:var(--accent); border-radius:50%; width:15px; height:15px; display:inline-grid; align-items:center;justify-items:center; font-size:10px; }
   .ch-act { background:none; border:0; cursor:pointer; font-size:15px; opacity:.6; padding:4px; }
   .ch-act:hover { opacity:1; }
   .ch-feed { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px; }

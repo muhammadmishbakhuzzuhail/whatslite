@@ -71,6 +71,15 @@
     if (jid) openProfile(jid);
   }
   $: source = msg.text || msg.caption || "";
+  // "Baca selengkapnya": klem pesan panjang ke N baris (CSS line-clamp), tombol
+  // toggle. everLong dijaga agar tombol "lebih sedikit" tetap muncul saat dibuka.
+  let expanded = false, overflowing = false, everLong = false;
+  $: if (overflowing) everLong = true;
+  function clampCheck(node) {
+    const check = () => { if (!expanded) overflowing = node.scrollHeight - node.clientHeight > 6; };
+    requestAnimationFrame(check);
+    return { update: check };
+  }
   $: canTranslate = msg.type === "text" || ((msg.type === "image" || msg.type === "video") && caption);
 
   // URL media disajikan asset-server (cache FILE, bukan data-URI memori). Native
@@ -273,7 +282,7 @@
           </span>
         </a>
       {/if}
-      <span class="text">{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}</span>
+      <span class="text" class:clamp={!expanded} use:clampCheck>{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}</span>{#if everLong}<button class="read-more" on:click|stopPropagation={() => (expanded = !expanded)}>{expanded ? $t("read_less") : $t("read_more")}</button>{/if}
     {:else if isMedia}
       <div class="media-box {msg.type === 'sticker' ? 'sticker' : 'card'}"
         role="button" tabindex="0" on:click={openMedia}>

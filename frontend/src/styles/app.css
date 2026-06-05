@@ -268,6 +268,11 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .msg.out.cont .bubble { border-top-right-radius: var(--r-lg); }
 
 .bubble .text { color: var(--text); white-space: pre-wrap; }
+/* Pesan panjang: klem ke N baris (line-clamp WebKit) + tombol baca selengkapnya. */
+.bubble .text.clamp { display: -webkit-box; -webkit-line-clamp: 14; -webkit-box-orient: vertical; overflow: hidden; }
+.read-more { display: block; background: none; border: 0; color: var(--accent); font-weight: 600;
+  cursor: pointer; padding: 3px 0 0; font-size: 13px; }
+.read-more:hover { text-decoration: underline; }
 .bubble .text.caption { display: block; margin-top: 5px; }
 .sender { font-size: 13px; font-weight: 600; margin-bottom: 2px; display: block;
   max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }

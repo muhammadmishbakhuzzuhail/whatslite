@@ -1015,3 +1015,21 @@ button.info-row:hover { background: var(--hover); }
 
 /* stiker mulai di baris baru (pill head di-styling di blok .bubble.media .head). */
 .bubble.sticker-bubble .media-box.sticker { display: block; clear: both; }
+
+/* ====================== RESPONSIVE ======================
+   Window desktop bisa di-resize kecil. Sebelumnya rail 64 + sidebar min 400 +
+   info-panel 380 = 844px chrome → kolom chat kolaps / overflow di <900px.
+   Strategi: kecilkan sidebar bertahap; info-panel & profil jadi OVERLAY di
+   atas chat (tak menyempitkan kolom) saat sempit. */
+@media (max-width: 1100px) {
+  .sidebar { min-width: 320px; }
+}
+@media (max-width: 900px) {
+  .sidebar { width: 40%; min-width: 280px; }
+  .info-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30;
+    width: min(380px, 92vw); box-shadow: var(--shadow-lg); }
+}
+@media (max-width: 680px) {
+  .rail { width: 54px; }
+  .sidebar { width: 46%; min-width: 240px; }
+}

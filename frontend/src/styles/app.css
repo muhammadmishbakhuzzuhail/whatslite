@@ -16,7 +16,7 @@
   --head-bg: #ffffff;
   --search-bg: #eef1f6;
   --wallpaper: #eef1f6;
-  --doodle-wash: rgba(238,241,246,.7); /* wash di atas doodle → kurangi kontras */
+  --doodle-wash: rgba(238,241,246,.5); /* wash di atas doodle → kurangi kontras */
   --wa-doodle: url("../assets/doodle-light.png");
   --in-bg: #ffffff;
   --out-bg: #d6f3c4;
@@ -55,7 +55,7 @@
   --head-bg: #11171e;
   --search-bg: #1b232b;
   --wallpaper: #0a0f14;
-  --doodle-wash: rgba(10,15,20,.7); /* wash di atas doodle → kurangi kontras */
+  --doodle-wash: rgba(10,15,20,.84); /* wash di atas doodle → kurangi kontras */
   --wa-doodle: url("../assets/doodle-dark.png");
   --in-bg: #1d262e;
   --out-bg: #114b39;

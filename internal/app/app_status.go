@@ -116,6 +116,24 @@ func (a *App) PostTextStatus(text string) string {
 	return id
 }
 
+// PostMediaStatus mengunggah status media (gambar/video) dari data-URI.
+func (a *App) PostMediaStatus(kind, caption, dataURI string) string {
+	if a.eng == nil {
+		return ""
+	}
+	mime, data, err := decodeDataURI(dataURI)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	id, err := a.eng.PostMediaStatus(a.ctx, kind, mime, caption, data)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	return id
+}
+
 // userPart mengambil bagian pengguna JID (sebelum ':' device & '@' server).
 func userPart(jid string) string {
 	if i := strings.IndexByte(jid, '@'); i >= 0 {

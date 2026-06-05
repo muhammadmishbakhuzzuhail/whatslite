@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { getStatuses, postTextStatus, colorFor, avatarUrl } from "../../services/data.js";
+  import { getStatuses, postTextStatus, postMediaStatus, colorFor, avatarUrl } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -76,6 +76,23 @@
   }
 
   $: cur = viewG ? viewG.items[viewI] : null;
+
+  // --- status media (gambar/video) ---
+  let mediaInput;
+  function pickMedia() { mediaInput && mediaInput.click(); }
+  function onMedia(e) {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const kind = f.type.startsWith("video/") ? "video" : "image";
+    const r = new FileReader();
+    r.onload = async () => {
+      const id = await postMediaStatus(kind, "", r.result);
+      pushToast(id ? $t("status_posted") : $t("status_failed"), id ? "ok" : "error");
+      setTimeout(load, 1500);
+    };
+    r.readAsDataURL(f);
+  }
 </script>
 
 <svelte:window on:keydown={onKey} />
@@ -84,16 +101,20 @@
 
 <div style="flex:1; overflow-y:auto">
   <!-- Status saya / tambah -->
-  <button class="status-row" on:click={() => composeOpen = true}>
-    <span class="status-av-wrap">
+  <div class="status-row">
+    <button class="status-av-wrap" style="background:none;border:0;cursor:pointer;padding:0" on:click={() => composeOpen = true}>
       <span class="status-av" style="background:{colorFor('me')}">{initial("?")}</span>
       <span class="status-add">+</span>
-    </span>
-    <span class="status-meta">
+    </button>
+    <button class="status-meta" style="background:none;border:0;cursor:pointer;text-align:left;flex:1" on:click={() => composeOpen = true}>
       <span class="status-name">{$t("my_status")}</span>
       <span class="status-sub">{$t("status_add_hint")}</span>
-    </span>
-  </button>
+    </button>
+    <button class="icon-btn" title={$t("status_photo")} on:click={pickMedia}>
+      <svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </button>
+    <input type="file" accept="image/*,video/*" bind:this={mediaInput} on:change={onMedia} style="display:none" />
+  </div>
 
   {#if loading}
     <div class="empty-list" style="padding:24px 16px;text-align:center;color:var(--text2)">…</div>

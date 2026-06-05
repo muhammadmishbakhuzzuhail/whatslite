@@ -220,6 +220,10 @@ export async function postTextStatus(text) {
   if (LIVE) return A.PostTextStatus(text);
   return "";
 }
+export async function postMediaStatus(kind, caption, dataURI) {
+  if (LIVE) return A.PostMediaStatus(kind, caption, dataURI);
+  return "";
+}
 
 // --- Channels / Saluran (newsletter, read-only) ---
 export async function getChannels() {

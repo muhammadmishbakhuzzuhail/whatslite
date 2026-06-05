@@ -144,6 +144,41 @@ func (e *Engine) PostTextStatus(ctx context.Context, text string) (string, error
 	return resp.ID, nil
 }
 
+// PostMediaStatus mengunggah media lalu memposnya sebagai status (image/video).
+func (e *Engine) PostMediaStatus(ctx context.Context, kind, mime, caption string, data []byte) (string, error) {
+	mt, err := mediaTypeFor(kind)
+	if err != nil {
+		return "", err
+	}
+	up, err := e.Client.Upload(ctx, data, mt)
+	if err != nil {
+		return "", fmt.Errorf("upload: %w", err)
+	}
+	length := uint64(len(data))
+	msg := &waE2E.Message{}
+	switch kind {
+	case "image":
+		msg.ImageMessage = &waE2E.ImageMessage{
+			Caption: strPtr(caption), Mimetype: proto.String(mime),
+			URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
+			FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &length,
+		}
+	case "video":
+		msg.VideoMessage = &waE2E.VideoMessage{
+			Caption: strPtr(caption), Mimetype: proto.String(mime),
+			URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
+			FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &length,
+		}
+	default:
+		return "", fmt.Errorf("status media tak didukung: %q", kind)
+	}
+	resp, err := e.Client.SendMessage(ctx, types.StatusBroadcastJID, msg)
+	if err != nil {
+		return "", err
+	}
+	return resp.ID, nil
+}
+
 // SendEdit menyunting pesan teks yang sudah terkirim (≤15 menit, pesan sendiri).
 func (e *Engine) SendEdit(ctx context.Context, chat, msgID, newText string) error {
 	cj, err := types.ParseJID(chat)

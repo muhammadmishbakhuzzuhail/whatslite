@@ -53,7 +53,7 @@ export const inChatSearch = writable(false);
 // Tema latar chat (kurasi ala WhatsApp, lihat lib/chatThemes.js). Persist id.
 let storedChatTheme = null;
 try { storedChatTheme = localStorage.getItem("wa-chat-theme"); } catch (e) {}
-export const chatTheme = writable(storedChatTheme || "default");
+export const chatTheme = writable(params.get("ctheme") || storedChatTheme || "default");
 chatTheme.subscribe((v) => { try { localStorage.setItem("wa-chat-theme", v); } catch (e) {} });
 
 // Terapkan warna/doodle latar chat sesuai (tema chat × mode app aktif).

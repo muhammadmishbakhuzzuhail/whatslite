@@ -6,13 +6,11 @@
 // Dipakai stores.applyChatTheme() → set CSS var --chat-bg-* & --chat-doodle.
 
 export const CHAT_THEMES = [
-  { id: "default", label: "Default", cat: "aneka",  light: "#eef1f6", dark: "#0a0f14" },
-  { id: "plain",   label: "Polos",   doodle: false, light: "#eef1f6", dark: "#0a0f14" },
-  { id: "botani",    label: "Botani",    cat: "botani",    light: "#eef3ec", dark: "#0c140f" },
-  { id: "sirkuit",   label: "Sirkuit",   cat: "sirkuit",   light: "#e9eef4", dark: "#0b1016" },
-  { id: "angkasa",   label: "Angkasa",   cat: "angkasa",   light: "#eceef6", dark: "#0a0d1a" },
-  { id: "geometris", label: "Geometris", cat: "geometris", light: "#f0f1f3", dark: "#101216" },
-  { id: "tropis",    label: "Tropis",    cat: "tropis",    light: "#f3eee6", dark: "#1a130f" },
+  { id: "default",   label: "Default",        cat: "aneka",     light: "#eef1f6", dark: "#0a0f14" },
+  { id: "plain",     label: "Polos",          doodle: false,    light: "#eef1f6", dark: "#0a0f14" },
+  { id: "flora",     label: "Flora & Fauna",  cat: "flora",     light: "#eef3ec", dark: "#0c140f" },
+  { id: "angkasa",   label: "Angkasa",        cat: "angkasa",   light: "#eceef6", dark: "#0a0d1a" },
+  { id: "teknologi", label: "Teknologi",      cat: "teknologi", light: "#e9eef4", dark: "#0b1016" },
 ];
 
 export function chatThemeById(id) {

@@ -266,26 +266,35 @@
     for (const c of cands) if (MediaRecorder.isTypeSupported(c)) return c;
     return "";
   }
-  let recording = false, mediaRec = null, chunks = [];
+  let recording = false, mediaRec = null, chunks = [], recCancel = false;
+  let recElapsed = 0, _recTimer = null;
+  $: recLabel = `${String(Math.floor(recElapsed / 60)).padStart(2, "0")}:${String(recElapsed % 60).padStart(2, "0")}`;
+  function stopRecTimer() { clearInterval(_recTimer); _recTimer = null; }
+  function cancelRec() { if (!recording) return; recCancel = true; mediaRec && mediaRec.stop(); }
   async function handleMic() {
     if (value.trim()) { send(); return; }
-    if (recording) { mediaRec && mediaRec.stop(); return; }
+    if (recording) { mediaRec && mediaRec.stop(); return; }    // tap lagi = stop & kirim
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      pushToast($t("voice_unsupported")); return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = pickAudioMime();
       mediaRec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-      chunks = [];
+      chunks = []; recCancel = false;
       mediaRec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       mediaRec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        recording = false;
+        recording = false; stopRecTimer();
+        if (recCancel) return;                                 // dibatalkan → tak kirim
         const blob = new Blob(chunks, { type: mediaRec.mimeType || mime || "audio/ogg" });
-        if (blob.size < 800) return; // terlalu pendek
+        if (blob.size < 800) return;                           // terlalu pendek
         const dataURI = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
         await sendMediaMessage(chatId, "voice", "", "voice", dataURI);
       };
       mediaRec.start();
-      recording = true;
+      recording = true; recElapsed = 0;
+      _recTimer = setInterval(() => (recElapsed += 1), 1000);
     } catch (e) {
       pushToast($t("mic_denied"));
     }
@@ -457,11 +466,22 @@
   <input type="file" multiple bind:this={fileInput} on:change={onFile} hidden
     accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" />
 
-  <div class="input">
-    <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
-      bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); }} on:click={detectMention}></textarea>
-  </div>
-  <button class="icon-btn mic {recording ? 'rec' : ''}" aria-label={typing ? $t("send") : $t("voice_msg")} on:click={handleMic}>
+  {#if recording}
+    <div class="rec-bar">
+      <span class="rec-dot"></span>
+      <span class="rec-time">{recLabel}</span>
+      <span class="rec-hint">{$t("recording")}</span>
+      <button class="rec-cancel" on:click={cancelRec} aria-label={$t("cancel")}>
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>
+      </button>
+    </div>
+  {:else}
+    <div class="input">
+      <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
+        bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); }} on:click={detectMention}></textarea>
+    </div>
+  {/if}
+  <button class="icon-btn mic {recording ? 'rec' : ''}" aria-label={typing ? $t("send") : recording ? $t("send") : $t("voice_msg")} on:click={handleMic}>
     {#if typing}
       <svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>
     {:else if recording}

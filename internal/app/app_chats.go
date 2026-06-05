@@ -214,6 +214,7 @@ type MessageDTO struct {
 	Status    string `json:"status"`
 	Pinned    bool         `json:"pinned"` // disematkan di chat
 	Ts        int64        `json:"ts"` // unix detik (kursor pagination)
+	QuoteID   string       `json:"quoteId"`   // balasan: id pesan dikutip (utk lompat)
 	QuoteName string       `json:"quoteName"` // balasan: nama pengirim yg dikutip
 	QuoteText string       `json:"quoteText"` // balasan: preview teks dikutip
 	Mentions  []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
@@ -349,7 +350,7 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: m.Thumb,
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender, Status: status,
 			Pinned:    m.Pinned,
-			QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
+			QuoteID: m.QuotedID, QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
 			Mentions: a.buildMentions(m.Text),
 		})
 	}

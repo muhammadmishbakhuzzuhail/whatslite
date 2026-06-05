@@ -123,6 +123,8 @@ export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<vo
 
 export function SetDisappearing(arg1:string,arg2:number):Promise<void>;
 
+export function SetGroupDescription(arg1:string,arg2:string):Promise<void>;
+
 export function SetGroupPhoto(arg1:string,arg2:string):Promise<void>;
 
 export function SetGroupSubject(arg1:string,arg2:string):Promise<void>;

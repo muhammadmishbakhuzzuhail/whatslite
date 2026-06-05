@@ -121,6 +121,15 @@ func (e *Engine) SetGroupSubject(ctx context.Context, jid, name string) error {
 	return e.Client.SetGroupName(ctx, j, name)
 }
 
+// SetGroupDescription mengubah deskripsi (topic) grup.
+func (e *Engine) SetGroupDescription(ctx context.Context, jid, topic string) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	return e.Client.SetGroupTopic(ctx, j, "", "", topic)
+}
+
 // UpdateParticipants menambah/menghapus/mempromosikan/menurunkan anggota grup.
 // action: "add" | "remove" | "promote" | "demote".
 func (e *Engine) UpdateParticipants(ctx context.Context, jid string, members []string, action string) error {

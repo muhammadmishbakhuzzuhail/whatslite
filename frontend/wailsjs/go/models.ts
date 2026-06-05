@@ -266,6 +266,7 @@ export namespace app {
 	    status: string;
 	    pinned: boolean;
 	    ts: number;
+	    quoteId: string;
 	    quoteName: string;
 	    quoteText: string;
 	    mentions: MentionDTO[];
@@ -288,6 +289,7 @@ export namespace app {
 	        this.status = source["status"];
 	        this.pinned = source["pinned"];
 	        this.ts = source["ts"];
+	        this.quoteId = source["quoteId"];
 	        this.quoteName = source["quoteName"];
 	        this.quoteText = source["quoteText"];
 	        this.mentions = this.convertValues(source["mentions"], MentionDTO);

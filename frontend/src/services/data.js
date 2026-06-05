@@ -60,7 +60,7 @@ export function avatarUrl(jid) {
 // Lengkapi pesan: warna pengirim + objek quote (balasan).
 function mapMsg(m) {
   const o = { ...m, senderColor: senderColorFor(m.senderId || m.sender) };
-  if (m.quoteText || m.quoteName) o.quote = { name: m.quoteName || "", text: m.quoteText || "" };
+  if (m.quoteText || m.quoteName) o.quote = { name: m.quoteName || "", text: m.quoteText || "", id: m.quoteId || "" };
   return o;
 }
 
@@ -328,6 +328,9 @@ export function leaveGroup(jid) {
 }
 export function setGroupSubject(jid, name) {
   if (LIVE) A.SetGroupSubject(jid, name);
+}
+export function setGroupDescription(jid, topic) {
+  if (LIVE) A.SetGroupDescription(jid, topic);
 }
 export function updateGroupParticipants(jid, members, action) {
   if (LIVE) A.UpdateGroupParticipants(jid, members, action);

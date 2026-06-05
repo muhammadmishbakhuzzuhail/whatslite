@@ -5,7 +5,7 @@
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -59,18 +59,32 @@
   let busy = false;
   let playing = false;
   let audioEl = null;
+  let vProgress = 0; // 0..1
+  let vRate = 1;
+  function ensureAudio() {
+    if (audioEl || !mediaUrl) return;
+    audioEl = new Audio(mediaUrl);
+    audioEl.playbackRate = vRate;
+    audioEl.addEventListener("ended", () => { playing = false; vProgress = 0; });
+    audioEl.addEventListener("timeupdate", () => {
+      if (audioEl.duration) vProgress = audioEl.currentTime / audioEl.duration;
+    });
+  }
   function playVoice() {
     if (!mediaUrl) return;
-    if (!audioEl) {
-      audioEl = new Audio(mediaUrl);
-      audioEl.addEventListener("ended", () => (playing = false));
-    }
-    if (playing) {
-      audioEl.pause();
-      playing = false;
-    } else {
-      audioEl.play().then(() => (playing = true)).catch(() => {});
-    }
+    ensureAudio();
+    if (playing) { audioEl.pause(); playing = false; }
+    else audioEl.play().then(() => (playing = true)).catch(() => {});
+  }
+  function seekVoice(e) {
+    ensureAudio();
+    if (!audioEl || !audioEl.duration) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    audioEl.currentTime = ((e.clientX - r.left) / r.width) * audioEl.duration;
+  }
+  function cycleRate() {
+    vRate = vRate >= 2 ? 1 : vRate + 0.5;
+    if (audioEl) audioEl.playbackRate = vRate;
   }
   async function doTranslate() {
     if (busy) return;
@@ -187,7 +201,10 @@
       <div class="forwarded"><svg viewBox="0 0 24 24"><path d="M10 9V5l8 7-8 7v-4c-5 0-8 2-9 5 0-6 3-9 9-9z"/></svg>{$t("forwarded")}</div>
     {/if}
     {#if msg.quote}
-      <div class="quote"><div class="quote-name">{msg.quote.name}</div><div class="quote-text">{msg.quote.text}</div></div>
+      <div class="quote" class:jumpable={msg.quote.id} role={msg.quote.id ? "button" : undefined} tabindex={msg.quote.id ? 0 : undefined}
+        on:click={() => msg.quote.id && jumpMsg.set(msg.quote.id)} on:keydown={(e) => e.key === "Enter" && msg.quote.id && jumpMsg.set(msg.quote.id)}>
+        <div class="quote-name">{msg.quote.name}</div><div class="quote-text">{msg.quote.text}</div>
+      </div>
     {/if}
 
     {#if msg.type === "text"}
@@ -226,8 +243,11 @@
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         {/if}
       </button>
-      <div class="wave">{#each Array(18) as _}<span></span>{/each}</div>
+      <div class="wave" role="slider" aria-label="seek" tabindex="0" on:click={seekVoice} style="--vp:{vProgress}">
+        {#each Array(18) as _, i}<span class:on={i / 18 <= vProgress}></span>{/each}
+      </div>
       <span class="vtime">{msg.duration || msg.text || ""}</span>
+      {#if playing || vProgress > 0}<button class="vrate" on:click={cycleRate}>{vRate}×</button>{/if}
     {:else if msg.type === "location"}
       <button class="loc-card" on:click={openMap}>
         <img class="loc-map" src={mapUrl} alt="" on:error={(e) => (e.target.style.display = 'none')} />

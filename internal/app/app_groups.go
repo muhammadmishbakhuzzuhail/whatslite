@@ -117,6 +117,18 @@ func (a *App) SetGroupSubject(jid, name string) {
 	runtime.EventsEmit(a.ctx, "wa:sync", "")
 }
 
+// SetGroupDescription mengubah deskripsi grup.
+func (a *App) SetGroupDescription(jid, topic string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.SetGroupDescription(a.ctx, jid, topic); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+}
+
 // UpdateGroupParticipants menambah/menghapus/mempromosikan/menurunkan anggota.
 // action: "add" | "remove" | "promote" | "demote".
 func (a *App) UpdateGroupParticipants(jid string, members []string, action string) {

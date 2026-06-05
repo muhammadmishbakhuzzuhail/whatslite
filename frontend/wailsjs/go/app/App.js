@@ -242,6 +242,10 @@ export function SetDisappearing(arg1, arg2) {
   return window['go']['app']['App']['SetDisappearing'](arg1, arg2);
 }
 
+export function SetGroupDescription(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupDescription'](arg1, arg2);
+}
+
 export function SetGroupPhoto(arg1, arg2) {
   return window['go']['app']['App']['SetGroupPhoto'](arg1, arg2);
 }

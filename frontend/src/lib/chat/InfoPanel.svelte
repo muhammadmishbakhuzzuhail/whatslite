@@ -1,7 +1,7 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast } from "../../stores.js";
-  import { avatarUrl, updateGroupParticipants, setGroupSubject, groupInviteLink, setGroupPhoto, setDisappearing, exportChat } from "../../services/data.js";
+  import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
@@ -30,6 +30,11 @@
   function editSubject() {
     const name = prompt($t("group_edit_name"), chat.name);
     if (name && name.trim() && name !== chat.name) { setGroupSubject(chat.id, name.trim()); reloadSoon(); }
+  }
+  function editDesc() {
+    const cur = groupInfo ? groupInfo.topic : "";
+    const d = prompt($t("group_edit_desc"), cur || "");
+    if (d !== null && d !== cur) { setGroupDescription(chat.id, d.trim()); reloadSoon(); }
   }
   function addMember() {
     const num = prompt($t("group_add_prompt"));
@@ -100,6 +105,12 @@
       <div class="iphone">{chat.group ? (groupInfo ? $t("members_n").replace("%n", groupInfo.participants.length) : chat.status) : chat.phone || chat.status}</div>
     </div>
 
+    {#if chat.group && groupInfo}
+      <div class="info-block">
+        <div class="lbl">{$t("info_groupdesc")}{#if amAdmin}<button class="edit-pen" title={$t("group_edit_desc")} on:click={editDesc}><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button>{/if}</div>
+        <div class="val">{groupInfo.topic || "—"}</div>
+      </div>
+    {/if}
     {#if chat.group && groupInfo && groupInfo.participants}
       {#if amAdmin}
         <div class="info-group">

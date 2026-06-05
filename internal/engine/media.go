@@ -23,6 +23,10 @@ func (e *Engine) ProfilePictureRaw(jid string) ([]byte, error) {
 	if err != nil || !e.Client.IsConnected() {
 		return nil, err
 	}
+	// Saluran (newsletter): foto ada di metadata thread, bukan IQ picture biasa.
+	if j.Server == types.NewsletterServer {
+		return e.newsletterPicRaw(j)
+	}
 	info, err := e.Client.GetProfilePictureInfo(context.Background(), j, &whatsmeow.GetProfilePictureParams{Preview: true})
 	if err != nil || info == nil || info.URL == "" {
 		return nil, nil // tak ada foto
@@ -37,6 +41,30 @@ func (e *Engine) ProfilePictureRaw(jid string) ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+// newsletterPicRaw mengambil foto profil saluran (newsletter) sbg bytes. Foto
+// saluran tak lewat IQ picture; ada di NewsletterThreadMetadata (Picture/Preview).
+func (e *Engine) newsletterPicRaw(j types.JID) ([]byte, error) {
+	meta, err := e.Client.GetNewsletterInfo(context.Background(), j)
+	if err != nil || meta == nil {
+		return nil, err
+	}
+	url := ""
+	if meta.ThreadMeta.Picture != nil && meta.ThreadMeta.Picture.URL != "" {
+		url = meta.ThreadMeta.Picture.URL
+	} else if meta.ThreadMeta.Preview.URL != "" {
+		url = meta.ThreadMeta.Preview.URL
+	}
+	if url == "" {
+		return nil, nil // tak ada foto
+	}
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 }
 
 // ProfilePicture (lama) — data-URI; dipertahankan untuk pemanggil lain.

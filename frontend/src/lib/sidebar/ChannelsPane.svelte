@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor } from "../../services/data.js";
+  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor, avatarUrl } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -65,11 +65,9 @@
     <button class="icon-btn" title={$t("back")} on:click={back}>
       <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
     </button>
-    {#if active.picture}
-      <img class="ch-av sm" src={active.picture} alt="" on:error={(e) => (e.target.style.display = 'none')} />
-    {:else}
-      <span class="ch-av sm" style="background:{colorFor(active.jid)}">{initial(active.name)}</span>
-    {/if}
+    <span class="ch-av sm" style="background:{colorFor(active.jid)}">{initial(active.name)}
+      {#if avatarUrl(active.jid) || active.picture}<img src={avatarUrl(active.jid) || active.picture} alt="" on:error={(e) => e.target.remove()} />{/if}
+    </span>
     <div style="min-width:0">
       <h2 style="font-size:16px;display:flex;gap:5px;align-items:center">{active.name}{#if active.verified}<span class="ch-verif">✓</span>{/if}</h2>
       <div style="font-size:12px;color:var(--text2)">{active.subscribers.toLocaleString()} {$t("ch_subs")}</div>
@@ -119,11 +117,9 @@
       {:else}
         {#each recommended as c (c.jid)}
           <div class="ch-row" on:click={() => open(c)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && open(c)}>
-            {#if c.picture}
-              <img class="ch-av" src={c.picture} alt="" on:error={(e) => (e.target.style.display = 'none')} />
-            {:else}
-              <span class="ch-av" style="background:{colorFor(c.jid)}">{initial(c.name)}</span>
-            {/if}
+            <span class="ch-av" style="background:{colorFor(c.jid)}">{initial(c.name)}
+              {#if avatarUrl(c.jid) || c.picture}<img src={avatarUrl(c.jid) || c.picture} alt="" on:error={(e) => e.target.remove()} />{/if}
+            </span>
             <div class="ch-meta">
               <div class="ch-name">{c.name}{#if c.verified}<span class="ch-verif">✓</span>{/if}</div>
               <div class="ch-sub">{c.subscribers.toLocaleString()} {$t("ch_subs")}</div>
@@ -147,11 +143,9 @@
     {:else}
       {#each channels as c (c.jid)}
         <div class="ch-row" on:click={() => open(c)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && open(c)}>
-          {#if c.picture}
-            <img class="ch-av" src={c.picture} alt="" on:error={(e) => (e.target.style.display = 'none')} />
-          {:else}
-            <span class="ch-av" style="background:{colorFor(c.jid)}">{initial(c.name)}</span>
-          {/if}
+          <span class="ch-av" style="background:{colorFor(c.jid)}">{initial(c.name)}
+            {#if avatarUrl(c.jid) || c.picture}<img src={avatarUrl(c.jid) || c.picture} alt="" on:error={(e) => e.target.remove()} />{/if}
+          </span>
           <div class="ch-meta">
             <div class="ch-name">{c.name}{#if c.verified}<span class="ch-verif">✓</span>{/if}</div>
             <div class="ch-sub">{c.subscribers.toLocaleString()} {$t("ch_subs")}</div>
@@ -192,7 +186,8 @@
   .ch-followed { color:var(--accent); font-weight:700; flex:0 0 auto; padding:0 8px; }
   .ch-row { display:flex; align-items:center; gap:13px; padding:10px 14px; cursor:pointer; }
   .ch-row:hover { background:var(--hover); }
-  .ch-av { width:48px; height:48px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; object-fit:cover; flex:0 0 auto; }
+  .ch-av { position:relative; overflow:hidden; width:48px; height:48px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; flex:0 0 auto; }
+  .ch-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .ch-av.sm { width:38px; height:38px; font-size:15px; }
   .ch-meta { flex:1; min-width:0; }
   .ch-name { font-weight:600; font-size:15px; display:flex; align-items:center; gap:5px; }

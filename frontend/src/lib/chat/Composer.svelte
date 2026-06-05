@@ -30,6 +30,17 @@
   let attachOpen = false;
   function toggleAttach() { attachOpen = !attachOpen; }
   function attachFile() { attachOpen = false; pickFile(); }
+  // Dokumen: file APA PUN → kirim sebagai dokumen (bukan pratinjau gambar).
+  let docInput;
+  function attachDocument() { attachOpen = false; docInput && docInput.click(); }
+  async function onDoc(e) {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    for (const f of files) {
+      const dataURI = await fileToDataURI(f);
+      await sendMediaMessage(chatId, "document", "", f.name, dataURI);
+    }
+  }
   function attachLocation() {
     attachOpen = false;
     if (!navigator.geolocation) { pushToast($t("loc_unavailable")); return; }
@@ -359,6 +370,10 @@
     <button class="am-item" on:click={openContact}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>{$t("attach_contact")}
     </button>
+    <button class="am-item" on:click={attachDocument}>
+      <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>{$t("attach_document")}
+    </button>
+    <input type="file" multiple bind:this={docInput} on:change={onDoc} hidden />
   </div>
 {/if}
 

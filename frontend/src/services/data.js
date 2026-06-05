@@ -310,6 +310,9 @@ export async function getContactProfile(jid) {
 export function saveContactLabel(jid, name) {
   if (LIVE) A.SaveContactLabel(jid, name);
 }
+export function subscribePresence(jid) {
+  if (LIVE) A.SubscribePresence(jid);
+}
 export function removeContactLabel(jid) {
   if (LIVE) A.RemoveContactLabel(jid);
 }

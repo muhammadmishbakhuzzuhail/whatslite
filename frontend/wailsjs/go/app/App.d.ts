@@ -117,6 +117,8 @@ export function SearchGifs(arg1:string):Promise<Array<app.GifDTO>>;
 
 export function SearchMessages(arg1:string):Promise<Array<app.SearchHitDTO>>;
 
+export function SearchStickers(arg1:string):Promise<Array<app.GifDTO>>;
+
 export function SendContact(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function SendGif(arg1:string,arg2:string):Promise<string>;
@@ -152,6 +154,8 @@ export function SetMyName(arg1:string):Promise<void>;
 export function SetPrivacy(arg1:string,arg2:string):Promise<void>;
 
 export function StarMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5:boolean):Promise<void>;
+
+export function SubscribePresence(arg1:string):Promise<void>;
 
 export function Translate(arg1:string,arg2:string):Promise<string>;
 

@@ -230,6 +230,10 @@ export function SearchMessages(arg1) {
   return window['go']['app']['App']['SearchMessages'](arg1);
 }
 
+export function SearchStickers(arg1) {
+  return window['go']['app']['App']['SearchStickers'](arg1);
+}
+
 export function SendContact(arg1, arg2, arg3) {
   return window['go']['app']['App']['SendContact'](arg1, arg2, arg3);
 }
@@ -300,6 +304,10 @@ export function SetPrivacy(arg1, arg2) {
 
 export function StarMessage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['StarMessage'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SubscribePresence(arg1) {
+  return window['go']['app']['App']['SubscribePresence'](arg1);
 }
 
 export function Translate(arg1, arg2) {

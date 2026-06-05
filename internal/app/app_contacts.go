@@ -33,6 +33,16 @@ func (a *App) GetProfile() ProfileDTO {
 	return ProfileDTO{Name: name, Phone: phone, About: a.eng.ContactAbout(a.ctx, self)}
 }
 
+// SubscribePresence berlangganan presence (online/last seen) satu kontak —
+// dipakai daftar Kontak utk indikator titik hijau.
+func (a *App) SubscribePresence(jid string) {
+	if a.eng == nil {
+		return
+	}
+	a.eng.SendAvailable()
+	a.eng.SubscribePresence(jid)
+}
+
 // GetContactAbout mengambil teks info/status seorang kontak.
 func (a *App) GetContactAbout(jid string) string {
 	if a.eng == nil {

@@ -2,8 +2,9 @@
   import { tick } from "svelte";
   import { get } from "svelte/store";
   import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats } from "../../stores.js";
-  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif } from "../../services/data.js";
+  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
+  import StickerPicker from "./StickerPicker.svelte";
   import { t } from "../i18n.js";
   export let chatId;
   export let group = false;
@@ -35,6 +36,10 @@
   let gifOpen = false;
   function openGif() { attachOpen = false; gifOpen = true; }
   function onGifPick(e) { gifOpen = false; sendGif(chatId, e.detail); }
+  // --- Stiker ---
+  let stickerOpen = false;
+  function openSticker() { attachOpen = false; stickerOpen = true; }
+  function onStickerPick(e) { stickerOpen = false; sendSticker(chatId, e.detail); }
   // --- foto sekali lihat (view-once) ---
   let onceInput;
   function attachOnce() { attachOpen = false; onceInput && onceInput.click(); }
@@ -250,6 +255,9 @@
     <button class="am-item" on:click={openGif}>
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/></svg>GIF
     </button>
+    <button class="am-item" on:click={openSticker}>
+      <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/></svg>{$t("attach_sticker")}
+    </button>
     <button class="am-item" on:click={openContact}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>{$t("attach_contact")}
     </button>
@@ -284,6 +292,11 @@
 {#if gifOpen}
   <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (gifOpen = false)}></button>
   <GifPicker on:pick={onGifPick} />
+{/if}
+
+{#if stickerOpen}
+  <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (stickerOpen = false)}></button>
+  <StickerPicker on:pick={onStickerPick} />
 {/if}
 
 {#if pollOpen}

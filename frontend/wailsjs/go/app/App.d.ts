@@ -105,6 +105,8 @@ export function SendMedia(arg1:string,arg2:string,arg3:string,arg4:string,arg5:s
 
 export function SendPoll(arg1:string,arg2:string,arg3:Array<string>,arg4:number):Promise<string>;
 
+export function SendSticker(arg1:string,arg2:string):Promise<string>;
+
 export function SendText(arg1:string,arg2:string):Promise<string>;
 
 export function SendTextMentioned(arg1:string,arg2:string,arg3:Array<string>):Promise<string>;

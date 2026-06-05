@@ -279,6 +279,28 @@ func (a *App) GetMessageInfo(chat, msgID string) *MsgInfoDTO {
 	return info
 }
 
+// SendSticker mengirim stiker (webp data-URI).
+func (a *App) SendSticker(jid, dataURI string) string {
+	if a.eng == nil {
+		return ""
+	}
+	_, data, err := decodeDataURI(dataURI)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	id, err := a.eng.SendSticker(a.ctx, jid, data)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	_ = a.store.SaveMessage(a.ctx, storage.Message{
+		ID: id, ChatJID: jid, Kind: "sticker", Thumb: dataURI, Timestamp: time.Now(), FromMe: true,
+	})
+	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	return id
+}
+
 // SendGif mengirim GIF (mp4 data-URI) sebagai video GifPlayback.
 func (a *App) SendGif(jid, dataURI string) string {
 	if a.eng == nil {

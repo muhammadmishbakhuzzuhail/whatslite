@@ -152,6 +152,10 @@ export async function sendGif(jid, dataURI) {
   if (LIVE) return A.SendGif(jid, dataURI);
   return "";
 }
+export async function sendSticker(jid, dataURI) {
+  if (LIVE) return A.SendSticker(jid, dataURI);
+  return "";
+}
 export function editMessage(jid, msgID, text) {
   if (LIVE) A.EditMessage(jid, msgID, text);
 }

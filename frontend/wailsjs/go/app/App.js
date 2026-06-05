@@ -206,6 +206,10 @@ export function SendPoll(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['SendPoll'](arg1, arg2, arg3, arg4);
 }
 
+export function SendSticker(arg1, arg2) {
+  return window['go']['app']['App']['SendSticker'](arg1, arg2);
+}
+
 export function SendText(arg1, arg2) {
   return window['go']['app']['App']['SendText'](arg1, arg2);
 }

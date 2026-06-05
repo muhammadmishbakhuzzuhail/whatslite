@@ -80,6 +80,22 @@ func (e *Engine) ForwardMedia(ctx context.Context, to, srcProtoB64 string) (stri
 	return e.sendMessage(ctx, to, &msg)
 }
 
+// SendSticker mengunggah webp lalu mengirimnya sebagai stiker.
+func (e *Engine) SendSticker(ctx context.Context, to string, data []byte) (string, error) {
+	up, err := e.Client.Upload(ctx, data, whatsmeow.MediaImage)
+	if err != nil {
+		return "", fmt.Errorf("upload: %w", err)
+	}
+	length := uint64(len(data))
+	w, h := uint32(512), uint32(512)
+	msg := &waE2E.Message{StickerMessage: &waE2E.StickerMessage{
+		Mimetype: proto.String("image/webp"), Width: &w, Height: &h,
+		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
+		FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &length,
+	}}
+	return e.sendMessage(ctx, to, msg)
+}
+
 // SendGif mengunggah klip (mp4) lalu mengirimnya sebagai GIF (GifPlayback).
 func (e *Engine) SendGif(ctx context.Context, to, mime string, data []byte) (string, error) {
 	if mime == "" {

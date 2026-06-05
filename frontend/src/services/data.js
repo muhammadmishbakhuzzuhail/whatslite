@@ -320,6 +320,16 @@ export async function getBlockedContacts() {
   if (LIVE) return (await A.GetBlockedContacts()) || [];
   return [];
 }
+// Pencarian GIF lewat backend (hindari CORS WebKitGTK). "" = trending.
+export async function searchGifs(query) {
+  if (LIVE) return (await A.SearchGifs(query || "")) || [];
+  try {
+    const KEY = "LIVDSRZULELA";
+    const base = query ? `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}` : `https://g.tenor.com/v1/trending`;
+    const r = await fetch(`${base}&key=${KEY}&limit=24&media_filter=minimal&contentfilter=high`).then((x) => x.json());
+    return (r.results || []).map((g) => { const m = (g.media && g.media[0]) || {}; return { id: g.id, preview: m.tinygif?.url, mp4: m.mp4?.url }; }).filter((g) => g.preview && g.mp4);
+  } catch (e) { return []; }
+}
 // Daftar kontak (buku-alamat + label lokal) utk panel Kontak sidebar.
 export async function getContacts() {
   if (LIVE) return (await A.GetContacts()) || [];

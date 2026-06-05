@@ -173,6 +173,22 @@ export namespace app {
 	        this.saved = source["saved"];
 	    }
 	}
+	export class GifDTO {
+	    id: string;
+	    preview: string;
+	    mp4: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GifDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.preview = source["preview"];
+	        this.mp4 = source["mp4"];
+	    }
+	}
 	export class GroupMemberDTO {
 	    jid: string;
 	    name: string;

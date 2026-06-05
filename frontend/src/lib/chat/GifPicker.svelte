@@ -1,10 +1,9 @@
 <script>
   import { onMount, createEventDispatcher } from "svelte";
+  import { searchGifs, fetchRemoteMedia } from "../../services/data.js";
   import { t } from "../i18n.js";
 
-  // Tenor (provider GIF yang dipakai WhatsApp). LIVDSRZULELA = key demo publik
-  // anonim Tenor v1 — tak perlu pengguna daftar. media_filter=minimal → respons ringkas.
-  const KEY = "LIVDSRZULELA";
+  // GIF via Go backend (Tenor) → hindari CORS WebKitGTK yang bikin picker kosong.
   const dispatch = createEventDispatcher();
 
   let q = "";
@@ -15,21 +14,7 @@
 
   async function fetchGifs(query) {
     loading = true;
-    const base = query
-      ? `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}`
-      : `https://g.tenor.com/v1/trending`;
-    const url = `${base}&key=${KEY}&limit=24&media_filter=minimal&contentfilter=high`;
-    try {
-      const r = await fetch(url).then((x) => x.json());
-      gifs = (r.results || []).map((g) => {
-        const m = (g.media && g.media[0]) || {};
-        return {
-          id: g.id,
-          preview: m.tinygif?.url || m.nanogif?.url || m.gif?.url,
-          mp4: m.mp4?.url || m.tinymp4?.url || m.loopedmp4?.url,
-        };
-      }).filter((g) => g.mp4 && g.preview);
-    } catch (e) { gifs = []; }
+    gifs = await searchGifs(query);
     loading = false;
   }
   onMount(() => fetchGifs(""));
@@ -39,9 +24,9 @@
     if (busyId) return;
     busyId = g.id;
     try {
-      const blob = await fetch(g.mp4).then((r) => r.blob());
-      const dataURI = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
-      dispatch("pick", dataURI);
+      // Unduh mp4 lewat backend (no-CORS) → data-URI → kirim sbg GIF.
+      const dataURI = await fetchRemoteMedia(g.mp4);
+      if (dataURI) dispatch("pick", dataURI);
     } catch (e) {}
     busyId = null;
   }

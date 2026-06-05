@@ -113,6 +113,8 @@ export function RequestPhotos(arg1:Array<string>):Promise<void>;
 
 export function SaveContactLabel(arg1:string,arg2:string):Promise<void>;
 
+export function SearchGifs(arg1:string):Promise<Array<app.GifDTO>>;
+
 export function SearchMessages(arg1:string):Promise<Array<app.SearchHitDTO>>;
 
 export function SendContact(arg1:string,arg2:string,arg3:string):Promise<string>;

@@ -85,14 +85,7 @@
   let stickerOpen = false;
   function openSticker() { attachOpen = false; stickerOpen = true; }
   function onStickerPick(e) { stickerOpen = false; sendSticker(chatId, e.detail); }
-  // --- foto sekali lihat (view-once) ---
-  let onceInput;
-  function attachOnce() { attachOpen = false; onceInput && onceInput.click(); }
-  function onOnce(e) {
-    const f = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (f) previewFile(f, true);
-  }
+  // View-once kini toggle di preview media (MediaPreviewModal), bukan di attach menu.
   // --- kirim kontak ---
   let contactOpen = false, contactQ = "";
   function openContact() { attachOpen = false; contactOpen = true; contactQ = ""; }
@@ -366,10 +359,6 @@
     <button class="am-item" on:click={openContact}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>{$t("attach_contact")}
     </button>
-    <button class="am-item" on:click={attachOnce}>
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/><path d="M3 12a9 9 0 0 0 1 4"/></svg>{$t("attach_once")}
-    </button>
-    <input type="file" accept="image/*,video/*" bind:this={onceInput} on:change={onOnce} style="display:none" />
   </div>
 {/if}
 

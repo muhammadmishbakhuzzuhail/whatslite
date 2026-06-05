@@ -323,8 +323,18 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    overflow:hidden HANYA di media-box (bukan bubble) → menu hover tak terpotong. */
 .msg.in .bubble.media, .msg.out .bubble.media { background: transparent; box-shadow: none; padding: 0; }
 .bubble.media::before { display: none; }
-/* Nama/quote (grup/balasan) = di atas media, sejajar tepi kiri, gap kecil. */
-.bubble.media .head { padding: 0 2px 5px; }
+/* Nama pengirim + reply/quote = dlm PILL kecil (bg in/out, rounded) di ATAS
+   media. Media-nya sendiri tetap flat/transparan di bawah pill (ala WhatsApp
+   utk stiker). Pill membungkus konten (inline-block), gap ke media. */
+.msg.in .bubble.media .head, .msg.out .bubble.media .head {
+  display: inline-block; max-width: 360px; padding: 7px 11px; margin: 0 0 6px;
+  background: var(--in-bg); border-radius: 12px; box-shadow: var(--shadow); }
+.msg.out .bubble.media .head { background: var(--out-bg); }
+/* quote di dlm pill: garis tepi tipis saja (tak dobel kotak bg). */
+.bubble.media .head .quote { margin: 0; background: transparent; border-radius: 0;
+  border-left: 3px solid var(--quote-bar); padding: 1px 0 1px 8px; }
+.bubble.media .head .sender { margin: 0 0 4px; }
+.bubble.media .head .forwarded { margin: 0 0 3px; }
 /* Waktu: di bawah media, rata kanan, abu polos (tak ada pill/overlay). */
 .bubble.media .meta { position: static; float: none; clear: both;
   display: flex; justify-content: flex-end; align-items: center;
@@ -987,9 +997,5 @@ button.info-row:hover { background: var(--hover); }
 .spoiler::selection { color: transparent; }
 .spoiler.on { background: rgba(127,127,127,.16); color: inherit; cursor: text; filter: none; }
 
-/* Sticker/GIF head (nama+quote) Discord-flat: tanpa pill, langsung di atas media. */
-.bubble.sticker-bubble .head.sticker-head { display: block; max-width: 360px;
-  background: none; padding: 0; margin: 0 0 5px; box-shadow: none; }
-.bubble.sticker-bubble .sticker-head .sender { display: block; margin: 0 0 4px; }
-/* stiker mulai di baris baru. */
+/* stiker mulai di baris baru (pill head di-styling di blok .bubble.media .head). */
 .bubble.sticker-bubble .media-box.sticker { display: block; clear: both; }

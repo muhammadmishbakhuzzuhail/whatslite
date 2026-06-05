@@ -222,10 +222,10 @@ export async function sendMessage(id, text, quote, mentions) {
 }
 
 // Kirim media (dataURI). kind: image|video|voice|document.
-export async function sendMediaMessage(id, kind, caption, fileName, dataURI, viewOnce = false) {
+export async function sendMediaMessage(id, kind, caption, fileName, dataURI, viewOnce = false, seconds = 0) {
   if (id == null || !dataURI) return;
   if (data.LIVE) {
-    await data.sendMedia(id, kind, caption || "", fileName || "", dataURI, viewOnce);
+    await data.sendMedia(id, kind, caption || "", fileName || "", dataURI, viewOnce, seconds);
     await reloadMessages(id);
     await refreshChats();
     return;

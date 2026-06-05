@@ -254,8 +254,8 @@ export function SendLocation(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['SendLocation'](arg1, arg2, arg3, arg4);
 }
 
-export function SendMedia(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['app']['App']['SendMedia'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function SendMedia(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['app']['App']['SendMedia'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function SendPoll(arg1, arg2, arg3, arg4) {

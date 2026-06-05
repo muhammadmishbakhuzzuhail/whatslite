@@ -129,7 +129,7 @@ export function SendGif(arg1:string,arg2:string):Promise<string>;
 
 export function SendLocation(arg1:string,arg2:number,arg3:number,arg4:string):Promise<string>;
 
-export function SendMedia(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:boolean):Promise<string>;
+export function SendMedia(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:boolean,arg7:number):Promise<string>;
 
 export function SendPoll(arg1:string,arg2:string,arg3:Array<string>,arg4:number):Promise<string>;
 

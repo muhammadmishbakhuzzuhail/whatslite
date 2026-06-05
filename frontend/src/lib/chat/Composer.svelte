@@ -299,8 +299,9 @@
         if (recCancel) return;                                 // dibatalkan → tak kirim
         const blob = new Blob(chunks, { type: mediaRec.mimeType || mime || "audio/ogg" });
         if (blob.size < 800) return;                           // terlalu pendek
+        const secs = Math.max(1, recElapsed);                  // durasi → AudioMessage.Seconds
         const dataURI = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
-        await sendMediaMessage(chatId, "voice", "", "voice", dataURI);
+        await sendMediaMessage(chatId, "voice", "", "voice", dataURI, false, secs);
       };
       mediaRec.start();
       recording = true; recElapsed = 0;

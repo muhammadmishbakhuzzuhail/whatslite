@@ -126,7 +126,7 @@ func (e *Engine) SendContact(ctx context.Context, to, displayName, vcard string)
 // SendMedia mengunggah `data` lalu mengirimnya sebagai pesan media. kind:
 // "image" | "video" | "voice" | "document". caption/fileName opsional.
 // viewOnce=true → foto/video sekali lihat.
-func (e *Engine) SendMedia(ctx context.Context, to, kind, mime, caption, fileName string, data []byte, viewOnce bool) (string, error) {
+func (e *Engine) SendMedia(ctx context.Context, to, kind, mime, caption, fileName string, data []byte, viewOnce bool, seconds int) (string, error) {
 	mt, err := mediaTypeFor(kind)
 	if err != nil {
 		return "", err
@@ -164,6 +164,9 @@ func (e *Engine) SendMedia(ctx context.Context, to, kind, mime, caption, fileNam
 			Mimetype: proto.String(mime), PTT: proto.Bool(true),
 			URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
 			FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &length,
+		}
+		if seconds > 0 { // durasi → ponsel tampilkan panjang voice note (bukan 0:00)
+			msg.AudioMessage.Seconds = proto.Uint32(uint32(seconds))
 		}
 	case "document":
 		if fileName == "" {

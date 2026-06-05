@@ -24,7 +24,7 @@ func (a *App) canon(jid string) string {
 
 // SendMedia mengirim media (data-URI) lalu menyimpannya lokal & memberi tahu UI.
 // kind: "image" | "video" | "voice" | "document". viewOnce → sekali lihat.
-func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce bool) string {
+func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce bool, seconds int) string {
 	if a.eng == nil {
 		return ""
 	}
@@ -34,7 +34,15 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 		runtime.EventsEmit(a.ctx, "wa:error", "media tak valid: "+err.Error())
 		return ""
 	}
-	id, err := a.eng.SendMedia(a.ctx, jid, kind, mime, caption, fileName, data, viewOnce)
+	// Voice note: ponsel WhatsApp memutar PTT hanya bila ogg/opus. WebKitGTK
+	// kadang merekam webm/opus → transcode (remux, best-effort via ffmpeg).
+	if kind == "voice" && !strings.Contains(mime, "ogg") {
+		if ogg, ok := transcodeToOggOpus(a.ctx, data); ok {
+			data = ogg
+			mime = "audio/ogg; codecs=opus"
+		}
+	}
+	id, err := a.eng.SendMedia(a.ctx, jid, kind, mime, caption, fileName, data, viewOnce, seconds)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
@@ -42,8 +50,12 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 	// Tulis byte ke file-cache (disajikan via /media) — JANGAN simpan data-URI
 	// raksasa di DB. thumb dikosongkan.
 	a.cacheSentMedia(jid, id, data, mime)
+	txt := caption
+	if kind == "voice" && seconds > 0 { // tampilkan durasi di bubble voice lokal
+		txt = mmss(seconds)
+	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: caption, Kind: kind,
+		ID: id, ChatJID: jid, Text: txt, Kind: kind,
 		Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)

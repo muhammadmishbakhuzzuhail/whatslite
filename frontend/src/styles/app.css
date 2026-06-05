@@ -317,55 +317,36 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    rasio dijaga (contain) → rasio beda = gap TRANSPARAN (tak ada bg putih).
    Tinggi tetap → tak ada reflow/loncat saat gambar selesai dimuat.
    Gambar/video/gif = 340px; stiker = 160px. */
-/* Stiker: transparan tanpa kartu. Foto/video: KARTU (bg+padding tipis). */
-.bubble.sticker-bubble { background: transparent; box-shadow: none; padding: 0; }
-.bubble.sticker-bubble::before { display: none; }
-/* Waktu stiker: DI BAWAH stiker (bukan overlay pill gelap di atas gambar),
-   teks abu polos, rata kanan selebar stiker. */
-.bubble.sticker-bubble .meta { position: static; float: none; clear: both;
-  display: flex; justify-content: flex-end; align-items: center;
-  width: var(--sticker-w, 160px); margin: 3px 1px 0; padding: 0;
-  background: none; color: var(--text2); }
-/* GIF = opaque (mirip foto) → waktu overlay pill di pojok kanan-bawah. */
-.bubble.gif-bubble .meta { position: absolute; right: 6px; bottom: 6px;
-  float: none; clear: none; display: inline-flex; width: auto; margin: 0;
-  background: rgba(0,0,0,.45); color: #fff; border-radius: 8px; padding: 1px 6px; }
-/* Foto/video EDGE-TO-EDGE (ala WhatsApp): gambar mengisi bubble tanpa bingkai
-   putih. Nama/quote (grup/balasan) = strip putih tipis di atas; waktu OVERLAY
-   pojok kanan-bawah gambar. Putih hanya muncul bila ada caption.
+/* MEDIA (stiker/GIF/foto/video) = GAYA DISCORD: tanpa kartu (transparan, no
+   shadow/padding), media rounded penuh, UKURAN TETAP px (bukan % panel),
+   waktu abu kecil di bawah-kanan (bukan overlay scrim gelap).
    overflow:hidden HANYA di media-box (bukan bubble) → menu hover tak terpotong. */
-.bubble.imgcard { padding: 0; }
-/* Gambar murni (tanpa strip nama & tanpa caption) → bubble transparan, tanpa
-   kartu/shadow: benar2 edge-to-edge, sudut gambar membuka ke latar chat. */
-.bubble.imgcard.nohead:not(.hascap) { background: transparent; box-shadow: none; }
-.bubble.imgcard .head { padding: 6px 11px 6px; }
-.bubble.imgcard .media-box.card { display: block; max-width: none; min-width: 0; overflow: hidden;
-  border-bottom-left-radius: var(--r-lg); border-bottom-right-radius: var(--r-lg); }
-.bubble.imgcard .media-box.card .media-img { border-radius: 0; width: 100%; display: block; }
-/* sudut bawah gambar membulat (default; ada strip nama di atas) */
-/* tanpa strip nama/quote → sudut ATAS gambar ikut membulat */
-.bubble.imgcard.nohead .media-box.card { border-top-left-radius: var(--r-lg); border-top-right-radius: var(--r-lg); }
-/* ada caption → sudut bawah gambar lurus (caption nyambung di bawah) */
-.bubble.imgcard.hascap .media-box.card { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-/* waktu: overlay di atas gambar (tanpa caption) */
-.bubble.imgcard:not(.hascap) .meta { position: absolute; right: 9px; bottom: 8px; float: none; margin: 0;
-  padding: 1px 7px; background: rgba(0,0,0,.5); color: #fff; border-radius: 9px; }
-.bubble.imgcard:not(.hascap) .meta .ticks { stroke: #fff; }
-.bubble.imgcard:not(.hascap) .meta .ticks.read { stroke: #9ad; }
-/* dengan caption → waktu di baris bawah caption */
-.bubble.imgcard.hascap .meta { float: none; clear: both; display: flex; justify-content: flex-end;
-  margin: 3px 9px 4px; padding: 0; }
+.msg.in .bubble.media, .msg.out .bubble.media { background: transparent; box-shadow: none; padding: 0; }
+.bubble.media::before { display: none; }
+/* Nama/quote (grup/balasan) = di atas media, sejajar tepi kiri, gap kecil. */
+.bubble.media .head { padding: 0 2px 5px; }
+/* Waktu: di bawah media, rata kanan, abu polos (tak ada pill/overlay). */
+.bubble.media .meta { position: static; float: none; clear: both;
+  display: flex; justify-content: flex-end; align-items: center;
+  width: auto; margin: 4px 2px 0; padding: 0; background: none; color: var(--text2); }
+.bubble.media .meta .ticks { stroke: var(--text2); }
+.bubble.media .meta .ticks.read { stroke: var(--accent); }
+/* Foto/video/GIF: media rounded penuh, sudut membuka ke latar chat. */
+.bubble.imgcard .media-box.card { display: block; min-width: 0; overflow: hidden; border-radius: 14px; }
+.bubble.imgcard .media-box.card .media-img { border-radius: 14px; width: 100%; display: block; }
+.bubble.imgcard .text.caption { margin: 6px 2px 0; }
 
 .media-box { position: relative; cursor: pointer; background: transparent; }
 .media-img { display: block; border-radius: 8px; background: transparent; }
 /* Stiker: kotak 160 transparan, isi contain. */
 .media-box.sticker { width: 160px; aspect-ratio: 1; }
 .media-box.sticker .media-img { width: 100%; height: 100%; object-fit: contain; }
-/* Foto/video: lebar natural (≤max), tinggi dibatasi → object-cover crop yg ekstrem. */
+/* Foto/video/GIF: lebar natural ≤ cap PX TETAP (ala Discord, tak ikut % panel
+   → tak pernah >50% lagi); tinggi dibatasi, crop cover utk yg ekstrem. */
 .media-box.card { display: inline-block; line-height: 0;
-  max-width: min(330px, 66vw); min-width: 150px; }
+  max-width: 360px; min-width: 150px; }
 .media-box.card .media-img { width: 100%; height: auto;
-  max-height: 400px; min-height: 120px; object-fit: cover; }
+  max-height: 380px; min-height: 120px; object-fit: cover; }
 .media-box.card .img-ph { width: 220px; height: 160px; }
 
 /* Placeholder (belum diunduh): mengisi box, transparan + ikon unduh di tengah. */
@@ -825,18 +806,13 @@ button.info-row:hover { background: var(--hover); }
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; }
 .nc-create:disabled { opacity: .5; cursor: default; }
 
-/* Caption stiker (bubble transparan): pill agar terbaca. */
-.bubble.sticker-bubble .text.caption { display: inline-block; margin-top: 4px; max-width: 340px;
-  background: var(--in-bg); color: var(--text); padding: 6px 9px; border-radius: 8px; box-shadow: var(--shadow); }
-.msg.out .bubble.sticker-bubble .text.caption { background: var(--out-bg); }
-/* Caption foto/video (kartu): teks polos DI BAWAH gambar, dalam bubble. */
-.bubble.imgcard .text.caption { display: block; margin: 5px 3px 0; padding: 0; }
+/* Caption media (Discord-flat): teks polos di bawah media, tanpa pill/kartu. */
+.bubble.media .text.caption { display: block; margin: 6px 2px 0; padding: 0;
+  max-width: 360px; background: none; box-shadow: none; color: var(--text); }
 
-/* Pada media transparan: hanya NAMA pengirim yang diberi pill (bukan kartu di belakang gambar).
-   margin-bottom besar → ada GAP jelas antara pill nama & stiker/gambar. */
-.bubble.sticker-bubble .sender { display: inline-block; background: var(--in-bg);
-  padding: 3px 9px; border-radius: 8px; margin: 0 0 7px; box-shadow: var(--shadow); }
-[data-theme="dark"] .bubble.sticker-bubble .sender { background: var(--in-bg); }
+/* Nama pengirim di atas media (Discord-flat): teks warna saja, tanpa pill. */
+.bubble.media .sender { display: inline-block; background: none; padding: 0;
+  box-shadow: none; margin: 0 0 4px; font-weight: 600; }
 
 /* Baris hasil (search + berbintang) — global agar dipakai ChatList & StarredPane. */
 .hit-row { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: 0;
@@ -1011,16 +987,9 @@ button.info-row:hover { background: var(--hover); }
 .spoiler::selection { color: transparent; }
 .spoiler.on { background: rgba(127,127,127,.16); color: inherit; cursor: text; filter: none; }
 
-/* Sticker/GIF: nama+quote dlm pill putih TERPISAH (rounded penuh), lalu GAP,
-   lalu stiker transparan di luar pill. */
-.bubble.sticker-bubble .head.sticker-head { display: inline-block; max-width: 300px;
-  background: var(--in-bg); border-radius: 12px; padding: 7px 10px; margin: 0 0 10px;
-  box-shadow: var(--shadow); overflow: hidden; }
-.msg.out .bubble.sticker-bubble .head.sticker-head { background: var(--out-bg); }
-.bubble.sticker-bubble .sticker-head .sender { display: block; margin: 0 0 4px;
-  background: none; padding: 0; box-shadow: none; }
-/* quote di dlm pill: garis tepi tipis saja, tanpa kotak bg berat → terbaca satu pill. */
-.bubble.sticker-bubble .sticker-head .quote { margin: 0; background: transparent;
-  border-left: 3px solid var(--quote-bar); border-radius: 0; padding: 1px 0 1px 8px; }
-/* stiker SELALU mulai di baris baru, lepas dari pill. */
+/* Sticker/GIF head (nama+quote) Discord-flat: tanpa pill, langsung di atas media. */
+.bubble.sticker-bubble .head.sticker-head { display: block; max-width: 360px;
+  background: none; padding: 0; margin: 0 0 5px; box-shadow: none; }
+.bubble.sticker-bubble .sticker-head .sender { display: block; margin: 0 0 4px; }
+/* stiker mulai di baris baru. */
 .bubble.sticker-bubble .media-box.sticker { display: block; clear: both; }

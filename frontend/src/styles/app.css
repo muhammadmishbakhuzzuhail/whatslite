@@ -851,6 +851,23 @@ button.info-row:hover { background: var(--hover); }
 .ct-sw .ct-name { position:absolute; left:0; right:0; bottom:0; font-size:9px; line-height:1.4; text-align:center;
   background:rgba(0,0,0,.35); color:#fff; }
 
+/* Form buat polling */
+.poll-card { max-width: 440px; }
+.poll-title { margin: 0 0 14px; }
+.poll-lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; margin: 10px 2px 6px; }
+.poll-in { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; background: var(--bg2); color: var(--text); font: inherit; outline: none; }
+.poll-in:focus { border-color: var(--accent); }
+.poll-opts { display: flex; flex-direction: column; gap: 8px; }
+.poll-opt-row { display: flex; align-items: center; gap: 8px; }
+.poll-opt-row .poll-in { flex: 1; }
+.poll-rm { width: 32px; height: 32px; flex: 0 0 auto; border: 0; border-radius: 50%; background: var(--hover); color: var(--text2); cursor: pointer; font-size: 13px; }
+.poll-rm:hover { background: #e0463e; color: #fff; }
+.poll-add { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 6px 2px; }
+.poll-add svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+.poll-multi { display: flex; align-items: center; gap: 9px; margin-top: 12px; cursor: pointer; color: var(--text); font-size: 14px; }
+.poll-multi input { width: 17px; height: 17px; accent-color: var(--accent); }
+.poll-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
 /* Poll bar hasil */
 .poll-opt { position:relative; overflow:hidden; }
 .poll-bar { position:absolute; left:0; top:0; bottom:0; background:color-mix(in srgb,var(--accent) 16%,transparent); z-index:0; transition:width .3s; }

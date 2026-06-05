@@ -107,13 +107,14 @@
     contactOpen = false;
   }
   // --- modal polling ---
-  let pollOpen = false, pollQ = "", pollOpts = ["", ""];
-  function openPoll() { attachOpen = false; pollOpen = true; pollQ = ""; pollOpts = ["", ""]; }
+  let pollOpen = false, pollQ = "", pollOpts = ["", ""], pollMulti = false;
+  function openPoll() { attachOpen = false; pollOpen = true; pollQ = ""; pollOpts = ["", ""]; pollMulti = false; }
   function addPollOpt() { if (pollOpts.length < 12) pollOpts = [...pollOpts, ""]; }
+  function removePollOpt(i) { if (pollOpts.length > 2) pollOpts = pollOpts.filter((_, j) => j !== i); }
   function submitPoll() {
     const opts = pollOpts.map((o) => o.trim()).filter(Boolean);
     if (!pollQ.trim() || opts.length < 2) return;
-    sendPoll(chatId, pollQ.trim(), opts, 1);
+    sendPoll(chatId, pollQ.trim(), opts, pollMulti ? opts.length : 1);
     pollOpen = false;
   }
 
@@ -410,16 +411,31 @@
 
 {#if pollOpen}
   <div class="nc-modal" on:click|self={() => (pollOpen = false)}>
-    <div class="nc-card" style="max-width:420px">
-      <h3 style="margin:0 0 12px">{$t("poll_new")}</h3>
-      <input bind:value={pollQ} placeholder={$t("poll_question")}
-        style="width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--bg2);color:var(--text);font:inherit;margin-bottom:10px" />
-      {#each pollOpts as _, i}
-        <input bind:value={pollOpts[i]} placeholder={`${$t("poll_option")} ${i + 1}`}
-          style="width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg2);color:var(--text);font:inherit;margin-bottom:8px" />
-      {/each}
-      <button class="btn-ghost" on:click={addPollOpt}>+ {$t("poll_add_option")}</button>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+    <div class="nc-card poll-card">
+      <h3 class="poll-title">{$t("poll_new")}</h3>
+      <label class="poll-lbl">{$t("poll_question")}</label>
+      <input class="poll-in" bind:value={pollQ} placeholder={$t("poll_question")} />
+      <label class="poll-lbl">{$t("poll_option")}</label>
+      <div class="poll-opts">
+        {#each pollOpts as _, i}
+          <div class="poll-opt-row">
+            <input class="poll-in" bind:value={pollOpts[i]} placeholder={`${$t("poll_option")} ${i + 1}`} />
+            {#if pollOpts.length > 2}
+              <button class="poll-rm" title={$t("delete")} on:click={() => removePollOpt(i)}>✕</button>
+            {/if}
+          </div>
+        {/each}
+      </div>
+      {#if pollOpts.length < 12}
+        <button class="poll-add" on:click={addPollOpt}>
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>{$t("poll_add_option")}
+        </button>
+      {/if}
+      <label class="poll-multi">
+        <input type="checkbox" bind:checked={pollMulti} />
+        <span>{$t("poll_multi")}</span>
+      </label>
+      <div class="poll-foot">
         <button class="btn-ghost" on:click={() => (pollOpen = false)}>{$t("cancel")}</button>
         <button class="btn-accent" on:click={submitPoll} disabled={!pollQ.trim() || pollOpts.filter((o) => o.trim()).length < 2}>{$t("send")}</button>
       </div>

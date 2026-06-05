@@ -29,6 +29,9 @@
     <div class="row-top">
       <span class="row-name">{chat.name}</span>
       <span class="row-time">{chat.time}</span>
+      <button class="row-menu-btn" aria-label={$t("menu")} on:click={toggleMenu}>
+        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
+      </button>
     </div>
     <div class="row-bottom">
       <span class="row-preview">
@@ -54,9 +57,6 @@
     </div>
   </div>
 
-  <button class="row-menu-btn" aria-label={$t("menu")} on:click={toggleMenu}>
-    <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
-  </button>
   {#if menuOpen}
     <div class="row-menu">
       <button class="mi" on:click={act(() => pinChat(chat.id, !chat.pinned))}>{chat.pinned ? "Lepas sematan" : "Sematkan"}</button>

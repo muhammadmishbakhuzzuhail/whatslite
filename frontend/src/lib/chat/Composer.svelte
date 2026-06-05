@@ -36,10 +36,11 @@
   async function onDoc(e) {
     const files = [...(e.target.files || [])];
     e.target.value = "";
+    const items = [];
     for (const f of files) {
-      const dataURI = await fileToDataURI(f);
-      await sendMediaMessage(chatId, "document", "", f.name, dataURI);
+      items.push({ kind: "document", name: f.name, dataURI: await fileToDataURI(f) });
     }
+    if (items.length) mediaDraft.set({ chatId, items }); // → MediaPreviewModal (nama + caption)
   }
   function attachLocation() {
     attachOpen = false;

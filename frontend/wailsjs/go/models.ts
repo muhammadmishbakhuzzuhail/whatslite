@@ -133,6 +133,20 @@ export namespace app {
 		}
 	}
 	
+	export class ContactRowDTO {
+	    jid: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ContactRowDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.jid = source["jid"];
+	        this.name = source["name"];
+	    }
+	}
 	export class GroupMemberDTO {
 	    jid: string;
 	    name: string;

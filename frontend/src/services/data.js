@@ -258,6 +258,17 @@ export async function getContactAbout(jid) {
 export function block(jid, on) {
   if (LIVE) A.Block(jid, on);
 }
+export async function getBlockedContacts() {
+  if (LIVE) return (await A.GetBlockedContacts()) || [];
+  return [];
+}
+export async function getPrivacy() {
+  if (LIVE) return (await A.GetPrivacy()) || {};
+  return {};
+}
+export function setPrivacy(name, value) {
+  if (LIVE) A.SetPrivacy(name, value);
+}
 export function setMyName(name) {
   if (LIVE) A.SetMyName(name);
 }

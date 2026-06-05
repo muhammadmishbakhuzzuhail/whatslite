@@ -46,6 +46,10 @@ export function GetArchivedChats() {
   return window['go']['app']['App']['GetArchivedChats']();
 }
 
+export function GetBlockedContacts() {
+  return window['go']['app']['App']['GetBlockedContacts']();
+}
+
 export function GetChannelMessages(arg1) {
   return window['go']['app']['App']['GetChannelMessages'](arg1);
 }
@@ -84,6 +88,10 @@ export function GetMessagesBefore(arg1, arg2) {
 
 export function GetPinned(arg1) {
   return window['go']['app']['App']['GetPinned'](arg1);
+}
+
+export function GetPrivacy() {
+  return window['go']['app']['App']['GetPrivacy']();
 }
 
 export function GetProfile() {
@@ -208,6 +216,10 @@ export function SetMyAbout(arg1) {
 
 export function SetMyName(arg1) {
   return window['go']['app']['App']['SetMyName'](arg1);
+}
+
+export function SetPrivacy(arg1, arg2) {
+  return window['go']['app']['App']['SetPrivacy'](arg1, arg2);
 }
 
 export function StarMessage(arg1, arg2, arg3, arg4, arg5) {

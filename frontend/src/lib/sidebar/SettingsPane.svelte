@@ -78,6 +78,12 @@
       </select>
     </div>
 
+    <!-- Privasi -->
+    <div class="settings-item" role="button" tabindex="0" on:click={() => railView.set("privacy")} on:keydown={(e) => e.key === "Enter" && railView.set("privacy")}>
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <div class="grow"><div class="si-name">{$t("privacy")}</div><div class="si-desc">{$t("privacy_d")}</div></div>
+    </div>
+
     <!-- Pesan berbintang -->
     <div class="settings-item" role="button" tabindex="0" on:click={() => railView.set("starred")} on:keydown={(e) => e.key === "Enter" && railView.set("starred")}>
       <svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/></svg>

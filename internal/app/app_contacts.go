@@ -48,6 +48,54 @@ func (a *App) Block(jid string, block bool) {
 	}
 }
 
+// ContactRowDTO = kontak ringkas (utk daftar blokir).
+type ContactRowDTO struct {
+	JID  string `json:"jid"`
+	Name string `json:"name"`
+}
+
+// GetBlockedContacts mengembalikan kontak yang diblokir (jid + nama).
+func (a *App) GetBlockedContacts() (out []ContactRowDTO) {
+	out = []ContactRowDTO{}
+	if a.eng == nil {
+		return
+	}
+	jids, err := a.eng.Blocklist(a.ctx)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	for _, j := range jids {
+		name := a.eng.ChatName(j)
+		if name == "" {
+			name = a.eng.ReadableID(j)
+		}
+		if name == "" {
+			name = shortJID(j)
+		}
+		out = append(out, ContactRowDTO{JID: j, Name: name})
+	}
+	return
+}
+
+// GetPrivacy mengembalikan setelan privasi (name→value).
+func (a *App) GetPrivacy() map[string]string {
+	if a.eng == nil {
+		return map[string]string{}
+	}
+	return a.eng.PrivacyMap(a.ctx)
+}
+
+// SetPrivacy mengubah satu setelan privasi (mis. "lastseen"→"contacts").
+func (a *App) SetPrivacy(name, value string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.SetPrivacy(a.ctx, name, value); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
 // SetMyName memperbarui nama tampil akun sendiri.
 func (a *App) SetMyName(name string) {
 	if a.eng == nil {

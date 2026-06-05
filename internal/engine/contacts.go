@@ -40,6 +40,38 @@ func (e *Engine) Block(ctx context.Context, jid string, block bool) error {
 	return err
 }
 
+// Blocklist mengembalikan daftar JID yang diblokir.
+func (e *Engine) Blocklist(ctx context.Context) ([]string, error) {
+	bl, err := e.Client.GetBlocklist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(bl.JIDs))
+	for _, j := range bl.JIDs {
+		out = append(out, j.String())
+	}
+	return out, nil
+}
+
+// PrivacyMap mengembalikan setelan privasi sebagai map name→value.
+func (e *Engine) PrivacyMap(ctx context.Context) map[string]string {
+	ps := e.Client.GetPrivacySettings(ctx)
+	return map[string]string{
+		"lastseen":     string(ps.LastSeen),
+		"profile":      string(ps.Profile),
+		"status":       string(ps.Status),
+		"readreceipts": string(ps.ReadReceipts),
+		"groupadd":     string(ps.GroupAdd),
+		"online":       string(ps.Online),
+	}
+}
+
+// SetPrivacy mengubah satu setelan privasi.
+func (e *Engine) SetPrivacy(ctx context.Context, name, value string) error {
+	_, err := e.Client.SetPrivacySetting(ctx, types.PrivacySettingType(name), types.PrivacySetting(value))
+	return err
+}
+
 // SetAbout memperbarui teks "info"/status akun sendiri.
 func (e *Engine) SetAbout(ctx context.Context, text string) error {
 	return e.Client.SetStatusMessage(ctx, text)

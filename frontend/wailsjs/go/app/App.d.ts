@@ -25,6 +25,8 @@ export function Forward(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function GetArchivedChats():Promise<Array<app.ChatDTO>>;
 
+export function GetBlockedContacts():Promise<Array<app.ContactRowDTO>>;
+
 export function GetChannelMessages(arg1:string):Promise<Array<app.ChannelMsgDTO>>;
 
 export function GetChannels():Promise<Array<app.ChannelDTO>>;
@@ -44,6 +46,8 @@ export function GetMessages(arg1:string):Promise<Array<app.MessageDTO>>;
 export function GetMessagesBefore(arg1:string,arg2:number):Promise<Array<app.MessageDTO>>;
 
 export function GetPinned(arg1:string):Promise<Array<app.MessageDTO>>;
+
+export function GetPrivacy():Promise<Record<string, string>>;
 
 export function GetProfile():Promise<app.ProfileDTO>;
 
@@ -106,6 +110,8 @@ export function SetGroupSubject(arg1:string,arg2:string):Promise<void>;
 export function SetMyAbout(arg1:string):Promise<void>;
 
 export function SetMyName(arg1:string):Promise<void>;
+
+export function SetPrivacy(arg1:string,arg2:string):Promise<void>;
 
 export function StarMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5:boolean):Promise<void>;
 

@@ -202,7 +202,7 @@
   $: isSelected = $selectMode && $selectedIdx.includes(idx);
 </script>
 
-<div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''} {$selectMode ? 'selmode' : ''} {isSelected ? 'sel' : ''}" data-mid={msg.id}
+<div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''} {$selectMode ? 'selmode' : ''} {isSelected ? 'sel' : ''}" data-mid={msg.id} data-ts={msg.ts}
   on:click={onRowClick} role={$selectMode ? "button" : undefined} tabindex={$selectMode ? 0 : undefined}>
   {#if $selectMode}
     <span class="sel-check {isSelected ? 'on' : ''}">{isSelected ? "✓" : ""}</span>

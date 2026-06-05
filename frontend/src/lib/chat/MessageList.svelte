@@ -11,12 +11,34 @@
   let box;            // wadah scroll
   let atBottom = true;
   let loadingOlder = false, noMore = false;
-  $: chatId, (noMore = false); // reset saat ganti chat
+  let newCount = 0;          // pesan baru selagi scroll ke atas (badge FAB)
+  let floatDate = "";        // tanggal mengambang saat scroll
+  let floatVisible = false;
+  let _floatTimer;
+  $: chatId, (noMore = false, newCount = 0); // reset saat ganti chat
 
   function onScroll() {
     if (!box) return;
     atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    if (atBottom) newCount = 0;
     if (box.scrollTop < 120) maybeLoadOlder();
+    updateFloatDate();
+  }
+  // Tanggal pesan teratas yang terlihat → pil mengambang (Telegram-style).
+  function updateFloatDate() {
+    if (!box) return;
+    const top = box.getBoundingClientRect().top;
+    const bubbles = box.querySelectorAll("[data-ts]");
+    for (const el of bubbles) {
+      if (el.getBoundingClientRect().bottom > top + 8) {
+        const ts = +el.getAttribute("data-ts");
+        if (ts) floatDate = dayLabel(ts);
+        break;
+      }
+    }
+    floatVisible = true;
+    clearTimeout(_floatTimer);
+    _floatTimer = setTimeout(() => (floatVisible = false), 1400);
   }
   // Scroll ke atas → muat riwayat lebih lama, jaga posisi (tak melompat).
   async function maybeLoadOlder() {
@@ -100,11 +122,13 @@
     // grew = ADA pesan baru di ujung (id terakhir berubah), BUKAN sekadar jumlah
     // berubah (prepend riwayat / reaksi / reload tak boleh memicu auto-scroll).
     const grew = id !== lastId && it.length >= lastCount;
+    const added = Math.max(0, it.length - lastCount);
     lastCount = it.length; lastId = id;
     // Ukur posisi LANGSUNG dari box (bukan var atBottom yg bisa basi) SEBELUM
     // node baru menambah tinggi → hanya ikut turun bila memang sedang di bawah.
     const nearBottom = b.scrollHeight - b.scrollTop - b.clientHeight < 80;
     if (grew && nearBottom) tick().then(() => toBottom(false));
+    else if (grew) newCount += added || 1; // badge pesan baru di FAB
   }
 
   // Lompat + highlight ke pesan (dari hasil pencarian). Best-effort: hanya bila
@@ -122,6 +146,9 @@
 </script>
 
 <div class="msg-wrap">
+  {#if floatDate}
+    <div class="float-date {floatVisible ? 'on' : ''}"><span>{floatDate}</span></div>
+  {/if}
   <div class="messages" bind:this={box} on:scroll={onScroll}>
     {#each items as it (it.idx)}
       {#if it.m.type === "day"}
@@ -139,7 +166,8 @@
     {/each}
   </div>
   {#if !atBottom}
-    <button class="scroll-fab" on:click={() => { atBottom = true; toBottom(); }} aria-label={$t("scroll_bottom")}>
+    <button class="scroll-fab" on:click={() => { atBottom = true; newCount = 0; toBottom(); }} aria-label={$t("scroll_bottom")}>
+      {#if newCount > 0}<span class="fab-badge">{newCount > 99 ? "99+" : newCount}</span>{/if}
       <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
     </button>
   {/if}

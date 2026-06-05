@@ -1,0 +1,245 @@
+package app
+
+// app_chats.go — data daftar chat (sidebar) & pesan satu percakapan untuk
+// frontend, plus DTO JSON-nya. Penamaan & urutan di-resolve di sini.
+
+import (
+	"fmt"
+	"regexp"
+	"strings"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"whatsapp-lite/internal/storage"
+)
+
+// mentionRe cocok dgn @<nomor> (mention WhatsApp dalam teks).
+var mentionRe = regexp.MustCompile(`@(\d{6,})`)
+
+// resolveMentions mengganti "@<nomor>" dgn "@<nama>" (utk preview sidebar / kutipan).
+func (a *App) resolveMentions(text string) string {
+	if a.eng == nil || !strings.Contains(text, "@") {
+		return text
+	}
+	return mentionRe.ReplaceAllStringFunc(text, func(tok string) string {
+		if n, _ := a.mentionName(tok[1:]); n != "" {
+			return "@" + n
+		}
+		return tok
+	})
+}
+
+// mentionName: resolve nomor mention → (nama, jid). "" bila tak dikenal.
+func (a *App) mentionName(num string) (string, string) {
+	if a.eng == nil {
+		return "", ""
+	}
+	for _, suf := range []string{"@s.whatsapp.net", "@lid"} {
+		jid := num + suf
+		if n := a.eng.ChatName(jid); n != "" {
+			return n, jid
+		}
+	}
+	return "", ""
+}
+
+// MentionDTO = satu mention dalam teks (utk FE render berwarna + klik→profil).
+type MentionDTO struct {
+	Num  string `json:"num"`  // angka setelah @ (token di teks)
+	Name string `json:"name"` // nama tampil
+	JID  string `json:"jid"`  // jid utk buka profil/chat
+}
+
+// buildMentions mengumpulkan semua @<nomor> yang dikenal dalam teks.
+func (a *App) buildMentions(text string) []MentionDTO {
+	if a.eng == nil || !strings.Contains(text, "@") {
+		return nil
+	}
+	var out []MentionDTO
+	seen := map[string]bool{}
+	for _, m := range mentionRe.FindAllStringSubmatch(text, -1) {
+		num := m[1]
+		if seen[num] {
+			continue
+		}
+		seen[num] = true
+		if name, jid := a.mentionName(num); name != "" {
+			out = append(out, MentionDTO{Num: num, Name: name, JID: jid})
+		}
+	}
+	return out
+}
+
+// --- DTO JSON untuk frontend ---
+
+type ChatDTO struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Preview string `json:"preview"`
+	Time    string `json:"time"`
+	Ts      int64  `json:"ts"`
+	Group   bool   `json:"group"`
+	Sent    bool   `json:"sent"`
+	Unread  bool   `json:"unread"`
+	Badge   int    `json:"badge"`
+	Pinned  bool   `json:"pinned"`
+	Muted   bool   `json:"muted"`
+}
+
+func (a *App) GetChats() (out []ChatDTO) {
+	out = []ChatDTO{}
+	defer func() {
+		if r := recover(); r != nil {
+			out = []ChatDTO{}
+			runtime.LogError(a.ctx, fmt.Sprintf("GetChats recover: %v", r))
+		}
+	}()
+	if a.store == nil {
+		return
+	}
+	// RecomputeSummaries TIDAK lagi di sini (dulu O(chats) tiap refresh).
+	// Ringkasan di-update incremental saat SaveMessage; recompute sekali di startup.
+	cs, err := a.store.ListChats(a.ctx)
+	if err != nil {
+		return
+	}
+	for _, c := range cs {
+		if c.JID == "status@broadcast" {
+			continue // bukan chat; jangan tampil di daftar
+		}
+		// Prioritas: nama kontak tersimpan / subjek grup (otoritatif) >
+		// nama tersimpan di DB (pushname) > nomor terbaca > short JID.
+		name := ""
+		if a.eng != nil {
+			name = a.eng.ChatName(c.JID)
+		}
+		if name == "" {
+			name = c.Name
+		}
+		if name == "" && a.eng != nil {
+			name = a.eng.ReadableID(c.JID)
+		}
+		if name == "" {
+			name = shortJID(c.JID)
+		}
+		// Preview grup: prefix "Nama: " (atau "Kamu: ") seperti WhatsApp.
+		preview := c.LastText
+		if isGroupJID(c.JID) && preview != "" {
+			if c.LastFromMe {
+				preview = "Kamu: " + preview
+			} else if c.LastSender != "" {
+				preview = c.LastSender + ": " + preview
+			}
+		}
+		out = append(out, ChatDTO{
+			ID: c.JID, Name: name, Preview: preview,
+			Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: isGroupJID(c.JID),
+			Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
+		})
+	}
+	return out
+}
+
+type MessageDTO struct {
+	ID       string `json:"id"`
+	Dir      string `json:"dir"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	Thumb    string `json:"thumb"`
+	Time     string `json:"time"`
+	Sender    string `json:"sender"`   // nama tampil pengirim (grup)
+	SenderID  string `json:"senderId"` // jid pengirim (utk foto)
+	Status    string `json:"status"`
+	Pinned    bool         `json:"pinned"` // disematkan di chat
+	Ts        int64        `json:"ts"` // unix detik (kursor pagination)
+	QuoteName string       `json:"quoteName"` // balasan: nama pengirim yg dikutip
+	QuoteText string       `json:"quoteText"` // balasan: preview teks dikutip
+	Mentions  []MentionDTO `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
+}
+
+// GetMessages: 200 pesan terbaru.
+func (a *App) GetMessages(jid string) (out []MessageDTO) {
+	out = []MessageDTO{}
+	defer func() {
+		if r := recover(); r != nil {
+			out = []MessageDTO{}
+			runtime.LogError(a.ctx, fmt.Sprintf("GetMessages recover: %v", r))
+		}
+	}()
+	if a.store == nil {
+		return
+	}
+	ms, err := a.store.ListMessages(a.ctx, jid, 200)
+	if err != nil {
+		return
+	}
+	return a.toDTO(ms)
+}
+
+// GetMessagesBefore: hingga 50 pesan lebih LAMA dari beforeTs (pagination scroll atas).
+func (a *App) GetMessagesBefore(jid string, beforeTs int64) (out []MessageDTO) {
+	out = []MessageDTO{}
+	defer func() {
+		if r := recover(); r != nil {
+			out = []MessageDTO{}
+		}
+	}()
+	if a.store == nil {
+		return
+	}
+	ms, err := a.store.ListMessagesBefore(a.ctx, jid, beforeTs, 50)
+	if err != nil {
+		return
+	}
+	return a.toDTO(ms)
+}
+
+// toDTO memetakan pesan storage → DTO frontend (nama, balasan, mention).
+func (a *App) toDTO(ms []storage.Message) []MessageDTO {
+	out := []MessageDTO{}
+	for _, m := range ms {
+		dir := "in"
+		if m.FromMe {
+			dir = "out"
+		}
+		kind := m.Kind
+		if kind == "" {
+			kind = "text"
+		}
+		senderName := m.PushName
+		if senderName == "" && m.Sender != "" && a.eng != nil {
+			if n := a.eng.ChatName(m.Sender); n != "" {
+				senderName = n
+			} else {
+				senderName = shortJID(m.Sender)
+			}
+		}
+		quoteName := ""
+		if m.QuotedText != "" || m.QuotedID != "" {
+			if m.QuotedSender != "" && a.eng != nil {
+				quoteName = a.eng.ChatName(m.QuotedSender)
+				if quoteName == "" {
+					quoteName = shortJID(m.QuotedSender)
+				}
+			}
+			if quoteName == "" {
+				quoteName = "Kamu"
+			}
+		}
+		status := ""
+		if m.FromMe {
+			status = m.Status
+			if status == "" {
+				status = "sent"
+			}
+		}
+		out = append(out, MessageDTO{
+			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: m.Thumb,
+			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender, Status: status,
+			Pinned:    m.Pinned,
+			QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
+			Mentions: a.buildMentions(m.Text),
+		})
+	}
+	return out
+}

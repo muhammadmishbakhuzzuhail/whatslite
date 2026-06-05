@@ -1,0 +1,720 @@
+/* ============================================================
+   WhatsApp Lite — gaya global (look ala WhatsApp macOS/Web).
+   Token warna + layout. Light + dark via [data-theme].
+   CSS dipusatkan di sini agar konsisten; bisa dipecah per-komponen nanti.
+   ============================================================ */
+
+:root {
+  /* surfaces */
+  --rail-bg: #f4f6fa;
+  --rail-ico: #6b7785;
+  --rail-active: #06b67f;
+  --sidebar-bg: #ffffff;
+  --head-bg: #ffffff;
+  --search-bg: #eef1f6;
+  --wallpaper: #eef1f6;
+  --wa-doodle: url("../assets/doodle-light.png");
+  --in-bg: #ffffff;
+  --out-bg: #d6f3c4;
+  /* text */
+  --text: #0f1722;
+  --text2: #6b7785;
+  --divider: #eceff3;
+  --hover: #f2f4f8;
+  --selected: #e7f6ef;
+  /* accent */
+  --accent: #06b67f;
+  --accent-deep: #048a60;
+  --badge: #06b67f;
+  --tick: #2eaadc;
+  --quote-bar: #06b67f;
+  --quote-bg: rgba(6, 182, 127, 0.09);
+  /* radius scale */
+  --r-sm: 10px;
+  --r: 14px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+  /* shadows (lembut, berlapis) */
+  --shadow: 0 1px 2px rgba(16, 23, 34, 0.06);
+  --shadow-md: 0 4px 16px rgba(16, 23, 34, 0.10);
+  --shadow-lg: 0 12px 32px rgba(16, 23, 34, 0.16);
+}
+
+[data-theme="dark"] {
+  --rail-bg: #11161d;
+  --rail-ico: #8a97a3;
+  --rail-active: #06c98c;
+  --sidebar-bg: #0e1318;
+  --head-bg: #11171e;
+  --search-bg: #1b232b;
+  --wallpaper: #0a0f14;
+  --wa-doodle: url("../assets/doodle-dark.png");
+  --in-bg: #1d262e;
+  --out-bg: #114b39;
+  --text: #e7ecf0;
+  --text2: #8a97a3;
+  --divider: #1c252d;
+  --hover: #161d24;
+  --selected: #12302a;
+  --accent: #06c98c;
+  --accent-deep: #06b67f;
+  --badge: #06c98c;
+  --tick: #2eaadc;
+  --quote-bar: #06c98c;
+  --quote-bg: rgba(6, 201, 140, 0.12);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, "Segoe UI", "Helvetica Neue", Helvetica,
+    "Liberation Sans", Arial, sans-serif;
+  font-size: 14.5px;
+  color: var(--text);
+  background: #d1d7db;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.app { display: flex; height: 100vh; width: 100vw; }
+
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- RAIL kiri ---------- */
+.rail {
+  width: 64px; background: var(--rail-bg);
+  display: flex; flex-direction: column; justify-content: space-between;
+  align-items: center; padding: 14px 0; border-right: 1px solid var(--divider);
+}
+.rail-top, .rail-bottom { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.rail-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center; background: transparent; border: 0;
+  cursor: pointer; color: var(--rail-ico); transition: background .15s;
+}
+.rail-btn:hover { background: rgba(0,0,0,.06); }
+[data-theme="dark"] .rail-btn:hover { background: rgba(255,255,255,.08); }
+.rail-btn.active { color: var(--rail-active); background: rgba(0,168,132,.15); border-radius: 14px; }
+.rail-btn.active:hover { background: rgba(0,168,132,.15); }
+.rail-btn.active svg { stroke-width: 2.1; }
+.rail-avatar {
+  width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  background: #6a9e3d; color: #fff; font-weight: 600; font-size: 16px;
+}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar {
+  width: 33%; min-width: 400px; max-width: 560px; flex-shrink: 0; background: var(--sidebar-bg);
+  display: flex; flex-direction: column; border-right: 1px solid var(--divider);
+}
+.sidebar-head {
+  height: 60px; padding: 0 18px; background: var(--head-bg);
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--divider);
+}
+.sidebar-head h1 { font-size: 23px; font-weight: 700; letter-spacing: -.3px; display: flex; align-items: baseline; gap: 10px; }
+.sync-tag { font-size: 12px; font-weight: 400; color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+.head-actions { display: flex; gap: 4px; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; background: transparent; border: 0;
+  cursor: pointer; color: var(--text2); transition: background .15s;
+}
+.icon-btn:hover { background: rgba(0,0,0,.06); }
+[data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,.08); }
+
+.search-wrap { padding: 8px 12px; }
+.search { display: flex; align-items: center; gap: 10px;
+  background: var(--search-bg); border-radius: var(--r-pill); padding: 9px 14px; }
+.search .search-ico { width: 18px; height: 18px; color: var(--text2); }
+.search input { flex: 1; border: 0; outline: 0; background: transparent;
+  color: var(--text); font-size: 14.5px; }
+.search input::placeholder { color: var(--text2); }
+
+.filters { display: flex; gap: 8px; padding: 4px 16px 10px; }
+.chip { border: 0; cursor: pointer; padding: 5px 13px; border-radius: 16px;
+  font-size: 13px; background: var(--search-bg); color: var(--text2); }
+.chip.active { background: var(--accent); color: #fff; }
+.chip .chip-n { margin-left: 5px; opacity: .7; font-weight: 600; }
+
+.chat-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+/* Baris chat modern: inset, rounded, tanpa garis pemisah (pakai spasi). */
+.chat-row { display: flex; align-items: center; gap: 13px;
+  padding: 10px 12px; cursor: pointer; position: relative;
+  border-radius: var(--r); margin-bottom: 1px; }
+.chat-row:hover { background: var(--hover); }
+.chat-row.active { background: var(--selected); }
+
+/* Avatar placeholder: bg solid warna + inisial putih (ala WhatsApp; pasti
+   terlihat di WebKit — tint transparan lama render kosong/transparan). */
+/* Avatar tanpa foto: bg pastel (turunan warna) + isi berwarna.
+   Personal = inisial; grup = ikon people. Pastel via color-mix (WebKit 2.41 OK);
+   fallback bg netral bila color-mix tak didukung → tetap terlihat (tak transparan). */
+.avatar { width: 49px; height: 49px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; line-height: 1;
+  font-weight: 700; font-size: 19px; text-transform: uppercase;
+  color: var(--c, #06b67f);
+  background: #dde7f0;
+  background: color-mix(in srgb, var(--c, #06b67f) 22%, #ffffff); }
+.avatar > span { display: block; line-height: 1; text-align: center; }
+[data-theme="dark"] .avatar { background: #243039; }
+[data-theme="dark"] .avatar { background: color-mix(in srgb, var(--c, #06b67f) 30%, #0e1318); }
+.avatar.group svg { width: 58%; height: 58%; fill: var(--c, #06b67f); stroke: none; }
+.avatar.sm { width: 40px; height: 40px; font-size: 16px; }
+
+.row-main { flex: 1; min-width: 0; }
+.row-top { display: flex; justify-content: space-between; align-items: baseline; }
+.row-name { font-size: 16.5px; font-weight: 500; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.row-time { font-size: 12px; color: var(--text2); flex-shrink: 0; margin-left: 8px; }
+.chat-row.unread .row-time { color: var(--accent); }
+.row-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+.row-preview { font-size: 14px; color: var(--text2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+.row-preview .ticks { width: 16px; height: 12px; flex-shrink: 0; }
+.badge { background: var(--badge); color: #fff; font-size: 12px; font-weight: 600;
+  min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px;
+  display: grid; place-items: center; margin-left: 8px; }
+.row-icons { display: flex; gap: 4px; color: var(--text2); }
+.row-icons svg { width: 16px; height: 16px; }
+.pin svg { transform: rotate(45deg); }
+
+/* ---------- PERCAKAPAN ---------- */
+.conversation { flex: 1; min-width: 0; display: flex; flex-direction: column;
+  background-color: var(--wallpaper);
+  background-image: var(--wa-doodle);
+  background-size: 412px auto; background-repeat: repeat; }
+.empty-conv { flex: 1; display: grid; place-items: center; color: var(--text2);
+  text-align: center; padding: 24px; }
+.conv-head { height: 60px; padding: 0 18px; background: var(--head-bg); border-bottom: 1px solid var(--divider);
+  display: flex; align-items: center; justify-content: space-between; }
+.conv-peer { display: flex; align-items: center; gap: 13px; cursor: pointer; min-width: 0; flex: 1; }
+.conv-meta { min-width: 0; }
+.conv-meta .conv-name { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-meta .conv-status { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.msg-wrap { flex: 1; position: relative; display: flex; min-height: 0; min-width: 0; }
+.messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px 4%; min-height: 0; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px; }
+.scroll-fab { position: absolute; right: 18px; bottom: 16px; width: 42px; height: 42px;
+  border-radius: 50%; border: 0; cursor: pointer; z-index: 5;
+  background: var(--in-bg); color: var(--text2);
+  display: grid; place-items: center;
+  box-shadow: 0 2px 8px rgba(11,20,26,.18); transition: background .15s, color .15s; }
+.scroll-fab:hover { color: var(--text); }
+.scroll-fab svg { width: 24px; height: 24px; }
+
+.day-chip, .system-msg { align-self: center; margin: 8px 0; }
+.day-chip span, .system-msg { background: var(--in-bg); color: var(--text2);
+  font-size: 12.5px; padding: 6px 12px; border-radius: 8px; box-shadow: var(--shadow); }
+.day-chip span { text-transform: uppercase; font-weight: 500; letter-spacing: .3px; }
+.system-msg { max-width: 80%; text-align: center; line-height: 1.4;
+  display: flex; align-items: center; gap: 8px;
+  background: #fff5d4; color: #54656f; }
+[data-theme="dark"] .system-msg { background: #182733; color: #ffe79b; }
+.system-msg .lock { width: 14px; height: 14px; flex-shrink: 0; color: #b9892d; }
+[data-theme="dark"] .system-msg .lock { color: #d7b964; }
+
+.msg { display: flex; margin: 1px 0; }
+.msg.in { justify-content: flex-start; }
+.msg.out { justify-content: flex-end; }
+/* Bubble modern: radius besar, tanpa ekor, shadow lembut (gaya iMessage 2025). */
+.bubble { position: relative; max-width: 66%; width: fit-content; padding: 8px 13px;
+  border-radius: var(--r-lg); box-shadow: var(--shadow); font-size: 14.5px;
+  line-height: 1.4; word-wrap: break-word; overflow-wrap: anywhere; }
+.msg.in .bubble { background: var(--in-bg); border-top-left-radius: 6px; }
+.msg.out .bubble { background: var(--out-bg); border-top-right-radius: 6px; }
+/* Pesan beruntun: rapat; sudut "ekor" hanya di pesan terakhir runtun (estetika modern). */
+.msg.cont { margin-top: 2px; }
+.msg.in.cont .bubble { border-top-left-radius: var(--r-lg); }
+.msg.out.cont .bubble { border-top-right-radius: var(--r-lg); }
+
+.bubble .text { color: var(--text); white-space: pre-wrap; }
+.bubble .text.caption { display: block; margin-top: 5px; }
+.sender { font-size: 13px; font-weight: 600; margin-bottom: 2px; display: block;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.bubble .meta { float: right; margin: 4px -3px -2px 8px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text2); user-select: none; }
+.ticks { width: 16px; height: 12px; stroke: var(--text2); stroke-width: 1.7; }
+.ticks.read { stroke: var(--tick); }
+
+.quote { border-left: 4px solid var(--quote-bar); background: var(--quote-bg);
+  border-radius: 4px; padding: 4px 8px; margin-bottom: 4px; overflow: hidden; }
+.quote-name { font-size: 13px; font-weight: 600; color: var(--quote-bar); }
+.quote-text { font-size: 13px; color: var(--text2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+
+/* MEDIA: bubble transparan (tanpa kartu), box PERSEGI tetap, isi center +
+   rasio dijaga (contain) → rasio beda = gap TRANSPARAN (tak ada bg putih).
+   Tinggi tetap → tak ada reflow/loncat saat gambar selesai dimuat.
+   Gambar/video/gif = 340px; stiker = 160px. */
+.bubble.media { padding: 0; }
+.bubble.sticker-bubble { background: transparent; box-shadow: none; padding: 0; }
+.bubble.sticker-bubble::before { display: none; }
+.bubble.sticker-bubble .meta { position: absolute; right: 6px; bottom: 6px;
+  background: rgba(0,0,0,.45); color: #fff; border-radius: 8px; padding: 1px 6px; }
+
+.media-box { position: relative; cursor: pointer; background: transparent;
+  width: 340px; height: 340px; max-width: 72vw; }
+.media-img { display: block; width: 100%; height: 100%;
+  object-fit: contain; background: transparent; }
+.media-box.sticker { width: 160px; height: 160px; }
+
+/* Placeholder (belum diunduh): mengisi box, transparan + ikon unduh di tengah. */
+.img-ph { width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; color: var(--text2); cursor: pointer; }
+.img-ph .ph-dl { width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(0,0,0,.08); display: grid; place-items: center; }
+[data-theme="dark"] .img-ph .ph-dl { background: rgba(255,255,255,.12); }
+.img-ph .ph-dl svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.img-ph .ph-lbl { font-size: 12.5px; font-weight: 500; }
+.play-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,.55);
+  display: grid; place-items: center; }
+.play-badge svg { width: 26px; height: 26px; fill: #fff; stroke: none; }
+.media-loading { position: absolute; top: 50%; left: 50%; width: 28px; height: 28px;
+  margin: -14px 0 0 -14px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.media-box { cursor: pointer; }
+
+.bubble.voice { display: flex; align-items: center; gap: 9px; min-width: 230px; padding: 8px 10px; }
+.play { width: 34px; height: 34px; border-radius: 50%; border: 0; flex-shrink: 0;
+  background: transparent; color: var(--text2); cursor: pointer; display: grid; place-items: center; }
+.play svg { fill: currentColor; stroke: none; width: 26px; height: 26px; }
+.wave { flex: 1; display: flex; align-items: center; gap: 3px; height: 26px; }
+.wave span { flex: 1; background: var(--text2); opacity: .55; border-radius: 2px; }
+.wave span:nth-child(odd) { height: 60%; }
+.wave span:nth-child(even) { height: 95%; }
+.wave span:nth-child(3n) { height: 40%; }
+.vtime { font-size: 12px; color: var(--text2); }
+
+.composer { min-height: 64px; background: var(--head-bg); padding: 9px 16px;
+  display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--divider); }
+.composer .input { flex: 1; background: var(--search-bg); border-radius: var(--r-pill); padding: 11px 16px; }
+.composer .input input { width: 100%; border: 0; outline: 0; background: transparent;
+  color: var(--text); font-size: 15px; }
+.composer .input input::placeholder { color: var(--text2); }
+
+.theme-toggle { position: fixed; bottom: 16px; left: 12px; z-index: 10;
+  width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); border-radius: var(--r-pill); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.28); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.24); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ====================== DETAIL FITUR ====================== */
+
+/* belum dibaca: nama & preview lebih tebal/gelap */
+.chat-row.unread .row-name { font-weight: 700; }
+.chat-row.unread .row-preview { color: var(--text); font-weight: 500; }
+.row-preview .typing { color: var(--accent); font-style: italic; }
+
+/* baris Arsip di atas daftar */
+.archived { display: flex; align-items: center; gap: 13px; padding: 12px 16px 12px 13px;
+  cursor: pointer; border-bottom: 1px solid var(--divider); }
+.archived:hover { background: var(--hover); }
+.archived .arc-ico { width: 49px; display: grid; place-items: center; color: var(--accent); }
+.archived .arc-ico svg { width: 22px; height: 22px; }
+.archived .arc-label { flex: 1; font-size: 15px; font-weight: 500; }
+.archived .arc-count { font-size: 12px; color: var(--accent); font-weight: 600; }
+
+/* label seksi (Tersemat) */
+.list-label { padding: 8px 16px 4px; font-size: 12.5px; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; gap: 6px; }
+.list-label svg { width: 13px; height: 13px; }
+
+/* ticks: jam (sending) */
+.ticks.clock { stroke: var(--text2); }
+
+/* reaksi di bubble */
+.reactions { position: absolute; bottom: -12px; display: flex; gap: 3px; }
+.msg.in .reactions { left: 8px; }
+.msg.out .reactions { right: 8px; }
+.reaction { background: var(--in-bg); border: 1px solid var(--divider);
+  border-radius: 12px; padding: 1px 6px; font-size: 12px; box-shadow: var(--shadow);
+  display: inline-flex; align-items: center; gap: 2px; color: var(--text2);
+  font-family: inherit; cursor: default; line-height: 1.4; }
+.reaction.mine { cursor: pointer; border-color: var(--accent); }
+.reaction.mine:hover { background: var(--hover); }
+.msg.out .reaction { background: var(--out-bg); }
+/* pesan dihapus */
+.deleted-text { display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text2); font-style: italic; }
+.deleted-text svg { width: 15px; height: 15px; fill: none; stroke: currentColor;
+  stroke-width: 1.6; opacity: .8; }
+.msg.has-react { margin-bottom: 14px; }
+
+/* diteruskan */
+.forwarded { display: flex; align-items: center; gap: 4px; color: var(--text2);
+  font-size: 13px; font-style: italic; margin-bottom: 2px; }
+.forwarded svg { width: 14px; height: 14px; }
+
+/* pembatas belum dibaca */
+.unread-divider { align-self: stretch; text-align: center; margin: 6px 0; }
+.unread-divider span { display: inline-block; background: var(--in-bg); color: var(--text2);
+  font-size: 12px; padding: 5px 14px; border-radius: 8px; box-shadow: var(--shadow);
+  text-transform: uppercase; letter-spacing: .3px; }
+
+/* indikator mengetik di header */
+.conv-status.typing { color: var(--accent); }
+
+/* ====================== PANEL INFO (kanan) ====================== */
+.info-panel { width: 380px; background: var(--sidebar-bg); border-left: 1px solid var(--divider);
+  display: flex; flex-direction: column; overflow-y: auto; }
+.info-head { height: 56px; padding: 0 16px; background: var(--head-bg);
+  display: flex; align-items: center; gap: 20px; }
+.info-head .title { font-size: 16px; font-weight: 500; }
+.info-hero { background: var(--sidebar-bg); padding: 28px 24px; text-align: center;
+  border-bottom: 6px solid var(--wallpaper); }
+.info-hero .avatar.big { width: 200px; height: 200px; font-size: 80px; margin: 0 auto 16px; }
+.info-hero .iname { font-size: 24px; font-weight: 500; }
+.info-hero .iphone { font-size: 15px; color: var(--text2); margin-top: 4px; }
+.info-block { background: var(--sidebar-bg); padding: 14px 24px;
+  border-bottom: 6px solid var(--wallpaper); }
+.info-block .lbl { font-size: 13px; color: var(--accent); margin-bottom: 5px; }
+.info-block .val { font-size: 15px; }
+.info-media { display: flex; align-items: center; justify-content: space-between;
+  background: var(--sidebar-bg); padding: 14px 24px; border-bottom: 6px solid var(--wallpaper);
+  cursor: pointer; }
+.info-media .thumbs { display: flex; gap: 6px; }
+.info-media .thumb { width: 56px; height: 56px; border-radius: 6px;
+  background: linear-gradient(135deg, #cfd8dc, #b0bec5); }
+[data-theme="dark"] .info-media .thumb { background: linear-gradient(135deg, #2a3942, #182229); }
+.info-row { display: flex; align-items: center; gap: 18px; background: var(--sidebar-bg);
+  padding: 14px 24px; cursor: pointer; font-size: 15px; }
+.info-row:hover { background: var(--hover); }
+.info-row svg { width: 22px; height: 22px; color: var(--text2); }
+.info-row.danger { color: #e35d6a; }
+.info-row.danger svg { color: #e35d6a; }
+.info-row .sub { font-size: 13px; color: var(--text2); }
+.info-row .grow { flex: 1; }
+.switch { width: 38px; height: 22px; border-radius: 12px; background: var(--accent);
+  position: relative; flex-shrink: 0; }
+.switch::after { content: ""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; transition: all .15s; }
+.switch.off { background: var(--text2); }
+.switch.off::after { right: auto; left: 2px; }
+.info-group { border-bottom: 6px solid var(--wallpaper); }
+
+/* ====================== SETELAN / PROFIL ====================== */
+.pane-head { height: 56px; padding: 0 16px; background: var(--head-bg); display: flex;
+  align-items: center; }
+.pane-head h2 { font-size: 19px; font-weight: 600; }
+.settings-profile { display: flex; align-items: center; gap: 16px; padding: 18px 16px;
+  cursor: pointer; border-bottom: 1px solid var(--divider); }
+.settings-profile:hover { background: var(--hover); }
+.settings-profile .sp-meta .sp-name { font-size: 18px; font-weight: 500; }
+.settings-profile .sp-meta .sp-about { font-size: 14px; color: var(--text2); }
+.settings-list { display: flex; flex-direction: column; }
+.settings-item { display: flex; align-items: center; gap: 20px; padding: 14px 20px;
+  cursor: pointer; border-bottom: 1px solid var(--divider); }
+.settings-item:hover { background: var(--hover); }
+.settings-item svg { width: 24px; height: 24px; color: var(--text2); }
+.settings-item .si-name { font-size: 16px; }
+.settings-item .si-desc { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+.profile-hero { text-align: center; padding: 28px 24px; }
+.profile-hero .avatar.big { width: 200px; height: 200px; font-size: 80px; margin: 0 auto; }
+.profile-field { padding: 14px 24px; border-bottom: 1px solid var(--divider); }
+.profile-field .pf-lbl { font-size: 13px; color: var(--accent); margin-bottom: 6px; }
+.profile-field .pf-val { font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+.profile-field .pf-val svg { width: 18px; height: 18px; color: var(--text2); }
+.profile-field .pf-note { font-size: 12.5px; color: var(--text2); margin-top: 8px; }
+
+.placeholder-pane { flex: 1; display: grid; place-items: center; text-align: center;
+  color: var(--text2); padding: 24px; background: var(--sidebar-bg); }
+.placeholder-pane .ph-ico svg { width: 64px; height: 64px; opacity: .5; }
+.placeholder-pane .ph-title { font-size: 18px; margin-top: 12px; color: var(--text); }
+
+/* ====================== PADANAN ACUAN WHATSAPP ====================== */
+
+/* rail: badge angka + Meta AI */
+.rail-btn { position: relative; }
+.rail-badge { position: absolute; top: 3px; right: 5px; background: var(--badge);
+  color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px;
+  border-radius: 8px; padding: 0 4px; display: grid; place-items: center; line-height: 1; }
+.meta-ai .ai-ring { width: 24px; height: 24px; border-radius: 50%;
+  background: conic-gradient(from 90deg, #2ad0ff, #8b5cf6, #ff4fa3, #ffb13d, #2ad0ff); }
+
+/* filter chips: angka + tombol plus */
+.chip.plus { font-size: 17px; line-height: 1; padding: 4px 11px; }
+
+/* banner notifikasi nonaktif */
+.notif-banner { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px;
+  padding: 11px 14px; background: var(--head-bg); border-radius: 8px; }
+.notif-banner > svg { width: 22px; height: 22px; color: var(--text2); flex-shrink: 0; }
+.notif-banner .nb-text { flex: 1; font-size: 13.5px; color: var(--text2); }
+.notif-banner .nb-link { color: var(--accent); cursor: pointer; font-weight: 500; }
+.notif-banner .nb-close { background: 0; border: 0; cursor: pointer; color: var(--text2);
+  padding: 0; display: grid; place-items: center; }
+.notif-banner .nb-close svg { width: 18px; height: 18px; }
+
+/* strip pesan tersemat */
+.pinned-strip { display: flex; align-items: center; gap: 12px; padding: 9px 18px;
+  background: var(--head-bg); border-bottom: 1px solid var(--divider); cursor: pointer; }
+.pinned-strip > svg { width: 16px; height: 16px; color: var(--text2); flex-shrink: 0; }
+.pinned-strip .ps-text { font-size: 13px; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pinned-strip .ps-text b { color: var(--text); font-weight: 600; }
+
+/* avatar kecil di samping bubble grup + run grouping */
+.avatar.tiny { width: 32px; height: 32px; font-size: 14px; font-weight: 700; }
+.msg.gin { align-items: flex-start; gap: 8px; }
+.msg.gin .msg-avatar { width: 32px; flex-shrink: 0; align-self: flex-start; margin-top: 0; }
+.msg.gin .bubble { max-width: 72%; }
+
+/* foto avatar (fallback ke inisial bila tak ada foto) */
+.avatar.photo { object-fit: cover; }
+img.avatar { display: block; }
+
+/* pemilih bahasa di setelan */
+.settings-item.lang-item { cursor: default; }
+.settings-item .grow { flex: 1; }
+.lang-select { background: var(--search-bg); color: var(--text);
+  border: 1px solid var(--divider); border-radius: 6px; padding: 6px 8px;
+  font-size: 13px; cursor: pointer; outline: none; }
+
+/* ====================== TRANSLATE PESAN ====================== */
+.tr-link { clear: both; display: block; background: 0; border: 0; cursor: pointer;
+  color: var(--accent); font-size: 12px; font-weight: 500; padding: 3px 0 0; }
+.tr-block { clear: both; margin-top: 5px; padding-top: 5px;
+  border-top: 1px solid var(--divider); font-size: 14.5px; color: var(--text); }
+.tr-lbl { display: block; font-size: 11px; color: var(--text2); margin-bottom: 1px; }
+
+/* ====================== LAYAR QR / ONBOARDING ====================== */
+.login { height: 100vh; display: flex; flex-direction: column; align-items: center;
+  background: var(--head-bg); }
+.login-bar { align-self: stretch; height: 56px; display: flex; align-items: center;
+  padding: 0 24px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 600; }
+.login-card { margin-top: 56px; background: var(--sidebar-bg); border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.14); padding: 44px; display: flex; gap: 56px;
+  align-items: center; }
+.login-left h2 { font-size: 26px; font-weight: 500; margin-bottom: 22px; }
+.login-steps { padding-left: 22px; display: flex; flex-direction: column; gap: 16px;
+  color: var(--text); font-size: 15px; max-width: 320px; }
+.login-steps li { line-height: 1.45; }
+.login-right { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.qr { width: 220px; height: 220px; background: #fff; border-radius: 8px; padding: 8px; }
+.qr rect { fill: #111b21; stroke: none; }
+.qr rect.w { fill: #fff; }
+.qr-img { width: 220px; height: 220px; border-radius: 8px; background: #fff; padding: 8px; }
+.login-waiting { font-size: 13px; color: var(--text2); }
+.login-hint { margin-top: 30px; color: var(--text2); font-size: 14px; }
+
+/* ====================== SPLASH PERCAKAPAN KOSONG ====================== */
+.conv-splash { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 24px; }
+.splash-logo { width: 200px; height: 200px; border-radius: 50%; background: var(--head-bg);
+  display: grid; place-items: center; margin-bottom: 20px; }
+.splash-logo svg { width: 96px; height: 96px; color: var(--text2); opacity: .45; }
+.conv-splash h2 { font-size: 28px; font-weight: 300; color: var(--text); margin-bottom: 8px; }
+.conv-splash p { color: var(--text2); font-size: 14px; max-width: 420px; line-height: 1.5; }
+.splash-enc { margin-top: 34px; display: flex; align-items: center; gap: 6px;
+  color: var(--text2); font-size: 13px; }
+.splash-enc svg { width: 14px; height: 14px; }
+
+/* ====================== POLES MODERN: transisi + focus ring ====================== */
+.chat-row, .rail-btn, .icon-btn, .chip, .settings-item, .info-row { transition: background .12s ease; }
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible,
+select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
+
+/* ====================== CONTEXT MENU PESAN ====================== */
+.msg-menu-btn { position: absolute; top: 2px; right: 2px; width: 24px; height: 22px;
+  border: 0; cursor: pointer; color: var(--text2); opacity: 0; transition: opacity .12s;
+  display: grid; place-items: center; border-radius: 0 8px 0 8px; }
+.msg.in .msg-menu-btn { background: var(--in-bg); }
+.msg.out .msg-menu-btn { background: var(--out-bg); }
+.bubble:hover .msg-menu-btn { opacity: .85; }
+.msg-menu-btn svg { width: 18px; height: 18px; }
+.msg-menu { position: absolute; top: 24px; right: 4px; z-index: 30; min-width: 190px;
+  background: var(--sidebar-bg); border-radius: var(--r); box-shadow: var(--shadow-lg);
+  padding: 6px; display: flex; flex-direction: column; }
+/* Pesan masuk (kiri): menu tumbuh ke KANAN (bukan menjorok ke kiri). */
+.msg.in .msg-menu { left: 8px; right: auto; }
+.msg.out .msg-menu { right: 4px; left: auto; }
+.react-row { display: flex; gap: 2px; padding: 2px 2px 6px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--divider); }
+.react-row .rx { border: 0; background: 0; cursor: pointer; font-size: 19px;
+  width: 32px; height: 32px; border-radius: 50%; }
+.react-row .rx:hover { background: var(--hover); transform: scale(1.15); }
+.react-row .rx-more { font-size: 20px; color: var(--text2); font-weight: 400; margin-left: auto; }
+.rx-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+  max-height: 168px; overflow-y: auto; padding: 4px 2px 6px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--divider); }
+.rx-grid .rx { border: 0; background: 0; cursor: pointer; font-size: 19px;
+  width: 30px; height: 30px; border-radius: 50%; }
+.rx-grid .rx:hover { background: var(--hover); transform: scale(1.15); }
+.msg-menu .mi { text-align: left; border: 0; background: 0; cursor: pointer;
+  padding: 8px 12px; border-radius: 6px; font-size: 14px; color: var(--text); }
+.msg-menu .mi:hover { background: var(--hover); }
+.msg-menu .mi.danger { color: #e35d6a; }
+.menu-backdrop { position: fixed; inset: 0; z-index: 20; background: transparent; border: 0; padding: 0; }
+
+/* ====================== REPLY DRAFT + EMOJI PICKER ====================== */
+.reply-bar { display: flex; align-items: center; gap: 10px; background: var(--head-bg);
+  padding: 8px 16px; border-top: 1px solid var(--divider); }
+.reply-bar .rb-body { flex: 1; border-left: 4px solid var(--quote-bar); background: var(--quote-bg);
+  border-radius: 4px; padding: 5px 10px; overflow: hidden; }
+.rb-name { font-size: 13px; font-weight: 600; color: var(--quote-bar); }
+.rb-text { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emoji-panel { background: var(--head-bg); border-top: 1px solid var(--divider);
+  padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
+.emoji-panel .emoji { border: 0; background: 0; cursor: pointer; font-size: 22px;
+  width: 40px; height: 40px; border-radius: 8px; line-height: 1; }
+.emoji-panel .emoji:hover { background: var(--hover); }
+
+/* ====================== KUNCI APLIKASI (PIN) ====================== */
+.lock-screen { height: 100vh; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 18px; background: var(--head-bg); }
+.lock-logo { width: 84px; height: 84px; border-radius: 50%; background: var(--accent);
+  display: grid; place-items: center; }
+.lock-logo svg { width: 42px; height: 42px; color: #fff; }
+.lock-title { font-size: 17px; color: var(--text); }
+.pin-dots { display: flex; gap: 16px; }
+.pin-dots .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text2); }
+.pin-dots .dot.on { background: var(--accent); border-color: var(--accent); }
+.lock-err { color: #e35d6a; font-size: 13px; height: 0; }
+.keypad { display: grid; grid-template-columns: repeat(3, 72px); gap: 14px; margin-top: 8px; }
+.keypad button { height: 72px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--sidebar-bg); color: var(--text); font-size: 26px; transition: background .12s; }
+.keypad button:hover { background: var(--hover); }
+.keypad .kp-back { font-size: 22px; color: var(--text2); background: transparent; }
+
+.settings-item.danger { color: #e35d6a; }
+.settings-item.danger svg { color: #e35d6a; }
+
+/* ---------- Menu konteks baris chat ---------- */
+.row-menu-btn { position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+  width: 26px; height: 24px; border: 0; border-radius: 4px; cursor: pointer; opacity: 0;
+  background: var(--hover); color: var(--text2); display: grid; place-items: center;
+  transition: opacity .12s; z-index: 5; }
+.chat-row:hover .row-menu-btn { opacity: 1; }
+.row-menu-btn svg { width: 18px; height: 18px; }
+.row-menu { position: absolute; top: 40px; right: 12px; z-index: 30; min-width: 190px;
+  background: var(--sidebar-bg); border-radius: 8px; padding: 6px 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,.28); }
+.row-menu .mi { display: block; width: 100%; text-align: left; border: 0; background: 0;
+  cursor: pointer; padding: 9px 16px; font-size: 14px; color: var(--text); }
+.row-menu .mi:hover { background: var(--hover); }
+.row-menu .mi.danger { color: #e35d6a; }
+
+/* ---------- Modal teruskan (forward) ---------- */
+.modal-backdrop { position: fixed; inset: 0; z-index: 40; border: 0;
+  background: rgba(0,0,0,.4); }
+.fwd-modal { position: fixed; z-index: 41; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 380px; max-width: 92vw; max-height: 70vh; display: flex; flex-direction: column;
+  background: var(--sidebar-bg); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+.fwd-head { padding: 16px; font-size: 17px; font-weight: 600; color: var(--text); }
+.fwd-search { margin: 0 12px 10px; padding: 8px 12px; border: 0; border-radius: 8px;
+  background: var(--search-bg); color: var(--text); font-size: 14px; outline: 0; }
+.fwd-list { overflow-y: auto; }
+.fwd-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border: 0; background: 0; cursor: pointer; padding: 8px 16px; }
+.fwd-row:hover { background: var(--hover); }
+.fwd-name { font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* @mention dalam pesan: berwarna aksen + klik → buka profil/chat. */
+.mention { color: var(--accent-deep); font-weight: 600; cursor: pointer; }
+.mention:hover { text-decoration: underline; }
+
+/* Dropdown autocomplete @mention (di atas composer). */
+.mention-pop { background: var(--head-bg); border-top: 1px solid var(--divider);
+  max-height: 220px; overflow-y: auto; padding: 6px; }
+.mention-item { display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 0; background: 0; cursor: pointer; padding: 7px 10px; border-radius: var(--r-sm); text-align: left; }
+.mention-item:hover { background: var(--hover); }
+.mi-av { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-weight: 700; font-size: 13px;
+  color: #fff; background: var(--accent); text-transform: uppercase; }
+.mi-av.special { background: var(--text2); }
+.mi-name { font-size: 14.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Highlight saat lompat ke pesan (dari pencarian). */
+.msg.flash .bubble { animation: msgflash 1.4s ease; }
+@keyframes msgflash {
+  0%, 40% { background: var(--selected); box-shadow: 0 0 0 3px var(--accent); }
+  100% { }
+}
+
+/* Input edit profil */
+.pf-edit { width: 100%; border: 0; border-bottom: 2px solid var(--accent); outline: 0;
+  background: transparent; color: var(--text); font-size: 16px; padding: 4px 0; }
+.pf-val[role="button"] { cursor: pointer; }
+
+/* Anggota grup di InfoPanel */
+.members { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; max-height: 300px; overflow-y: auto; }
+.member { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.m-name { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-admin { font-size: 11.5px; color: var(--accent); border: 1px solid var(--accent); border-radius: 8px; padding: 0 6px; }
+/* info-row sebagai tombol → reset tampilan */
+button.info-row { width: 100%; border: 0; background: 0; cursor: pointer; font: inherit; text-align: left; }
+button.info-row:hover { background: var(--hover); }
+
+/* Tombol mic saat merekam */
+.icon-btn.mic.rec { color: #fff; background: #e0392b; }
+.icon-btn.mic.rec:hover { background: #c0392b; }
+
+/* Modal "chat baru / buat grup" */
+.nc-modal { position: fixed; z-index: 41; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 400px; max-width: 92vw; max-height: 76vh; display: flex; flex-direction: column;
+  background: var(--sidebar-bg); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-lg); }
+.nc-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;
+  font-size: 17px; font-weight: 600; }
+.nc-action { display: flex; align-items: center; gap: 14px; width: 100%; border: 0; background: 0;
+  cursor: pointer; padding: 12px 16px; font-size: 15px; color: var(--text); }
+.nc-action:hover { background: var(--hover); }
+.nc-ico { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: #fff; }
+.nc-name, .nc-search { margin: 6px 12px; padding: 9px 14px; border: 0; border-radius: var(--r-pill);
+  background: var(--search-bg); color: var(--text); font-size: 14.5px; outline: 0; }
+.nc-list { flex: 1; overflow-y: auto; padding: 4px 6px; }
+.nc-row { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: 0;
+  cursor: pointer; padding: 8px 10px; border-radius: var(--r); text-align: left; }
+.nc-row:hover { background: var(--hover); }
+.nc-cname { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--text2); flex-shrink: 0; }
+.nc-check.on { background: var(--accent); border-color: var(--accent); }
+.nc-empty { padding: 24px; text-align: center; color: var(--text2); }
+.nc-create { margin: 10px 12px; padding: 11px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; }
+.nc-create:disabled { opacity: .5; cursor: default; }
+
+/* Caption media: bubble media transparan → caption diberi pill agar terbaca. */
+.bubble.media .text.caption { display: inline-block; margin-top: 4px; max-width: 340px;
+  background: var(--in-bg); color: var(--text); padding: 6px 9px; border-radius: 8px; box-shadow: var(--shadow); }
+.msg.out .bubble.media .text.caption { background: var(--out-bg); }
+
+/* Pada media transparan: hanya NAMA pengirim yang diberi pill (bukan kartu di belakang gambar). */
+.bubble.sticker-bubble .sender { display: inline-block; background: var(--in-bg);
+  padding: 3px 9px; border-radius: 8px; margin-bottom: 4px; box-shadow: var(--shadow); }
+[data-theme="dark"] .bubble.sticker-bubble .sender { background: var(--in-bg); }
+
+/* Baris hasil (search + berbintang) — global agar dipakai ChatList & StarredPane. */
+.hit-row { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: 0;
+  cursor: pointer; padding: 9px 12px; border-radius: var(--r); text-align: left; }
+.hit-row:hover { background: var(--hover); }
+.hit-av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid;
+  place-items: center; font-weight: 700; font-size: 16px; color: #fff; }
+.hit-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hit-top { display: flex; justify-content: space-between; align-items: baseline; }
+.hit-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hit-time { font-size: 12px; color: var(--text2); flex-shrink: 0; margin-left: 8px; }
+.hit-text { font-size: 13.5px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

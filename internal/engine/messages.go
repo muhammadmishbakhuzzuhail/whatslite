@@ -1,0 +1,315 @@
+package engine
+
+// messages.go — pesan masuk (live + history sync), pesan keluar, dan klasifikasi
+// konten pesan whatsmeow menjadi bentuk sederhana untuk frontend.
+
+import (
+	"encoding/base64"
+	"fmt"
+	"time"
+
+	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/proto/waWeb"
+	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
+)
+
+// webStatus memetakan status WebMessageInfo (history sync) → status centang kita.
+func webStatus(s waWeb.WebMessageInfo_Status) string {
+	switch s {
+	case waWeb.WebMessageInfo_READ, waWeb.WebMessageInfo_PLAYED:
+		return "read"
+	case waWeb.WebMessageInfo_DELIVERY_ACK:
+		return "delivered"
+	}
+	return ""
+}
+
+// IncomingMessage adalah pesan masuk yang sudah disederhanakan untuk frontend.
+type IncomingMessage struct {
+	ID        string
+	Chat      string
+	Sender    string
+	PushName  string
+	Text      string // caption (media) atau isi teks; label utk tipe non-render
+	Kind      string // text | image | video | sticker  ("" = junk, lewati)
+	Thumb     string // data-URI thumbnail (image/video/sticker), bila ada
+	Media     string // base64 proto pesan (utk download media penuh on-demand)
+	Timestamp time.Time
+	FromMe    bool
+
+	// Balasan (reply/quote) — kosong bila bukan balasan.
+	QuotedID     string
+	QuotedSender string
+	QuotedText   string
+
+	// Status centang (hanya bermakna utk pesan sendiri): "delivered" | "read".
+	// Diisi dari history sync (WebMessageInfo.Status); "" → default 'sent'.
+	Status string
+}
+
+// OnMessage mendaftarkan callback untuk pesan masuk.
+func (e *Engine) OnMessage(fn func(IncomingMessage)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok {
+			return
+		}
+		kind, txt, thumb, media := describeMessage(m.Message)
+		if kind == "" {
+			return // lewati pesan protokol/reaksi/kosong (jangan jadi bubble kosong)
+		}
+		qid, qsender, qtext := extractQuote(m.Message)
+		fn(IncomingMessage{
+			ID:           m.Info.ID,
+			Chat:         m.Info.Chat.String(),
+			Sender:       m.Info.Sender.String(),
+			PushName:     m.Info.PushName,
+			Text:         txt,
+			Kind:         kind,
+			Thumb:        thumb,
+			Media:        media,
+			Timestamp:    m.Info.Timestamp,
+			FromMe:       m.Info.IsFromMe,
+			QuotedID:     qid,
+			QuotedSender: qsender,
+			QuotedText:   qtext,
+		})
+	})
+}
+
+// OnRevoke memanggil fn saat sebuah pesan ditarik/dihapus-untuk-semua (oleh
+// pengirim mana pun) → UI tampilkan placeholder "pesan dihapus".
+func (e *Engine) OnRevoke(fn func(chat, msgID, sender string)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok {
+			return
+		}
+		pm := m.Message.GetProtocolMessage()
+		if pm.GetType() == waE2E.ProtocolMessage_REVOKE {
+			fn(m.Info.Chat.String(), pm.GetKey().GetID(), m.Info.Sender.String())
+		}
+	})
+}
+
+// OnPinInChat memanggil fn saat sebuah pesan disematkan/dilepas (dari perangkat
+// lain / anggota lain) → UI perbarui banner tersemat.
+func (e *Engine) OnPinInChat(fn func(chat, msgID string, pinned bool)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok {
+			return
+		}
+		pin := m.Message.GetPinInChatMessage()
+		if pin == nil || pin.GetKey() == nil {
+			return
+		}
+		fn(m.Info.Chat.String(), pin.GetKey().GetID(), pin.GetType() == waE2E.PinInChatMessage_PIN_FOR_ALL)
+	})
+}
+
+// HistoryConversation = satu percakapan dari history sync (sudah disederhanakan).
+type HistoryConversation struct {
+	JID       string
+	Name      string // subjek grup / nama kontak (bila ada)
+	Timestamp int64  // aktivitas terakhir (otoritatif utk urutan sidebar)
+	Unread    int
+	Pinned    bool
+	Archived  bool
+	Messages  []IncomingMessage
+}
+
+// OnHistorySync mendaftarkan callback saat blob history sync tiba dari HP.
+// Ini yang mengisi daftar chat & riwayat lengkap saat pertama login. Callback
+// juga menerima peta pushname (jid → nama kontak) untuk menamai chat 1:1.
+func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		hs, ok := evt.(*events.HistorySync)
+		if !ok || hs.Data == nil {
+			return
+		}
+		out := make([]HistoryConversation, 0, len(hs.Data.GetConversations()))
+		for _, conv := range hs.Data.GetConversations() {
+			chat := conv.GetID()
+			hc := HistoryConversation{
+				JID:       chat,
+				Name:      conv.GetName(),
+				Timestamp: int64(conv.GetConversationTimestamp()),
+				Unread:    int(conv.GetUnreadCount()),
+				Pinned:    conv.GetPinned() > 0,
+				Archived:  conv.GetArchived(),
+			}
+			for _, hmsg := range conv.GetMessages() {
+				wmi := hmsg.GetMessage()
+				if wmi == nil {
+					continue
+				}
+				kind, txt, thumb, media := describeMessage(wmi.GetMessage())
+				if kind == "" {
+					continue // skip pesan protokol/reaksi/kosong
+				}
+				key := wmi.GetKey()
+				// Pengirim grup ada di WebMessageInfo.Participant (level atas),
+				// bukan key.Participant (sering kosong di history sync).
+				sender := wmi.GetParticipant()
+				if sender == "" {
+					sender = key.GetParticipant()
+				}
+				if sender == "" {
+					sender = chat
+				}
+				qid, qsender, qtext := extractQuote(wmi.GetMessage())
+				hc.Messages = append(hc.Messages, IncomingMessage{
+					ID:           key.GetID(),
+					Chat:         chat,
+					Sender:       sender,
+					PushName:     wmi.GetPushName(),
+					Text:         txt,
+					Kind:         kind,
+					Thumb:        thumb,
+					Media:        media,
+					Timestamp:    time.Unix(int64(wmi.GetMessageTimestamp()), 0),
+					FromMe:       key.GetFromMe(),
+					QuotedID:     qid,
+					QuotedSender: qsender,
+					QuotedText:   qtext,
+					Status:       webStatus(wmi.GetStatus()),
+				})
+			}
+			out = append(out, hc)
+		}
+		names := make(map[string]string)
+		for _, p := range hs.Data.GetPushnames() {
+			if p.GetID() != "" && p.GetPushname() != "" {
+				names[p.GetID()] = p.GetPushname()
+			}
+		}
+		fn(out, names)
+	})
+}
+
+// describeMessage mengklasifikasi pesan → (kind, text, thumb, media).
+//
+//	kind  : "text" | "image" | "video" | "sticker" | "voice"  ("" = junk → lewati)
+//	text  : caption (media) atau isi teks, atau label utk tipe non-render
+//	thumb : data-URI thumbnail (image/video/sticker) bila tersedia di pesan
+//	media : base64 proto pesan (utk download media penuh on-demand)
+//
+// Pesan teks biasa bisa datang sebagai Conversation ATAU ExtendedTextMessage
+// (mis. saat ada reply/link/format), jadi keduanya dicek. Thumbnail diambil dari
+// proto (JPEGThumbnail) TANPA download tambahan. Getter protobuf aman thd nil.
+func describeMessage(msg *waE2E.Message) (kind, text, thumb, media string) {
+	if msg == nil {
+		return "", "", "", ""
+	}
+	// Buka pembungkus dulu.
+	switch {
+	case msg.GetEphemeralMessage() != nil:
+		return describeMessage(msg.GetEphemeralMessage().GetMessage())
+	case msg.GetViewOnceMessage() != nil:
+		return describeMessage(msg.GetViewOnceMessage().GetMessage())
+	case msg.GetViewOnceMessageV2() != nil:
+		return describeMessage(msg.GetViewOnceMessageV2().GetMessage())
+	case msg.GetDocumentWithCaptionMessage() != nil:
+		return describeMessage(msg.GetDocumentWithCaptionMessage().GetMessage())
+	case msg.GetDeviceSentMessage() != nil:
+		return describeMessage(msg.GetDeviceSentMessage().GetMessage())
+	}
+	jpeg := func(b []byte) string {
+		if len(b) == 0 {
+			return ""
+		}
+		return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(b)
+	}
+	// serialize proto pesan ini → utk download media on-demand nanti.
+	ser := func() string {
+		b, err := proto.Marshal(msg)
+		if err != nil {
+			return ""
+		}
+		return base64.StdEncoding.EncodeToString(b)
+	}
+	switch {
+	case msg.GetConversation() != "":
+		return "text", msg.GetConversation(), "", ""
+	case msg.GetExtendedTextMessage().GetText() != "":
+		return "text", msg.GetExtendedTextMessage().GetText(), "", ""
+	case msg.GetImageMessage() != nil:
+		return "image", msg.GetImageMessage().GetCaption(), jpeg(msg.GetImageMessage().GetJPEGThumbnail()), ser()
+	case msg.GetVideoMessage() != nil:
+		return "video", msg.GetVideoMessage().GetCaption(), jpeg(msg.GetVideoMessage().GetJPEGThumbnail()), ser()
+	case msg.GetStickerMessage() != nil:
+		return "sticker", "", jpeg(msg.GetStickerMessage().GetPngThumbnail()), ser()
+	case msg.GetAudioMessage() != nil:
+		return "voice", fmtDur(msg.GetAudioMessage().GetSeconds()), "", ser()
+	case msg.GetDocumentMessage() != nil:
+		name := msg.GetDocumentMessage().GetFileName()
+		if name == "" {
+			name = "Dokumen"
+		}
+		return "text", "📄 " + name, "", ""
+	case msg.GetLocationMessage() != nil:
+		return "text", "📍 Lokasi", "", ""
+	case msg.GetContactMessage() != nil:
+		return "text", "👤 Kontak", "", ""
+	case msg.GetPollCreationMessage() != nil:
+		return "text", "📊 Polling", "", ""
+	}
+	return "", "", "", "" // reaksi/protokol/key-dist/dll → junk
+}
+
+func fmtDur(sec uint32) string {
+	if sec == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d:%02d", sec/60, sec%60)
+}
+
+// extractQuote membaca ContextInfo (balasan): id pesan dikutip, JID pengirimnya,
+// dan teks/label preview kutipan. Kosong bila pesan bukan balasan.
+func extractQuote(msg *waE2E.Message) (id, sender, text string) {
+	ci := msgContext(msg)
+	if ci == nil || ci.GetStanzaID() == "" {
+		return "", "", ""
+	}
+	id = ci.GetStanzaID()
+	sender = ci.GetParticipant()
+	if q := ci.GetQuotedMessage(); q != nil {
+		kind, t, _, _ := describeMessage(q)
+		if t != "" {
+			text = t
+		} else {
+			switch kind {
+			case "image":
+				text = "🖼️ Foto"
+			case "video":
+				text = "🎬 Video"
+			case "sticker":
+				text = "🏷️ Stiker"
+			case "voice":
+				text = "🎤 Pesan suara"
+			}
+		}
+	}
+	return id, sender, text
+}
+
+// msgContext mengambil ContextInfo dari tipe pesan yang mendukungnya.
+func msgContext(msg *waE2E.Message) *waE2E.ContextInfo {
+	switch {
+	case msg.GetExtendedTextMessage() != nil:
+		return msg.GetExtendedTextMessage().GetContextInfo()
+	case msg.GetImageMessage() != nil:
+		return msg.GetImageMessage().GetContextInfo()
+	case msg.GetVideoMessage() != nil:
+		return msg.GetVideoMessage().GetContextInfo()
+	case msg.GetStickerMessage() != nil:
+		return msg.GetStickerMessage().GetContextInfo()
+	case msg.GetAudioMessage() != nil:
+		return msg.GetAudioMessage().GetContextInfo()
+	case msg.GetDocumentMessage() != nil:
+		return msg.GetDocumentMessage().GetContextInfo()
+	}
+	return nil
+}

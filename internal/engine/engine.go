@@ -1,0 +1,160 @@
+// Package engine adalah inti WhatsApp Lite: pembungkus whatsmeow + penyimpanan.
+//
+// Engine sengaja dibuat AGNOSTIK terhadap frontend (tidak tahu soal GUI/TUI)
+// supaya bisa dipakai oleh GUI Wails, TUI, maupun mode daemon headless nanti.
+// Tipe-tipe whatsmeow tidak bocor keluar paket ini.
+//
+// File-file paket (per domain, untuk memudahkan dokumentasi & perbaikan):
+//   - engine.go    : siklus hidup (New/Start/Stop/Logout) + util data dir
+//   - names.go     : resolusi nama chat/kontak (@lid bridge), grup, app-state
+//   - messages.go  : pesan masuk/keluar + history sync + klasifikasi konten
+//   - media.go     : foto profil + unduh media
+//   - presence.go  : online/typing/receipt + event koneksi
+package engine
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+
+	// Driver SQLite pure-Go (tanpa CGo) -> binary statis & portabel lintas distro.
+	_ "modernc.org/sqlite"
+
+	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/store/sqlstore"
+	waLog "go.mau.fi/whatsmeow/util/log"
+)
+
+// Engine memegang koneksi WhatsApp dan penyimpanan lokal.
+type Engine struct {
+	Client    *whatsmeow.Client
+	container *sqlstore.Container
+
+	mu         sync.Mutex
+	groupNames map[string]string // cache subjek grup (jid -> nama)
+	picCache   map[string]string // cache foto profil (jid -> data-URI; "" = tak ada)
+}
+
+// QREvent adalah event pairing yang disederhanakan (tanpa tipe whatsmeow).
+type QREvent struct {
+	Event string // "code", "success", "timeout", "error", dll.
+	Code  string // berisi data QR mentah saat Event == "code"
+	Err   error  // berisi error saat Event == "error"
+}
+
+// New membuat Engine dengan store SQLite di dbPath.
+//
+// Catatan SQLite: driver modernc terdaftar sebagai "sqlite", sedangkan whatsmeow
+// memakai string dialek "sqlite3" untuk sintaks query. Maka kita buka *sql.DB
+// sendiri dengan driver "sqlite", lalu beri tahu whatsmeow dialeknya "sqlite3".
+func New(ctx context.Context, dbPath string, debug bool) (*Engine, error) {
+	level := "INFO"
+	if debug {
+		level = "DEBUG"
+	}
+	dbLog := waLog.Stdout("DB", level, true)
+
+	// foreign_keys + WAL + busy_timeout = aman & ringan untuk akses lokal.
+	dsn := fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+		dbPath,
+	)
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open db: %w", err)
+	}
+	// SQLite hanya satu penulis; serialkan koneksi untuk hindari "database is locked".
+	db.SetMaxOpenConns(1)
+
+	container := sqlstore.NewWithDB(db, "sqlite3", dbLog)
+	if err := container.Upgrade(ctx); err != nil {
+		return nil, fmt.Errorf("upgrade db: %w", err)
+	}
+
+	device, err := container.GetFirstDevice(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get device: %w", err)
+	}
+
+	clientLog := waLog.Stdout("Client", level, true)
+	client := whatsmeow.NewClient(device, clientLog)
+
+	return &Engine{Client: client, container: container, groupNames: map[string]string{}, picCache: map[string]string{}}, nil
+}
+
+// NeedsLogin melaporkan apakah pairing (scan QR) masih diperlukan.
+func (e *Engine) NeedsLogin() bool {
+	return e.Client.Store.ID == nil
+}
+
+// Start menghubungkan ke WhatsApp.
+//
+// Jika perlu login, mengembalikan channel QREvent (range sampai tertutup).
+// Jika sudah login, channel-nya nil.
+func (e *Engine) Start(ctx context.Context) (<-chan QREvent, error) {
+	if !e.NeedsLogin() {
+		if err := e.Client.Connect(); err != nil {
+			return nil, fmt.Errorf("connect: %w", err)
+		}
+		return nil, nil
+	}
+
+	// GetQRChannel HARUS dipanggil sebelum Connect.
+	raw, err := e.Client.GetQRChannel(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("qr channel: %w", err)
+	}
+	if err := e.Client.Connect(); err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+
+	out := make(chan QREvent)
+	go func() {
+		defer close(out)
+		for evt := range raw {
+			out <- QREvent{Event: evt.Event, Code: evt.Code, Err: evt.Error}
+		}
+	}()
+	return out, nil
+}
+
+// Logout memutus tautan perangkat (unpair). Setelah ini NeedsLogin() == true,
+// jadi untuk masuk lagi perlu Start() ulang (QR baru) — berguna untuk
+// "keluar akun" maupun ganti akun.
+func (e *Engine) Logout(ctx context.Context) error {
+	return e.Client.Logout(ctx)
+}
+
+// SelfJID mengembalikan JID akun yang sedang login (atau string kosong).
+func (e *Engine) SelfJID() string {
+	if e.Client.Store.ID == nil {
+		return ""
+	}
+	return e.Client.Store.ID.String()
+}
+
+// Stop memutus koneksi dengan rapi.
+func (e *Engine) Stop() {
+	e.Client.Disconnect()
+}
+
+// DefaultDataDir mengembalikan direktori data (XDG) dan memastikan ia ada.
+// Mengikuti $XDG_DATA_HOME, fallback ke ~/.local/share.
+func DefaultDataDir() (string, error) {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		base = filepath.Join(home, ".local", "share")
+	}
+	dir := filepath.Join(base, "whatsapp-lite")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}

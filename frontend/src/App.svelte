@@ -1,0 +1,34 @@
+<script>
+  import Rail from "./lib/Rail.svelte";
+  import Sidebar from "./lib/sidebar/Sidebar.svelte";
+  import Conversation from "./lib/chat/Conversation.svelte";
+  import InfoPanel from "./lib/chat/InfoPanel.svelte";
+  import Login from "./lib/Login.svelte";
+  import AppLock from "./lib/AppLock.svelte";
+  import ForwardModal from "./lib/chat/ForwardModal.svelte";
+  import MessageInfoModal from "./lib/chat/MessageInfoModal.svelte";
+  import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
+  import Toast from "./lib/Toast.svelte";
+  import { theme, infoOpen, loggedIn, lockState } from "./stores.js";
+  import { locale } from "./lib/i18n.js";
+
+  $: document.documentElement.setAttribute("data-theme", $theme);
+  $: document.documentElement.setAttribute("lang", $locale);
+</script>
+
+{#if $lockState !== "off"}
+  <AppLock />
+{:else if !$loggedIn}
+  <Login />
+{:else}
+  <div class="app">
+    <Rail />
+    <Sidebar />
+    <Conversation />
+    {#if $infoOpen}<InfoPanel />{/if}
+    <ForwardModal />
+    <MessageInfoModal />
+    <NewChatModal />
+  </div>
+{/if}
+<Toast />

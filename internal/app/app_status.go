@@ -1,0 +1,128 @@
+package app
+
+// app_status.go — Status / Stories. Pesan status tiba via OnMessage dgn
+// chat=status@broadcast (difilter dari daftar chat) lalu tersimpan biasa.
+// Di sini dikelompokkan per pengirim (24 jam terakhir) untuk panel Status.
+
+import (
+	"strings"
+	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+// StatusItemDTO = satu unggahan status (teks / media).
+type StatusItemDTO struct {
+	ID    string `json:"id"`
+	Type  string `json:"type"` // text | image | video | sticker
+	Text  string `json:"text"`
+	Thumb string `json:"thumb"` // data-URI pratinjau (image/video/sticker)
+	Time  string `json:"time"`
+	Ts    int64  `json:"ts"`
+}
+
+// StatusGroupDTO = semua status satu kontak (atau milik sendiri).
+type StatusGroupDTO struct {
+	Jid   string          `json:"jid"`
+	Name  string          `json:"name"`
+	Time  string          `json:"time"` // waktu update terbaru
+	Mine  bool            `json:"mine"`
+	Count int             `json:"count"`
+	Items []StatusItemDTO `json:"items"` // urut lama→baru (utk tap-through viewer)
+}
+
+// GetStatuses mengembalikan status 24 jam terakhir, dikelompokkan per pengirim.
+// Urutan: milik sendiri dulu, lalu kontak lain berdasar update terbaru.
+func (a *App) GetStatuses() (out []StatusGroupDTO) {
+	out = []StatusGroupDTO{}
+	if a.store == nil {
+		return
+	}
+	since := time.Now().Add(-24 * time.Hour)
+	ms, err := a.store.ListStatuses(a.ctx, since) // terbaru dulu
+	if err != nil {
+		return
+	}
+	self := ""
+	if a.eng != nil {
+		self = userPart(a.eng.SelfJID())
+	}
+	groups := map[string]*StatusGroupDTO{}
+	var order []string // urut kemunculan = update terbaru dulu (ms terbaru dulu)
+	for _, m := range ms {
+		key := m.Sender
+		g := groups[key]
+		if g == nil {
+			mine := self != "" && userPart(m.Sender) == self
+			name := ""
+			if mine {
+				name = "Status saya"
+			} else {
+				if a.eng != nil {
+					name = a.eng.ChatName(m.Sender)
+				}
+				if name == "" && m.PushName != "" {
+					name = m.PushName
+				}
+				if name == "" && a.eng != nil {
+					name = a.eng.ReadableID(m.Sender)
+				}
+				if name == "" {
+					name = shortJID(m.Sender)
+				}
+			}
+			g = &StatusGroupDTO{Jid: m.Sender, Name: name, Time: relTime(m.Timestamp), Mine: mine}
+			groups[key] = g
+			order = append(order, key)
+		}
+		g.Items = append(g.Items, StatusItemDTO{
+			ID: m.ID, Type: m.Kind, Text: m.Text, Thumb: m.Thumb,
+			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(),
+		})
+	}
+	// Items per grup saat ini baru→lama; viewer ingin lama→baru → balik.
+	for _, k := range order {
+		g := groups[k]
+		for i, j := 0, len(g.Items)-1; i < j; i, j = i+1, j-1 {
+			g.Items[i], g.Items[j] = g.Items[j], g.Items[i]
+		}
+		g.Count = len(g.Items)
+	}
+	// Milik sendiri ke depan.
+	var mine, others []StatusGroupDTO
+	for _, k := range order {
+		g := groups[k]
+		if g.Mine {
+			mine = append(mine, *g)
+		} else {
+			others = append(others, *g)
+		}
+	}
+	out = append(out, mine...)
+	out = append(out, others...)
+	return out
+}
+
+// PostTextStatus mengunggah status teks (broadcast ke kontak). Best-effort.
+func (a *App) PostTextStatus(text string) string {
+	if a.eng == nil || strings.TrimSpace(text) == "" {
+		return ""
+	}
+	id, err := a.eng.PostTextStatus(a.ctx, text)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	return id
+}
+
+// userPart mengambil bagian pengguna JID (sebelum ':' device & '@' server).
+func userPart(jid string) string {
+	if i := strings.IndexByte(jid, '@'); i >= 0 {
+		jid = jid[:i]
+	}
+	if i := strings.IndexByte(jid, ':'); i >= 0 {
+		jid = jid[:i]
+	}
+	return jid
+}

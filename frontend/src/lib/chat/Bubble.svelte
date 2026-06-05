@@ -5,7 +5,7 @@
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -214,10 +214,19 @@
   {/if}
 
   <div class="bubble {bubbleClass} {msg.type === 'deleted' ? 'deleted' : ''}">
-    {#if msg.type !== "deleted"}
-      <button class="msg-menu-btn" aria-label={$t("menu")} on:click={toggleMenu}>
-        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
-      </button>
+    {#if msg.type !== "deleted" && !$selectMode}
+      <div class="msg-actions">
+        <button title="👍" on:click={() => react('👍')}>👍</button>
+        <button title={$t("reaction_remove")} on:click={() => reactionTarget.set({ chatId, idx })}>
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.2"/><circle cx="15" cy="10" r="1.2"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg>
+        </button>
+        <button title={$t("reply")} on:click={reply}>
+          <svg viewBox="0 0 24 24"><path d="M10 9V5l-7 7 7 7v-4c5 0 8 1 10 4-1-6-4-9-10-10z"/></svg>
+        </button>
+        <button class="ma-more" title={$t("menu")} on:click={toggleMenu}>
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+        </button>
+      </div>
     {/if}
 
     {#if showSender}

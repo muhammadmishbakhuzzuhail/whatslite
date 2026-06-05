@@ -573,6 +573,16 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .msg.out .msg-menu-btn { background: var(--out-bg); }
 .bubble:hover .msg-menu-btn { opacity: .85; }
 .msg-menu-btn svg { width: 18px; height: 18px; }
+/* Bar aksi melayang saat hover bubble (react cepat / picker / reply / more). */
+.msg-actions { position: absolute; top: -15px; right: 10px; z-index: 20; display: flex; gap: 1px;
+  padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 20px;
+  box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .12s; }
+.bubble:hover .msg-actions, .msg-actions:focus-within { opacity: 1; pointer-events: auto; }
+.msg-actions button { border: 0; background: none; cursor: pointer; width: 28px; height: 28px;
+  border-radius: 50%; display: grid; place-items: center; font-size: 15px; line-height: 1; }
+.msg-actions button:hover { background: var(--hover); }
+.msg-actions svg { width: 17px; height: 17px; fill: none; stroke: var(--text2); stroke-width: 2; }
+
 .msg-menu { position: absolute; top: 24px; right: 4px; z-index: 30; min-width: 190px;
   background: var(--sidebar-bg); border-radius: var(--r); box-shadow: var(--shadow-lg);
   padding: 6px; display: flex; flex-direction: column; }
@@ -857,3 +867,6 @@ button.info-row:hover { background: var(--hover); }
 .emoji-search { width:100%; border:1px solid var(--line); border-radius:9px; padding:7px 10px; background:var(--bg2); color:var(--text); font:inherit; margin-bottom:8px; }
 .emoji-grid { display:flex; flex-wrap:wrap; gap:2px; max-height:180px; overflow-y:auto; }
 .emoji-none { color:var(--text2); font-size:12.5px; padding:8px; }
+
+/* Popup autocomplete :shortcode: emoji */
+.sc-pop .sc-emoji { font-size: 20px; width: 26px; text-align: center; }

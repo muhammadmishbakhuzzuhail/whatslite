@@ -25,6 +25,9 @@ translateLang.subscribe((v) => { try { localStorage.setItem("wa-tr-lang", v); } 
 // Lightbox media fullscreen: {url, type:"image"|"video", caption} | null
 export const lightbox = writable(null);
 
+// Target pemilih reaksi (emoji penuh + search) → {chatId, idx} | null
+export const reactionTarget = writable(null);
+
 // Draft kirim media: pratinjau + caption sebelum dikirim.
 // {chatId, kind, name, dataURI, viewOnce?} | null
 export const mediaDraft = writable(null);

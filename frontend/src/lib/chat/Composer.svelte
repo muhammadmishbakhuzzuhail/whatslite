@@ -170,6 +170,38 @@
   function onEmojiClick(e) { if (e.detail?.unicode) addEmoji(e.detail.unicode); }
   async function toggleEmoji() { if (!emojiOpen) await ensureEmoji(); emojiOpen = !emojiOpen; }
 
+  // --- Autocomplete :shortcode: (mis. :fire: → 🔥) ---
+  let emojiDb = null;
+  let scOpen = false, scStart = -1, scItems = [];
+  async function ensureDb() {
+    if (emojiDb) return;
+    const m = await import("emoji-picker-element");
+    emojiDb = new m.Database();
+  }
+  async function detectShortcode() {
+    if (!inputEl) return;
+    const cur = inputEl.selectionStart;
+    const upto = value.slice(0, cur);
+    const m = upto.match(/(?:^|\s)(:([a-z0-9_+\-]{2,}))$/i);
+    if (!m) { scOpen = false; return; }
+    scStart = cur - m[1].length;
+    await ensureDb();
+    try {
+      const res = await emojiDb.getEmojiBySearchQuery(m[2]);
+      scItems = (res || []).slice(0, 8).map((e) => ({ u: e.unicode || (e.skins && e.skins[0]?.native), name: (e.shortcodes && e.shortcodes[0]) || e.annotation })).filter((x) => x.u);
+      scOpen = scItems.length > 0;
+    } catch (e) { scOpen = false; }
+  }
+  async function pickShortcode(item) {
+    const cur = inputEl.selectionStart;
+    value = value.slice(0, scStart) + item.u + value.slice(cur);
+    scOpen = false;
+    await tick();
+    const pos = scStart + item.u.length;
+    inputEl.selectionStart = inputEl.selectionEnd = pos;
+    inputEl.focus();
+  }
+
   function send() {
     if (!value.trim()) return;
     // Mode sunting → edit pesan, bukan kirim baru.
@@ -191,6 +223,8 @@
     replyDraft.set(null);
   }
   function onKey(e) {
+    if (scOpen && e.key === "Enter") { e.preventDefault(); pickShortcode(scItems[0]); return; }
+    if (scOpen && e.key === "Escape") { scOpen = false; return; }
     if (mOpen && e.key === "Enter") { e.preventDefault(); pickMention(mItems[0]); return; }
     if (mOpen && e.key === "Escape") { mOpen = false; return; }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -272,6 +306,17 @@
       <button class="mention-item" on:click={() => pickMention(it)}>
         <span class="mi-av" class:special={it.special}>{it.name[0]}</span>
         <span class="mi-name">{it.name}</span>
+      </button>
+    {/each}
+  </div>
+{/if}
+
+{#if scOpen}
+  <div class="mention-pop sc-pop">
+    {#each scItems as it}
+      <button class="mention-item" on:click={() => pickShortcode(it)}>
+        <span class="sc-emoji">{it.u}</span>
+        <span class="mi-name">:{it.name}:</span>
       </button>
     {/each}
   </div>
@@ -381,7 +426,7 @@
 
   <div class="input">
     <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
-      bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); autoGrow(e.target); }} on:click={detectMention}></textarea>
+      bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); }} on:click={detectMention}></textarea>
   </div>
   <button class="icon-btn mic {recording ? 'rec' : ''}" aria-label={typing ? $t("send") : $t("voice_msg")} on:click={handleMic}>
     {#if typing}

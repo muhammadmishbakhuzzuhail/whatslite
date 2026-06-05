@@ -7,6 +7,7 @@
   import AppLock from "./lib/AppLock.svelte";
   import ForwardModal from "./lib/chat/ForwardModal.svelte";
   import MessageInfoModal from "./lib/chat/MessageInfoModal.svelte";
+  import Lightbox from "./lib/chat/Lightbox.svelte";
   import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
   import Toast from "./lib/Toast.svelte";
   import { theme, infoOpen, loggedIn, lockState } from "./stores.js";
@@ -28,6 +29,7 @@
     {#if $infoOpen}<InfoPanel />{/if}
     <ForwardModal />
     <MessageInfoModal />
+    <Lightbox />
     <NewChatModal />
   </div>
 {/if}

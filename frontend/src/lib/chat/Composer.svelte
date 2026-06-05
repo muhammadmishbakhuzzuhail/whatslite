@@ -110,19 +110,28 @@
   function addEmoji(e) { value += e; }
 
   // --- Rekam voice note (MediaRecorder) ---
+  // WhatsApp memutar voice note sebagai ogg/opus. Pilih kontainer ogg/opus bila
+  // didukung; mime asli ikut di data-URI agar engine tak salah-label.
+  function pickAudioMime() {
+    const cands = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/ogg", "audio/webm"];
+    if (typeof MediaRecorder === "undefined") return "";
+    for (const c of cands) if (MediaRecorder.isTypeSupported(c)) return c;
+    return "";
+  }
   let recording = false, mediaRec = null, chunks = [];
   async function handleMic() {
     if (value.trim()) { send(); return; }
     if (recording) { mediaRec && mediaRec.stop(); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRec = new MediaRecorder(stream);
+      const mime = pickAudioMime();
+      mediaRec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       chunks = [];
       mediaRec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       mediaRec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         recording = false;
-        const blob = new Blob(chunks, { type: mediaRec.mimeType || "audio/ogg" });
+        const blob = new Blob(chunks, { type: mediaRec.mimeType || mime || "audio/ogg" });
         if (blob.size < 800) return; // terlalu pendek
         const dataURI = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
         await sendMediaMessage(chatId, "voice", "", "voice", dataURI);
@@ -130,7 +139,7 @@
       mediaRec.start();
       recording = true;
     } catch (e) {
-      pushToast("Mikrofon tak bisa diakses");
+      pushToast($t("mic_denied"));
     }
   }
 </script>
@@ -138,7 +147,7 @@
 {#if $editDraft}
   <div class="reply-bar">
     <div class="rb-body">
-      <div class="rb-name">Edit pesan</div>
+      <div class="rb-name">{$t("edit_message")}</div>
       <div class="rb-text">{$editDraft.text}</div>
     </div>
     <button class="icon-btn" aria-label={$t("cancel")} on:click={() => { editDraft.set(null); value = ""; }}>

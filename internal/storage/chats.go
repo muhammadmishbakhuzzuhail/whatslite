@@ -86,6 +86,34 @@ func (s *Store) ListChats(ctx context.Context) ([]Chat, error) {
 	return out, rows.Err()
 }
 
+// ListArchivedChats mengembalikan chat yang diarsipkan (panel terpisah).
+func (s *Store) ListArchivedChats(ctx context.Context) ([]Chat, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me
+		 FROM chats WHERE archived = 1 ORDER BY last_ts DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Chat
+	for rows.Next() {
+		var c Chat
+		var ts int64
+		var pinned, archived, muted, fromMe int
+		if err := rows.Scan(&c.JID, &c.Name, &c.LastText, &ts, &c.Unread, &pinned, &archived, &muted, &c.LastSender, &fromMe); err != nil {
+			return nil, err
+		}
+		c.LastTS = time.Unix(ts, 0)
+		c.Pinned = pinned != 0
+		c.Archived = archived != 0
+		c.Muted = muted != 0
+		c.LastFromMe = fromMe != 0
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 // SetPinned / SetArchived / SetMuted / SetUnread memperbarui flag chat lokal
 // agar UI langsung mencerminkan aksi (server di-sinkron terpisah via app-state).
 func (s *Store) SetPinned(ctx context.Context, jid string, v bool) error {

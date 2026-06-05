@@ -112,6 +112,13 @@ export function getArchivedCount() {
   if (!LIVE) return mockArchived;
   return 0;
 }
+export async function getArchivedChats() {
+  if (LIVE) {
+    const cs = (await A.GetArchivedChats()) || [];
+    return cs.map((c) => ({ ...c, color: colorFor(c.id) }));
+  }
+  return [];
+}
 
 // Kirim pesan: di LIVE lewat engine Go; di mock biarkan store lokal yang urus.
 export async function sendText(id, text) {

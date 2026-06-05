@@ -1,9 +1,11 @@
 <script>
   import ChatRow from "./ChatRow.svelte";
   import { chats, search, filter, activeChatId, railView, searchMessages, jumpMsg } from "../../stores.js";
-  import { getArchivedCount, colorFor } from "../../services/data.js";
+  import { onMount } from "svelte";
+  import { getArchivedChats, colorFor } from "../../services/data.js";
   import { t } from "../i18n.js";
-  const archivedCount = getArchivedCount();
+  let archivedCount = 0;
+  onMount(async () => { archivedCount = (await getArchivedChats()).length; });
   // Foto profil LAZY per-avatar (via /avatar/<jid>) — bukan eager.
 
   $: q = $search.trim().toLowerCase();
@@ -40,7 +42,7 @@
       {#each filtered as c (c.id)}<ChatRow chat={c} />{/each}
     {/if}
     {#if hits.length}
-      <div class="list-label">Pesan</div>
+      <div class="list-label">{$t("messages_label")}</div>
       {#each hits as h (h.chatJid + h.msgId)}
         <button class="hit-row" on:click={() => openHit(h)}>
           <span class="hit-av" style="background:{colorFor(h.chatJid)}">{initial(h.chatName)}</span>
@@ -56,7 +58,7 @@
     {/if}
   {:else}
     {#if plain}
-      <div class="archived" role="button" tabindex="0">
+      <div class="archived" role="button" tabindex="0" on:click={() => railView.set("archived")} on:keydown={(e) => e.key === "Enter" && railView.set("archived")}>
         <div class="arc-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg></div>
         <div class="arc-label">{$t("archived")}</div>
         {#if archivedCount > 0}<div class="arc-count">{archivedCount}</div>{/if}

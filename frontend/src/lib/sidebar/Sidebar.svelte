@@ -4,6 +4,7 @@
   import SettingsPane from "./SettingsPane.svelte";
   import ProfilePane from "./ProfilePane.svelte";
   import StarredPane from "./StarredPane.svelte";
+  import ArchivedPane from "./ArchivedPane.svelte";
   import StatusPane from "./StatusPane.svelte";
   import ChannelsPane from "./ChannelsPane.svelte";
   import CommunitiesPane from "./CommunitiesPane.svelte";
@@ -17,6 +18,8 @@
     <ProfilePane />
   {:else if $railView === "starred"}
     <StarredPane />
+  {:else if $railView === "archived"}
+    <ArchivedPane />
   {:else if $railView === "status"}
     <StatusPane />
   {:else if $railView === "channels"}

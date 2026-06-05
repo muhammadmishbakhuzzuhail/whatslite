@@ -107,37 +107,61 @@ func (a *App) GetChats() (out []ChatDTO) {
 		if c.JID == "status@broadcast" {
 			continue // bukan chat; jangan tampil di daftar
 		}
-		// Prioritas: nama kontak tersimpan / subjek grup (otoritatif) >
-		// nama tersimpan di DB (pushname) > nomor terbaca > short JID.
-		name := ""
-		if a.eng != nil {
-			name = a.eng.ChatName(c.JID)
-		}
-		if name == "" {
-			name = c.Name
-		}
-		if name == "" && a.eng != nil {
-			name = a.eng.ReadableID(c.JID)
-		}
-		if name == "" {
-			name = shortJID(c.JID)
-		}
-		// Preview grup: prefix "Nama: " (atau "Kamu: ") seperti WhatsApp.
-		preview := c.LastText
-		if isGroupJID(c.JID) && preview != "" {
-			if c.LastFromMe {
-				preview = "Kamu: " + preview
-			} else if c.LastSender != "" {
-				preview = c.LastSender + ": " + preview
-			}
-		}
-		out = append(out, ChatDTO{
-			ID: c.JID, Name: name, Preview: preview,
-			Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: isGroupJID(c.JID),
-			Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
-		})
+		out = append(out, a.chatDTO(c))
 	}
 	return out
+}
+
+// GetArchivedChats mengembalikan chat yang diarsipkan (panel terpisah).
+func (a *App) GetArchivedChats() (out []ChatDTO) {
+	out = []ChatDTO{}
+	if a.store == nil {
+		return
+	}
+	cs, err := a.store.ListArchivedChats(a.ctx)
+	if err != nil {
+		return
+	}
+	for _, c := range cs {
+		if c.JID == "status@broadcast" {
+			continue
+		}
+		out = append(out, a.chatDTO(c))
+	}
+	return out
+}
+
+// chatDTO memetakan satu chat storage → DTO (resolusi nama + preview grup).
+func (a *App) chatDTO(c storage.Chat) ChatDTO {
+	// Prioritas: nama kontak tersimpan / subjek grup (otoritatif) >
+	// nama tersimpan di DB (pushname) > nomor terbaca > short JID.
+	name := ""
+	if a.eng != nil {
+		name = a.eng.ChatName(c.JID)
+	}
+	if name == "" {
+		name = c.Name
+	}
+	if name == "" && a.eng != nil {
+		name = a.eng.ReadableID(c.JID)
+	}
+	if name == "" {
+		name = shortJID(c.JID)
+	}
+	// Preview grup: prefix "Nama: " (atau "Kamu: ") seperti WhatsApp.
+	preview := c.LastText
+	if isGroupJID(c.JID) && preview != "" {
+		if c.LastFromMe {
+			preview = "Kamu: " + preview
+		} else if c.LastSender != "" {
+			preview = c.LastSender + ": " + preview
+		}
+	}
+	return ChatDTO{
+		ID: c.JID, Name: name, Preview: preview,
+		Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: isGroupJID(c.JID),
+		Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
+	}
 }
 
 type MessageDTO struct {

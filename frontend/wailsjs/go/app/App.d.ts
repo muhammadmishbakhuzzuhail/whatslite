@@ -23,6 +23,8 @@ export function FollowChannel(arg1:string):Promise<app.ChannelDTO>;
 
 export function Forward(arg1:string,arg2:string,arg3:string):Promise<string>;
 
+export function GetArchivedChats():Promise<Array<app.ChatDTO>>;
+
 export function GetChannelMessages(arg1:string):Promise<Array<app.ChannelMsgDTO>>;
 
 export function GetChannels():Promise<Array<app.ChannelDTO>>;

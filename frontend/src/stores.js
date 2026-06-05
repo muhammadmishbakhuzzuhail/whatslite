@@ -22,6 +22,9 @@ try { storedTrLang = localStorage.getItem("wa-tr-lang"); } catch (e) {}
 export const translateLang = writable(storedTrLang || "en");
 translateLang.subscribe((v) => { try { localStorage.setItem("wa-tr-lang", v); } catch (e) {} });
 
+// Lightbox media fullscreen: {url, type:"image"|"video", caption} | null
+export const lightbox = writable(null);
+
 export const railView = writable(params.get("view") || "chats");
 export const infoOpen = writable(params.get("info") === "1");
 export const loggedIn = writable(data.LIVE ? false : params.get("screen") !== "qr");

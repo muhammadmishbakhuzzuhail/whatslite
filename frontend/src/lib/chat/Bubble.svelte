@@ -5,7 +5,7 @@
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
   import { LIVE, senderColorFor, avatarUrl } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -107,6 +107,12 @@
     else doTranslate();
     menuOpen = false;
   }
+  function openMedia() {
+    if (!mediaUrl || mediaErr) return;
+    if (msg.type === "image") lightbox.set({ url: mediaUrl, type: "image", caption });
+    else if (msg.type === "video") videoPlaying = true; // putar inline
+    // stiker: tak ada aksi
+  }
   function pin() { pinMessageAction(chatId, idx, !msg.pinned); menuOpen = false; }
   function info() { showMessageInfo(chatId, idx); menuOpen = false; }
 </script>
@@ -145,7 +151,7 @@
       <span class="text">{#each textParts as p}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else}{p.t}{/if}{/each}</span>
     {:else if isMedia}
       <div class="media-box {msg.type === 'sticker' ? 'sticker' : ''}"
-        role="button" tabindex="0" on:click={() => (videoPlaying = msg.type === 'video')}>
+        role="button" tabindex="0" on:click={openMedia}>
         {#if msg.type === "video" && videoPlaying}
           <video class="media-img" src={mediaUrl} controls autoplay></video>
         {:else if mediaUrl && !mediaErr}

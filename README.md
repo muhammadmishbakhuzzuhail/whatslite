@@ -95,7 +95,7 @@ Mode verbose (debug log): `WALITE_DEBUG=1 wails dev`
 ## Belum diimplementasikan
 
 Bisa dikerjakan (belum):
-- **Pencarian/kategori di emoji picker** (butuh dataset emoji).
+- **Siapa melihat status-ku** — butuh tracking read-receipt di `status@broadcast` (dukungan whatsmeow tak pasti, ROI rendah).
 
 ## Keterbatasan (tidak bisa di sisi klien)
 

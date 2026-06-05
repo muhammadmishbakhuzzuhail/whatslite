@@ -813,3 +813,8 @@ button.info-row:hover { background: var(--hover); }
 .ch-post:hover .ch-react { opacity:1; }
 .ch-react button { background:none; border:0; cursor:pointer; font-size:14px; padding:2px 3px; border-radius:6px; }
 .ch-react button:hover { background:var(--hover); }
+
+/* Emoji search */
+.emoji-search { width:100%; border:1px solid var(--line); border-radius:9px; padding:7px 10px; background:var(--bg2); color:var(--text); font:inherit; margin-bottom:8px; }
+.emoji-grid { display:flex; flex-wrap:wrap; gap:2px; max-height:180px; overflow-y:auto; }
+.emoji-none { color:var(--text2); font-size:12.5px; padding:8px; }

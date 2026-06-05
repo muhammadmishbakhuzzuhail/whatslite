@@ -152,7 +152,20 @@
     e.target.value = "";
   }
 
-  const EMOJIS = "😀 😂 🥰 😍 😎 🤔 😅 😭 😡 👍 👎 🙏 👏 🙌 💪 🔥 ✨ 🎉 ❤️ 💔 😴 🤝 👀 🤣 😊 😘 😢 🤯 🥳 😱 💯 ✅".split(" ");
+  // Emoji + kata kunci (cari ID/EN) → filter di picker.
+  const EMOJI_KW = {
+    "😀": "senyum smile grin", "😂": "tawa lol laugh nangis", "🥰": "cinta love sayang", "😍": "cinta love naksir heart",
+    "😎": "keren cool kacamata", "🤔": "mikir think hmm", "😅": "keringat nervous", "😭": "nangis cry sedih sad",
+    "😡": "marah angry kesal", "👍": "jempol like bagus good thumbs", "👎": "jelek dislike bad", "🙏": "doa pray makasih thanks tolong",
+    "👏": "tepuk clap bagus", "🙌": "hore yay angkat", "💪": "kuat strong otot", "🔥": "api fire keren mantap",
+    "✨": "kilau sparkle wow", "🎉": "pesta party selamat congrats", "❤️": "cinta love hati heart", "💔": "patah hati broken",
+    "😴": "tidur sleep ngantuk", "🤝": "salaman deal jabat", "👀": "lihat eyes mata", "🤣": "ngakak rofl lol tawa",
+    "😊": "senyum happy senang", "😘": "cium kiss sayang", "😢": "sedih sad nangis", "🤯": "kaget mind blown wow",
+    "🥳": "pesta party rayakan", "😱": "kaget shock takut", "💯": "seratus perfect mantap", "✅": "centang check selesai done ok",
+  };
+  const EMOJIS = Object.keys(EMOJI_KW);
+  let emojiQuery = "";
+  $: emojiList = emojiQuery.trim() ? EMOJIS.filter((e) => (EMOJI_KW[e] || "").includes(emojiQuery.trim().toLowerCase()) || e === emojiQuery.trim()) : EMOJIS;
 
   function send() {
     if (!value.trim()) return;
@@ -255,7 +268,11 @@
 
 {#if emojiOpen}
   <div class="emoji-panel">
-    {#each EMOJIS as e}<button class="emoji" on:click={() => addEmoji(e)}>{e}</button>{/each}
+    <input class="emoji-search" placeholder="{$t('search')}…" bind:value={emojiQuery} />
+    <div class="emoji-grid">
+      {#each emojiList as e}<button class="emoji" on:click={() => addEmoji(e)}>{e}</button>{/each}
+      {#if emojiList.length === 0}<span class="emoji-none">{$t("no_match")}</span>{/if}
+    </div>
   </div>
 {/if}
 

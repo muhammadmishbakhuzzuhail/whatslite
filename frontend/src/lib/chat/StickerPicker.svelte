@@ -1,6 +1,7 @@
 <script>
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
   import { pushToast } from "../../stores.js";
+  import { searchStickers, fetchRemoteMedia } from "../../services/data.js";
   import { t } from "../i18n.js";
 
   const dispatch = createEventDispatcher();
@@ -13,7 +14,22 @@
   function saveRecents() { try { localStorage.setItem(REC_KEY, JSON.stringify(recents.slice(0, 24))); } catch (e) {} }
   function savePack() { try { localStorage.setItem(PACK_KEY, JSON.stringify(pack.slice(0, 100))); } catch (e) {} }
 
-  let tab = recents.length ? "recents" : (pack.length ? "pack" : "create");
+  // --- Stiker online (Tenor, transparan) ---
+  let online = [], onlineQ = "", onlineLoading = false, onlineBusy = null, _ot;
+  async function fetchOnline(query) { onlineLoading = true; online = await searchStickers(query); onlineLoading = false; }
+  onMount(() => fetchOnline(""));
+  $: { clearTimeout(_ot); const query = onlineQ.trim(); _ot = setTimeout(() => fetchOnline(query), 300); }
+  async function pickOnline(s) {
+    if (onlineBusy) return;
+    onlineBusy = s.id;
+    try {
+      const dataURI = await fetchRemoteMedia(s.mp4); // unduh transparan via backend
+      if (dataURI) { recents = [dataURI, ...recents.filter((r) => r !== dataURI)]; saveRecents(); dispatch("pick", dataURI); }
+    } catch (e) {}
+    onlineBusy = null;
+  }
+
+  let tab = "online";
   let packInput;
   function pickPack() { packInput && packInput.click(); }
   async function onPackFiles(e) {
@@ -90,12 +106,26 @@
 
 <div class="stk-panel">
   <div class="stk-tabs">
+    <button class:active={tab === "online"} on:click={() => (tab = "online")}>{$t("stk_online")}</button>
     <button class:active={tab === "recents"} on:click={() => (tab = "recents")}>{$t("stk_recents")}</button>
     <button class:active={tab === "pack"} on:click={() => (tab = "pack")}>{$t("stk_pack")}</button>
     <button class:active={tab === "create"} on:click={() => (tab = "create")}>{$t("stk_create")}</button>
   </div>
 
-  {#if tab === "recents"}
+  {#if tab === "online"}
+    <input class="stk-search" placeholder="{$t('search')} stiker" bind:value={onlineQ} />
+    <div class="stk-grid">
+      {#if onlineLoading}
+        <div class="stk-empty">…</div>
+      {:else}
+        {#each online as s (s.id)}
+          <button class="stk-cell" on:click={() => pickOnline(s)} disabled={onlineBusy === s.id}><img src={s.preview} alt="" loading="lazy" /></button>
+        {/each}
+        {#if online.length === 0}<div class="stk-empty">{$t("no_match")}</div>{/if}
+      {/if}
+    </div>
+    <div class="stk-credit">Powered by Tenor</div>
+  {:else if tab === "recents"}
     <div class="stk-grid">
       {#each recents as uri}
         <button class="stk-cell" on:click={() => sendRecent(uri)}><img src={uri} alt="" /></button>
@@ -138,6 +168,8 @@
   .stk-tabs { display:flex; gap:6px; margin-bottom:10px; }
   .stk-tabs button { flex:1; padding:8px; border:0; background:var(--bg2); border-radius:9px; cursor:pointer; color:var(--text2); font-size:13px; font-weight:600; }
   .stk-tabs button.active { background:var(--accent); color:#fff; }
+  .stk-search { width:100%; border:0; border-radius:9px; padding:8px 12px; background:var(--bg2); color:var(--text); font:inherit; outline:none; margin-bottom:8px; }
+  .stk-credit { text-align:center; font-size:10px; color:var(--text2); margin-top:6px; letter-spacing:.5px; }
   .stk-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; max-height:280px; overflow-y:auto; }
   .stk-cell { padding:6px; border:0; background:var(--bg2); border-radius:10px; cursor:pointer; aspect-ratio:1; }
   .stk-cell img { width:100%; height:100%; object-fit:contain; }

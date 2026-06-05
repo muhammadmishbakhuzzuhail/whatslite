@@ -330,6 +330,11 @@ export async function searchGifs(query) {
     return (r.results || []).map((g) => { const m = (g.media && g.media[0]) || {}; return { id: g.id, preview: m.tinygif?.url, mp4: m.mp4?.url }; }).filter((g) => g.preview && g.mp4);
   } catch (e) { return []; }
 }
+// Pencarian stiker transparan (Tenor) lewat backend — tab "Online" picker stiker.
+export async function searchStickers(query) {
+  if (LIVE) return (await A.SearchStickers(query || "")) || [];
+  return [];
+}
 // Daftar kontak (buku-alamat + label lokal) utk panel Kontak sidebar.
 export async function getContacts() {
   if (LIVE) return (await A.GetContacts()) || [];

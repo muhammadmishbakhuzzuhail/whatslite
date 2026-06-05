@@ -49,6 +49,8 @@ export function GetMessagesBefore(arg1:string,arg2:number):Promise<Array<app.Mes
 
 export function GetPinned(arg1:string):Promise<Array<app.MessageDTO>>;
 
+export function GetPollVotes(arg1:string):Promise<app.PollVotesDTO>;
+
 export function GetPrivacy():Promise<Record<string, string>>;
 
 export function GetProfile():Promise<app.ProfileDTO>;

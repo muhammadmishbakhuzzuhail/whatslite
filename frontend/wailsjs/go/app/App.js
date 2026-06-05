@@ -94,6 +94,10 @@ export function GetPinned(arg1) {
   return window['go']['app']['App']['GetPinned'](arg1);
 }
 
+export function GetPollVotes(arg1) {
+  return window['go']['app']['App']['GetPollVotes'](arg1);
+}
+
 export function GetPrivacy() {
   return window['go']['app']['App']['GetPrivacy']();
 }

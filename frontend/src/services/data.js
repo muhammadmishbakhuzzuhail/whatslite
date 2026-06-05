@@ -211,6 +211,10 @@ export function setDisappearing(jid, seconds) {
 export function votePoll(chat, pollSender, pollID, options) {
   if (LIVE) A.VotePoll(chat, pollSender, pollID, options);
 }
+export async function getPollVotes(pollID) {
+  if (LIVE) return (await A.GetPollVotes(pollID)) || { counts: {}, total: 0 };
+  return { counts: {}, total: 0 };
+}
 
 // --- Kelola chat (Tier 2) ---
 export function pin(jid, on) {

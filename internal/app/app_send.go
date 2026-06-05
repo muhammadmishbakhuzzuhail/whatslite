@@ -382,13 +382,39 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 	return id
 }
 
-// VotePoll mengirim suara untuk polling masuk.
+// PollVotesDTO = rekap hasil polling.
+type PollVotesDTO struct {
+	Counts map[string]int `json:"counts"`
+	Total  int            `json:"total"`
+}
+
+// GetPollVotes mengembalikan rekap suara satu polling.
+func (a *App) GetPollVotes(pollID string) PollVotesDTO {
+	out := PollVotesDTO{Counts: map[string]int{}}
+	if a.store == nil {
+		return out
+	}
+	counts, total, err := a.store.PollVoteCounts(a.ctx, pollID)
+	if err != nil {
+		return out
+	}
+	out.Counts = counts
+	out.Total = total
+	return out
+}
+
+// VotePoll mengirim suara untuk polling masuk + catat suara sendiri lokal.
 func (a *App) VotePoll(chat, pollSender, pollID string, options []string) {
 	if a.eng == nil {
 		return
 	}
 	if err := a.eng.VotePoll(a.ctx, chat, pollSender, pollID, options); err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	if a.store != nil {
+		_ = a.store.SetPollVote(a.ctx, pollID, a.eng.SelfJID(), options, time.Now())
+		runtime.EventsEmit(a.ctx, "wa:poll", pollID)
 	}
 }
 

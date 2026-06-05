@@ -11,6 +11,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"
@@ -187,6 +188,21 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:receipt", map[string]interface{}{
 			"chat": chat, "ids": ids, "status": status,
 		})
+	})
+	// Suara polling masuk → cocokkan hash ke opsi, simpan, beri tahu UI.
+	eng.OnPollVote(func(chat, pollID, voter string, selected [][]byte) {
+		if a.store == nil {
+			return
+		}
+		m, err := a.store.GetMessage(a.ctx, chat, pollID)
+		if err != nil {
+			return
+		}
+		var opts []string
+		_ = json.Unmarshal([]byte(m.Thumb), &opts) // poll: thumb = JSON opsi
+		names := eng.MatchPollHashes(opts, selected)
+		_ = a.store.SetPollVote(a.ctx, pollID, voter, names, time.Now())
+		runtime.EventsEmit(a.ctx, "wa:poll", pollID)
 	})
 	// Pin/unpin dari perangkat atau anggota lain → perbarui banner tersemat.
 	eng.OnPinInChat(func(chat, msgID string, pinned bool) {

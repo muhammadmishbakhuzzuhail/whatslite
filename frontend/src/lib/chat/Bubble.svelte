@@ -4,7 +4,7 @@
   import Avatar from "../common/Avatar.svelte";
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
-  import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll } from "../../services/data.js";
+  import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
   import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect } from "../../stores.js";
 
   export let msg;
@@ -88,6 +88,10 @@
     const p = new URLSearchParams(location.search);
     if (p.get("tr") === "1" && canTranslate && msg.dir === "in") doTranslate();
     if (p.get("menu") !== null && Number(p.get("menu")) === idx) menuOpen = true; // pratinjau
+    if (msg.type === "poll") {
+      loadPollVotes();
+      onEvent("wa:poll", (id) => { if (id === msg.id) loadPollVotes(); });
+    }
   });
 
   // --- context menu & aksi ---
@@ -125,10 +129,19 @@
   // Polling: thumb = JSON array opsi.
   $: pollOptions = msg.type === "poll" && msg.thumb ? (() => { try { return JSON.parse(msg.thumb); } catch (e) { return []; } })() : [];
   let pollVoted = null;
+  let pollCounts = {};
+  let pollTotal = 0;
+  async function loadPollVotes() {
+    if (msg.type !== "poll" || !LIVE) return;
+    const r = await getPollVotes(msg.id);
+    pollCounts = r.counts || {};
+    pollTotal = r.total || 0;
+  }
   function vote(opt) {
     if (pollVoted) return;
     pollVoted = opt;
     votePoll(chatId, msg.senderId || "", msg.id, [opt]);
+    setTimeout(loadPollVotes, 400);
   }
   function openMedia() {
     if (!mediaUrl || mediaErr) return;
@@ -225,10 +238,13 @@
         <div class="poll-q"><svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h5"/></svg>{msg.text}</div>
         {#each pollOptions as opt}
           <button class="poll-opt {pollVoted === opt ? 'voted' : ''}" disabled={!!pollVoted} on:click={() => vote(opt)}>
-            <span class="poll-radio">{pollVoted === opt ? "●" : ""}</span>{opt}
+            <span class="poll-bar" style="width:{pollTotal ? Math.round((pollCounts[opt] || 0) / pollTotal * 100) : 0}%"></span>
+            <span class="poll-radio">{pollVoted === opt ? "●" : ""}</span>
+            <span class="poll-opt-txt">{opt}</span>
+            <span class="poll-cnt">{pollCounts[opt] || 0}</span>
           </button>
         {/each}
-        {#if pollVoted}<div class="poll-note">{$t("poll_voted")}</div>{/if}
+        <div class="poll-note">{pollVoted ? $t("poll_voted") + " · " : ""}{pollTotal} {$t("poll_votes_n")}</div>
       </div>
     {:else if msg.type === "contact"}
       <div class="ctc-card">

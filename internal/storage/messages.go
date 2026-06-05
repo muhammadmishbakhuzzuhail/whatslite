@@ -5,6 +5,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -138,6 +139,42 @@ AND (CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END) < ?`
 	args = append(args, r)
 	_, err := s.db.ExecContext(ctx, q, args...)
 	return err
+}
+
+// SetPollVote menyimpan suara terbaru seorang pemilih (mengganti yang lama).
+func (s *Store) SetPollVote(ctx context.Context, pollID, voter string, options []string, ts time.Time) error {
+	j, _ := json.Marshal(options)
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO poll_votes (poll_id, voter, options, ts) VALUES (?, ?, ?, ?)
+ON CONFLICT(poll_id, voter) DO UPDATE SET options = excluded.options, ts = excluded.ts`,
+		pollID, voter, string(j), ts.Unix())
+	return err
+}
+
+// PollVoteCounts mengembalikan jumlah suara per opsi + total pemilih.
+func (s *Store) PollVoteCounts(ctx context.Context, pollID string) (map[string]int, int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT options FROM poll_votes WHERE poll_id = ?`, pollID)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	counts := map[string]int{}
+	total := 0
+	for rows.Next() {
+		var oj string
+		if err := rows.Scan(&oj); err != nil {
+			return nil, 0, err
+		}
+		var opts []string
+		json.Unmarshal([]byte(oj), &opts)
+		if len(opts) > 0 {
+			total++
+		}
+		for _, o := range opts {
+			counts[o]++
+		}
+	}
+	return counts, total, rows.Err()
 }
 
 // Receipt = tanda terima satu penerima atas satu pesan.

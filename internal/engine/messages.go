@@ -4,12 +4,15 @@ package engine
 // konten pesan whatsmeow menjadi bentuk sederhana untuk frontend.
 
 import (
+	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/proto/waWeb"
 	"go.mau.fi/whatsmeow/types/events"
@@ -109,6 +112,42 @@ func (e *Engine) OnPinInChat(fn func(chat, msgID string, pinned bool)) {
 		}
 		fn(m.Info.Chat.String(), pin.GetKey().GetID(), pin.GetType() == waE2E.PinInChatMessage_PIN_FOR_ALL)
 	})
+}
+
+// OnPollVote memanggil fn saat ada suara polling masuk (sudah didekripsi).
+// selected = hash opsi terpilih; cocokkan via MatchPollHashes.
+func (e *Engine) OnPollVote(fn func(chat, pollID, voter string, selected [][]byte)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		m, ok := evt.(*events.Message)
+		if !ok || m.Message.GetPollUpdateMessage() == nil {
+			return
+		}
+		pv, err := e.Client.DecryptPollVote(context.Background(), m)
+		if err != nil {
+			return
+		}
+		key := m.Message.GetPollUpdateMessage().GetPollCreationMessageKey()
+		chat := key.GetRemoteJID()
+		if chat == "" {
+			chat = m.Info.Chat.String()
+		}
+		fn(chat, key.GetID(), m.Info.Sender.String(), pv.GetSelectedOptions())
+	})
+}
+
+// MatchPollHashes memetakan hash opsi terpilih → nama opsi.
+func (e *Engine) MatchPollHashes(options []string, selected [][]byte) []string {
+	hashes := whatsmeow.HashPollOptions(options)
+	var out []string
+	for i, h := range hashes {
+		for _, s := range selected {
+			if bytes.Equal(h, s) {
+				out = append(out, options[i])
+				break
+			}
+		}
+	}
+	return out
 }
 
 // HistoryConversation = satu percakapan dari history sync (sudah disederhanakan).

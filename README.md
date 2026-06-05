@@ -95,9 +95,8 @@ Mode verbose (debug log): `WALITE_DEBUG=1 wails dev`
 ## Belum diimplementasikan
 
 Bisa dikerjakan (belum):
-- **Hasil polling langsung (tally)** — voting *sudah bisa* (kirim suara + tandai pilihan), tapi rekap hasil real-time dari suara peserta lain belum (butuh dekripsi `PollUpdateMessage` + tracking per-voter — stateful).
-- **Pencarian dalam satu chat** (navigasi antar-kecocokan); shortcut keyboard.
-- **Wallpaper chat**, ekspor chat, pencarian/kategori di emoji picker.
+- **Ekspor chat** (ke .txt/zip).
+- **Pencarian/kategori di emoji picker** (butuh dataset emoji).
 
 ## Keterbatasan (tidak bisa di sisi klien)
 

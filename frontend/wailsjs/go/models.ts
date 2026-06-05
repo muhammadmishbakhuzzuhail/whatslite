@@ -354,6 +354,20 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class PollVotesDTO {
+	    counts: Record<string, number>;
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PollVotesDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.counts = source["counts"];
+	        this.total = source["total"];
+	    }
+	}
 	export class ProfileDTO {
 	    name: string;
 	    phone: string;

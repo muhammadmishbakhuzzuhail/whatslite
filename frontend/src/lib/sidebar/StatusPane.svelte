@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { getStatuses, postTextStatus, postMediaStatus, colorFor, avatarUrl } from "../../services/data.js";
+  import { getStatuses, postTextStatus, postMediaStatus, getStatusViewers, colorFor, avatarUrl } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -36,6 +36,8 @@
   function startItem() {
     const it = viewG.items[viewI];
     if (it) { seen.add(it.id); persistSeen(); groups = groups; }
+    viewers = []; showViewers = false;
+    if (it && viewG.mine) getStatusViewers(it.id).then((v) => (viewers = v));
     progress = 0;
     clearInterval(timer);
     const step = 50;
@@ -55,6 +57,14 @@
   }
   function close() { clearInterval(timer); viewG = null; }
   onDestroy(() => clearInterval(timer));
+
+  // Penonton status sendiri.
+  let viewers = [];
+  let showViewers = false;
+  function toggleViewers() {
+    showViewers = !showViewers;
+    if (showViewers) { clearInterval(timer); } else { startItem(); }
+  }
 
   function onKey(e) {
     if (!viewG) return;
@@ -181,6 +191,22 @@
         <div class="st-text" style="background:{colorFor(viewG.jid)}">{cur.text || ""}</div>
       {/if}
     </div>
+
+    {#if viewG.mine}
+      <button class="st-viewers-btn" on:click={toggleViewers}>
+        <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        {viewers.length} {$t("status_seen_by")}
+      </button>
+      {#if showViewers}
+        <div class="st-viewers-sheet">
+          <div class="st-vs-head">{$t("status_seen_by")} · {viewers.length}</div>
+          {#each viewers as v}
+            <div class="st-vs-row"><span>{v.name}</span><span class="st-vs-time">{v.time}</span></div>
+          {/each}
+          {#if viewers.length === 0}<div class="st-vs-empty">{$t("status_no_viewers")}</div>{/if}
+        </div>
+      {/if}
+    {/if}
   </div>
 {/if}
 
@@ -211,4 +237,11 @@
   .st-media { max-width:100%; max-height:100%; object-fit:contain; }
   .st-caption { position:absolute; bottom:24px; left:0; right:0; text-align:center; color:#fff; font-size:15px; padding:0 24px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
   .st-text { width:100%; height:100%; display:grid; place-items:center; color:#fff; font-size:26px; font-weight:500; text-align:center; padding:0 32px; }
+  .st-viewers-btn { display:flex; align-items:center; justify-content:center; gap:7px; background:none; border:0; color:#fff; padding:14px; font-size:13px; cursor:pointer; opacity:.85; }
+  .st-viewers-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; }
+  .st-viewers-sheet { position:absolute; left:0; right:0; bottom:0; max-height:50%; overflow-y:auto; background:#111b21; color:#fff; border-radius:16px 16px 0 0; padding:14px 18px; }
+  .st-vs-head { font-weight:600; font-size:13px; opacity:.7; margin-bottom:10px; }
+  .st-vs-row { display:flex; justify-content:space-between; padding:7px 0; font-size:14px; }
+  .st-vs-time { opacity:.6; font-size:12px; }
+  .st-vs-empty { opacity:.6; font-size:13px; padding:8px 0; }
 </style>

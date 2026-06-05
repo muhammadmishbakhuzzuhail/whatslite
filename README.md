@@ -94,8 +94,10 @@ Mode verbose (debug log): `WALITE_DEBUG=1 wails dev`
 
 ## Belum diimplementasikan
 
-Bisa dikerjakan (belum):
-- **Siapa melihat status-ku** — butuh tracking read-receipt di `status@broadcast` (dukungan whatsmeow tak pasti, ROI rendah).
+Bisa dikerjakan (belum): — (tak ada yang tersisa & realistis; lihat Keterbatasan)
+
+> Catatan: **"Siapa melihat status-ku"** terisi dari tanda terima `status@broadcast`
+> secara live (sejak app jalan) — bisa kosong bila penonton melihat saat app mati.
 
 ## Keterbatasan (tidak bisa di sisi klien)
 

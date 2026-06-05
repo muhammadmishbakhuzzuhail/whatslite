@@ -63,6 +63,8 @@ export function GetStarred():Promise<Array<app.SearchHitDTO>>;
 
 export function GetState():Promise<string>;
 
+export function GetStatusViewers(arg1:string):Promise<Array<app.ReceiptDTO>>;
+
 export function GetStatuses():Promise<Array<app.StatusGroupDTO>>;
 
 export function GroupInviteLink(arg1:string,arg2:boolean):Promise<string>;

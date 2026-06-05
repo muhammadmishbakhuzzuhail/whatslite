@@ -258,6 +258,10 @@ export async function postMediaStatus(kind, caption, dataURI) {
   if (LIVE) return A.PostMediaStatus(kind, caption, dataURI);
   return "";
 }
+export async function getStatusViewers(statusID) {
+  if (LIVE) return (await A.GetStatusViewers(statusID)) || [];
+  return [];
+}
 
 // --- Channels / Saluran (newsletter, read-only) ---
 export async function getChannels() {

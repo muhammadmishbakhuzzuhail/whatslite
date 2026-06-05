@@ -103,6 +103,31 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 	return out
 }
 
+// GetStatusViewers mengembalikan siapa saja yang sudah melihat status kita.
+// Data dari tanda terima (receipt) di status@broadcast — terisi live sejak app
+// jalan; kosong bila belum ada yang melihat / belum tersinkron.
+func (a *App) GetStatusViewers(statusID string) []ReceiptDTO {
+	out := []ReceiptDTO{}
+	if a.store == nil {
+		return out
+	}
+	rs, err := a.store.ListReceipts(a.ctx, "status@broadcast", statusID)
+	if err != nil {
+		return out
+	}
+	for _, r := range rs {
+		name := ""
+		if a.eng != nil {
+			name = a.eng.ChatName(r.Recipient)
+		}
+		if name == "" {
+			name = shortJID(r.Recipient)
+		}
+		out = append(out, ReceiptDTO{Name: name, Time: r.Timestamp.Format("2 Jan, 15:04")})
+	}
+	return out
+}
+
 // PostTextStatus mengunggah status teks (broadcast ke kontak). Best-effort.
 func (a *App) PostTextStatus(text string) string {
 	if a.eng == nil || strings.TrimSpace(text) == "" {

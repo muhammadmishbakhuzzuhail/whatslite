@@ -122,6 +122,10 @@ export function GetState() {
   return window['go']['app']['App']['GetState']();
 }
 
+export function GetStatusViewers(arg1) {
+  return window['go']['app']['App']['GetStatusViewers'](arg1);
+}
+
 export function GetStatuses() {
   return window['go']['app']['App']['GetStatuses']();
 }

@@ -59,13 +59,16 @@ function buildSVG(cat, stroke) {
   SPOTS.forEach((p, i) => {
     inner += `<g transform="translate(${p[0]} ${p[1]}) scale(${p[2]}) rotate(${p[3]} 18 18)"><path d="${gl[i % gl.length]}"/></g>`;
   });
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='330' height='330' viewBox='0 0 330 330' fill='none' stroke='${stroke}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${inner}</svg>`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='330' height='330' viewBox='0 0 330 330' fill='none' stroke='${stroke}' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'>${inner}</svg>`;
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 
 // URL doodle utk satu kategori sesuai nada (dark → garis putih samar).
-export function doodleURI(cat, dark) {
-  return buildSVG(cat, dark ? "rgba(255,255,255,0.05)" : "rgba(15,23,32,0.06)");
+// alpha: opacity garis. Default sangat samar (latar chat). Swatch pakai lebih
+// tinggi agar pratinjau tetap kebaca di kotak kecil.
+export function doodleURI(cat, dark, alpha) {
+  const a = alpha != null ? alpha : (dark ? 0.035 : 0.04);
+  return buildSVG(cat, dark ? `rgba(255,255,255,${a})` : `rgba(15,23,32,${a})`);
 }
 
 export const DOODLE_CATS = Object.keys(GLYPHS);

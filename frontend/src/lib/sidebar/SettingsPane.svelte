@@ -92,7 +92,7 @@
         <div class="ct-swatches">
           {#each CHAT_THEMES as ct}
             <button class="ct-sw {$chatTheme === ct.id ? 'on' : ''}" title={ct.label}
-              style="background-color:{chatThemeSwatch(ct.id, ctDark)};{ct.cat ? `background-image:url(\"${doodleURI(ct.cat, ctDark)}\");background-size:118px;` : ''}"
+              style="background-color:{chatThemeSwatch(ct.id, ctDark)};{ct.cat ? `background-image:url(\"${doodleURI(ct.cat, ctDark, ctDark ? 0.5 : 0.4)}\");background-size:118px;` : ''}"
               on:click={() => chatTheme.set(ct.id)}>
               <span class="ct-name">{ct.label}</span>
             </button>

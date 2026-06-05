@@ -148,6 +148,10 @@ export async function sendContact(jid, displayName, phone) {
   if (LIVE) return A.SendContact(jid, displayName, phone);
   return "";
 }
+export async function sendGif(jid, dataURI) {
+  if (LIVE) return A.SendGif(jid, dataURI);
+  return "";
+}
 export function editMessage(jid, msgID, text) {
   if (LIVE) A.EditMessage(jid, msgID, text);
 }

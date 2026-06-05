@@ -190,6 +190,10 @@ export function SendContact(arg1, arg2, arg3) {
   return window['go']['app']['App']['SendContact'](arg1, arg2, arg3);
 }
 
+export function SendGif(arg1, arg2) {
+  return window['go']['app']['App']['SendGif'](arg1, arg2);
+}
+
 export function SendLocation(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['SendLocation'](arg1, arg2, arg3, arg4);
 }

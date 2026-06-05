@@ -80,6 +80,24 @@ func (e *Engine) ForwardMedia(ctx context.Context, to, srcProtoB64 string) (stri
 	return e.sendMessage(ctx, to, &msg)
 }
 
+// SendGif mengunggah klip (mp4) lalu mengirimnya sebagai GIF (GifPlayback).
+func (e *Engine) SendGif(ctx context.Context, to, mime string, data []byte) (string, error) {
+	if mime == "" {
+		mime = "video/mp4"
+	}
+	up, err := e.Client.Upload(ctx, data, whatsmeow.MediaVideo)
+	if err != nil {
+		return "", fmt.Errorf("upload: %w", err)
+	}
+	length := uint64(len(data))
+	msg := &waE2E.Message{VideoMessage: &waE2E.VideoMessage{
+		Mimetype: proto.String(mime), GifPlayback: proto.Bool(true),
+		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey,
+		FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &length,
+	}}
+	return e.sendMessage(ctx, to, msg)
+}
+
 // SendContact mengirim kartu kontak (vCard).
 func (e *Engine) SendContact(ctx context.Context, to, displayName, vcard string) (string, error) {
 	msg := &waE2E.Message{ContactMessage: &waE2E.ContactMessage{

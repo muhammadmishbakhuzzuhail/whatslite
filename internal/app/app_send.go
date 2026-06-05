@@ -279,6 +279,28 @@ func (a *App) GetMessageInfo(chat, msgID string) *MsgInfoDTO {
 	return info
 }
 
+// SendGif mengirim GIF (mp4 data-URI) sebagai video GifPlayback.
+func (a *App) SendGif(jid, dataURI string) string {
+	if a.eng == nil {
+		return ""
+	}
+	mime, data, err := decodeDataURI(dataURI)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	id, err := a.eng.SendGif(a.ctx, jid, mime, data)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	_ = a.store.SaveMessage(a.ctx, storage.Message{
+		ID: id, ChatJID: jid, Kind: "video", Thumb: dataURI, Timestamp: time.Now(), FromMe: true,
+	})
+	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	return id
+}
+
 // SendContact mengirim kartu kontak (membangun vCard dari nama + nomor).
 func (a *App) SendContact(jid, displayName, phone string) string {
 	if a.eng == nil {

@@ -2,7 +2,8 @@
   import { tick } from "svelte";
   import { get } from "svelte/store";
   import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats } from "../../stores.js";
-  import { getGroupInfo, sendLocation, sendPoll, sendContact } from "../../services/data.js";
+  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif } from "../../services/data.js";
+  import GifPicker from "./GifPicker.svelte";
   import { t } from "../i18n.js";
   export let chatId;
   export let group = false;
@@ -30,6 +31,10 @@
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
+  // --- GIF (Giphy) ---
+  let gifOpen = false;
+  function openGif() { attachOpen = false; gifOpen = true; }
+  function onGifPick(e) { gifOpen = false; sendGif(chatId, e.detail); }
   // --- foto sekali lihat (view-once) ---
   let onceInput;
   function attachOnce() { attachOpen = false; onceInput && onceInput.click(); }
@@ -242,6 +247,9 @@
     <button class="am-item" on:click={openPoll}>
       <svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h5"/></svg>{$t("attach_poll")}
     </button>
+    <button class="am-item" on:click={openGif}>
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/></svg>GIF
+    </button>
     <button class="am-item" on:click={openContact}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>{$t("attach_contact")}
     </button>
@@ -271,6 +279,11 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if gifOpen}
+  <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (gifOpen = false)}></button>
+  <GifPicker on:pick={onGifPick} />
 {/if}
 
 {#if pollOpen}

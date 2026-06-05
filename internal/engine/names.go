@@ -35,6 +35,10 @@ func (e *Engine) ResolveName(jid string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
+	// Bot Meta AI (server "bot") → label tetap "Meta AI", bukan nomor mentah.
+	if j.Server == "bot" {
+		return "Meta AI", true
+	}
 	if j.Server == types.GroupServer {
 		e.mu.Lock()
 		n := e.groupNames[jid]

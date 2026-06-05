@@ -34,7 +34,7 @@ func (a *App) resolveMentions(text string) string {
 func (a *App) mentionName(num string) (string, string) {
 	// Pilih bentuk jid yg punya nama; kalau tak ada, default ke @s.whatsapp.net.
 	jid := num + "@s.whatsapp.net"
-	for _, suf := range []string{"@s.whatsapp.net", "@lid"} {
+	for _, suf := range []string{"@s.whatsapp.net", "@lid", "@bot"} {
 		cand := num + suf
 		if n, _ := a.nameOf(cand); n != "" {
 			return n, cand

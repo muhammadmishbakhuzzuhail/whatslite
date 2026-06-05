@@ -2,8 +2,9 @@
   import { onMount, createEventDispatcher } from "svelte";
   import { t } from "../i18n.js";
 
-  // Giphy public beta key (anonim, rate-limited) — tak perlu key pengguna.
-  const KEY = "dc6zaTOxFJmzC";
+  // Tenor (provider GIF yang dipakai WhatsApp). LIVDSRZULELA = key demo publik
+  // anonim Tenor v1 — tak perlu pengguna daftar. media_filter=minimal → respons ringkas.
+  const KEY = "LIVDSRZULELA";
   const dispatch = createEventDispatcher();
 
   let q = "";
@@ -14,16 +15,20 @@
 
   async function fetchGifs(query) {
     loading = true;
-    const url = query
-      ? `https://api.giphy.com/v1/gifs/search?api_key=${KEY}&limit=24&rating=pg-13&q=${encodeURIComponent(query)}`
-      : `https://api.giphy.com/v1/gifs/trending?api_key=${KEY}&limit=24&rating=pg-13`;
+    const base = query
+      ? `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}`
+      : `https://g.tenor.com/v1/trending`;
+    const url = `${base}&key=${KEY}&limit=24&media_filter=minimal&contentfilter=high`;
     try {
       const r = await fetch(url).then((x) => x.json());
-      gifs = (r.data || []).map((g) => ({
-        id: g.id,
-        preview: g.images?.fixed_width_small?.url || g.images?.preview_gif?.url,
-        mp4: g.images?.original_mp4?.url || g.images?.looping?.mp4 || g.images?.fixed_height?.mp4,
-      })).filter((g) => g.mp4);
+      gifs = (r.results || []).map((g) => {
+        const m = (g.media && g.media[0]) || {};
+        return {
+          id: g.id,
+          preview: m.tinygif?.url || m.nanogif?.url || m.gif?.url,
+          mp4: m.mp4?.url || m.tinymp4?.url || m.loopedmp4?.url,
+        };
+      }).filter((g) => g.mp4 && g.preview);
     } catch (e) { gifs = []; }
     loading = false;
   }
@@ -63,7 +68,7 @@
       {#if gifs.length === 0}<div class="gif-empty">{$t("no_match")}</div>{/if}
     {/if}
   </div>
-  <div class="gif-credit">Powered by GIPHY</div>
+  <div class="gif-credit">Powered by Tenor</div>
 </div>
 
 <style>

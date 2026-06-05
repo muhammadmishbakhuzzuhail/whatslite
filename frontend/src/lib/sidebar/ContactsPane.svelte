@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { messageContact, openProfile, saveContactLabel, chatStatus, pushToast } from "../../stores.js";
   import { getContacts, getContactAbout, subscribePresence, avatarUrl, senderColorFor } from "../../services/data.js";
-  import { initial } from "../util.js";
+  import Avatar from "../common/Avatar.svelte";
   import { t } from "../i18n.js";
 
   let contacts = [];
@@ -81,11 +81,7 @@
         on:click={() => messageContact(c.jid)}
         on:keydown={(e) => e.key === "Enter" && messageContact(c.jid)}>
         <div class="ct-av">
-          {#if avatarUrl(c.jid)}
-            <img class="avatar sm photo" src={avatarUrl(c.jid)} alt={c.name} on:error={(e) => (e.target.style.display = 'none')} />
-          {:else}
-            <div class="avatar sm" style="--c:{senderColorFor(c.jid)}"><span>{initial(c.name)}</span></div>
-          {/if}
+          <Avatar name={c.name} color={senderColorFor(c.jid)} photo={avatarUrl(c.jid)} sm={true} />
           {#if isOnline(c.jid)}<span class="ct-dot" title="online"></span>{/if}
         </div>
         <div class="ct-meta">

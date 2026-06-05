@@ -177,6 +177,9 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 [data-theme="dark"] .avatar { background: #243039; }
 [data-theme="dark"] .avatar { background: color-mix(in srgb, var(--c, #06b67f) 30%, #0e1318); }
 .avatar.group svg { width: 58%; height: 58%; fill: var(--c, #06b67f); stroke: none; }
+/* Avatar default (kontak tanpa foto & tanpa inisial huruf, mis. nomor): siluet orang. */
+.avatar.def { overflow: hidden; }
+.avatar.def .person { width: 96%; height: 96%; fill: var(--c, #06b67f); stroke: none; transform: translateY(10%); }
 .avatar.sm { width: 40px; height: 40px; font-size: 16px; }
 
 .row-main { flex: 1; min-width: 0; }

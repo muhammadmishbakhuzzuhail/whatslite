@@ -45,8 +45,12 @@
       <div class="info-hero">
         {#if avatarUrl(prof.jid)}
           <img class="avatar big photo" src={avatarUrl(prof.jid)} alt={prof.name} on:error={(e) => (e.target.style.display = 'none')} />
-        {:else}
+        {:else if /[\p{L}]/u.test(initial(prof.name))}
           <div class="avatar big" style="--c:{senderColorFor(prof.jid)}"><span>{initial(prof.name)}</span></div>
+        {:else}
+          <div class="avatar big def" style="--c:{senderColorFor(prof.jid)}">
+            <svg class="person" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c0-4.2 3.8-6.5 7.5-6.5s7.5 2.3 7.5 6.5z"/></svg>
+          </div>
         {/if}
         <div class="iname">{prof.name}</div>
         {#if prof.phone}<div class="iphone">{prof.phone}</div>{/if}

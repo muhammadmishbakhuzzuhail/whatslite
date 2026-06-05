@@ -286,7 +286,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    menyisakan ruang, jadi waktu (float kanan-bawah) tak pernah jatuh ke baris
    sendiri. Lebar = waktu (+ ruang centang utk pesan keluar). */
 .bubble .text .t-spacer { display: inline-block; visibility: hidden;
-  font-size: 11px; user-select: none; pointer-events: none; }
+  font-size: 11px; user-select: none; pointer-events: none; padding-left: 7px; }
 .bubble .text .t-spacer.out { padding-right: 20px; }
 /* Teks: waktu absolute pojok kanan-bawah; spacer di atas jaga last-line tak
    ketiban. Bubble nyusut ke konten → waktu nempel kanan teks (ala WhatsApp). */

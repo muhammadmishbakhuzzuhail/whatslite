@@ -25,7 +25,7 @@
       : (msg.type === "image" || msg.type === "video")
         ? "media imgcard"
         : msg.type === "voice" ? "voice"
-          : msg.type === "text" ? "txt" : "";
+          : (msg.type === "text" || msg.type === "deleted") ? "txt" : "";
   $: isGroupIn = group && msg.dir === "in";
   $: showSender = isGroupIn && msg.sender && firstOfRun;
   $: senderCol = msg.senderColor || senderColorFor(msg.senderId || msg.sender || "");
@@ -259,7 +259,7 @@
         {#if msg.type === "deleted"}
           <span class="text deleted-text">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
-            {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}
+            {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span>
           </span>
         {/if}
         {#if msg.forwarded}

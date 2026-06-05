@@ -282,6 +282,17 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .bubble .meta { float: right; margin: 4px -3px -2px 8px;
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px; color: var(--text2); user-select: none; }
+/* WhatsApp: spacer tak-terlihat selebar waktu di AKHIR teks → baris terakhir
+   menyisakan ruang, jadi waktu (float kanan-bawah) tak pernah jatuh ke baris
+   sendiri. Lebar = waktu (+ ruang centang utk pesan keluar). */
+.bubble .text .t-spacer { display: inline-block; visibility: hidden;
+  font-size: 11px; user-select: none; pointer-events: none; }
+.bubble .text .t-spacer.out { padding-right: 20px; }
+/* Teks: waktu absolute pojok kanan-bawah; spacer di atas jaga last-line tak
+   ketiban. Bubble nyusut ke konten → waktu nempel kanan teks (ala WhatsApp). */
+.bubble.txt { position: relative; }
+.bubble.txt .meta { position: absolute; right: 11px; bottom: 6px;
+  float: none; clear: none; margin: 0; }
 .ticks { width: 16px; height: 12px; stroke: var(--text2); stroke-width: 1.7; }
 .ticks.read { stroke: var(--tick); }
 

@@ -24,7 +24,8 @@
       ? "media sticker-bubble gif-bubble"
       : (msg.type === "image" || msg.type === "video")
         ? "media imgcard"
-        : msg.type === "voice" ? "voice" : "";
+        : msg.type === "voice" ? "voice"
+          : msg.type === "text" ? "txt" : "";
   $: isGroupIn = group && msg.dir === "in";
   $: showSender = isGroupIn && msg.sender && firstOfRun;
   $: senderCol = msg.senderColor || senderColorFor(msg.senderId || msg.sender || "");
@@ -284,7 +285,7 @@
           </span>
         </a>
       {/if}
-      <span class="text" class:clamp={!expanded} use:clampCheck>{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}</span>{#if everLong}<button class="read-more" on:click|stopPropagation={() => (expanded = !expanded)}>{expanded ? $t("read_less") : $t("read_more")}</button>{/if}
+      <span class="text" class:clamp={!expanded} use:clampCheck>{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span></span>{#if everLong}<button class="read-more" on:click|stopPropagation={() => (expanded = !expanded)}>{expanded ? $t("read_less") : $t("read_more")}</button>{/if}
     {:else if isMedia}
       <div class="media-box {msg.type === 'sticker' ? 'sticker' : 'card'}"
         role="button" tabindex="0" on:click={openMedia}>

@@ -34,6 +34,103 @@ ON CONFLICT(jid) DO UPDATE SET
 	return err
 }
 
+// HistoryChat = metadata satu percakapan dari history-sync (utk SaveHistory).
+type HistoryChat struct {
+	JID      string
+	Name     string
+	TS       int64
+	Unread   int
+	Pinned   bool
+	Archived bool
+}
+
+// SaveHistory menulis SELURUH history-sync (metadata chat + pesan + nama) dalam
+// SATU transaksi. Penting: history-sync awal bisa berisi ribuan pesan; menulis
+// satu-satu lewat SaveMessage = ribuan fsync WAL sinkron di 1 koneksi → handler
+// whatsmeow ke-blok berdetik → socket putus → loop sinkron tak selesai (sidebar
+// kosong, spinner nyangkut). Satu transaksi = 1 fsync saat commit (~100x).
+func (s *Store) SaveHistory(ctx context.Context, chats []HistoryChat, msgs []Message, names map[string]string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	chatStmt, err := tx.PrepareContext(ctx, `
+INSERT INTO chats (jid, name, last_text, last_ts, unread, pinned, archived)
+VALUES (?, ?, '', ?, ?, ?, ?)
+ON CONFLICT(jid) DO UPDATE SET
+	last_ts  = MAX(chats.last_ts, excluded.last_ts),
+	unread   = excluded.unread,
+	pinned   = excluded.pinned,
+	archived = excluded.archived,
+	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`)
+	if err != nil {
+		return err
+	}
+	defer chatStmt.Close()
+	for _, c := range chats {
+		if _, err := chatStmt.ExecContext(ctx, c.JID, c.Name, c.TS, c.Unread, b2i(c.Pinned), b2i(c.Archived)); err != nil {
+			return err
+		}
+	}
+
+	msgStmt, err := tx.PrepareContext(ctx, `
+INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, status)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(chat_jid, id) DO UPDATE SET
+	text = excluded.text, kind = excluded.kind, thumb = excluded.thumb, media = excluded.media,
+	sender = excluded.sender, push_name = excluded.push_name,
+	status = CASE
+		WHEN (CASE excluded.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
+		   > (CASE messages.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
+		THEN excluded.status ELSE messages.status END`)
+	if err != nil {
+		return err
+	}
+	defer msgStmt.Close()
+	ftsDel, err := tx.PrepareContext(ctx, `DELETE FROM messages_fts WHERE msg_id = ? AND chat_jid = ?`)
+	if err != nil {
+		return err
+	}
+	defer ftsDel.Close()
+	ftsIns, err := tx.PrepareContext(ctx, `INSERT INTO messages_fts(text, chat_jid, msg_id, ts) VALUES(?,?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer ftsIns.Close()
+	for _, m := range msgs {
+		st := m.Status
+		if st == "" {
+			st = "sent"
+		}
+		if _, err := msgStmt.ExecContext(ctx, m.ID, m.ChatJID, m.Sender, m.PushName, m.Text, kindOr(m.Kind), m.Thumb, m.Media, m.Timestamp.Unix(), b2i(m.FromMe), st); err != nil {
+			return err
+		}
+		if m.Text != "" {
+			_, _ = ftsDel.ExecContext(ctx, m.ID, m.ChatJID)
+			_, _ = ftsIns.ExecContext(ctx, m.Text, m.ChatJID, m.ID, m.Timestamp.Unix())
+		}
+	}
+
+	if len(names) > 0 {
+		nameStmt, err := tx.PrepareContext(ctx, `UPDATE chats SET name = ? WHERE jid = ?`)
+		if err != nil {
+			return err
+		}
+		defer nameStmt.Close()
+		for jid, name := range names {
+			if name == "" {
+				continue
+			}
+			if _, err := nameStmt.ExecContext(ctx, name, jid); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit()
+}
+
 // RecomputeSummaries menurunkan last_ts + last_text tiap chat dari pesan NYATA
 // terbaru di tabel messages (sumber kebenaran). Memperbaiki drift di mana
 // last_ts (cache dari ConversationTimestamp) lebih lama dari pesan asli →

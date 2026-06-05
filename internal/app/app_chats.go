@@ -138,9 +138,16 @@ func (a *App) GetArchivedChats() (out []ChatDTO) {
 func (a *App) chatDTO(c storage.Chat) ChatDTO {
 	// Prioritas: nama kontak tersimpan / subjek grup (otoritatif) >
 	// nama tersimpan di DB (pushname) > nomor terbaca > short JID.
-	name, _ := a.nameOf(c.JID)
-	if name == "" {
-		name = c.Name // subjek grup / nama tersimpan di DB (offline cache)
+	// Grup: pakai subjek ter-cache di DB dulu → hindari GetGroupInfo (jaringan)
+	// tiap refresh sidebar. 1:1: nama via nameOf (label/buku-alamat/pushname).
+	name := ""
+	if isGroupJID(c.JID) && c.Name != "" {
+		name = c.Name
+	} else {
+		name, _ = a.nameOf(c.JID)
+		if name == "" {
+			name = c.Name
+		}
 	}
 	if name == "" {
 		name = a.phoneOf(c.JID)

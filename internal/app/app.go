@@ -35,6 +35,26 @@ type App struct {
 
 	labelsMu sync.RWMutex      // melindungi labels
 	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB
+
+	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
+}
+
+// bg mengantre kerja tulis-DB ke writer tunggal. Handler whatsmeow dipanggil
+// SINKRON di goroutine pembaca socket; menulis langsung (apalagi ke 1 koneksi
+// SQLite saat banjir history-sync) memblok loop → "Node handling took 9s" →
+// websocket EOF → sinkron tak selesai. Enqueue = handler balik seketika; satu
+// drainer = tanpa kontensi koneksi + urutan terjaga. Antrian penuh → jalankan
+// inline (backpressure) agar tak ada yang hilang.
+func (a *App) bg(fn func()) {
+	if a.wq == nil {
+		fn()
+		return
+	}
+	select {
+	case a.wq <- fn:
+	default:
+		fn()
+	}
 }
 
 func NewApp() *App { return &App{} }
@@ -71,6 +91,13 @@ func (a *App) Startup(ctx context.Context) {
 	a.eng = eng
 	a.store = store
 	a.loadLabels()
+	// Writer DB tunggal: serialkan semua tulis dari event handler off-socket-loop.
+	a.wq = make(chan func(), 8192)
+	go func() {
+		for fn := range a.wq {
+			fn()
+		}
+	}()
 	a.mediaDir = filepath.Join(dataDir, "media")
 	_ = os.MkdirAll(a.mediaDir, 0o755)
 	a.startMediaEviction(512 << 20) // cap cache media ~512MB (LRU by modtime)
@@ -102,34 +129,38 @@ func (a *App) Startup(ctx context.Context) {
 func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// Pesan masuk → simpan ke storage → beri tahu UI (chat JID-nya).
 	eng.OnMessage(func(m engine.IncomingMessage) {
-		_ = store.SaveMessage(a.ctx, storage.Message{
-			ID: m.ID, ChatJID: m.Chat, Sender: m.Sender, PushName: m.PushName,
-			Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
-			Timestamp: m.Timestamp, FromMe: m.FromMe,
-			QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
+		a.bg(func() {
+			_ = store.SaveMessage(a.ctx, storage.Message{
+				ID: m.ID, ChatJID: m.Chat, Sender: m.Sender, PushName: m.PushName,
+				Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
+				Timestamp: m.Timestamp, FromMe: m.FromMe,
+				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
+			})
+			runtime.EventsEmit(a.ctx, "wa:message", m.Chat)
 		})
-		runtime.EventsEmit(a.ctx, "wa:message", m.Chat)
 	})
-	// History sync → simpan semua percakapan & riwayat → daftar chat lengkap.
+	// History sync → simpan semua percakapan & riwayat dalam SATU transaksi
+	// (ribuan baris → 1 fsync). Off-socket-loop lewat antrian writer.
 	eng.OnHistorySync(func(convs []engine.HistoryConversation, pushnames map[string]string) {
+		chats := make([]storage.HistoryChat, 0, len(convs))
+		msgs := make([]storage.Message, 0, len(convs)*8)
 		for _, c := range convs {
-			// Metadata chat otoritatif (timestamp aktivitas → urutan benar; unread; pinned).
-			_ = store.UpsertChat(a.ctx, c.JID, c.Name, c.Timestamp, c.Unread, c.Pinned, c.Archived)
+			chats = append(chats, storage.HistoryChat{
+				JID: c.JID, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
+			})
 			for _, m := range c.Messages {
-				_ = store.SaveMessage(a.ctx, storage.Message{
+				msgs = append(msgs, storage.Message{
 					ID: m.ID, ChatJID: m.Chat, Sender: m.Sender, PushName: m.PushName,
 					Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 					Timestamp: m.Timestamp, FromMe: m.FromMe, Status: m.Status,
 				})
 			}
 		}
-		// Nama kontak dari pushname (UPDATE-only → hanya chat yang sudah ada).
-		for jid, name := range pushnames {
-			_ = store.SetChatName(a.ctx, jid, name)
-		}
-		// Turunkan ringkasan dari pesan nyata → urutan & preview sesuai terbaru.
-		_ = store.RecomputeSummaries(a.ctx)
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.bg(func() {
+			_ = store.SaveHistory(a.ctx, chats, msgs, pushnames)
+			_ = store.RecomputeSummaries(a.ctx)
+			runtime.EventsEmit(a.ctx, "wa:sync", "")
+		})
 	})
 
 	eng.OnConnected(func() {
@@ -154,23 +185,25 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	// Pesan ditarik/dihapus-untuk-semua (oleh siapa pun) → tandai placeholder.
 	eng.OnRevoke(func(chat, msgID, sender string) {
-		_ = store.MarkDeleted(a.ctx, chat, msgID)
-		runtime.EventsEmit(a.ctx, "wa:message", chat)
+		a.bg(func() {
+			_ = store.MarkDeleted(a.ctx, chat, msgID)
+			runtime.EventsEmit(a.ctx, "wa:message", chat)
+		})
 	})
 	// Pin/mute/arsip dari perangkat lain (mis. di-pin dari HP) → sinkron ke DB lokal.
 	eng.OnChatAction(func(jid, action string, on bool) {
-		switch action {
-		case "pin":
-			_ = store.SetPinned(a.ctx, jid, on)
-		case "mute":
-			_ = store.SetMuted(a.ctx, jid, on)
-		case "archive":
-			_ = store.SetArchived(a.ctx, jid, on)
-		}
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.bg(func() {
+			switch action {
+			case "pin":
+				_ = store.SetPinned(a.ctx, jid, on)
+			case "mute":
+				_ = store.SetMuted(a.ctx, jid, on)
+			case "archive":
+				_ = store.SetArchived(a.ctx, jid, on)
+			}
+			runtime.EventsEmit(a.ctx, "wa:sync", "")
+		})
 	})
-	// Saat kontak/app-state selesai sync → refresh sidebar (nama terisi).
-	eng.OnContactsSynced(func() { runtime.EventsEmit(a.ctx, "wa:sync", "") })
 	eng.OnLoggedOut(func() { runtime.EventsEmit(a.ctx, "wa:loggedout", "") })
 
 	eng.OnPresence(func(jid string, online bool, ls time.Time) {
@@ -188,13 +221,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {
-		// Tulis DB di goroutine: handler whatsmeow dipanggil sinkron di loop baca
-		// node; receipt grup = puluhan id × banyak penerima → blok socket → EOF.
+		// Receipt grup = puluhan id × banyak penerima; tulis batch off-loop.
 		if a.store != nil && len(ids) > 0 {
-			go func() {
+			a.bg(func() {
 				_ = a.store.SetMessageStatus(a.ctx, chat, ids, status)
 				_ = a.store.SetReceipts(a.ctx, chat, ids, sender, status, ts)
-			}()
+			})
 		}
 		runtime.EventsEmit(a.ctx, "wa:receipt", map[string]interface{}{
 			"chat": chat, "ids": ids, "status": status,
@@ -205,31 +237,37 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if a.store == nil {
 			return
 		}
-		_ = a.store.EditText(a.ctx, chat, msgID, newText)
-		runtime.EventsEmit(a.ctx, "wa:message", chat)
+		a.bg(func() {
+			_ = a.store.EditText(a.ctx, chat, msgID, newText)
+			runtime.EventsEmit(a.ctx, "wa:message", chat)
+		})
 	})
 	// Reaksi masuk → simpan & beri tahu UI (reload chat aktif).
 	eng.OnReaction(func(chat, targetID, sender, emoji string, fromMe bool) {
 		if a.store == nil {
 			return
 		}
-		_ = a.store.SetReaction(a.ctx, chat, targetID, sender, emoji, time.Now())
-		runtime.EventsEmit(a.ctx, "wa:message", chat)
+		a.bg(func() {
+			_ = a.store.SetReaction(a.ctx, chat, targetID, sender, emoji, time.Now())
+			runtime.EventsEmit(a.ctx, "wa:message", chat)
+		})
 	})
 	// Suara polling masuk → cocokkan hash ke opsi, simpan, beri tahu UI.
 	eng.OnPollVote(func(chat, pollID, voter string, selected [][]byte) {
 		if a.store == nil {
 			return
 		}
-		m, err := a.store.GetMessage(a.ctx, chat, pollID)
-		if err != nil {
-			return
-		}
-		var opts []string
-		_ = json.Unmarshal([]byte(m.Thumb), &opts) // poll: thumb = JSON opsi
-		names := eng.MatchPollHashes(opts, selected)
-		_ = a.store.SetPollVote(a.ctx, pollID, voter, names, time.Now())
-		runtime.EventsEmit(a.ctx, "wa:poll", pollID)
+		a.bg(func() {
+			m, err := a.store.GetMessage(a.ctx, chat, pollID)
+			if err != nil {
+				return
+			}
+			var opts []string
+			_ = json.Unmarshal([]byte(m.Thumb), &opts) // poll: thumb = JSON opsi
+			names := eng.MatchPollHashes(opts, selected)
+			_ = a.store.SetPollVote(a.ctx, pollID, voter, names, time.Now())
+			runtime.EventsEmit(a.ctx, "wa:poll", pollID)
+		})
 	})
 	// Pin/unpin dari perangkat atau anggota lain → perbarui banner tersemat.
 	eng.OnPinInChat(func(chat, msgID string, pinned bool) {

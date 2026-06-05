@@ -316,6 +316,44 @@ func (a *App) GetMessagesBefore(jid string, beforeTs int64) (out []MessageDTO) {
 // toDTO memetakan pesan storage → DTO frontend (nama, balasan, mention).
 func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 	out := []MessageDTO{}
+	// Memo per-pengirim: grup punya sedikit pengirim unik tapi ratusan pesan.
+	// Tanpa memo, resolusi nama/nomor (label + buku-alamat + lid-lookup) jalan
+	// per pesan × 200 → buka chat lambat/seret. Memo → sekali per pengirim.
+	type sInfo struct {
+		name  string
+		saved bool
+		phone string
+	}
+	memo := map[string]sInfo{}
+	resolveSender := func(jid, rowPush string) sInfo {
+		if v, ok := memo[jid]; ok {
+			return v
+		}
+		// label lokal > buku-alamat > pushname baris (TANPA query DB per pesan).
+		name, saved := "", false
+		if lbl := a.labelOf(jid); lbl != "" {
+			name, saved = lbl, true
+		} else if a.eng != nil {
+			name, saved = a.eng.ResolveName(jid)
+		}
+		if name == "" {
+			name = rowPush // pushname pesan ini (sudah termuat)
+		}
+		phone := ""
+		if !saved && jid != "" {
+			phone = a.phoneOf(jid)
+		}
+		if name == "" {
+			if phone != "" {
+				name = phone
+			} else {
+				name = shortJID(jid)
+			}
+		}
+		v := sInfo{name, saved, phone}
+		memo[jid] = v
+		return v
+	}
 	for _, m := range ms {
 		dir := "in"
 		if m.FromMe {
@@ -325,27 +363,14 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 		if kind == "" {
 			kind = "text"
 		}
-		// Nama pengirim: label lokal > buku-alamat > pushname. saved=false →
-		// grup tampil "Nama + nomor". Fallback pushname pesan ini bila kosong.
-		senderName, senderSaved := a.nameOf(m.Sender)
-		if senderName == "" {
-			senderName = m.PushName
-		}
-		senderPhone := ""
-		if !senderSaved && m.Sender != "" {
-			senderPhone = a.phoneOf(m.Sender)
-		}
-		if senderName == "" {
-			if senderPhone != "" {
-				senderName = senderPhone
-			} else {
-				senderName = shortJID(m.Sender)
-			}
-		}
+		// Nama pengirim: label lokal > buku-alamat > pushname (memo). saved=false
+		// → grup tampil "Nama + nomor".
+		si := resolveSender(m.Sender, m.PushName)
+		senderName, senderSaved, senderPhone := si.name, si.saved, si.phone
 		quoteName := ""
 		if m.QuotedText != "" || m.QuotedID != "" {
 			if m.QuotedSender != "" {
-				quoteName = a.displayName(m.QuotedSender)
+				quoteName = resolveSender(m.QuotedSender, "").name
 			}
 			if quoteName == "" {
 				quoteName = "Kamu"

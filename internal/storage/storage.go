@@ -69,7 +69,12 @@ func New(ctx context.Context, path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open app.db: %w", err)
 	}
-	db.SetMaxOpenConns(1) // SQLite single-writer.
+	// WAL: satu penulis + banyak pembaca BISA bersamaan. Dgn MaxOpenConns(1)
+	// pembaca (buka chat) antre di belakang penulis → saat history-sync membanjiri
+	// DB, chat tampak KOSONG karena GetMessages menunggu koneksi. Beberapa koneksi
+	// → pembaca jalan paralel dgn penulis (snapshot WAL); tulis tetap di-serialkan
+	// oleh antrian writer app + busy_timeout menangani tabrakan jarang.
+	db.SetMaxOpenConns(4)
 
 	s := &Store{db: db}
 	if err := s.migrate(ctx); err != nil {

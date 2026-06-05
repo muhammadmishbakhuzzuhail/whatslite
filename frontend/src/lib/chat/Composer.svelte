@@ -15,6 +15,13 @@
   $: if ($editDraft && $editDraft.id !== lastEdit) { lastEdit = $editDraft.id; value = $editDraft.text; }
   $: if (!$editDraft) lastEdit = null;
   let inputEl;
+  // Auto-fokus ke textarea saat mulai balas / sunting (UX: langsung bisa ketik).
+  let _replyId = null, _editId = null;
+  $: if ($replyDraft && $replyDraft.id !== _replyId) { _replyId = $replyDraft.id; focusInput(); }
+  $: if (!$replyDraft) _replyId = null;
+  $: if ($editDraft && $editDraft.id !== _editId) { _editId = $editDraft.id; focusInput(); }
+  $: if (!$editDraft) _editId = null;
+  function focusInput() { tick().then(() => inputEl && inputEl.focus()); }
   $: typing = value.trim().length > 0;
   let emojiOpen = new URLSearchParams(location.search).get("emoji") === "1";
   let fileInput;

@@ -120,15 +120,23 @@
       return;
     }
     // grew = ADA pesan baru di ujung (id terakhir berubah), BUKAN sekadar jumlah
-    // berubah (prepend riwayat / reaksi / reload tak boleh memicu auto-scroll).
+    // berubah (prepend riwayat / reaksi / edit / receipt tak boleh memicu scroll).
     const grew = id !== lastId && it.length >= lastCount;
     const added = Math.max(0, it.length - lastCount);
+    const lastM = it.length ? it[it.length - 1].m : null;
     lastCount = it.length; lastId = id;
-    // Ukur posisi LANGSUNG dari box (bukan var atBottom yg bisa basi) SEBELUM
-    // node baru menambah tinggi → hanya ikut turun bila memang sedang di bawah.
+    if (!grew) return; // reaksi/edit/receipt/reload-sama → DIAM (poin 7)
+    // Pesan SENDIRI (out) → SELALU turun ke bawah, apa pun posisi (poin 4).
+    const mine = lastM && lastM.dir === "out";
+    // Ukur posisi LANGSUNG dari box SEBELUM node baru menambah tinggi → ikut
+    // turun hanya bila memang sedang di bawah (poin 2). Scroll-up → diam (poin 3).
     const nearBottom = b.scrollHeight - b.scrollTop - b.clientHeight < 80;
-    if (grew && nearBottom) tick().then(() => toBottom(false));
-    else if (grew) newCount += added || 1; // badge pesan baru di FAB
+    if (mine || nearBottom) {
+      atBottom = true; newCount = 0;
+      tick().then(() => toBottom(false));
+    } else {
+      newCount += added || 1; // badge pesan baru di FAB (poin 3)
+    }
   }
 
   // Lompat + highlight ke pesan (dari hasil pencarian). Best-effort: hanya bila

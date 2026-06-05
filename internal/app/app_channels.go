@@ -23,12 +23,13 @@ type ChannelDTO struct {
 
 // ChannelMsgDTO = satu pesan saluran (read-only feed).
 type ChannelMsgDTO struct {
-	ID    string `json:"id"`
-	Type  string `json:"type"`
-	Text  string `json:"text"`
-	Thumb string `json:"thumb"`
-	Time  string `json:"time"`
-	Views int    `json:"views"`
+	ID       string `json:"id"`
+	ServerID int64  `json:"serverId"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	Thumb    string `json:"thumb"`
+	Time     string `json:"time"`
+	Views    int    `json:"views"`
 }
 
 // GetChannels mengembalikan saluran yang diikuti.
@@ -63,7 +64,7 @@ func (a *App) GetChannelMessages(jid string) (out []ChannelMsgDTO) {
 	for i := len(ms) - 1; i >= 0; i-- {
 		m := ms[i]
 		out = append(out, ChannelMsgDTO{
-			ID: m.ID, Type: m.Kind, Text: m.Text, Thumb: m.Thumb,
+			ID: m.ID, ServerID: m.ServerID, Type: m.Kind, Text: m.Text, Thumb: m.Thumb,
 			Time: hm(m.Timestamp), Views: m.Views,
 		})
 	}
@@ -90,6 +91,16 @@ func (a *App) UnfollowChannel(jid string) {
 		return
 	}
 	if err := a.eng.UnfollowChannel(a.ctx, jid); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
+// ReactChannel mengirim reaksi emoji pada post saluran.
+func (a *App) ReactChannel(channelJID, msgID string, serverID int64, emoji string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.ReactChannel(a.ctx, channelJID, msgID, serverID, emoji); err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 	}
 }

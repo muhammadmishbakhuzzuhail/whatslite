@@ -806,3 +806,10 @@ button.info-row:hover { background: var(--hover); }
 .wave span.on { background:var(--accent); }
 .vrate { background:var(--bg2); border:0; border-radius:10px; padding:2px 7px; font-size:11px; font-weight:600; color:var(--text2); cursor:pointer; margin-left:4px; }
 .vrate:hover { color:var(--accent); }
+
+/* Reaksi post channel */
+.ch-post-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ch-react { display:flex; gap:1px; opacity:.5; transition:opacity .15s; }
+.ch-post:hover .ch-react { opacity:1; }
+.ch-react button { background:none; border:0; cursor:pointer; font-size:14px; padding:2px 3px; border-radius:6px; }
+.ch-react button:hover { background:var(--hover); }

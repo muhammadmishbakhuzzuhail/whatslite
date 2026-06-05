@@ -73,6 +73,15 @@ func (e *Engine) ChannelMessages(ctx context.Context, jid string, count int) ([]
 	return out, nil
 }
 
+// ReactChannel mengirim reaksi emoji pada satu post saluran (emoji ""=lepas).
+func (e *Engine) ReactChannel(ctx context.Context, channelJID, msgID string, serverID int64, emoji string) error {
+	cj, err := types.ParseJID(channelJID)
+	if err != nil {
+		return err
+	}
+	return e.Client.NewsletterSendReaction(ctx, cj, types.MessageServerID(serverID), emoji, types.MessageID(msgID))
+}
+
 // ChannelInfoByInvite mengintip metadata saluran dari tautan/kunci undangan.
 func (e *Engine) ChannelInfoByInvite(ctx context.Context, link string) (ChannelInfo, error) {
 	key := inviteKey(link)

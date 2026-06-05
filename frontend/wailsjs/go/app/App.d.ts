@@ -95,6 +95,8 @@ export function PostTextStatus(arg1:string):Promise<string>;
 
 export function React(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<void>;
 
+export function ReactChannel(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
+
 export function Reply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
 
 export function RequestPhotos(arg1:Array<string>):Promise<void>;

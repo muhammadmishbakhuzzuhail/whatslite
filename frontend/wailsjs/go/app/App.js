@@ -186,6 +186,10 @@ export function React(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['React'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function ReactChannel(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['ReactChannel'](arg1, arg2, arg3, arg4);
+}
+
 export function Reply(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['Reply'](arg1, arg2, arg3, arg4, arg5);
 }

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { getChannels, getChannelMessages, followChannel, unfollowChannel, muteChannel, colorFor } from "../../services/data.js";
+  import { getChannels, getChannelMessages, followChannel, unfollowChannel, muteChannel, reactChannel, colorFor } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -71,7 +71,14 @@
         <div class="ch-post">
           {#if m.thumb}<img class="ch-post-media" src={m.thumb} alt="" />{/if}
           {#if m.text}<div class="ch-post-text">{m.text}</div>{/if}
-          <div class="ch-post-meta">{m.time}{m.views ? ` · 👁 ${m.views.toLocaleString()}` : ""}</div>
+          <div class="ch-post-meta">
+            <span>{m.time}{m.views ? ` · 👁 ${m.views.toLocaleString()}` : ""}</span>
+            <span class="ch-react">
+              {#each ["👍","❤️","😂","😮","🙏"] as e}
+                <button on:click={() => { reactChannel(active.jid, m.id, m.serverId, e); pushToast(e, "ok"); }}>{e}</button>
+              {/each}
+            </span>
+          </div>
         </div>
       {/each}
       {#if feed.length === 0}

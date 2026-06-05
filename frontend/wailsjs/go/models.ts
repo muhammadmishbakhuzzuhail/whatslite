@@ -28,6 +28,7 @@ export namespace app {
 	}
 	export class ChannelMsgDTO {
 	    id: string;
+	    serverId: number;
 	    type: string;
 	    text: string;
 	    thumb: string;
@@ -41,6 +42,7 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.serverId = source["serverId"];
 	        this.type = source["type"];
 	        this.text = source["text"];
 	        this.thumb = source["thumb"];

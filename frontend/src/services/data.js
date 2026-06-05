@@ -278,6 +278,9 @@ export function unfollowChannel(jid) {
 export function muteChannel(jid, on) {
   if (LIVE) A.MuteChannel(jid, on);
 }
+export function reactChannel(channelJID, msgID, serverID, emoji) {
+  if (LIVE) A.ReactChannel(channelJID, msgID, serverID, emoji);
+}
 
 // --- Communities / Komunitas ---
 export async function getCommunities() {

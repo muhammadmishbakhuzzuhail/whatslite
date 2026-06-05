@@ -4,7 +4,7 @@
   import Avatar from "../common/Avatar.svelte";
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
-  import { LIVE, senderColorFor, avatarUrl, getLinkPreview } from "../../services/data.js";
+  import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll } from "../../services/data.js";
   import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect } from "../../stores.js";
 
   export let msg;
@@ -122,6 +122,14 @@
     const [lat, lng] = msg.thumb.split(",");
     window.open(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`, "_blank");
   }
+  // Polling: thumb = JSON array opsi.
+  $: pollOptions = msg.type === "poll" && msg.thumb ? (() => { try { return JSON.parse(msg.thumb); } catch (e) { return []; } })() : [];
+  let pollVoted = null;
+  function vote(opt) {
+    if (pollVoted) return;
+    pollVoted = opt;
+    votePoll(chatId, msg.senderId || "", msg.id, [opt]);
+  }
   function openMedia() {
     if (!mediaUrl || mediaErr) return;
     if (msg.type === "image") lightbox.set({ url: mediaUrl, type: "image", caption });
@@ -212,6 +220,16 @@
         <img class="loc-map" src={mapUrl} alt="" on:error={(e) => (e.target.style.display = 'none')} />
         <span class="loc-lbl"><svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{msg.text || "📍 Lokasi"}</span>
       </button>
+    {:else if msg.type === "poll"}
+      <div class="poll-card">
+        <div class="poll-q"><svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h5"/></svg>{msg.text}</div>
+        {#each pollOptions as opt}
+          <button class="poll-opt {pollVoted === opt ? 'voted' : ''}" disabled={!!pollVoted} on:click={() => vote(opt)}>
+            <span class="poll-radio">{pollVoted === opt ? "●" : ""}</span>{opt}
+          </button>
+        {/each}
+        {#if pollVoted}<div class="poll-note">{$t("poll_voted")}</div>{/if}
+      </div>
     {:else if msg.type === "contact"}
       <div class="ctc-card">
         <span class="ctc-av">{(msg.text || "?").replace(/^👤\s*/, "")[0] || "?"}</span>

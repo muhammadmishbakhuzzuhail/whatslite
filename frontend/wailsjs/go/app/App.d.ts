@@ -136,3 +136,5 @@ export function Translate(arg1:string,arg2:string):Promise<string>;
 export function UnfollowChannel(arg1:string):Promise<void>;
 
 export function UpdateGroupParticipants(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;
+
+export function VotePoll(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;

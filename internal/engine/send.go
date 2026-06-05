@@ -213,6 +213,31 @@ func (e *Engine) SendPoll(ctx context.Context, to, name string, options []string
 	return e.sendMessage(ctx, to, msg)
 }
 
+// VotePoll mengirim suara untuk polling (opsi by nama). pollSender = pengirim
+// pesan polling, pollID = id pesan polling.
+func (e *Engine) VotePoll(ctx context.Context, chat, pollSender, pollID string, options []string) error {
+	cj, err := types.ParseJID(chat)
+	if err != nil {
+		return err
+	}
+	sj := cj
+	if pollSender != "" {
+		if p, err := types.ParseJID(pollSender); err == nil {
+			sj = p
+		}
+	}
+	info := &types.MessageInfo{
+		MessageSource: types.MessageSource{Chat: cj, Sender: sj},
+		ID:            types.MessageID(pollID),
+	}
+	msg, err := e.Client.BuildPollVote(ctx, info, options)
+	if err != nil {
+		return err
+	}
+	_, err = e.Client.SendMessage(ctx, cj, msg)
+	return err
+}
+
 // SetDisappearing mengatur timer pesan sementara (detik; 0 = mati).
 func (e *Engine) SetDisappearing(ctx context.Context, chat string, seconds int) error {
 	cj, err := types.ParseJID(chat)

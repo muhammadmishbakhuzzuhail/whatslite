@@ -756,3 +756,15 @@ button.info-row:hover { background: var(--hover); }
 .lp-title { font-weight:600; font-size:13.5px; line-height:1.3; }
 .lp-desc { font-size:12.5px; color:var(--text2); display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .lp-host { font-size:11.5px; color:var(--text2); margin-top:2px; }
+
+/* Bubble polling */
+.poll-card { min-width:230px; display:flex; flex-direction:column; gap:6px; }
+.poll-q { display:flex; align-items:flex-start; gap:7px; font-weight:600; font-size:14.5px; margin-bottom:2px; }
+.poll-q svg { width:17px; height:17px; fill:none; stroke:var(--accent); stroke-width:2; flex:0 0 auto; margin-top:2px; }
+.poll-opt { display:flex; align-items:center; gap:9px; text-align:left; padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:var(--bg); cursor:pointer; font-size:13.5px; color:var(--text); }
+.poll-opt:hover:not(:disabled) { border-color:var(--accent); }
+.poll-opt.voted { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent); }
+.poll-opt:disabled { cursor:default; }
+.poll-radio { width:16px; height:16px; border-radius:50%; border:2px solid var(--text2); display:grid; place-items:center; font-size:10px; color:var(--accent); flex:0 0 auto; }
+.poll-opt.voted .poll-radio { border-color:var(--accent); }
+.poll-note { font-size:11.5px; color:var(--text2); }

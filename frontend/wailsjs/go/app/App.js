@@ -269,3 +269,7 @@ export function UnfollowChannel(arg1) {
 export function UpdateGroupParticipants(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateGroupParticipants'](arg1, arg2, arg3);
 }
+
+export function VotePoll(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['VotePoll'](arg1, arg2, arg3, arg4);
+}

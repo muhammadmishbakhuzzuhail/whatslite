@@ -208,6 +208,9 @@ export async function sendPoll(jid, question, options, selectable) {
 export function setDisappearing(jid, seconds) {
   if (LIVE) A.SetDisappearing(jid, seconds);
 }
+export function votePoll(chat, pollSender, pollID, options) {
+  if (LIVE) A.VotePoll(chat, pollSender, pollID, options);
+}
 
 // --- Kelola chat (Tier 2) ---
 export function pin(jid, on) {

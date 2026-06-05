@@ -5,6 +5,7 @@ package engine
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -268,8 +269,19 @@ func describeMessage(msg *waE2E.Message) (kind, text, thumb, media string) {
 		}
 		// thumb membawa nomor telepon (di-parse dari vCard).
 		return "contact", "👤 " + name, vcardPhone(cm.GetVcard()), ""
-	case msg.GetPollCreationMessage() != nil:
-		return "text", "📊 Polling", "", ""
+	}
+	// Polling (beberapa versi proto). Opsi di-JSON-kan ke `thumb` utk render+vote.
+	if pc := pollCreation(msg); pc != nil {
+		opts := make([]string, 0, len(pc.GetOptions()))
+		for _, o := range pc.GetOptions() {
+			opts = append(opts, o.GetOptionName())
+		}
+		j, _ := json.Marshal(opts)
+		name := pc.GetName()
+		if name == "" {
+			name = "Polling"
+		}
+		return "poll", name, string(j), ""
 	}
 	return "", "", "", "" // reaksi/protokol/key-dist/dll → junk
 }
@@ -285,6 +297,19 @@ func vcardPhone(vcard string) string {
 		}
 	}
 	return ""
+}
+
+// pollCreation mengembalikan PollCreationMessage dari versi proto mana pun.
+func pollCreation(msg *waE2E.Message) *waE2E.PollCreationMessage {
+	switch {
+	case msg.GetPollCreationMessage() != nil:
+		return msg.GetPollCreationMessage()
+	case msg.GetPollCreationMessageV2() != nil:
+		return msg.GetPollCreationMessageV2()
+	case msg.GetPollCreationMessageV3() != nil:
+		return msg.GetPollCreationMessageV3()
+	}
+	return nil
 }
 
 func fmtDur(sec uint32) string {

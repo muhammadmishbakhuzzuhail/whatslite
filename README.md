@@ -95,10 +95,7 @@ Mode verbose (debug log): `WALITE_DEBUG=1 wails dev`
 ## Belum diimplementasikan
 
 Bisa dikerjakan (belum):
-- **Voting polling** — polling bisa *dibuat & dikirim*, tapi polling masuk belum bisa di-vote / lihat hasil di UI (whatsmeow punya `BuildPollVote`).
-- **Pratinjau tautan (link preview)** — URL belum di-render jadi kartu OG.
-- **Render kaya untuk lokasi/kontak masuk** — saat ini label teks (📍/👤), belum peta/parse-vCard.
-- **Drag-drop / tempel gambar** ke composer; tombol **simpan media** di lightbox.
+- **Hasil polling langsung (tally)** — voting *sudah bisa* (kirim suara + tandai pilihan), tapi rekap hasil real-time dari suara peserta lain belum (butuh dekripsi `PollUpdateMessage` + tracking per-voter — stateful).
 - **Pencarian dalam satu chat** (navigasi antar-kecocokan); shortcut keyboard.
 - **Wallpaper chat**, ekspor chat, pencarian/kategori di emoji picker.
 

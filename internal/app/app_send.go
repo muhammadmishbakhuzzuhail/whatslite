@@ -382,6 +382,16 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 	return id
 }
 
+// VotePoll mengirim suara untuk polling masuk.
+func (a *App) VotePoll(chat, pollSender, pollID string, options []string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.VotePoll(a.ctx, chat, pollSender, pollID, options); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
 // SetDisappearing mengatur timer pesan sementara untuk chat (detik; 0 = mati).
 func (a *App) SetDisappearing(jid string, seconds int) {
 	if a.eng == nil {

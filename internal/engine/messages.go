@@ -307,7 +307,23 @@ func describeMessage(msg *waE2E.Message) (kind, text, thumb, media string) {
 		return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(b)
 	}
 	// serialize proto pesan ini → utk download media on-demand nanti.
+	// Buang thumbnail tertanam dulu: sudah disimpan terpisah di kolom `thumb`,
+	// dan download pakai directPath/mediaKey/sha (bukan thumbnail) → proto jadi
+	// ramping (hilangkan duplikasi byte thumbnail × ribuan pesan). Dipanggil
+	// SETELAH thumb diekstrak (urutan argumen return: jpeg(...) lalu ser()).
 	ser := func() string {
+		if im := msg.GetImageMessage(); im != nil {
+			im.JPEGThumbnail = nil
+		}
+		if vm := msg.GetVideoMessage(); vm != nil {
+			vm.JPEGThumbnail = nil
+		}
+		if sm := msg.GetStickerMessage(); sm != nil {
+			sm.PngThumbnail = nil
+		}
+		if dm := msg.GetDocumentMessage(); dm != nil {
+			dm.JPEGThumbnail = nil
+		}
 		b, err := proto.Marshal(msg)
 		if err != nil {
 			return ""

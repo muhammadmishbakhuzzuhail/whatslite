@@ -43,6 +43,8 @@ export function GetContactAbout(arg1:string):Promise<string>;
 
 export function GetContactProfile(arg1:string):Promise<app.ContactProfileDTO>;
 
+export function GetContacts():Promise<Array<app.ContactRowDTO>>;
+
 export function GetGroupInfo(arg1:string):Promise<app.GroupInfoDTO>;
 
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;

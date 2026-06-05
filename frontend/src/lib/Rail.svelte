@@ -26,6 +26,9 @@
     <button class="rail-btn {$railView === 'communities' ? 'active' : ''}" title={$t("rail_communities")} on:click={() => go("communities")}>
       <svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="2.2"/><path d="M3 19c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"/><path d="M14 19c0-1.8.9-3.3 2.3-3.9"/></svg>
     </button>
+    <button class="rail-btn {$railView === 'contacts' ? 'active' : ''}" title={$t("rail_contacts")} on:click={() => go("contacts")}>
+      <svg viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5z"/><circle cx="10" cy="10" r="2.5"/><path d="M6.5 16c.6-1.8 2-2.8 3.5-2.8s2.9 1 3.5 2.8"/><path d="M19 8h2M19 12h2M19 16h2"/></svg>
+    </button>
     <button class="rail-btn meta-ai" title={$t("rail_meta")}><span class="ai-ring"></span></button>
   </div>
   <div class="rail-bottom">

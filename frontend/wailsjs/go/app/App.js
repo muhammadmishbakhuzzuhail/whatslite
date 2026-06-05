@@ -82,6 +82,10 @@ export function GetContactProfile(arg1) {
   return window['go']['app']['App']['GetContactProfile'](arg1);
 }
 
+export function GetContacts() {
+  return window['go']['app']['App']['GetContacts']();
+}
+
 export function GetGroupInfo(arg1) {
   return window['go']['app']['App']['GetGroupInfo'](arg1);
 }

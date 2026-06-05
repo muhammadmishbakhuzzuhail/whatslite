@@ -9,6 +9,7 @@
   import StatusPane from "./StatusPane.svelte";
   import ChannelsPane from "./ChannelsPane.svelte";
   import CommunitiesPane from "./CommunitiesPane.svelte";
+  import ContactsPane from "./ContactsPane.svelte";
   import PlaceholderPane from "./PlaceholderPane.svelte";
 </script>
 
@@ -29,6 +30,8 @@
     <ChannelsPane />
   {:else if $railView === "communities"}
     <CommunitiesPane />
+  {:else if $railView === "contacts"}
+    <ContactsPane />
   {:else}
     <ChatsPane />
   {/if}

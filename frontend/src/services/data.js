@@ -320,6 +320,11 @@ export async function getBlockedContacts() {
   if (LIVE) return (await A.GetBlockedContacts()) || [];
   return [];
 }
+// Daftar kontak (buku-alamat + label lokal) utk panel Kontak sidebar.
+export async function getContacts() {
+  if (LIVE) return (await A.GetContacts()) || [];
+  return (await getChats()).filter((c) => !c.group).map((c) => ({ jid: c.id, name: c.name, phone: c.phone || "", saved: true }));
+}
 export async function getPrivacy() {
   if (LIVE) return (await A.GetPrivacy()) || {};
   return {};

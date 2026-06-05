@@ -26,6 +26,32 @@ func (e *Engine) ContactAbout(ctx context.Context, jid string) string {
 	return ""
 }
 
+// ContactJIDs mengembalikan JID semua kontak nyata (nomor @s.whatsapp.net) yang
+// punya nama di buku-alamat/pushname. Dipakai daftar "Kontak" di sidebar.
+func (e *Engine) ContactJIDs() []string {
+	if e == nil || e.Client == nil || e.Client.Store == nil || e.Client.Store.Contacts == nil {
+		return nil
+	}
+	m, err := e.Client.Store.Contacts.GetAllContacts(context.Background())
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(m))
+	for jid, info := range m {
+		if jid.Server != types.DefaultUserServer { // hanya nomor telepon nyata
+			continue
+		}
+		if !info.Found {
+			continue
+		}
+		if info.FullName == "" && info.FirstName == "" && info.PushName == "" && info.BusinessName == "" {
+			continue
+		}
+		out = append(out, jid.String())
+	}
+	return out
+}
+
 // Block memblokir / membuka blokir kontak.
 func (e *Engine) Block(ctx context.Context, jid string, block bool) error {
 	j, err := types.ParseJID(jid)

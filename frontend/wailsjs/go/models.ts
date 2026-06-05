@@ -158,6 +158,8 @@ export namespace app {
 	export class ContactRowDTO {
 	    jid: string;
 	    name: string;
+	    phone: string;
+	    saved: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ContactRowDTO(source);
@@ -167,6 +169,8 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.jid = source["jid"];
 	        this.name = source["name"];
+	        this.phone = source["phone"];
+	        this.saved = source["saved"];
 	    }
 	}
 	export class GroupMemberDTO {

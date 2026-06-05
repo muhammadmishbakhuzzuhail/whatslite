@@ -7,6 +7,18 @@
   import Avatar from "../common/Avatar.svelte";
 
   let groups = [];
+  // Urut abjad + pemisah huruf A–Z/# (seperti tab Kontak).
+  $: lettered = (() => {
+    const others = groups.filter((g) => !g.mine);
+    const sorted = [...others].sort((a, b) => (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase()));
+    const m = {};
+    for (const g of sorted) {
+      let L = (g.name || "#").trim().charAt(0).toUpperCase();
+      if (!/[A-Z]/.test(L)) L = "#";
+      (m[L] = m[L] || []).push(g);
+    }
+    return Object.keys(m).sort().map((L) => ({ L, items: m[L] }));
+  })();
   let loading = true;
 
   // status yg sudah dilihat (persist lokal) → cincin abu vs hijau.
@@ -130,20 +142,23 @@
   {#if loading}
     <div class="empty-list" style="padding:24px 16px;text-align:center;color:var(--text2)">…</div>
   {:else}
-    {#each groups.filter((g) => !g.mine) as g (g.jid)}
-      <button class="status-row" on:click={() => openGroup(g)}>
-        <span class="status-av-wrap">
-          <span class="ring {allSeen(g) ? 'seen' : ''}" style="--n:{g.count}">
-            <Avatar name={g.name} color={colorFor(g.jid)} photo={avatarUrl(g.jid)} />
+    {#each lettered as grp (grp.L)}
+      <div class="ct-letter">{grp.L}</div>
+      {#each grp.items as g (g.jid)}
+        <button class="status-row" on:click={() => openGroup(g)}>
+          <span class="status-av-wrap">
+            <span class="ring {allSeen(g) ? 'seen' : ''}" style="--n:{g.count}">
+              <Avatar name={g.name} color={colorFor(g.jid)} photo={avatarUrl(g.jid)} />
+            </span>
           </span>
-        </span>
-        <span class="status-meta">
-          <span class="status-name">{g.name}</span>
-          <span class="status-sub">{g.time}{g.count > 1 ? ` · ${g.count}` : ""}</span>
-        </span>
-      </button>
+          <span class="status-meta">
+            <span class="status-name">{g.name}</span>
+            <span class="status-sub">{g.time}{g.count > 1 ? ` · ${g.count}` : ""}</span>
+          </span>
+        </button>
+      {/each}
     {/each}
-    {#if groups.filter((g) => !g.mine).length === 0}
+    {#if lettered.length === 0}
       <div class="empty-list" style="padding:28px 16px;text-align:center;color:var(--text2)">{$t("status_empty")}</div>
     {/if}
   {/if}
@@ -208,6 +223,7 @@
 {/if}
 
 <style>
+  .ct-letter { position: sticky; top: 0; background: var(--bg); color: var(--accent); font-size: 12px; font-weight: 700; padding: 5px 16px; z-index: 1; }
   .status-row { display:flex; align-items:center; gap:14px; width:100%; padding:10px 14px; background:none; border:0; cursor:pointer; text-align:left; }
   .status-row:hover { background:var(--hover); }
   .status-av-wrap { position:relative; flex:0 0 auto; }

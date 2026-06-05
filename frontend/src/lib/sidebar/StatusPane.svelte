@@ -4,6 +4,7 @@
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
+  import Avatar from "../common/Avatar.svelte";
 
   let groups = [];
   let loading = true;
@@ -133,11 +134,7 @@
       <button class="status-row" on:click={() => openGroup(g)}>
         <span class="status-av-wrap">
           <span class="ring {allSeen(g) ? 'seen' : ''}" style="--n:{g.count}">
-            {#if avatarUrl(g.jid)}
-              <img class="status-av" src={avatarUrl(g.jid)} alt="" on:error={(e) => (e.target.style.display = 'none')} />
-            {:else}
-              <span class="status-av" style="background:{colorFor(g.jid)}">{initial(g.name)}</span>
-            {/if}
+            <Avatar name={g.name} color={colorFor(g.jid)} photo={avatarUrl(g.jid)} />
           </span>
         </span>
         <span class="status-meta">
@@ -176,7 +173,7 @@
       {/each}
     </div>
     <div class="st-head">
-      <span class="status-av sm" style="background:{colorFor(viewG.jid)}">{initial(viewG.name)}</span>
+      <Avatar name={viewG.name} color={colorFor(viewG.jid)} photo={avatarUrl(viewG.jid)} sm={true} />
       <span class="st-htext"><b>{viewG.name}</b><span>{cur.time}</span></span>
       <button class="st-x" on:click={close}>✕</button>
     </div>

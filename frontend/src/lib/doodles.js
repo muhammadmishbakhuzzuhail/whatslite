@@ -5,6 +5,19 @@
 // Warna stroke beda utk light vs dark → 1 set glyph, 2 nada.
 
 const GLYPHS = {
+  // 🗂️ Aneka — generik sehari-hari/komunikasi (pengganti PNG Default agar
+  // opacity seragam dgn kategori): gelembung chat, hati, hadiah, bintang,
+  // not balok, kamera, daun, plus.
+  aneka: [
+    "M6 10 H30 V24 H16 L10 30 V24 H6 Z",
+    "M18 30 C6 22 6 10 13 10 C16 10 18 13 18 14 C18 13 20 10 23 10 C30 10 30 22 18 30 Z",
+    "M7 16 H29 V30 H7 Z M7 16 V13 H29 V16 M18 13 V30 M18 13 C16 6 9 8 12 12 C14 13 16 13 18 13 M18 13 C20 6 27 8 24 12 C22 13 20 13 18 13",
+    "M18 4 L21 15 L32 18 L21 21 L18 32 L15 21 L4 18 L15 15 Z",
+    "M14 27 a4 3 0 1 0 8 0 a4 3 0 1 0 -8 0 M22 27 V8 L28 11 V13 M14 27 V14 L22 11",
+    "M6 12 H11 L13 9 H23 L25 12 H30 V28 H6 Z M18 14 a6 6 0 1 0 0.1 0 Z",
+    "M18 3 C9 9 9 23 18 29 C27 23 27 9 18 3 Z M18 7 V27",
+    "M18 11 V25 M11 18 H25",
+  ],
   // 🌿 Botani — daun, tunas, frond, monstera.
   botani: [
     "M18 3 C7 11 7 27 18 33 C29 27 29 11 18 3 Z M18 7 V31",

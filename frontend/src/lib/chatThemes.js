@@ -6,7 +6,7 @@
 // Dipakai stores.applyChatTheme() → set CSS var --chat-bg-* & --chat-doodle.
 
 export const CHAT_THEMES = [
-  { id: "default", label: "Default", doodle: true,  light: "#eef1f6", dark: "#0a0f14" },
+  { id: "default", label: "Default", cat: "aneka",  light: "#eef1f6", dark: "#0a0f14" },
   { id: "plain",   label: "Polos",   doodle: false, light: "#eef1f6", dark: "#0a0f14" },
   { id: "botani",    label: "Botani",    cat: "botani",    light: "#eef3ec", dark: "#0c140f" },
   { id: "sirkuit",   label: "Sirkuit",   cat: "sirkuit",   light: "#e9eef4", dark: "#0b1016" },

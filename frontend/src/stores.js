@@ -94,6 +94,11 @@ function playNotifSound() {
 }
 
 export const railView = writable(params.get("view") || "chats");
+// Pindah ke section non-chat (Status/Saluran/Komunitas) → tutup chat aktif agar
+// panel kanan tak menampilkan grup yang tak nyambung dgn sidebar.
+railView.subscribe((v) => {
+  if (v === "status" || v === "channels" || v === "communities") activeChatId.set(null);
+});
 export const infoOpen = writable(params.get("info") === "1");
 export const loggedIn = writable(data.LIVE ? false : params.get("screen") !== "qr");
 export const qrImage = writable("");

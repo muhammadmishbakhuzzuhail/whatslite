@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { getChannels, getChannelMessages, followChannel, unfollowChannel, muteChannel, reactChannel, colorFor } from "../../services/data.js";
+  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -12,6 +12,18 @@
   let feedLoading = false;
   let followOpen = false;
   let link = "";
+
+  // --- Jelajah (rekomendasi global) ---
+  let tab = "following"; // following | discover
+  let recommended = [], discQ = "", discLoading = false, _dt, following = new Set();
+  $: following = new Set(channels.map((c) => c.jid));
+  async function loadDiscover(q) { discLoading = true; recommended = await getRecommendedChannels(q || ""); discLoading = false; }
+  $: if (tab === "discover") { clearTimeout(_dt); const q = discQ.trim(); _dt = setTimeout(() => loadDiscover(q), 350); }
+  async function followRec(c) {
+    followChannelByJID(c.jid);
+    pushToast($t("ch_followed"), "ok");
+    setTimeout(load, 600);
+  }
 
   async function load() {
     loading = true;
@@ -87,13 +99,48 @@
     {/if}
   </div>
 {:else}
-  <!-- Daftar saluran diikuti -->
+  <!-- Daftar saluran: Diikuti / Jelajahi -->
   <header class="pane-head">
     <h2>{$t("rail_channels")}</h2>
     <button class="icon-btn" title={$t("ch_follow")} style="margin-left:auto" on:click={() => followOpen = true}>
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </header>
+  <div class="ch-tabs">
+    <button class:on={tab === "following"} on:click={() => (tab = "following")}>{$t("ch_following")}</button>
+    <button class:on={tab === "discover"} on:click={() => (tab = "discover")}>{$t("ch_discover")}</button>
+  </div>
+
+  {#if tab === "discover"}
+    <div style="padding:0 12px 8px"><input class="ch-search" placeholder={$t("search")} bind:value={discQ} /></div>
+    <div style="flex:1; overflow-y:auto">
+      {#if discLoading}
+        <div class="empty-list" style="text-align:center;padding:24px;color:var(--text2)">…</div>
+      {:else}
+        {#each recommended as c (c.jid)}
+          <div class="ch-row" on:click={() => open(c)} role="button" tabindex="0" on:keydown={(e) => e.key === "Enter" && open(c)}>
+            {#if c.picture}
+              <img class="ch-av" src={c.picture} alt="" on:error={(e) => (e.target.style.display = 'none')} />
+            {:else}
+              <span class="ch-av" style="background:{colorFor(c.jid)}">{initial(c.name)}</span>
+            {/if}
+            <div class="ch-meta">
+              <div class="ch-name">{c.name}{#if c.verified}<span class="ch-verif">✓</span>{/if}</div>
+              <div class="ch-sub">{c.subscribers.toLocaleString()} {$t("ch_subs")}</div>
+            </div>
+            {#if following.has(c.jid)}
+              <span class="ch-followed">✓</span>
+            {:else}
+              <button class="btn-accent ch-follow-btn" on:click|stopPropagation={() => followRec(c)}>{$t("ch_follow_short")}</button>
+            {/if}
+          </div>
+        {/each}
+        {#if recommended.length === 0}
+          <div class="empty-list" style="text-align:center;padding:28px 16px;color:var(--text2)">{$t("ch_discover_empty")}</div>
+        {/if}
+      {/if}
+    </div>
+  {:else}
   <div style="flex:1; overflow-y:auto">
     {#if loading}
       <div class="empty-list" style="text-align:center;padding:24px;color:var(--text2)">…</div>
@@ -118,6 +165,7 @@
       {/if}
     {/if}
   </div>
+  {/if}
 {/if}
 
 <!-- Ikuti via tautan -->
@@ -136,6 +184,12 @@
 {/if}
 
 <style>
+  .ch-tabs { display:flex; gap:6px; padding:2px 12px 10px; }
+  .ch-tabs button { flex:1; padding:8px; border:0; background:var(--bg2); border-radius:9px; cursor:pointer; color:var(--text2); font:inherit; font-size:13px; font-weight:600; }
+  .ch-tabs button.on { background:var(--accent); color:#fff; }
+  .ch-search { width:100%; border:0; border-radius:10px; padding:9px 14px; background:var(--bg2); color:var(--text); font:inherit; outline:none; }
+  .ch-follow-btn { padding:6px 14px; font-size:13px; flex:0 0 auto; }
+  .ch-followed { color:var(--accent); font-weight:700; flex:0 0 auto; padding:0 8px; }
   .ch-row { display:flex; align-items:center; gap:13px; padding:10px 14px; cursor:pointer; }
   .ch-row:hover { background:var(--hover); }
   .ch-av { width:48px; height:48px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; object-fit:cover; flex:0 0 auto; }

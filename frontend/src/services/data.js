@@ -276,6 +276,13 @@ export async function followChannel(link) {
   if (LIVE) return A.FollowChannel(link);
   return null;
 }
+export async function getRecommendedChannels(query) {
+  if (LIVE) return (await A.GetRecommendedChannels(query || "")) || [];
+  return [];
+}
+export function followChannelByJID(jid) {
+  if (LIVE) A.FollowChannelByJID(jid);
+}
 export function unfollowChannel(jid) {
   if (LIVE) A.UnfollowChannel(jid);
 }

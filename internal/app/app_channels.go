@@ -49,6 +49,36 @@ func (a *App) GetChannels() (out []ChannelDTO) {
 	return
 }
 
+// GetRecommendedChannels mengambil saluran rekomendasi GLOBAL (jelajah), bukan
+// hanya yang diikuti. Experimental (API undocumented) — error disurfacing ke UI.
+func (a *App) GetRecommendedChannels(query string) (out []ChannelDTO) {
+	out = []ChannelDTO{}
+	if a.eng == nil {
+		return
+	}
+	cs, err := a.eng.RecommendedChannels(a.ctx, query)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	for _, c := range cs {
+		out = append(out, channelDTO(c))
+	}
+	return
+}
+
+// FollowChannelByJID mengikuti saluran hasil jelajah (berdasarkan JID).
+func (a *App) FollowChannelByJID(jid string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.FollowChannelByJID(a.ctx, jid); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+}
+
 // GetChannelMessages mengambil feed (read-only) satu saluran.
 func (a *App) GetChannelMessages(jid string) (out []ChannelMsgDTO) {
 	out = []ChannelMsgDTO{}

@@ -5,6 +5,8 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -46,6 +48,81 @@ func (e *Engine) ListChannels(ctx context.Context) ([]ChannelInfo, error) {
 		out = append(out, channelInfoFrom(m))
 	}
 	return out, nil
+}
+
+// RecommendedChannels mengambil saluran REKOMENDASI global (bukan hanya yang
+// diikuti) lewat mex query "directory" WhatsApp via DangerousInternals — API ini
+// tak punya wrapper publik di whatsmeow, jadi dipanggil mentah. Read-only.
+// Format respons tak terdokumentasi → parsing defensif beberapa bentuk.
+func (e *Engine) RecommendedChannels(ctx context.Context, query string) ([]ChannelInfo, error) {
+	if e == nil || e.Client == nil {
+		return nil, fmt.Errorf("not connected")
+	}
+	// queryRecommendedNewsletters = "7263823273662354" (output: xwa2_newsletters_recommended)
+	input := map[string]any{"limit": 50, "country_codes": []string{}}
+	if strings.TrimSpace(query) != "" {
+		input["search_text"] = strings.TrimSpace(query) // best-effort filter
+	}
+	data, err := e.Client.DangerousInternals().SendMexIQ(ctx, "7263823273662354", map[string]any{"input": input})
+	if err != nil {
+		return nil, err
+	}
+	// Cari list NewsletterMetadata di dalam respons apa pun bentuknya.
+	list := extractNewsletters(data)
+	if len(list) == 0 {
+		// surfacing utk debug: API ini undocumented; sertakan cuplikan mentah.
+		snippet := string(data)
+		if len(snippet) > 300 {
+			snippet = snippet[:300]
+		}
+		return nil, fmt.Errorf("kosong/parse gagal; raw: %s", snippet)
+	}
+	out := make([]ChannelInfo, 0, len(list))
+	for _, m := range list {
+		if m != nil {
+			out = append(out, channelInfoFrom(m))
+		}
+	}
+	return out, nil
+}
+
+// extractNewsletters menggali []*NewsletterMetadata dari respons mex apa pun
+// bentuk pembungkusnya (langsung list, {result:[...]}, {newsletters:[...]}, dst).
+func extractNewsletters(data json.RawMessage) []*types.NewsletterMetadata {
+	var top map[string]json.RawMessage
+	if json.Unmarshal(data, &top) != nil {
+		return nil
+	}
+	for _, raw := range top {
+		// coba langsung array
+		var arr []*types.NewsletterMetadata
+		if json.Unmarshal(raw, &arr) == nil && len(arr) > 0 {
+			return arr
+		}
+		// coba pembungkus {result/newsletters/edges: [...]}
+		var wrap struct {
+			Result      []*types.NewsletterMetadata `json:"result"`
+			Newsletters []*types.NewsletterMetadata `json:"newsletters"`
+		}
+		if json.Unmarshal(raw, &wrap) == nil {
+			if len(wrap.Result) > 0 {
+				return wrap.Result
+			}
+			if len(wrap.Newsletters) > 0 {
+				return wrap.Newsletters
+			}
+		}
+	}
+	return nil
+}
+
+// FollowChannelByJID mengikuti saluran berdasarkan JID (dari hasil rekomendasi).
+func (e *Engine) FollowChannelByJID(ctx context.Context, jid string) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	return e.Client.FollowNewsletter(ctx, j)
 }
 
 // ChannelMessages mengambil hingga `count` pesan terbaru sebuah saluran.

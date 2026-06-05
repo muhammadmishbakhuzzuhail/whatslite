@@ -25,6 +25,8 @@ export function FetchRemoteMedia(arg1:string):Promise<string>;
 
 export function FollowChannel(arg1:string):Promise<app.ChannelDTO>;
 
+export function FollowChannelByJID(arg1:string):Promise<void>;
+
 export function Forward(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function GetArchivedChats():Promise<Array<app.ChatDTO>>;
@@ -64,6 +66,8 @@ export function GetPrivacy():Promise<Record<string, string>>;
 export function GetProfile():Promise<app.ProfileDTO>;
 
 export function GetProfilePic(arg1:string):Promise<string>;
+
+export function GetRecommendedChannels(arg1:string):Promise<Array<app.ChannelDTO>>;
 
 export function GetStarred():Promise<Array<app.SearchHitDTO>>;
 

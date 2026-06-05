@@ -46,6 +46,10 @@ export function FollowChannel(arg1) {
   return window['go']['app']['App']['FollowChannel'](arg1);
 }
 
+export function FollowChannelByJID(arg1) {
+  return window['go']['app']['App']['FollowChannelByJID'](arg1);
+}
+
 export function Forward(arg1, arg2, arg3) {
   return window['go']['app']['App']['Forward'](arg1, arg2, arg3);
 }
@@ -124,6 +128,10 @@ export function GetProfile() {
 
 export function GetProfilePic(arg1) {
   return window['go']['app']['App']['GetProfilePic'](arg1);
+}
+
+export function GetRecommendedChannels(arg1) {
+  return window['go']['app']['App']['GetRecommendedChannels'](arg1);
 }
 
 export function GetStarred() {

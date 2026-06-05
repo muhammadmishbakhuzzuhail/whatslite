@@ -39,9 +39,11 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
 	}
-	// Simpan lokal: thumb = data-URI agar UI langsung menampilkan kiriman.
+	// Tulis byte ke file-cache (disajikan via /media) — JANGAN simpan data-URI
+	// raksasa di DB. thumb dikosongkan.
+	a.cacheSentMedia(jid, id, data, mime)
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: caption, Kind: kind, Thumb: dataURI,
+		ID: id, ChatJID: jid, Text: caption, Kind: kind,
 		Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
@@ -312,8 +314,9 @@ func (a *App) SendSticker(jid, dataURI string) string {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
 	}
+	a.cacheSentMedia(jid, id, data, "image/webp")
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Kind: "sticker", Thumb: dataURI, Timestamp: time.Now(), FromMe: true,
+		ID: id, ChatJID: jid, Kind: "sticker", Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
 	return id
@@ -335,8 +338,9 @@ func (a *App) SendGif(jid, dataURI string) string {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
 	}
+	a.cacheSentMedia(jid, id, data, mime)
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Kind: "gif", Thumb: dataURI, Timestamp: time.Now(), FromMe: true,
+		ID: id, ChatJID: jid, Kind: "gif", Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
 	return id

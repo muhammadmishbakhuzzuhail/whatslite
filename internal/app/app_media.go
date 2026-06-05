@@ -148,6 +148,19 @@ func writeFileAtomic(path string, data []byte) {
 	}
 }
 
+// cacheSentMedia menulis byte media KELUAR ke file-cache persisten
+// (<sha>.sent.<ext>) → /media cache-hit menyajikannya, jadi tak perlu simpan
+// data-URI raksasa di DB. Diberi sufiks ".sent." agar TAK ikut di-evict (tak
+// ada proto utk unduh ulang). Aman dipanggil di goroutine (atomic write).
+func (a *App) cacheSentMedia(chat, id string, data []byte, mime string) {
+	if a.mediaDir == "" || len(data) == 0 {
+		return
+	}
+	sum := sha1.Sum([]byte(chat + "|" + id))
+	base := filepath.Join(a.mediaDir, hex.EncodeToString(sum[:]))
+	writeFileAtomic(base+".sent"+extForMime(mime), data)
+}
+
 func extForMime(mime string) string {
 	switch {
 	case strings.HasPrefix(mime, "image/webp"):
@@ -235,8 +248,8 @@ func (a *App) startMediaEviction(capBytes int64) {
 		var total int64
 		for _, e := range entries {
 			name := e.Name()
-			if strings.HasPrefix(name, "av_") || strings.HasSuffix(name, ".none") {
-				continue // avatar kecil & marker → biarkan
+			if strings.HasPrefix(name, "av_") || strings.HasSuffix(name, ".none") || strings.Contains(name, ".sent.") {
+				continue // avatar kecil, marker, media KELUAR (tanpa proto unduh-ulang) → biarkan
 			}
 			info, err := e.Info()
 			if err != nil {

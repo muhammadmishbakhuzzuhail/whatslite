@@ -165,11 +165,13 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    Personal = inisial; grup = ikon people. Pastel via color-mix (WebKit 2.41 OK);
    fallback bg netral bila color-mix tak didukung → tetap terlihat (tak transparan). */
 .avatar { width: 49px; height: 49px; border-radius: 50%; flex-shrink: 0;
-  display: grid; align-items: center; justify-items: center; line-height: 1;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
   font-weight: 700; font-size: 19px; text-transform: uppercase;
   color: var(--c, #06b67f);
   background: #dde7f0;
   background: color-mix(in srgb, var(--c, #06b67f) 22%, #ffffff); }
+/* Flex center > grid di WebKitGTK (single-item grid centering tak reliable).
+   Span tanpa line-box ekstra → glyph benar-benar di tengah lingkaran. */
 .avatar > span { display: block; line-height: 1; text-align: center; }
 [data-theme="dark"] .avatar { background: #243039; }
 [data-theme="dark"] .avatar { background: color-mix(in srgb, var(--c, #06b67f) 30%, #0e1318); }

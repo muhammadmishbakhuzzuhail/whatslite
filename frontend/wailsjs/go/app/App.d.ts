@@ -55,6 +55,8 @@ export function GetState():Promise<string>;
 
 export function GetStatuses():Promise<Array<app.StatusGroupDTO>>;
 
+export function GroupInviteLink(arg1:string,arg2:boolean):Promise<string>;
+
 export function LeaveCommunity(arg1:string):Promise<void>;
 
 export function LeaveGroup(arg1:string):Promise<void>;
@@ -96,6 +98,8 @@ export function SendTextMentioned(arg1:string,arg2:string,arg3:Array<string>):Pr
 export function SendTyping(arg1:string,arg2:boolean):Promise<void>;
 
 export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<void>;
+
+export function SetGroupPhoto(arg1:string,arg2:string):Promise<void>;
 
 export function SetGroupSubject(arg1:string,arg2:string):Promise<void>;
 

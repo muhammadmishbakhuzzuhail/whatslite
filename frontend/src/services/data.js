@@ -283,6 +283,13 @@ export function setGroupSubject(jid, name) {
 export function updateGroupParticipants(jid, members, action) {
   if (LIVE) A.UpdateGroupParticipants(jid, members, action);
 }
+export async function groupInviteLink(jid, reset = false) {
+  if (LIVE) return A.GroupInviteLink(jid, reset);
+  return "";
+}
+export function setGroupPhoto(jid, dataURI) {
+  if (LIVE) A.SetGroupPhoto(jid, dataURI);
+}
 
 // Notifikasi desktop native (Linux). No-op di browser/preview.
 export function notify(title, body) {

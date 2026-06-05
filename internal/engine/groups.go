@@ -150,3 +150,22 @@ func (e *Engine) UpdateParticipants(ctx context.Context, jid string, members []s
 	_, err = e.Client.UpdateGroupParticipants(ctx, j, parts, pc)
 	return err
 }
+
+// GroupInviteLink mengambil tautan undangan grup (reset=true buat tautan baru).
+func (e *Engine) GroupInviteLink(ctx context.Context, jid string, reset bool) (string, error) {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return "", err
+	}
+	return e.Client.GetGroupInviteLink(ctx, j, reset)
+}
+
+// SetGroupPhoto mengganti foto grup (avatar = JPEG bytes; nil = hapus).
+func (e *Engine) SetGroupPhoto(ctx context.Context, jid string, avatar []byte) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	_, err = e.Client.SetGroupPhoto(ctx, j, avatar)
+	return err
+}

@@ -19,6 +19,7 @@ type GroupInfoDTO struct {
 	Name         string           `json:"name"`
 	Topic        string           `json:"topic"`
 	Owner        string           `json:"owner"`
+	AmAdmin      bool             `json:"amAdmin"` // saya admin grup ini?
 	Participants []GroupMemberDTO `json:"participants"`
 }
 
@@ -32,10 +33,44 @@ func (a *App) GetGroupInfo(jid string) *GroupInfoDTO {
 		return nil
 	}
 	out := &GroupInfoDTO{JID: gi.JID, Name: gi.Name, Topic: gi.Topic, Owner: gi.Owner}
+	self := userPart(a.eng.SelfJID())
 	for _, p := range gi.Participants {
 		out.Participants = append(out.Participants, GroupMemberDTO{JID: p.JID, Name: p.Name, IsAdmin: p.IsAdmin})
+		if p.IsAdmin && self != "" && userPart(p.JID) == self {
+			out.AmAdmin = true
+		}
 	}
 	return out
+}
+
+// GroupInviteLink mengambil tautan undangan grup.
+func (a *App) GroupInviteLink(jid string, reset bool) string {
+	if a.eng == nil {
+		return ""
+	}
+	link, err := a.eng.GroupInviteLink(a.ctx, jid, reset)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	return link
+}
+
+// SetGroupPhoto mengganti foto grup dari data-URI gambar.
+func (a *App) SetGroupPhoto(jid, dataURI string) {
+	if a.eng == nil {
+		return
+	}
+	_, data, err := decodeDataURI(dataURI)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	if err := a.eng.SetGroupPhoto(a.ctx, jid, data); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
 }
 
 // CreateGroup membuat grup baru; kembalikan JID grup (atau "").

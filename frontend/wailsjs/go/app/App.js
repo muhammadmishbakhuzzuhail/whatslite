@@ -106,6 +106,10 @@ export function GetStatuses() {
   return window['go']['app']['App']['GetStatuses']();
 }
 
+export function GroupInviteLink(arg1, arg2) {
+  return window['go']['app']['App']['GroupInviteLink'](arg1, arg2);
+}
+
 export function LeaveCommunity(arg1) {
   return window['go']['app']['App']['LeaveCommunity'](arg1);
 }
@@ -188,6 +192,10 @@ export function SendTyping(arg1, arg2) {
 
 export function ServeHTTP(arg1, arg2) {
   return window['go']['app']['App']['ServeHTTP'](arg1, arg2);
+}
+
+export function SetGroupPhoto(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupPhoto'](arg1, arg2);
 }
 
 export function SetGroupSubject(arg1, arg2) {

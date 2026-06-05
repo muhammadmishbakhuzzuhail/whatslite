@@ -154,6 +154,7 @@ export namespace app {
 	    name: string;
 	    topic: string;
 	    owner: string;
+	    amAdmin: boolean;
 	    participants: GroupMemberDTO[];
 	
 	    static createFrom(source: any = {}) {
@@ -166,6 +167,7 @@ export namespace app {
 	        this.name = source["name"];
 	        this.topic = source["topic"];
 	        this.owner = source["owner"];
+	        this.amAdmin = source["amAdmin"];
 	        this.participants = this.convertValues(source["participants"], GroupMemberDTO);
 	    }
 	

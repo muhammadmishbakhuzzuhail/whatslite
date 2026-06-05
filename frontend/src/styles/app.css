@@ -188,6 +188,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 
 /* ---------- PERCAKAPAN ---------- */
 .conversation { flex: 1; min-width: 0; display: flex; flex-direction: column;
+  position: relative; /* anchor popup composer (attach/emoji/gif/stiker) ke kolom chat */
   background-color: var(--wallpaper);
   background-image: var(--wa-doodle);
   background-size: 412px auto; background-repeat: repeat; }
@@ -267,19 +268,24 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    rasio dijaga (contain) → rasio beda = gap TRANSPARAN (tak ada bg putih).
    Tinggi tetap → tak ada reflow/loncat saat gambar selesai dimuat.
    Gambar/video/gif = 340px; stiker = 160px. */
-.bubble.media { padding: 0; }
+/* Stiker: transparan tanpa kartu. Foto/video: KARTU (bg+padding tipis). */
 .bubble.sticker-bubble { background: transparent; box-shadow: none; padding: 0; }
 .bubble.sticker-bubble::before { display: none; }
 .bubble.sticker-bubble .meta { position: absolute; right: 6px; bottom: 6px;
   background: rgba(0,0,0,.45); color: #fff; border-radius: 8px; padding: 1px 6px; }
+.bubble.imgcard { padding: 4px; }                 /* kartu putih + padding tipis */
+.bubble.imgcard .meta { padding: 2px 4px 0; }     /* waktu/centang di bawah */
 
-/* Box PERSEGI konsisten apa pun lebar pane → aspect-ratio:1 (bukan height tetap
-   + max-width yg bikin portrait di pane sempit). */
-.media-box { position: relative; cursor: pointer; background: transparent;
-  width: min(340px, 68vw); aspect-ratio: 1; }
-.media-img { display: block; width: 100%; height: 100%;
-  object-fit: contain; background: transparent; border-radius: 10px; }
-.media-box.sticker { width: 160px; }
+.media-box { position: relative; cursor: pointer; background: transparent; }
+.media-img { display: block; border-radius: 8px; background: transparent; }
+/* Stiker: kotak 160 transparan, isi contain. */
+.media-box.sticker { width: 160px; aspect-ratio: 1; }
+.media-box.sticker .media-img { width: 100%; height: 100%; object-fit: contain; }
+/* Foto/video: rasio NATURAL, dibatasi min/max. */
+.media-box.card { display: inline-block; line-height: 0; }
+.media-box.card .media-img { width: auto; height: auto;
+  max-width: min(330px, 66vw); max-height: 420px; min-width: 120px; object-fit: cover; }
+.media-box.card .img-ph { width: 220px; height: 160px; }
 
 /* Placeholder (belum diunduh): mengisi box, transparan + ikon unduh di tengah. */
 .img-ph { width: 100%; height: 100%; display: flex; flex-direction: column;
@@ -708,10 +714,12 @@ button.info-row:hover { background: var(--hover); }
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; }
 .nc-create:disabled { opacity: .5; cursor: default; }
 
-/* Caption media: bubble media transparan → caption diberi pill agar terbaca. */
-.bubble.media .text.caption { display: inline-block; margin-top: 4px; max-width: 340px;
+/* Caption stiker (bubble transparan): pill agar terbaca. */
+.bubble.sticker-bubble .text.caption { display: inline-block; margin-top: 4px; max-width: 340px;
   background: var(--in-bg); color: var(--text); padding: 6px 9px; border-radius: 8px; box-shadow: var(--shadow); }
-.msg.out .bubble.media .text.caption { background: var(--out-bg); }
+.msg.out .bubble.sticker-bubble .text.caption { background: var(--out-bg); }
+/* Caption foto/video (kartu): teks polos DI BAWAH gambar, dalam bubble. */
+.bubble.imgcard .text.caption { display: block; margin: 5px 4px 1px; max-width: min(330px, 66vw); }
 
 /* Pada media transparan: hanya NAMA pengirim yang diberi pill (bukan kartu di belakang gambar).
    margin-bottom besar → ada GAP jelas antara pill nama & stiker/gambar. */

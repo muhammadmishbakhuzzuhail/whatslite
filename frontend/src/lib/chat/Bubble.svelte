@@ -15,8 +15,13 @@
   export let peerName = "";
 
   $: isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
-  // Semua media (gambar/video/stiker) → bubble TRANSPARAN (tanpa kartu).
-  $: bubbleClass = isMedia ? "media sticker-bubble" : msg.type === "voice" ? "voice" : "";
+  // Stiker → bubble TRANSPARAN (tanpa kartu). Foto/video → KARTU (bg + padding
+  // tipis), rasio natural (min/max), caption di bawah gambar.
+  $: bubbleClass = msg.type === "sticker"
+    ? "media sticker-bubble"
+    : (msg.type === "image" || msg.type === "video")
+      ? "media imgcard"
+      : msg.type === "voice" ? "voice" : "";
   $: isGroupIn = group && msg.dir === "in";
   $: showSender = isGroupIn && msg.sender && firstOfRun;
   $: senderCol = msg.senderColor || senderColorFor(msg.senderId || msg.sender || "");
@@ -222,7 +227,7 @@
       {/if}
       <span class="text">{#each textParts as p}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else}{p.t}{/if}{/each}</span>
     {:else if isMedia}
-      <div class="media-box {msg.type === 'sticker' ? 'sticker' : ''}"
+      <div class="media-box {msg.type === 'sticker' ? 'sticker' : 'card'}"
         role="button" tabindex="0" on:click={openMedia}>
         {#if msg.type === "video" && videoPlaying}
           <video class="media-img" src={mediaUrl} controls autoplay></video>

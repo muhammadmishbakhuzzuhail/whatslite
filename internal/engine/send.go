@@ -144,6 +144,34 @@ func (e *Engine) PostTextStatus(ctx context.Context, text string) (string, error
 	return resp.ID, nil
 }
 
+// SendLocation mengirim pesan lokasi (lat/lng + nama opsional).
+func (e *Engine) SendLocation(ctx context.Context, to string, lat, lng float64, name string) (string, error) {
+	msg := &waE2E.Message{LocationMessage: &waE2E.LocationMessage{
+		DegreesLatitude:  proto.Float64(lat),
+		DegreesLongitude: proto.Float64(lng),
+		Name:             strPtr(name),
+	}}
+	return e.sendMessage(ctx, to, msg)
+}
+
+// SendPoll mengirim polling (BuildPollCreation). selectable=1 → pilihan tunggal.
+func (e *Engine) SendPoll(ctx context.Context, to, name string, options []string, selectable int) (string, error) {
+	if selectable < 1 {
+		selectable = 1
+	}
+	msg := e.Client.BuildPollCreation(name, options, selectable)
+	return e.sendMessage(ctx, to, msg)
+}
+
+// SetDisappearing mengatur timer pesan sementara (detik; 0 = mati).
+func (e *Engine) SetDisappearing(ctx context.Context, chat string, seconds int) error {
+	cj, err := types.ParseJID(chat)
+	if err != nil {
+		return err
+	}
+	return e.Client.SetDisappearingTimer(ctx, cj, time.Duration(seconds)*time.Second, time.Now())
+}
+
 // PostMediaStatus mengunggah media lalu memposnya sebagai status (image/video).
 func (e *Engine) PostMediaStatus(ctx context.Context, kind, mime, caption string, data []byte) (string, error) {
 	mt, err := mediaTypeFor(kind)

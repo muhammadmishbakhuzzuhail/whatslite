@@ -7,7 +7,10 @@
   $: list = $chats.filter((c) => (c.name || "").toLowerCase().includes(q.toLowerCase()));
   function pick(c) {
     const d = $forwardDraft;
-    if (d) forwardMessage(d.chat, d.idx, c.id);
+    if (d) {
+      const idxs = d.idxs || (d.idx != null ? [d.idx] : []);
+      for (const idx of idxs) forwardMessage(d.chat, idx, c.id);
+    }
     forwardDraft.set(null);
     q = "";
   }

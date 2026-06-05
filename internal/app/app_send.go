@@ -279,6 +279,50 @@ func (a *App) GetMessageInfo(chat, msgID string) *MsgInfoDTO {
 	return info
 }
 
+// SendLocation mengirim lokasi (lat/lng + nama opsional).
+func (a *App) SendLocation(jid string, lat, lng float64, name string) string {
+	if a.eng == nil {
+		return ""
+	}
+	id, err := a.eng.SendLocation(a.ctx, jid, lat, lng, name)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	_ = a.store.SaveMessage(a.ctx, storage.Message{
+		ID: id, ChatJID: jid, Text: "📍 " + nonEmpty(name, "Lokasi"), Timestamp: time.Now(), FromMe: true,
+	})
+	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	return id
+}
+
+// SendPoll mengirim polling (pertanyaan + opsi).
+func (a *App) SendPoll(jid, question string, options []string, selectable int) string {
+	if a.eng == nil {
+		return ""
+	}
+	id, err := a.eng.SendPoll(a.ctx, jid, question, options, selectable)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	_ = a.store.SaveMessage(a.ctx, storage.Message{
+		ID: id, ChatJID: jid, Text: "📊 " + question, Timestamp: time.Now(), FromMe: true,
+	})
+	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	return id
+}
+
+// SetDisappearing mengatur timer pesan sementara untuk chat (detik; 0 = mati).
+func (a *App) SetDisappearing(jid string, seconds int) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.SetDisappearing(a.ctx, jid, seconds); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
 // MarkRead menandai chat dibaca (read-receipt + bersihkan unread lokal).
 func (a *App) MarkRead(chat, sender, msgID string) {
 	if a.eng == nil || a.store == nil {
@@ -295,6 +339,14 @@ func (a *App) SendTyping(jid string, composing bool) {
 	if a.eng != nil {
 		a.eng.SendTyping(jid, composing)
 	}
+}
+
+// nonEmpty mengembalikan s bila tak kosong, selainnya def.
+func nonEmpty(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
 }
 
 // decodeDataURI memecah "data:<mime>;base64,<payload>" → (mime, bytes).

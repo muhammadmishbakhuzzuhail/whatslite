@@ -185,6 +185,17 @@ export async function getMessageInfo(chat, msgID) {
 export function sendTyping(jid, composing) {
   if (LIVE) A.SendTyping(jid, composing);
 }
+export async function sendLocation(jid, lat, lng, name) {
+  if (LIVE) return A.SendLocation(jid, lat, lng, name);
+  return "";
+}
+export async function sendPoll(jid, question, options, selectable) {
+  if (LIVE) return A.SendPoll(jid, question, options, selectable);
+  return "";
+}
+export function setDisappearing(jid, seconds) {
+  if (LIVE) A.SetDisappearing(jid, seconds);
+}
 
 // --- Kelola chat (Tier 2) ---
 export function pin(jid, on) {

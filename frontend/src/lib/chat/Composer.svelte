@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import { get } from "svelte/store";
   import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage } from "../../stores.js";
-  import { getGroupInfo } from "../../services/data.js";
+  import { getGroupInfo, sendLocation, sendPoll } from "../../services/data.js";
   import { t } from "../i18n.js";
   export let chatId;
   export let group = false;
@@ -16,6 +16,30 @@
   $: typing = value.trim().length > 0;
   let emojiOpen = new URLSearchParams(location.search).get("emoji") === "1";
   let fileInput;
+
+  // --- menu lampiran (file / lokasi / polling) ---
+  let attachOpen = false;
+  function toggleAttach() { attachOpen = !attachOpen; }
+  function attachFile() { attachOpen = false; pickFile(); }
+  function attachLocation() {
+    attachOpen = false;
+    if (!navigator.geolocation) { pushToast($t("loc_unavailable")); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => sendLocation(chatId, pos.coords.latitude, pos.coords.longitude, ""),
+      () => pushToast($t("loc_denied")),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+  // --- modal polling ---
+  let pollOpen = false, pollQ = "", pollOpts = ["", ""];
+  function openPoll() { attachOpen = false; pollOpen = true; pollQ = ""; pollOpts = ["", ""]; }
+  function addPollOpt() { if (pollOpts.length < 12) pollOpts = [...pollOpts, ""]; }
+  function submitPoll() {
+    const opts = pollOpts.map((o) => o.trim()).filter(Boolean);
+    if (!pollQ.trim() || opts.length < 2) return;
+    sendPoll(chatId, pollQ.trim(), opts, 1);
+    pollOpen = false;
+  }
 
   // --- @mention autocomplete ---
   let members = []; // {jid,name,num}
@@ -185,11 +209,45 @@
   </div>
 {/if}
 
+{#if attachOpen}
+  <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (attachOpen = false)}></button>
+  <div class="attach-menu">
+    <button class="am-item" on:click={attachFile}>
+      <svg viewBox="0 0 24 24"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>{$t("attach_media")}
+    </button>
+    <button class="am-item" on:click={attachLocation}>
+      <svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{$t("attach_location")}
+    </button>
+    <button class="am-item" on:click={openPoll}>
+      <svg viewBox="0 0 24 24"><path d="M5 5h14M5 12h9M5 19h5"/></svg>{$t("attach_poll")}
+    </button>
+  </div>
+{/if}
+
+{#if pollOpen}
+  <div class="nc-modal" on:click|self={() => (pollOpen = false)}>
+    <div class="nc-card" style="max-width:420px">
+      <h3 style="margin:0 0 12px">{$t("poll_new")}</h3>
+      <input bind:value={pollQ} placeholder={$t("poll_question")}
+        style="width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--bg2);color:var(--text);font:inherit;margin-bottom:10px" />
+      {#each pollOpts as _, i}
+        <input bind:value={pollOpts[i]} placeholder={`${$t("poll_option")} ${i + 1}`}
+          style="width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg2);color:var(--text);font:inherit;margin-bottom:8px" />
+      {/each}
+      <button class="btn-ghost" on:click={addPollOpt}>+ {$t("poll_add_option")}</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+        <button class="btn-ghost" on:click={() => (pollOpen = false)}>{$t("cancel")}</button>
+        <button class="btn-accent" on:click={submitPoll} disabled={!pollQ.trim() || pollOpts.filter((o) => o.trim()).length < 2}>{$t("send")}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <footer class="composer">
   <button class="icon-btn" aria-label={$t("emoji")} on:click={() => (emojiOpen = !emojiOpen)}>
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg>
   </button>
-  <button class="icon-btn" aria-label={$t("attach")} on:click={pickFile}>
+  <button class="icon-btn" aria-label={$t("attach")} on:click={toggleAttach}>
     <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
   </button>
   <input type="file" bind:this={fileInput} on:change={onFile} hidden

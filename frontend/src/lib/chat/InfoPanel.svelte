@@ -1,7 +1,7 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast } from "../../stores.js";
-  import { avatarUrl, updateGroupParticipants, setGroupSubject, groupInviteLink, setGroupPhoto } from "../../services/data.js";
+  import { avatarUrl, updateGroupParticipants, setGroupSubject, groupInviteLink, setGroupPhoto, setDisappearing } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
@@ -132,6 +132,17 @@
         <div class="val">{chat.about || "—"}</div>
       </div>
     {/if}
+
+    <div class="info-row" style="align-items:center">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <div class="grow">{$t("disappearing_msg")}</div>
+      <select class="lang-select" on:change={(e) => setDisappearing(chat.id, +e.target.value)}>
+        <option value="0">{$t("disappearing_off")}</option>
+        <option value="86400">{$t("disappearing_24h")}</option>
+        <option value="604800">{$t("disappearing_7d")}</option>
+        <option value="7776000">{$t("disappearing_90d")}</option>
+      </select>
+    </div>
 
     <div class="info-row" style="align-items:flex-start">
       <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>

@@ -2,12 +2,14 @@
   import ConvHeader from "./ConvHeader.svelte";
   import MessageList from "./MessageList.svelte";
   import Composer from "./Composer.svelte";
-  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction } from "../../stores.js";
+  import { chats, activeChatId, allMessages, loadMessages, openChat, pinnedVersion, jumpMsg, pinMessageAction, selectMode, selectedIdx, clearSelect, deleteSelected, forwardSelected } from "../../stores.js";
   import { t } from "../i18n.js";
 
   $: chat = $chats.find((c) => c.id === $activeChatId);
   $: if ($activeChatId != null) { loadMessages($activeChatId); openChat($activeChatId); }
   $: messages = $allMessages[$activeChatId] || [];
+  let _lastChat = null;
+  $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); }
   // Foto profil (peer & pengirim grup) dimuat lazy via /avatar di komponen Avatar.
 
   // Pesan tersemat: turunan dari pesan termuat (reaktif thd pin/unpin + versi).
@@ -23,7 +25,22 @@
 
 <section class="conversation">
   {#if chat}
-    <ConvHeader {chat} />
+    {#if $selectMode}
+      <div class="sel-bar">
+        <button class="icon-btn" title={$t("cancel")} on:click={clearSelect}>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <span class="sel-count">{$t("selected_n").replace("%n", $selectedIdx.length)}</span>
+        <button class="icon-btn" title={$t("forward_action")} disabled={!$selectedIdx.length} on:click={() => forwardSelected(chat.id)}>
+          <svg viewBox="0 0 24 24"><path d="M10 9V5l8 7-8 7v-4c-5 0-8 2-9 5 0-6 3-9 9-9z"/></svg>
+        </button>
+        <button class="icon-btn" title={$t("delete")} disabled={!$selectedIdx.length} on:click={() => deleteSelected(chat.id, false)}>
+          <svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>
+    {:else}
+      <ConvHeader {chat} />
+    {/if}
     {#if topPin}
       <div class="pinned-strip">
         <svg viewBox="0 0 24 24"><path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/></svg>

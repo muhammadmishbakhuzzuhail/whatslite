@@ -183,6 +183,30 @@ export function deleteMessage(id, idx, everyone = false) {
   allMessages.update((x) => ({ ...x, [id]: (x[id] || []).filter((_, i) => i !== idx) }));
 }
 
+// --- Mode pilih banyak pesan (bulk delete/forward) ---
+export const selectMode = writable(false);
+export const selectedIdx = writable([]); // array index pesan terpilih (chat aktif)
+export function enterSelect(idx) {
+  selectMode.set(true);
+  selectedIdx.set(idx == null ? [] : [idx]);
+}
+export function toggleSelect(idx) {
+  selectedIdx.update((a) => (a.includes(idx) ? a.filter((i) => i !== idx) : [...a, idx]));
+}
+export function clearSelect() {
+  selectMode.set(false);
+  selectedIdx.set([]);
+}
+export function deleteSelected(id, everyone = false) {
+  const idxs = [...get(selectedIdx)].sort((a, b) => b - a); // hapus dari belakang agar index stabil
+  for (const idx of idxs) deleteMessage(id, idx, everyone);
+  clearSelect();
+}
+export function forwardSelected(id) {
+  forwardDraft.set({ chat: id, idxs: [...get(selectedIdx)] });
+  clearSelect();
+}
+
 export function starMessage(id, idx, on = true) {
   const m = (get(allMessages)[id] || [])[idx];
   if (data.LIVE && m && m.id) data.star(id, m.id, m.senderId || "", m.dir === "out", on);

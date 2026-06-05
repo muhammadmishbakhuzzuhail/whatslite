@@ -5,7 +5,7 @@
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
   import { LIVE, senderColorFor, avatarUrl } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -115,9 +115,16 @@
   }
   function pin() { pinMessageAction(chatId, idx, !msg.pinned); menuOpen = false; }
   function info() { showMessageInfo(chatId, idx); menuOpen = false; }
+  function selectThis() { enterSelect(idx); menuOpen = false; }
+  function onRowClick() { if ($selectMode) toggleSelect(idx); }
+  $: isSelected = $selectMode && $selectedIdx.includes(idx);
 </script>
 
-<div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''}" data-mid={msg.id}>
+<div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''} {$selectMode ? 'selmode' : ''} {isSelected ? 'sel' : ''}" data-mid={msg.id}
+  on:click={onRowClick} role={$selectMode ? "button" : undefined} tabindex={$selectMode ? 0 : undefined}>
+  {#if $selectMode}
+    <span class="sel-check {isSelected ? 'on' : ''}">{isSelected ? "✓" : ""}</span>
+  {/if}
   {#if isGroupIn}
     <div class="msg-avatar">
       {#if firstOfRun && msg.sender}<Avatar name={msg.sender} color={senderCol} photo={avatarUrl(msg.senderId)} tiny={true} />{/if}
@@ -208,6 +215,7 @@
         <button class="mi" on:click={star}>{msg.starred ? $t("star") + " ✓" : $t("star")}</button>
         <button class="mi" on:click={pin}>{msg.pinned ? $t("unpin") : $t("pin_msg")}</button>
         {#if msg.dir === "out"}<button class="mi" on:click={info}>{$t("msg_info")}</button>{/if}
+        <button class="mi" on:click={selectThis}>{$t("select_messages")}</button>
         <button class="mi danger" on:click={del}>{$t("delete")}</button>
       </div>
     {/if}

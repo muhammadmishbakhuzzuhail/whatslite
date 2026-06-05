@@ -186,8 +186,16 @@ export function SearchMessages(arg1) {
   return window['go']['app']['App']['SearchMessages'](arg1);
 }
 
+export function SendLocation(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['SendLocation'](arg1, arg2, arg3, arg4);
+}
+
 export function SendMedia(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['SendMedia'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SendPoll(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['SendPoll'](arg1, arg2, arg3, arg4);
 }
 
 export function SendText(arg1, arg2) {
@@ -204,6 +212,10 @@ export function SendTyping(arg1, arg2) {
 
 export function ServeHTTP(arg1, arg2) {
   return window['go']['app']['App']['ServeHTTP'](arg1, arg2);
+}
+
+export function SetDisappearing(arg1, arg2) {
+  return window['go']['app']['App']['SetDisappearing'](arg1, arg2);
 }
 
 export function SetGroupPhoto(arg1, arg2) {

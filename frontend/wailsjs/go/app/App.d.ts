@@ -95,7 +95,11 @@ export function RequestPhotos(arg1:Array<string>):Promise<void>;
 
 export function SearchMessages(arg1:string):Promise<Array<app.SearchHitDTO>>;
 
+export function SendLocation(arg1:string,arg2:number,arg3:number,arg4:string):Promise<string>;
+
 export function SendMedia(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
+
+export function SendPoll(arg1:string,arg2:string,arg3:Array<string>,arg4:number):Promise<string>;
 
 export function SendText(arg1:string,arg2:string):Promise<string>;
 
@@ -104,6 +108,8 @@ export function SendTextMentioned(arg1:string,arg2:string,arg3:Array<string>):Pr
 export function SendTyping(arg1:string,arg2:boolean):Promise<void>;
 
 export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<void>;
+
+export function SetDisappearing(arg1:string,arg2:number):Promise<void>;
 
 export function SetGroupPhoto(arg1:string,arg2:string):Promise<void>;
 

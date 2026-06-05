@@ -718,3 +718,18 @@ button.info-row:hover { background: var(--hover); }
 .hit-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hit-time { font-size: 12px; color: var(--text2); flex-shrink: 0; margin-left: 8px; }
 .hit-text { font-size: 13.5px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Menu lampiran composer (file/lokasi/polling) */
+.attach-menu { position: absolute; bottom: 68px; left: 56px; z-index: 40; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg, 0 8px 30px rgba(0,0,0,.18)); padding: 6px; min-width: 200px; }
+.am-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; background: none; border: 0; cursor: pointer; border-radius: 10px; font-size: 14.5px; color: var(--text); text-align: left; }
+.am-item:hover { background: var(--hover); }
+.am-item svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--accent); }
+
+/* Mode pilih banyak pesan */
+.sel-bar { display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.sel-bar .sel-count { flex: 1; font-weight: 600; font-size: 15px; }
+.msg.selmode { cursor: pointer; }
+.msg.selmode .msg-menu-btn { display: none; }
+.msg.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.sel-check { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text2); display: grid; place-items: center; font-size: 13px; color: #fff; z-index: 3; }
+.sel-check.on { background: var(--accent); border-color: var(--accent); }

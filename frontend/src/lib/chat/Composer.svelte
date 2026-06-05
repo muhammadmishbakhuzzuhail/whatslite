@@ -1,5 +1,6 @@
 <script>
   import { tick } from "svelte";
+  import { get } from "svelte/store";
   import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage } from "../../stores.js";
   import { getGroupInfo } from "../../services/data.js";
   import { t } from "../i18n.js";
@@ -41,7 +42,7 @@
     mStart = at;
     const ql = q.toLowerCase();
     const mem = members.filter((m) => m.name.toLowerCase().includes(ql)).slice(0, 8);
-    const extra = [{ name: "Semua", special: true }, { name: "Meta AI", special: true }]
+    const extra = [{ name: get(t)("mention_all"), special: true }, { name: "Meta AI", special: true }]
       .filter((x) => x.name.toLowerCase().includes(ql));
     mItems = [...mem, ...extra];
     mOpen = mItems.length > 0;

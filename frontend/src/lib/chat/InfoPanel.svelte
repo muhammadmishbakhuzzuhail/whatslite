@@ -45,12 +45,12 @@
         <div class="avatar big" style="--c:{chat.color}"><span>{initial(chat.name)}</span></div>
       {/if}
       <div class="iname">{chat.name}</div>
-      <div class="iphone">{chat.group ? (groupInfo ? groupInfo.participants.length + " anggota" : chat.status) : chat.phone || chat.status}</div>
+      <div class="iphone">{chat.group ? (groupInfo ? $t("members_n").replace("%n", groupInfo.participants.length) : chat.status) : chat.phone || chat.status}</div>
     </div>
 
     {#if chat.group && groupInfo && groupInfo.participants}
       <div class="info-block">
-        <div class="lbl">{groupInfo.participants.length} anggota</div>
+        <div class="lbl">{$t("members_n").replace("%n", groupInfo.participants.length)}</div>
         <div class="members">
           {#each groupInfo.participants as p (p.jid)}
             <div class="member">

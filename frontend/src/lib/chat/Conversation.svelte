@@ -28,7 +28,7 @@
       <div class="pinned-strip">
         <svg viewBox="0 0 24 24"><path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/></svg>
         <div class="ps-text" role="button" tabindex="0" on:click={jumpPin} on:keydown={(e) => e.key === "Enter" && jumpPin()}>
-          <b>{$t("pinned")}{pinned.length > 1 ? ` (${pinned.length})` : ""}:</b> {topPin.text || "(media)"}
+          <b>{$t("pinned")}{pinned.length > 1 ? ` (${pinned.length})` : ""}:</b> {topPin.text || `(${$t("media_generic")})`}
         </div>
         <button title={$t("unpin")} on:click={unpinTop} style="margin-left:auto;background:none;border:0;color:var(--text2);cursor:pointer;font-size:14px;padding:4px 8px">✕</button>
       </div>

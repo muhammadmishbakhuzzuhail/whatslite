@@ -23,11 +23,11 @@
       <span class="hit-av" style="background:{colorFor(h.chatJid)}">{initial(h.chatName)}</span>
       <span class="hit-main">
         <span class="hit-top"><span class="hit-name">{h.chatName}</span><span class="hit-time">{h.time}</span></span>
-        <span class="hit-text">⭐ {h.text || "(media)"}</span>
+        <span class="hit-text">⭐ {h.text || `(${$t("media_generic")})`}</span>
       </span>
     </button>
   {/each}
   {#if items.length === 0}
-    <div class="empty-list" style="padding:28px 16px;text-align:center;color:var(--text2)">Belum ada pesan berbintang.</div>
+    <div class="empty-list" style="padding:28px 16px;text-align:center;color:var(--text2)">{$t("no_starred")}</div>
   {/if}
 </div>

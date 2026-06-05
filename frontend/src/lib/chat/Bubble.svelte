@@ -99,7 +99,7 @@
   function undoReact(emoji) { reactMessage(chatId, idx, emoji); } // klik reaksi sendiri → lepas (toggle)
   function star() { starMessage(chatId, idx, !msg.starred); menuOpen = false; }
   function forward() { forwardDraft.set({ chat: chatId, idx }); menuOpen = false; }
-  function copyText() { if (source) navigator.clipboard?.writeText(source).then(() => pushToast("Disalin", "ok")); menuOpen = false; }
+  function copyText() { if (source) navigator.clipboard?.writeText(source).then(() => pushToast($t("copied"), "ok")); menuOpen = false; }
   function editMsg() { editDraft.set({ chatId, id: msg.id, text: source }); menuOpen = false; }
   function replyPrivate() { activeChatId.set(msg.senderId); replyDraft.set({ name: msg.sender, text: source, id: msg.id, senderId: msg.senderId }); menuOpen = false; }
   function menuTranslate() {
@@ -131,7 +131,7 @@
     {#if msg.type === "deleted"}
       <span class="text deleted-text">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
-        {msg.dir === "out" ? "Anda menghapus pesan ini" : "Pesan ini dihapus"}
+        {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}
       </span>
     {/if}
     {#if msg.forwarded}
@@ -153,7 +153,7 @@
         {:else}
           <div class="img-ph">
             <span class="ph-dl"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg></span>
-            <span class="ph-lbl">{msg.type === "video" ? "Video" : msg.type === "sticker" ? "Stiker" : "Foto"}</span>
+            <span class="ph-lbl">{msg.type === "video" ? $t("t_video") : msg.type === "sticker" ? $t("t_sticker") : $t("t_photo")}</span>
           </div>
         {/if}
         {#if msg.type === "video" && !videoPlaying}<span class="play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>{/if}
@@ -181,7 +181,7 @@
     </span>
 
     {#if msg.reactions && msg.reactions.length}
-      <div class="reactions">{#each msg.reactions as r}<button class="reaction" class:mine={r.mine} on:click={() => r.mine && undoReact(r.emoji)} title={r.mine ? "Lepas reaksi" : ""}>{r.emoji}{#if r.count > 1} {r.count}{/if}</button>{/each}</div>
+      <div class="reactions">{#each msg.reactions as r}<button class="reaction" class:mine={r.mine} on:click={() => r.mine && undoReact(r.emoji)} title={r.mine ? $t("reaction_remove") : ""}>{r.emoji}{#if r.count > 1} {r.count}{/if}</button>{/each}</div>
     {/if}
 
     {#if menuOpen}
@@ -194,9 +194,9 @@
           <div class="rx-grid">{#each MORE as e}<button class="rx" on:click={() => react(e)}>{e}</button>{/each}</div>
         {/if}
         <button class="mi" on:click={reply}>{$t("reply")}</button>
-        {#if isGroupIn && msg.senderId}<button class="mi" on:click={replyPrivate}>Balas pribadi</button>{/if}
-        {#if source}<button class="mi" on:click={copyText}>Salin</button>{/if}
-        {#if msg.dir === "out" && msg.type === "text"}<button class="mi" on:click={editMsg}>Edit</button>{/if}
+        {#if isGroupIn && msg.senderId}<button class="mi" on:click={replyPrivate}>{$t("reply_private")}</button>{/if}
+        {#if source}<button class="mi" on:click={copyText}>{$t("copy")}</button>{/if}
+        {#if msg.dir === "out" && msg.type === "text"}<button class="mi" on:click={editMsg}>{$t("edit")}</button>{/if}
         {#if canTranslate}<button class="mi" on:click={menuTranslate}>{translated ? $t("show_original") : $t("translate")}</button>{/if}
         <button class="mi" on:click={forward}>{$t("forward_action")}</button>
         <button class="mi" on:click={star}>{msg.starred ? $t("star") + " ✓" : $t("star")}</button>

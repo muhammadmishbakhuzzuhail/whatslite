@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=WhatsApp Lite
+GenericName=Messenger
+Comment=Klien WhatsApp desktop ringan untuk Linux (tanpa Chromium)
+Exec=whatsapp-lite
+Icon=whatsapp-lite
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=whatsapp;chat;messaging;pesan;
+StartupWMClass=whatsapp-lite
+StartupNotify=true

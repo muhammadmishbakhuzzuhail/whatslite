@@ -1,5 +1,7 @@
 import { writable, get } from "svelte/store";
 import * as data from "./services/data.js";
+import { t } from "./lib/i18n.js";
+const tr = (k) => get(t)(k);
 
 const params = new URLSearchParams(location.search);
 let storedTheme = null;
@@ -361,7 +363,7 @@ if (data.LIVE) {
       };
     });
   });
-  data.onEvent("wa:error", (e) => { console.error("WA error:", e); pushToast(typeof e === "string" ? e : "Terjadi kesalahan"); });
+  data.onEvent("wa:error", (e) => { console.error("WA error:", e); pushToast(typeof e === "string" ? e : tr("err_generic")); });
   data.onEvent("wa:loggedout", () => {
     loggedIn.set(false);
     syncing.set(false);

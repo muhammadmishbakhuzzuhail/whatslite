@@ -26,7 +26,7 @@
   });
 
   const statusLabel = { sent: "status_sent", delivered: "status_delivered", read: "status_read" };
-  const typeLabel = { text: "Teks", image: "Foto", video: "Video", sticker: "Stiker", voice: "Pesan suara" };
+  const typeKey = { text: "t_text", image: "t_photo", video: "t_video", sticker: "t_sticker", voice: "t_voice" };
 </script>
 
 {#if $infoMsg}
@@ -43,7 +43,7 @@
             {$t(statusLabel[info.status] || "status_sent")}
           </div>
           <div class="mi-k">{$t("mi_type")}</div>
-          <div class="mi-v">{typeLabel[info.type] || info.type}</div>
+          <div class="mi-v">{typeKey[info.type] ? $t(typeKey[info.type]) : info.type}</div>
           <div class="mi-k">{$t("mi_sent")}</div>
           <div class="mi-v">{info.sent}</div>
           {#if info.sender && !info.fromMe}

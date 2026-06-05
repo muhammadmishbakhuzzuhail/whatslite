@@ -14,6 +14,7 @@
   export let idx;
   export let peerName = "";
 
+  $: stickerBubble = msg.type === "sticker" || msg.type === "gif";
   $: isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker" || msg.type === "gif";
   // Stiker & GIF → bubble TRANSPARAN (tanpa kartu putih, hanya nama yg ber-pill).
   // Foto/video → KARTU (bg + padding tipis), rasio natural (min/max), caption di bawah.
@@ -231,22 +232,26 @@
       </div>
     {/if}
 
-    {#if showSender}
-      <span class="sender" style="color:{senderCol}">{msg.sender}</span>
-    {/if}
-    {#if msg.type === "deleted"}
-      <span class="text deleted-text">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
-        {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}
-      </span>
-    {/if}
-    {#if msg.forwarded}
-      <div class="forwarded"><svg viewBox="0 0 24 24"><path d="M10 9V5l8 7-8 7v-4c-5 0-8 2-9 5 0-6 3-9 9-9z"/></svg>{$t("forwarded")}</div>
-    {/if}
-    {#if msg.quote}
-      <div class="quote" class:jumpable={msg.quote.id} role={msg.quote.id ? "button" : undefined} tabindex={msg.quote.id ? 0 : undefined}
-        on:click={() => msg.quote.id && jumpMsg.set(msg.quote.id)} on:keydown={(e) => e.key === "Enter" && msg.quote.id && jumpMsg.set(msg.quote.id)}>
-        <div class="quote-name">{msg.quote.name}</div><div class="quote-text">{msg.quote.text}</div>
+    {#if showSender || (msg.type === "deleted") || msg.forwarded || msg.quote}
+      <div class="head" class:sticker-head={stickerBubble}>
+        {#if showSender}
+          <span class="sender" style="color:{senderCol}">{msg.sender}</span>
+        {/if}
+        {#if msg.type === "deleted"}
+          <span class="text deleted-text">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+            {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}
+          </span>
+        {/if}
+        {#if msg.forwarded}
+          <div class="forwarded"><svg viewBox="0 0 24 24"><path d="M10 9V5l8 7-8 7v-4c-5 0-8 2-9 5 0-6 3-9 9-9z"/></svg>{$t("forwarded")}</div>
+        {/if}
+        {#if msg.quote}
+          <div class="quote" class:jumpable={msg.quote.id} role={msg.quote.id ? "button" : undefined} tabindex={msg.quote.id ? 0 : undefined}
+            on:click={() => msg.quote.id && jumpMsg.set(msg.quote.id)} on:keydown={(e) => e.key === "Enter" && msg.quote.id && jumpMsg.set(msg.quote.id)}>
+            <div class="quote-name">{msg.quote.name}</div><div class="quote-text">{msg.quote.text}</div>
+          </div>
+        {/if}
       </div>
     {/if}
 

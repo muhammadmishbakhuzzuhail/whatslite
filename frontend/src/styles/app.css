@@ -895,3 +895,12 @@ button.info-row:hover { background: var(--hover); }
   filter: blur(.3px); transition: color .15s, background .15s; }
 .spoiler::selection { color: transparent; }
 .spoiler.on { background: rgba(127,127,127,.16); color: inherit; cursor: text; filter: none; }
+
+/* Sticker/GIF: nama+quote dlm pill putih TERPISAH; stiker transparan di luar. */
+.bubble.sticker-bubble .head.sticker-head { display: inline-block; max-width: 300px;
+  background: var(--in-bg); border-radius: 10px; padding: 5px 9px; margin-bottom: 7px;
+  box-shadow: var(--shadow); }
+.msg.out .bubble.sticker-bubble .head.sticker-head { background: var(--out-bg); }
+.bubble.sticker-bubble .sticker-head .sender { display: block; margin: 0 0 3px;
+  background: none; padding: 0; box-shadow: none; }
+.bubble.sticker-bubble .sticker-head .quote { margin: 0; background: var(--quote-bg); }

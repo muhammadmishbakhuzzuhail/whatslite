@@ -41,6 +41,8 @@ export function GetCommunities():Promise<Array<app.CommunityDTO>>;
 
 export function GetContactAbout(arg1:string):Promise<string>;
 
+export function GetContactProfile(arg1:string):Promise<app.ContactProfileDTO>;
+
 export function GetGroupInfo(arg1:string):Promise<app.GroupInfoDTO>;
 
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;
@@ -101,9 +103,13 @@ export function React(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boole
 
 export function ReactChannel(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
 
+export function RemoveContactLabel(arg1:string):Promise<void>;
+
 export function Reply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
 
 export function RequestPhotos(arg1:Array<string>):Promise<void>;
+
+export function SaveContactLabel(arg1:string,arg2:string):Promise<void>;
 
 export function SearchMessages(arg1:string):Promise<Array<app.SearchHitDTO>>;
 

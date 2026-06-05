@@ -5,7 +5,7 @@
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -66,8 +66,9 @@
     if (last < text.length) out.push(...fmt(text.slice(last)));
     return out;
   }
+  // Klik mention → buka panel profil kontak (foto/nomor/about + Pesan/Simpan).
   function openMention(jid) {
-    if ($chats.some((c) => c.id === jid)) activeChatId.set(jid);
+    if (jid) openProfile(jid);
   }
   $: source = msg.text || msg.caption || "";
   $: canTranslate = msg.type === "text" || ((msg.type === "image" || msg.type === "video") && caption);
@@ -235,7 +236,11 @@
     {#if showSender || (msg.type === "deleted") || msg.forwarded || msg.quote}
       <div class="head" class:sticker-head={stickerBubble}>
         {#if showSender}
-          <span class="sender" style="color:{senderCol}">{msg.sender}</span>
+          <span class="sender" style="color:{senderCol}" role="button" tabindex="0"
+            on:click={() => msg.senderId && openProfile(msg.senderId)}
+            on:keydown={(e) => e.key === "Enter" && msg.senderId && openProfile(msg.senderId)}>
+            {msg.sender}{#if !msg.senderSaved && msg.senderPhone}<span class="sender-phone">{msg.senderPhone}</span>{/if}
+          </span>
         {/if}
         {#if msg.type === "deleted"}
           <span class="text deleted-text">

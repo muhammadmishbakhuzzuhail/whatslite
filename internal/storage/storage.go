@@ -141,6 +141,13 @@ CREATE INDEX IF NOT EXISTS idx_messages_chat_ts ON messages(chat_jid, ts);
 		ts      INTEGER NOT NULL,
 		PRIMARY KEY (poll_id, voter)
 	)`)
+	// Label kontak lokal — nama yg disimpan pengguna di app ini (BUKAN sync ke
+	// HP/WA). Otoritatif atas nama tampil: kalau ada di sini, pakai ini.
+	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS contact_labels (
+		jid     TEXT PRIMARY KEY,
+		name    TEXT NOT NULL,
+		created INTEGER NOT NULL DEFAULT 0
+	)`)
 	// Tanda terima per-penerima (grup: per anggota) → daftar baca di "Info pesan".
 	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS receipts (
 		chat_jid  TEXT NOT NULL,

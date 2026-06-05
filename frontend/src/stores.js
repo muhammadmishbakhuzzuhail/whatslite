@@ -124,6 +124,21 @@ export function openChat(id) {
   if (id != null) data.openChat(id);
 }
 
+// --- Panel profil kontak (klik mention / pengirim grup) ---
+export const profileJid = writable(null); // jid kontak yg profilnya terbuka
+export function openProfile(jid) { if (jid) profileJid.set(jid); }
+export function closeProfile() { profileJid.set(null); }
+// "Pesan" dari panel profil → buka/buat chat dgn kontak itu.
+export function messageContact(jid) {
+  if (!jid) return;
+  profileJid.set(null);
+  activeChatId.set(jid);
+  openChat(jid);
+}
+// Simpan/hapus label nama lokal (app, BUKAN sync ke HP/WA) → wa:sync refresh nama.
+export function saveContactLabel(jid, name) { data.saveContactLabel(jid, name); }
+export function removeContactLabel(jid) { data.removeContactLabel(jid); }
+
 // (Foto profil kini lazy via /avatar/<jid> di komponen Avatar — tak perlu store.)
 
 function nowTime() {

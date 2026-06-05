@@ -19,33 +19,43 @@ import (
 //
 // Mengembalikan "" bila tak diketahui (pemanggil fallback ke nomor/JID).
 func (e *Engine) ChatName(jid string) string {
+	n, _ := e.ResolveName(jid)
+	return n
+}
+
+// ResolveName seperti ChatName tetapi juga mengembalikan apakah nama itu berasal
+// dari buku-alamat (saved=true → FullName/FirstName tersimpan) atau hanya
+// pushname yg di-set sendiri pengirim (saved=false). Pemanggil pakai flag ini
+// utk memutuskan tampil "Nama + nomor" (grup, tak tersimpan) vs "Nama" saja.
+func (e *Engine) ResolveName(jid string) (string, bool) {
 	if e == nil || e.Client == nil || e.Client.Store == nil {
-		return ""
+		return "", false
 	}
 	j, err := types.ParseJID(jid)
 	if err != nil {
-		return ""
+		return "", false
 	}
 	if j.Server == types.GroupServer {
 		e.mu.Lock()
 		n := e.groupNames[jid]
 		e.mu.Unlock()
 		if n != "" {
-			return n
+			return n, true
 		}
 		if e.Client.IsConnected() {
 			if info, err := e.Client.GetGroupInfo(context.Background(), j); err == nil && info.Name != "" {
 				e.mu.Lock()
 				e.groupNames[jid] = info.Name
 				e.mu.Unlock()
-				return info.Name
+				return info.Name, true
 			}
 		}
-		return ""
+		return "", false
 	}
 	// 1:1 — resolve nama. Chat JID sekarang sering @lid (JID privasi);
 	// kontak/pushname ter-index ke nomor. Jembatani @lid → nomor via lid_map,
-	// lalu cari kontak di KEDUA bentuk.
+	// lalu cari kontak di KEDUA bentuk. FullName/FirstName = tersimpan di buku
+	// alamat; PushName/BusinessName = nama yg di-set pemilik akun sendiri.
 	ctx := context.Background()
 	cand := []types.JID{j}
 	if j.Server == types.HiddenUserServer && e.Client.Store.LIDs != nil {
@@ -53,6 +63,7 @@ func (e *Engine) ChatName(jid string) string {
 			cand = append(cand, pn)
 		}
 	}
+	var push string // pushname/business sebagai fallback (tak-tersimpan)
 	if e.Client.Store.Contacts != nil {
 		for _, cj := range cand {
 			c, err := e.Client.Store.Contacts.GetContact(ctx, cj)
@@ -61,17 +72,20 @@ func (e *Engine) ChatName(jid string) string {
 			}
 			switch {
 			case c.FullName != "":
-				return c.FullName
-			case c.PushName != "":
-				return c.PushName
-			case c.BusinessName != "":
-				return c.BusinessName
+				return c.FullName, true
 			case c.FirstName != "":
-				return c.FirstName
+				return c.FirstName, true
+			}
+			if push == "" {
+				if c.PushName != "" {
+					push = c.PushName
+				} else if c.BusinessName != "" {
+					push = c.BusinessName
+				}
 			}
 		}
 	}
-	return ""
+	return push, false
 }
 
 // ReadableID memberi label terbaca utk chat tanpa nama: nomor "+62…" alih-alih

@@ -300,6 +300,19 @@ export async function getContactAbout(jid) {
   if (LIVE) return A.GetContactAbout(jid);
   return "";
 }
+// Profil kontak utk panel (klik mention / pengirim grup).
+export async function getContactProfile(jid) {
+  if (LIVE) return A.GetContactProfile(jid);
+  const c = (await getChats()).find((x) => x.id === jid);
+  return { jid, name: c?.name || jid, phone: c?.phone || "", about: "", saved: !!c };
+}
+// Simpan nama lokal (label app, BUKAN sync ke HP/WA).
+export function saveContactLabel(jid, name) {
+  if (LIVE) A.SaveContactLabel(jid, name);
+}
+export function removeContactLabel(jid) {
+  if (LIVE) A.RemoveContactLabel(jid);
+}
 export function block(jid, on) {
   if (LIVE) A.Block(jid, on);
 }

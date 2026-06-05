@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -31,6 +32,9 @@ type App struct {
 	eng      *engine.Engine
 	store    *storage.Store
 	mediaDir string // cache file media (bukan di DB) → ringan
+
+	labelsMu sync.RWMutex      // melindungi labels
+	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB
 }
 
 func NewApp() *App { return &App{} }
@@ -66,6 +70,7 @@ func (a *App) Startup(ctx context.Context) {
 	}
 	a.eng = eng
 	a.store = store
+	a.loadLabels()
 	a.mediaDir = filepath.Join(dataDir, "media")
 	_ = os.MkdirAll(a.mediaDir, 0o755)
 	a.startMediaEviction(512 << 20) // cap cache media ~512MB (LRU by modtime)
@@ -142,6 +147,10 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			}
 			runtime.EventsEmit(a.ctx, "wa:sync", "")
 		}()
+	})
+	// Buku alamat / pushname berubah (app-state sync) → refresh nama di UI.
+	eng.OnContactsSynced(func() {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
 	})
 	// Pesan ditarik/dihapus-untuk-semua (oleh siapa pun) → tandai placeholder.
 	eng.OnRevoke(func(chat, msgID, sender string) {

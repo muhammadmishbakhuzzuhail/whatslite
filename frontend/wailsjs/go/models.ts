@@ -135,6 +135,26 @@ export namespace app {
 		}
 	}
 	
+	export class ContactProfileDTO {
+	    jid: string;
+	    name: string;
+	    phone: string;
+	    about: string;
+	    saved: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ContactProfileDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.jid = source["jid"];
+	        this.name = source["name"];
+	        this.phone = source["phone"];
+	        this.about = source["about"];
+	        this.saved = source["saved"];
+	    }
+	}
 	export class ContactRowDTO {
 	    jid: string;
 	    name: string;
@@ -265,6 +285,8 @@ export namespace app {
 	    time: string;
 	    sender: string;
 	    senderId: string;
+	    senderPhone: string;
+	    senderSaved: boolean;
 	    status: string;
 	    pinned: boolean;
 	    edited: boolean;
@@ -289,6 +311,8 @@ export namespace app {
 	        this.time = source["time"];
 	        this.sender = source["sender"];
 	        this.senderId = source["senderId"];
+	        this.senderPhone = source["senderPhone"];
+	        this.senderSaved = source["senderSaved"];
 	        this.status = source["status"];
 	        this.pinned = source["pinned"];
 	        this.edited = source["edited"];

@@ -18,7 +18,7 @@ var mentionRe = regexp.MustCompile(`@(\d{6,})`)
 
 // resolveMentions mengganti "@<nomor>" dgn "@<nama>" (utk preview sidebar / kutipan).
 func (a *App) resolveMentions(text string) string {
-	if a.eng == nil || !strings.Contains(text, "@") {
+	if !strings.Contains(text, "@") {
 		return text
 	}
 	return mentionRe.ReplaceAllStringFunc(text, func(tok string) string {
@@ -29,30 +29,34 @@ func (a *App) resolveMentions(text string) string {
 	})
 }
 
-// mentionName: resolve nomor mention → (nama, jid). "" bila tak dikenal.
+// mentionName: resolve nomor mention → (nama, jid). Selalu kembalikan jid yg
+// terpetakan; nama fallback ke nomor ("+62…") bila tak dikenal — tetap klikable.
 func (a *App) mentionName(num string) (string, string) {
-	if a.eng == nil {
-		return "", ""
-	}
+	// Pilih bentuk jid yg punya nama; kalau tak ada, default ke @s.whatsapp.net.
+	jid := num + "@s.whatsapp.net"
 	for _, suf := range []string{"@s.whatsapp.net", "@lid"} {
-		jid := num + suf
-		if n := a.eng.ChatName(jid); n != "" {
-			return n, jid
+		cand := num + suf
+		if n, _ := a.nameOf(cand); n != "" {
+			return n, cand
 		}
 	}
-	return "", ""
+	if p := a.phoneOf(jid); p != "" {
+		return p, jid
+	}
+	return "+" + num, jid
 }
 
 // MentionDTO = satu mention dalam teks (utk FE render berwarna + klik→profil).
 type MentionDTO struct {
 	Num  string `json:"num"`  // angka setelah @ (token di teks)
-	Name string `json:"name"` // nama tampil
+	Name string `json:"name"` // nama tampil (fallback "+nomor")
 	JID  string `json:"jid"`  // jid utk buka profil/chat
 }
 
-// buildMentions mengumpulkan semua @<nomor> yang dikenal dalam teks.
+// buildMentions mengumpulkan SEMUA @<nomor> dalam teks (termasuk yg tak dikenal,
+// mis. Meta AI → tampil "+nomor" tapi tetap klikable ke profil).
 func (a *App) buildMentions(text string) []MentionDTO {
-	if a.eng == nil || !strings.Contains(text, "@") {
+	if !strings.Contains(text, "@") {
 		return nil
 	}
 	var out []MentionDTO
@@ -63,9 +67,8 @@ func (a *App) buildMentions(text string) []MentionDTO {
 			continue
 		}
 		seen[num] = true
-		if name, jid := a.mentionName(num); name != "" {
-			out = append(out, MentionDTO{Num: num, Name: name, JID: jid})
-		}
+		name, jid := a.mentionName(num)
+		out = append(out, MentionDTO{Num: num, Name: name, JID: jid})
 	}
 	return out
 }
@@ -135,15 +138,12 @@ func (a *App) GetArchivedChats() (out []ChatDTO) {
 func (a *App) chatDTO(c storage.Chat) ChatDTO {
 	// Prioritas: nama kontak tersimpan / subjek grup (otoritatif) >
 	// nama tersimpan di DB (pushname) > nomor terbaca > short JID.
-	name := ""
-	if a.eng != nil {
-		name = a.eng.ChatName(c.JID)
+	name, _ := a.nameOf(c.JID)
+	if name == "" {
+		name = c.Name // subjek grup / nama tersimpan di DB (offline cache)
 	}
 	if name == "" {
-		name = c.Name
-	}
-	if name == "" && a.eng != nil {
-		name = a.eng.ReadableID(c.JID)
+		name = a.phoneOf(c.JID)
 	}
 	if name == "" {
 		name = shortJID(c.JID)
@@ -177,11 +177,7 @@ func (a *App) ExportChat(jid string) string {
 	for _, m := range ms {
 		name := "Saya"
 		if !m.FromMe {
-			name = ""
-			if a.eng != nil {
-				name = a.eng.ChatName(m.Sender)
-			}
-			if name == "" {
+			if name, _ = a.nameOf(m.Sender); name == "" {
 				name = m.PushName
 			}
 			if name == "" {
@@ -209,9 +205,11 @@ type MessageDTO struct {
 	Text     string `json:"text"`
 	Thumb    string `json:"thumb"`
 	Time     string `json:"time"`
-	Sender    string `json:"sender"`   // nama tampil pengirim (grup)
-	SenderID  string `json:"senderId"` // jid pengirim (utk foto)
-	Status    string `json:"status"`
+	Sender      string `json:"sender"`      // nama tampil pengirim (grup)
+	SenderID    string `json:"senderId"`    // jid pengirim (utk foto/profil)
+	SenderPhone string `json:"senderPhone"` // "+62…" (grup, tak-tersimpan)
+	SenderSaved bool   `json:"senderSaved"` // pengirim ada di label/buku-alamat
+	Status      string `json:"status"`
 	Pinned    bool         `json:"pinned"` // disematkan di chat
 	Edited    bool         `json:"edited"` // pernah disunting
 	Ts        int64        `json:"ts"` // unix detik (kursor pagination)
@@ -320,21 +318,27 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 		if kind == "" {
 			kind = "text"
 		}
-		senderName := m.PushName
-		if senderName == "" && m.Sender != "" && a.eng != nil {
-			if n := a.eng.ChatName(m.Sender); n != "" {
-				senderName = n
+		// Nama pengirim: label lokal > buku-alamat > pushname. saved=false →
+		// grup tampil "Nama + nomor". Fallback pushname pesan ini bila kosong.
+		senderName, senderSaved := a.nameOf(m.Sender)
+		if senderName == "" {
+			senderName = m.PushName
+		}
+		senderPhone := ""
+		if !senderSaved && m.Sender != "" {
+			senderPhone = a.phoneOf(m.Sender)
+		}
+		if senderName == "" {
+			if senderPhone != "" {
+				senderName = senderPhone
 			} else {
 				senderName = shortJID(m.Sender)
 			}
 		}
 		quoteName := ""
 		if m.QuotedText != "" || m.QuotedID != "" {
-			if m.QuotedSender != "" && a.eng != nil {
-				quoteName = a.eng.ChatName(m.QuotedSender)
-				if quoteName == "" {
-					quoteName = shortJID(m.QuotedSender)
-				}
+			if m.QuotedSender != "" {
+				quoteName = a.displayName(m.QuotedSender)
 			}
 			if quoteName == "" {
 				quoteName = "Kamu"
@@ -349,7 +353,8 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 		}
 		out = append(out, MessageDTO{
 			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: m.Thumb,
-			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender, Status: status,
+			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender,
+			SenderPhone: senderPhone, SenderSaved: senderSaved, Status: status,
 			Pinned:    m.Pinned, Edited: m.Edited,
 			QuoteID: m.QuotedID, QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
 			Mentions: a.buildMentions(m.Text),

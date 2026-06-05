@@ -33,11 +33,16 @@
   // Dokumen: file APA PUN → kirim sebagai dokumen (bukan pratinjau gambar).
   let docInput;
   function attachDocument() { attachOpen = false; docInput && docInput.click(); }
+  // Batas ukuran: file di-encode base64 (data-URI) di memori + lewat IPC →
+  // file raksasa membekukan renderer WebKitGTK. Tolak > 64MB.
+  const MAX_BYTES = 64 * 1024 * 1024;
+  function tooBig(f) { if (f.size > MAX_BYTES) { pushToast($t("file_too_big")); return true; } return false; }
   async function onDoc(e) {
     const files = [...(e.target.files || [])];
     e.target.value = "";
     const items = [];
     for (const f of files) {
+      if (tooBig(f)) continue;
       items.push({ kind: "document", name: f.name, dataURI: await fileToDataURI(f) });
     }
     if (items.length) mediaDraft.set({ chatId, items }); // → MediaPreviewModal (nama + caption)
@@ -53,12 +58,15 @@
   }
   // --- drag-drop & tempel gambar ---
   let dragOver = false;
-  function kindOfFile(type) { return type.startsWith("video/") ? "video" : type.startsWith("image/") ? "image" : type.startsWith("audio/") ? "voice" : "document"; }
+  // audio/* yang DIPILIH = file (document), bukan PTT voice note (PTT khusus
+  // rekaman mic → jalur handleMic). Cegah MP3 terkirim sbg voice memo.
+  function kindOfFile(type) { return type.startsWith("video/") ? "video" : type.startsWith("image/") ? "image" : "document"; }
   function fileToDataURI(f) { return new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); }); }
-  // Gambar/video → modal pratinjau album + caption. Dokumen/audio → kirim langsung.
+  // Gambar/video → modal pratinjau album + caption. Dokumen → kirim langsung.
   async function previewFiles(fileList, viewOnce = false) {
     const items = [];
     for (const f of fileList) {
+      if (tooBig(f)) continue;
       const kind = kindOfFile(f.type);
       const dataURI = await fileToDataURI(f);
       if (kind === "image" || kind === "video") items.push({ kind, name: f.name, dataURI });
@@ -167,8 +175,7 @@
   function kindOf(type) {
     if (type.startsWith("image/")) return "image";
     if (type.startsWith("video/")) return "video";
-    if (type.startsWith("audio/")) return "voice";
-    return "document";
+    return "document"; // audio dipilih = file, bukan PTT (PTT hanya dari rekam mic)
   }
   async function onFile(e) {
     const files = [...(e.target.files || [])];

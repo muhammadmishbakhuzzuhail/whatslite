@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"unicode"
 	"time"
 )
 
@@ -447,6 +448,9 @@ func (s *Store) EditText(ctx context.Context, chatJID, id, newText string) error
 // DeleteLocalMessage menghapus satu pesan dari penyimpanan lokal (delete-for-me).
 func (s *Store) DeleteLocalMessage(ctx context.Context, chatJID, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ? AND id = ?`, chatJID, id)
+	// Buang juga baris FTS + reaksi → tak jadi hit pencarian hantu / bocor row.
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM messages_fts WHERE chat_jid = ? AND msg_id = ?`, chatJID, id)
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM reactions WHERE chat_jid = ? AND msg_id = ?`, chatJID, id)
 	return err
 }
 
@@ -491,8 +495,10 @@ WHERE messages_fts MATCH ? ORDER BY ts DESC LIMIT ?`, match, limit)
 // prefix ("tok*"), digabung AND. Cegah error sintaks FTS dari tanda baca.
 func ftsQuery(q string) string {
 	var toks []string
+	// Pisah pada non-(huruf/angka) UNICODE → token CJK/diakritik/non-latin ikut
+	// tercari (bukan cuma ASCII). Kutip tiap token utk aman dari sintaks FTS5.
 	for _, f := range strings.FieldsFunc(q, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
+		return !(unicode.IsLetter(r) || unicode.IsDigit(r))
 	}) {
 		toks = append(toks, `"`+f+`"*`)
 	}

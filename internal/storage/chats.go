@@ -298,6 +298,14 @@ func (s *Store) DeleteChat(ctx context.Context, jid string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {
 		return err
 	}
+	// Bersihkan tabel turunan → tak ada hit pencarian hantu / baris bocor.
+	for _, q := range []string{
+		`DELETE FROM messages_fts WHERE chat_jid = ?`,
+		`DELETE FROM reactions WHERE chat_jid = ?`,
+		`DELETE FROM receipts WHERE chat_jid = ?`,
+	} {
+		_, _ = s.db.ExecContext(ctx, q, jid)
+	}
 	_, err := s.db.ExecContext(ctx, `DELETE FROM chats WHERE jid = ?`, jid)
 	return err
 }

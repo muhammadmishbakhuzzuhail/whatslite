@@ -93,6 +93,7 @@
     ? "/media/" + encodeURIComponent(chatId) + "/" + encodeURIComponent(msg.id)
     : (msg.thumb || "");
   let mediaErr = false;
+  let imgDead = false; // /media + thumb dua-duanya gagal → tampilkan placeholder
   let videoPlaying = false;
   // Sumber gambar: /media (kualitas penuh) → bila gagal (mis. media terkirim
   // belum punya proto tersimpan) jatuh ke thumb data-URI. Cegah gambar kosong.
@@ -292,17 +293,17 @@
           </span>
         </a>
       {/if}
-      <span class="text" class:clamp={!expanded} use:clampCheck>{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span></span>{#if everLong}<button class="read-more" on:click|stopPropagation={() => (expanded = !expanded)}>{expanded ? $t("read_less") : $t("read_more")}</button>{/if}
+      <span class="text" dir="auto" class:clamp={!expanded} use:clampCheck>{#each textParts as p, i}{#if p.m}<span class="mention" role="button" tabindex="0" on:click|stopPropagation={() => openMention(p.jid)} on:keydown={(e) => e.key === "Enter" && openMention(p.jid)}>@{p.name}</span>{:else if p.sp}<span class="spoiler {revealed[i] ? 'on' : ''}" role="button" tabindex="0" on:click|stopPropagation={() => (revealed[i] = true)} on:keydown={(e) => e.key === "Enter" && (revealed[i] = true)}>{p.t}</span>{:else if p.code}<code class="md-code">{p.t}</code>{:else if p.b}<strong>{p.t}</strong>{:else if p.i}<em>{p.t}</em>{:else if p.s}<s>{p.t}</s>{:else}{p.t}{/if}{/each}{#if msg.edited}<span class="edited-tag">{$t("edited_tag")}</span>{/if}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span></span>{#if everLong}<button class="read-more" on:click|stopPropagation={() => (expanded = !expanded)}>{expanded ? $t("read_less") : $t("read_more")}</button>{/if}
     {:else if isMedia}
       <div class="media-box {msg.type === 'sticker' ? 'sticker' : 'card'}"
         role="button" tabindex="0" on:click={openMedia}
         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openMedia())}>
         {#if msg.type === "gif"}
-          <video class="media-img" src={mediaUrl} autoplay loop muted playsinline></video>
+          <video class="media-img" src={mediaUrl} autoplay loop muted playsinline on:error={() => { if (!mediaErr) mediaErr = true; }}></video>
         {:else if msg.type === "video" && videoPlaying}
           <video class="media-img" src={mediaUrl} controls autoplay></video>
-        {:else if imgSrc}
-          <img class="media-img" src={imgSrc} alt="" loading="lazy" on:error={() => { if (!mediaErr) mediaErr = true; }} />
+        {:else if imgSrc && !imgDead}
+          <img class="media-img" src={imgSrc} alt="" loading="lazy" on:error={() => { if (!mediaErr) mediaErr = true; else imgDead = true; }} />
         {:else}
           <div class="img-ph">
             <span class="ph-dl"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg></span>
@@ -311,7 +312,7 @@
         {/if}
         {#if msg.type === "video" && !videoPlaying}<span class="play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>{/if}
       </div>
-      {#if caption}<span class="text caption">{caption}</span>{/if}
+      {#if caption}<span class="text caption" dir="auto">{caption}</span>{/if}
     {:else if msg.type === "voice"}
       <button class="play" aria-label="Play" on:click={playVoice}>
         {#if playing}
@@ -361,7 +362,7 @@
     {/if}
 
     {#if translated}
-      <div class="tr-block"><span class="tr-lbl">{$t("translated")}</span>{translated}</div>
+      <div class="tr-block" dir="auto"><span class="tr-lbl">{$t("translated")}</span>{translated}</div>
     {/if}
 
     <span class="meta">

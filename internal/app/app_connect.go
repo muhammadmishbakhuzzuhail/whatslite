@@ -80,6 +80,7 @@ func (a *App) SendText(jid, text string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	id, err := a.eng.SendText(a.ctx, jid, text)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())

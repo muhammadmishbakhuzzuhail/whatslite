@@ -10,11 +10,20 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
+)
+
+// Cache hasil terjemah (text|target → hasil) → hindari hit jaringan berulang
+// (re-tap Translate / auto ?tr=1) + dodge rate-limit 429 senyap.
+var (
+	trMu    sync.Mutex
+	trCache = map[string]string{}
 )
 
 // Translate menerjemahkan text ke bahasa target (kode ISO: "id","en","es",…).
@@ -27,6 +36,14 @@ func (a *App) Translate(text, target string) string {
 	if target == "" {
 		target = "en"
 	}
+	key := target + "|" + text
+	trMu.Lock()
+	if v, ok := trCache[key]; ok {
+		trMu.Unlock()
+		return v
+	}
+	trMu.Unlock()
+
 	endpoint := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=" +
 		url.QueryEscape(target) + "&dt=t&q=" + url.QueryEscape(text)
 
@@ -42,15 +59,27 @@ func (a *App) Translate(text, target string) string {
 		return text
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK { // 429/CAPTCHA → jangan cache, kembalikan asli
+		return text
+	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return text
 	}
 
-	// Respons: [[["terjemahan","asli",...],...], ...]
+	// Respons: [[["terjemahan","asli",...],...], null, "src_lang_terdeteksi", ...]
 	var data []interface{}
 	if err := json.Unmarshal(body, &data); err != nil || len(data) == 0 {
 		return text
+	}
+	// Lewati round-trip sia-sia bila sumber == target (auto-detect).
+	if len(data) > 2 {
+		if det, ok := data[2].(string); ok && det != "" && det == target {
+			trMu.Lock()
+			trCache[key] = text
+			trMu.Unlock()
+			return text
+		}
 	}
 	segs, ok := data[0].([]interface{})
 	if !ok {
@@ -66,9 +95,15 @@ func (a *App) Translate(text, target string) string {
 			sb.WriteString(t)
 		}
 	}
-	out := sb.String()
+	out := html.UnescapeString(sb.String()) // gtx HTML-escape &/<>/' → kembalikan ke teks
 	if out == "" {
 		return text
 	}
+	trMu.Lock()
+	if len(trCache) > 2000 { // cap kasar agar tak tumbuh tanpa batas
+		trCache = map[string]string{}
+	}
+	trCache[key] = out
+	trMu.Unlock()
 	return out
 }

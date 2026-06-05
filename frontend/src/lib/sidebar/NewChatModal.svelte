@@ -31,7 +31,7 @@
   <button class="modal-backdrop" aria-label={$t("close")} on:click={close}></button>
   <div class="nc-modal" role="dialog">
     <div class="nc-head">
-      <span>{mode === "group" ? "Buat grup" : $t("new_chat")}</span>
+      <span>{mode === "group" ? $t("group_create") : $t("new_chat")}</span>
       <button class="icon-btn" on:click={close} aria-label={$t("close")}>
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -40,10 +40,10 @@
     {#if mode === "list"}
       <button class="nc-action" on:click={() => (mode = "group")}>
         <span class="nc-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M17 7v6M14 10h6"/></svg></span>
-        Grup baru
+        {$t("group_new")}
       </button>
     {:else}
-      <input class="nc-name" placeholder="Nama grup" bind:value={name} />
+      <input class="nc-name" placeholder={$t("group_name")} bind:value={name} />
     {/if}
 
     <input class="nc-search" placeholder={$t("search")} bind:value={q} />
@@ -63,7 +63,7 @@
 
     {#if mode === "group"}
       <button class="nc-create" disabled={!name.trim() || selected.size === 0} on:click={makeGroup}>
-        Buat grup ({selected.size})
+        {$t("group_create")} ({selected.size})
       </button>
     {/if}
   </div>

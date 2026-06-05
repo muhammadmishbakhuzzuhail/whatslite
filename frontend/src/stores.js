@@ -188,6 +188,7 @@ async function reloadMessages(id) {
 export async function loadMessages(id) {
   if (id == null) return;
   if (!get(allMessages)[id]) await reloadMessages(id);
+  else touchChat(id); // cache-hit: tetap segarkan LRU agar tak ke-evict keliru
 }
 
 // Muat pesan lebih LAMA (scroll ke atas) → prepend. Kembalikan jumlah yg dimuat.
@@ -417,7 +418,7 @@ if (data.LIVE) {
     const focused = typeof document !== "undefined" && document.hasFocus();
     if (get(activeChatId) === chat && focused) return;
     const c = get(chats).find((x) => x.id === chat);
-    if (c && !c.muted) { data.notify(c.name, c.preview || "Pesan baru"); playNotifSound(); }
+    if (c && !c.muted) { data.notify(c.name, c.preview || tr("new_message")); playNotifSound(); }
   });
   data.onEvent("wa:sync", () => {
     syncing.set(false);

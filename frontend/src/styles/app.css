@@ -583,7 +583,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .avatar.tiny { width: 32px; height: 32px; font-size: 14px; font-weight: 700; }
 .msg.gin { align-items: flex-start; gap: 8px; }
 .msg.gin .msg-avatar { width: 32px; flex-shrink: 0; align-self: flex-start; margin-top: 0; }
-.msg.gin .bubble { max-width: 72%; }
+.msg.gin .bubble { max-width: min(72%, 560px); }
 
 /* foto avatar (fallback ke inisial bila tak ada foto) */
 .avatar.photo { object-fit: cover; }
@@ -835,7 +835,8 @@ button.info-row:hover { background: var(--hover); }
 .bubble.media .text.caption { display: block; margin: 6px 2px 0; padding: 0;
   max-width: 360px; background: none; box-shadow: none; color: var(--text); }
 
-/* Nama pengirim di atas media (Discord-flat): teks warna saja, tanpa pill. */
+/* Nama pengirim: teks polos (pill-nya ada di .bubble.media .head pembungkus,
+   lihat blok atas) — sender sendiri tanpa bg agar tak dobel pill. */
 .bubble.media .sender { display: inline-block; background: none; padding: 0;
   box-shadow: none; margin: 0 0 4px; font-weight: 600; }
 

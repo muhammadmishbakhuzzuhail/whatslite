@@ -296,10 +296,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// Pin/unpin dari perangkat atau anggota lain → perbarui banner tersemat.
 	eng.OnPinInChat(func(chat, msgID string, pinned bool) {
 		chat = eng.CanonicalJID(chat)
-		if a.store != nil {
-			_ = a.store.SetPinnedInChat(a.ctx, chat, msgID, pinned)
-		}
-		runtime.EventsEmit(a.ctx, "wa:message", chat)
+		a.bg(func() { // jangan tulis DB di socket-loop → cegah websocket drop
+			if a.store != nil {
+				_ = a.store.SetPinnedInChat(a.ctx, chat, msgID, pinned)
+			}
+			runtime.EventsEmit(a.ctx, "wa:message", chat)
+		})
 	})
 }
 

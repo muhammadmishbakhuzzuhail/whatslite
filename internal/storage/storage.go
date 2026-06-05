@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS messages (
 	PRIMARY KEY (chat_jid, id)
 );
 CREATE INDEX IF NOT EXISTS idx_messages_chat_ts ON messages(chat_jid, ts);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_ts ON messages(sender, ts);
 `
 	if _, err := s.db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("migrate: %w", err)

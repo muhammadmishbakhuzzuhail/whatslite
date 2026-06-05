@@ -59,9 +59,9 @@
 
   {#if menuOpen}
     <div class="row-menu">
-      <button class="mi" on:click={act(() => pinChat(chat.id, !chat.pinned))}>{chat.pinned ? "Lepas sematan" : "Sematkan"}</button>
-      <button class="mi" on:click={act(() => muteChat(chat.id, !chat.muted))}>{chat.muted ? "Bunyikan" : "Bisukan"}</button>
-      <button class="mi" on:click={act(() => markChatUnread(chat.id, !chat.unread))}>{chat.unread ? "Tandai dibaca" : "Tandai belum dibaca"}</button>
+      <button class="mi" on:click={act(() => pinChat(chat.id, !chat.pinned))}>{chat.pinned ? $t("unpin") : $t("pin_msg")}</button>
+      <button class="mi" on:click={act(() => muteChat(chat.id, !chat.muted))}>{chat.muted ? $t("unmute") : $t("mute")}</button>
+      <button class="mi" on:click={act(() => markChatUnread(chat.id, !chat.unread))}>{chat.unread ? $t("mark_read") : $t("mark_unread")}</button>
       <button class="mi" on:click={act(() => archiveChat(chat.id, true))}>{$t("archived")}</button>
       <button class="mi danger" on:click={act(() => removeChat(chat.id))}>{$t("delete")}</button>
     </div>

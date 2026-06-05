@@ -13,12 +13,22 @@ import (
 	"whatsapp-lite/internal/storage"
 )
 
+// canon → bentuk kanonik JID (samakan dgn jalur incoming) agar pesan KELUAR
+// tersimpan & ter-update status di baris chat yang sama (cegah split @lid↔nomor).
+func (a *App) canon(jid string) string {
+	if a.eng != nil {
+		return a.eng.CanonicalJID(jid)
+	}
+	return jid
+}
+
 // SendMedia mengirim media (data-URI) lalu menyimpannya lokal & memberi tahu UI.
 // kind: "image" | "video" | "voice" | "document". viewOnce → sekali lihat.
 func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce bool) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", "media tak valid: "+err.Error())
@@ -43,6 +53,7 @@ func (a *App) SendTextMentioned(jid, text string, mentions []string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	id, err := a.eng.SendTextMentions(a.ctx, jid, text, mentions)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -60,6 +71,7 @@ func (a *App) Reply(jid, text, quotedID, quotedSender, quotedText string) string
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	id, err := a.eng.Reply(a.ctx, jid, text, quotedID, quotedSender, quotedText)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -77,6 +89,7 @@ func (a *App) Forward(srcChat, msgID, toJID string) string {
 	if a.eng == nil || a.store == nil {
 		return ""
 	}
+	toJID = a.canon(toJID)
 	m, err := a.store.GetMessage(a.ctx, srcChat, msgID)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -288,6 +301,7 @@ func (a *App) SendSticker(jid, dataURI string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	_, data, err := decodeDataURI(dataURI)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -310,6 +324,7 @@ func (a *App) SendGif(jid, dataURI string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -332,6 +347,7 @@ func (a *App) SendContact(jid, displayName, phone string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	num := ""
 	for _, r := range phone {
 		if r >= '0' && r <= '9' {
@@ -357,6 +373,7 @@ func (a *App) SendLocation(jid string, lat, lng float64, name string) string {
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	id, err := a.eng.SendLocation(a.ctx, jid, lat, lng, name)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
@@ -374,6 +391,7 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 	if a.eng == nil {
 		return ""
 	}
+	jid = a.canon(jid)
 	id, err := a.eng.SendPoll(a.ctx, jid, question, options, selectable)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())

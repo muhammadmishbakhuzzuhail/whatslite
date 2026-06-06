@@ -55,6 +55,27 @@ func (a *App) Connect() {
 	}()
 }
 
+// LinkWithPhone meminta kode tautan via nomor telepon (alternatif QR).
+// phone = nomor internasional (digit saja, dgn kode negara, tanpa +).
+// Kembalikan kode 8-karakter utk diketik di HP, atau "" bila gagal.
+func (a *App) LinkWithPhone(phone string) string {
+	if a.eng == nil {
+		return ""
+	}
+	digits := make([]rune, 0, len(phone))
+	for _, r := range phone {
+		if r >= '0' && r <= '9' {
+			digits = append(digits, r)
+		}
+	}
+	code, err := a.eng.PairPhone(a.ctx, string(digits))
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	return code
+}
+
 // Logout mengeluarkan akun saat ini (unpair). UI akan kembali ke layar QR.
 func (a *App) Logout() {
 	if a.eng == nil {

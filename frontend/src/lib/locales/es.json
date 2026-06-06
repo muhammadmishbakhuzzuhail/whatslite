@@ -296,5 +296,15 @@
  "group_locked": "Solo los admins pueden editar la info del grupo",
  "group_join_approval": "Aprobar nuevos miembros",
  "group_admin_add": "Solo los admins pueden añadir miembros",
- "group_requests": "Solicitudes para unirse"
+ "group_requests": "Solicitudes para unirse",
+ "login_use_phone": "Vincular con número de teléfono",
+ "login_use_qr": "Vincular con código QR",
+ "login_phone_get": "Obtener código",
+ "login_phone_code": "Introduce este código en tu teléfono",
+ "chat_by_number": "Chatear con un número",
+ "join_via_link": "Unirse al grupo por enlace",
+ "join_group": "Unirse al grupo",
+ "start_chat": "Iniciar chat",
+ "join_failed": "No se pudo unir — revisa el enlace",
+ "number_not_wa": "Ese número no está en WhatsApp"
 }

@@ -4,8 +4,45 @@ package app
 // buat grup, keluar, ubah subjek, tambah/hapus/promosikan anggota.
 
 import (
+	"strings"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// inviteCode mengekstrak kode dari tautan undangan grup penuh atau kode mentah.
+func inviteCode(link string) string {
+	s := strings.TrimSpace(link)
+	for _, p := range []string{"https://chat.whatsapp.com/", "http://chat.whatsapp.com/", "chat.whatsapp.com/"} {
+		s = strings.TrimPrefix(s, p)
+	}
+	return strings.TrimSpace(s)
+}
+
+// JoinGroupLink bergabung ke grup via tautan undangan; kembalikan JID (atau "").
+func (a *App) JoinGroupLink(link string) string {
+	if a.eng == nil {
+		return ""
+	}
+	jid, err := a.eng.JoinGroupViaLink(a.ctx, inviteCode(link))
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	return jid
+}
+
+// PreviewGroupLink mengembalikan nama grup dari tautan (pratinjau sebelum gabung).
+func (a *App) PreviewGroupLink(link string) string {
+	if a.eng == nil {
+		return ""
+	}
+	name, err := a.eng.GroupPreviewFromLink(a.ctx, inviteCode(link))
+	if err != nil {
+		return ""
+	}
+	return name
+}
 
 // GroupMemberDTO / GroupInfoDTO = detail grup untuk panel info.
 type GroupMemberDTO struct {

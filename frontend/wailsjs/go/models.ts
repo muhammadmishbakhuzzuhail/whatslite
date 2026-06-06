@@ -596,6 +596,23 @@ export namespace app {
 		    return a;
 		}
 	}
+	
+	export class WACheckDTO {
+	    query: string;
+	    jid: string;
+	    registered: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new WACheckDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.query = source["query"];
+	        this.jid = source["jid"];
+	        this.registered = source["registered"];
+	    }
+	}
 
 }
 

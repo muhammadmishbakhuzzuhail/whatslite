@@ -120,6 +120,13 @@ func (e *Engine) Start(ctx context.Context) (<-chan QREvent, error) {
 	return out, nil
 }
 
+// PairPhone meminta kode tautan 8-karakter (alternatif QR). Client harus sudah
+// Connect (alur QR sudah memanggilnya) & belum ter-pair. Kode diketik di HP:
+// Tautkan perangkat → Tautkan dengan nomor telepon. Sukses → event login biasa.
+func (e *Engine) PairPhone(ctx context.Context, phone string) (string, error) {
+	return e.Client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "WhatsApp Lite")
+}
+
 // Logout memutus tautan perangkat (unpair). Setelah ini NeedsLogin() == true,
 // jadi untuk masuk lagi perlu Start() ulang (QR baru) — berguna untuk
 // "keluar akun" maupun ganti akun.

@@ -296,5 +296,15 @@
  "group_locked": "Only admins can edit group info",
  "group_join_approval": "Approve new members",
  "group_admin_add": "Only admins can add members",
- "group_requests": "Join requests"
+ "group_requests": "Join requests",
+ "login_use_phone": "Link with phone number",
+ "login_use_qr": "Link with QR code",
+ "login_phone_get": "Get code",
+ "login_phone_code": "Enter this code on your phone",
+ "chat_by_number": "Chat with a number",
+ "join_via_link": "Join group via link",
+ "join_group": "Join group",
+ "start_chat": "Start chat",
+ "join_failed": "Couldn't join — check the link",
+ "number_not_wa": "That number isn't on WhatsApp"
 }

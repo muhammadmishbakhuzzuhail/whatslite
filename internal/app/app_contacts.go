@@ -16,6 +16,30 @@ type ProfileDTO struct {
 	About string `json:"about"`
 }
 
+// WACheckDTO = hasil cek "ada di WhatsApp?".
+type WACheckDTO struct {
+	Query      string `json:"query"`
+	JID        string `json:"jid"`
+	Registered bool   `json:"registered"`
+}
+
+// IsOnWhatsApp memeriksa nomor (mis. sebelum mulai chat / simpan kontak).
+func (a *App) IsOnWhatsApp(phones []string) []WACheckDTO {
+	out := []WACheckDTO{}
+	if a.eng == nil || len(phones) == 0 {
+		return out
+	}
+	res, err := a.eng.IsOnWhatsApp(a.ctx, phones)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return out
+	}
+	for _, r := range res {
+		out = append(out, WACheckDTO{Query: r.Query, JID: r.JID, Registered: r.Registered})
+	}
+	return out
+}
+
 // GetProfile mengembalikan profil akun yang sedang login.
 func (a *App) GetProfile() ProfileDTO {
 	if a.eng == nil {

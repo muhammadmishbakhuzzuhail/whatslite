@@ -1,6 +1,16 @@
 <script>
   import { t } from "./i18n.js";
   import { qrImage } from "../stores.js";
+  import { linkWithPhone } from "../services/data.js";
+  let mode = "qr"; // "qr" | "phone"
+  let phone = "", code = "", busy = false;
+  async function requestCode() {
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (digits.length < 8) return;
+    busy = true;
+    code = await linkWithPhone(digits);
+    busy = false;
+  }
 </script>
 
 <div class="login">
@@ -15,7 +25,20 @@
       </ol>
     </div>
     <div class="login-right">
-      {#if $qrImage}
+      {#if mode === "phone"}
+        <div class="phone-link">
+          {#if code}
+            <div class="pl-label">{$t("login_phone_code")}</div>
+            <div class="pl-code">{code}</div>
+            <div class="login-waiting">{$t("login_waiting")}</div>
+          {:else}
+            <input class="pl-input" type="tel" inputmode="tel" placeholder="62812…" bind:value={phone}
+              on:keydown={(e) => e.key === "Enter" && requestCode()} />
+            <button class="btn-accent pl-btn" disabled={busy} on:click={requestCode}>{$t("login_phone_get")}</button>
+          {/if}
+          <button class="pl-switch" on:click={() => { mode = "qr"; code = ""; }}>{$t("login_use_qr")}</button>
+        </div>
+      {:else if $qrImage}
         <img class="qr-img" src={$qrImage} alt="QR" />
       {:else}
       <svg class="qr" viewBox="0 0 96 96">
@@ -34,8 +57,20 @@
         <rect x="34" y="84" width="5" height="5"/><rect x="50" y="86" width="5" height="5"/><rect x="66" y="84" width="5" height="5"/><rect x="84" y="86" width="5" height="5"/>
       </svg>
       {/if}
-      <div class="login-waiting">{$t("login_waiting")}</div>
+      {#if mode !== "phone"}
+        <div class="login-waiting">{$t("login_waiting")}</div>
+        <button class="pl-switch" on:click={() => (mode = "phone")}>{$t("login_use_phone")}</button>
+      {/if}
     </div>
   </div>
   <div class="login-hint">{$t("login_hint")}</div>
 </div>
+
+<style>
+  .phone-link { display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 200px; justify-content: center; }
+  .pl-input { width: 220px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--bg2); color: var(--text); font: inherit; text-align: center; }
+  .pl-btn { padding: 10px 20px; cursor: pointer; }
+  .pl-label { color: var(--text2); font-size: 13px; }
+  .pl-code { font-size: 30px; font-weight: 700; letter-spacing: 4px; color: var(--accent); }
+  .pl-switch { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; margin-top: 8px; }
+</style>

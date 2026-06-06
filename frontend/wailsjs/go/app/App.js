@@ -166,12 +166,24 @@ export function GroupInviteLink(arg1, arg2) {
   return window['go']['app']['App']['GroupInviteLink'](arg1, arg2);
 }
 
+export function IsOnWhatsApp(arg1) {
+  return window['go']['app']['App']['IsOnWhatsApp'](arg1);
+}
+
+export function JoinGroupLink(arg1) {
+  return window['go']['app']['App']['JoinGroupLink'](arg1);
+}
+
 export function LeaveCommunity(arg1) {
   return window['go']['app']['App']['LeaveCommunity'](arg1);
 }
 
 export function LeaveGroup(arg1) {
   return window['go']['app']['App']['LeaveGroup'](arg1);
+}
+
+export function LinkWithPhone(arg1) {
+  return window['go']['app']['App']['LinkWithPhone'](arg1);
 }
 
 export function Logout() {
@@ -216,6 +228,10 @@ export function PostMediaStatus(arg1, arg2, arg3) {
 
 export function PostTextStatus(arg1) {
   return window['go']['app']['App']['PostTextStatus'](arg1);
+}
+
+export function PreviewGroupLink(arg1) {
+  return window['go']['app']['App']['PreviewGroupLink'](arg1);
 }
 
 export function React(arg1, arg2, arg3, arg4, arg5) {

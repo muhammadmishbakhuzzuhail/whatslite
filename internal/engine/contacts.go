@@ -10,6 +10,26 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
+// WACheck = hasil cek "ada di WhatsApp?" untuk satu nomor.
+type WACheck struct {
+	Query      string
+	JID        string
+	Registered bool
+}
+
+// IsOnWhatsApp memeriksa apakah nomor-nomor terdaftar di WhatsApp.
+func (e *Engine) IsOnWhatsApp(ctx context.Context, phones []string) ([]WACheck, error) {
+	resp, err := e.Client.IsOnWhatsApp(ctx, phones)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WACheck, 0, len(resp))
+	for _, r := range resp {
+		out = append(out, WACheck{Query: r.Query, JID: r.JID.String(), Registered: r.IsIn})
+	}
+	return out, nil
+}
+
 // ContactAbout mengambil teks "info"/status seorang kontak (butuh koneksi).
 func (e *Engine) ContactAbout(ctx context.Context, jid string) string {
 	j, err := types.ParseJID(jid)

@@ -172,6 +172,24 @@ func (e *Engine) UpdateParticipants(ctx context.Context, jid string, members []s
 	return err
 }
 
+// JoinGroupViaLink bergabung ke grup via kode/tautan undangan; kembalikan JID.
+func (e *Engine) JoinGroupViaLink(ctx context.Context, code string) (string, error) {
+	j, err := e.Client.JoinGroupWithLink(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	return j.String(), nil
+}
+
+// GroupPreviewFromLink mengembalikan nama grup dari tautan (pratinjau sblm gabung).
+func (e *Engine) GroupPreviewFromLink(ctx context.Context, code string) (string, error) {
+	gi, err := e.Client.GetGroupInfoFromLink(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	return gi.Name, nil
+}
+
 // GroupInviteLink mengambil tautan undangan grup (reset=true buat tautan baru).
 func (e *Engine) GroupInviteLink(ctx context.Context, jid string, reset bool) (string, error) {
 	j, err := types.ParseJID(jid)

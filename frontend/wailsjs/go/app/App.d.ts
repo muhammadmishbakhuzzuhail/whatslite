@@ -86,9 +86,15 @@ export function GetStatuses():Promise<Array<app.StatusGroupDTO>>;
 
 export function GroupInviteLink(arg1:string,arg2:boolean):Promise<string>;
 
+export function IsOnWhatsApp(arg1:Array<string>):Promise<Array<app.WACheckDTO>>;
+
+export function JoinGroupLink(arg1:string):Promise<string>;
+
 export function LeaveCommunity(arg1:string):Promise<void>;
 
 export function LeaveGroup(arg1:string):Promise<void>;
+
+export function LinkWithPhone(arg1:string):Promise<string>;
 
 export function Logout():Promise<void>;
 
@@ -111,6 +117,8 @@ export function PinMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5
 export function PostMediaStatus(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function PostTextStatus(arg1:string):Promise<string>;
+
+export function PreviewGroupLink(arg1:string):Promise<string>;
 
 export function React(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boolean):Promise<void>;
 

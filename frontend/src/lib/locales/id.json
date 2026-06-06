@@ -296,5 +296,15 @@
  "group_locked": "Hanya admin yang boleh ubah info grup",
  "group_join_approval": "Setujui anggota baru",
  "group_admin_add": "Hanya admin yang boleh tambah anggota",
- "group_requests": "Permintaan bergabung"
+ "group_requests": "Permintaan bergabung",
+ "login_use_phone": "Tautkan dengan nomor telepon",
+ "login_use_qr": "Tautkan dengan kode QR",
+ "login_phone_get": "Minta kode",
+ "login_phone_code": "Masukkan kode ini di HP-mu",
+ "chat_by_number": "Chat dengan nomor",
+ "join_via_link": "Gabung grup via tautan",
+ "join_group": "Gabung grup",
+ "start_chat": "Mulai chat",
+ "join_failed": "Gagal bergabung — cek tautannya",
+ "number_not_wa": "Nomor itu tidak ada di WhatsApp"
 }

@@ -35,7 +35,6 @@ type Engine struct {
 
 	mu         sync.Mutex
 	groupNames map[string]string // cache subjek grup (jid -> nama)
-	picCache   map[string]string // cache foto profil (jid -> data-URI; "" = tak ada)
 }
 
 // QREvent adalah event pairing yang disederhanakan (tanpa tipe whatsmeow).
@@ -82,7 +81,7 @@ func New(ctx context.Context, dbPath string, debug bool) (*Engine, error) {
 	clientLog := waLog.Stdout("Client", level, true)
 	client := whatsmeow.NewClient(device, clientLog)
 
-	return &Engine{Client: client, container: container, groupNames: map[string]string{}, picCache: map[string]string{}}, nil
+	return &Engine{Client: client, container: container, groupNames: map[string]string{}}, nil
 }
 
 // NeedsLogin melaporkan apakah pairing (scan QR) masih diperlukan.

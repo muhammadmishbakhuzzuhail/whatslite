@@ -73,41 +73,6 @@ func (e *Engine) newsletterPicRaw(j types.JID) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 }
 
-// ProfilePicture (lama) — data-URI; dipertahankan untuk pemanggil lain.
-func (e *Engine) ProfilePicture(jid string) string {
-	e.mu.Lock()
-	if v, ok := e.picCache[jid]; ok {
-		e.mu.Unlock()
-		return v
-	}
-	e.mu.Unlock()
-
-	cache := func(v string) string {
-		e.mu.Lock()
-		e.picCache[jid] = v
-		e.mu.Unlock()
-		return v
-	}
-
-	j, err := types.ParseJID(jid)
-	if err != nil || !e.Client.IsConnected() {
-		return ""
-	}
-	info, err := e.Client.GetProfilePictureInfo(context.Background(), j, &whatsmeow.GetProfilePictureParams{Preview: true})
-	if err != nil || info == nil || info.URL == "" {
-		return cache("") // negatif-cache: jangan tembak ulang
-	}
-	resp, err := picHTTP.Get(info.URL)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20)) // maks 2MB
-	if err != nil || len(b) == 0 {
-		return cache("")
-	}
-	return cache("data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(b))
-}
 
 // DownloadMediaRaw mengunduh media penuh dari proto pesan (base64) → (bytes, mime).
 // Dipakai untuk meng-cache ke FILE (ringan) lalu disajikan via asset-server.

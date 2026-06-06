@@ -7,7 +7,7 @@ package app
 //   - app.go         : struct App, startup/domReady/shutdown, OpenChat, helper
 //   - app_chats.go   : GetChats / GetMessages (+ DTO untuk frontend)
 //   - app_connect.go : Connect / Logout / GetState / SendText (sesi & QR)
-//   - app_media.go   : GetProfilePic / RequestPhotos / DownloadMedia
+//   - app_media.go   : DownloadMedia + asset-server /media & /avatar
 
 import (
 	"context"

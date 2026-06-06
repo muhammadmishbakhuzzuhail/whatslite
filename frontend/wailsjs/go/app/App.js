@@ -126,10 +126,6 @@ export function GetProfile() {
   return window['go']['app']['App']['GetProfile']();
 }
 
-export function GetProfilePic(arg1) {
-  return window['go']['app']['App']['GetProfilePic'](arg1);
-}
-
 export function GetRecommendedChannels(arg1) {
   return window['go']['app']['App']['GetRecommendedChannels'](arg1);
 }
@@ -220,10 +216,6 @@ export function RemoveContactLabel(arg1) {
 
 export function Reply(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['Reply'](arg1, arg2, arg3, arg4, arg5);
-}
-
-export function RequestPhotos(arg1) {
-  return window['go']['app']['App']['RequestPhotos'](arg1);
 }
 
 export function SaveContactLabel(arg1, arg2) {

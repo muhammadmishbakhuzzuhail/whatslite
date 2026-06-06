@@ -1,6 +1,7 @@
 package app
 
-// app_media.go — foto profil (lazy + eager batch) & unduh media penuh on-demand.
+// app_media.go — unduh media penuh on-demand + asset-server /media & /avatar
+// (foto profil di-serve via file-cache, lihat serveAvatar/ProfilePictureRaw).
 
 import (
 	"crypto/sha1"
@@ -11,45 +12,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// GetProfilePic mengembalikan data-URI foto profil chat (lazy; dipanggil FE saat
-// chat dibuka). "" bila tak ada / belum tersambung.
-func (a *App) GetProfilePic(jid string) string {
-	if a.eng == nil {
-		return ""
-	}
-	return a.eng.ProfilePicture(jid)
-}
-
-// RequestPhotos mengambil foto profil semua chat (eager, paralel) — sidebar
-// terisi cepat seperti WhatsApp Web. Emit "wa:photo" {jid,uri} per foto.
-// Catatan: pemakai memilih mode agresif (nomor cadangan, terima risiko).
-func (a *App) RequestPhotos(jids []string) {
-	if a.eng == nil {
-		return
-	}
-	go func() {
-		sem := make(chan struct{}, 8) // 8 fetch paralel
-		var wg sync.WaitGroup
-		for _, jid := range jids {
-			sem <- struct{}{}
-			wg.Add(1)
-			go func(j string) {
-				defer wg.Done()
-				defer func() { <-sem }()
-				if uri := a.eng.ProfilePicture(j); uri != "" {
-					runtime.EventsEmit(a.ctx, "wa:photo", map[string]string{"jid": j, "uri": uri})
-				}
-			}(jid)
-		}
-		wg.Wait()
-	}()
-}
 
 // DownloadMedia mengunduh media penuh satu pesan → data-URI (atau "").
 func (a *App) DownloadMedia(chatJID, msgID string) string {

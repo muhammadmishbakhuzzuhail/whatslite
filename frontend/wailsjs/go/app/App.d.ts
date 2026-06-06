@@ -65,8 +65,6 @@ export function GetPrivacy():Promise<Record<string, string>>;
 
 export function GetProfile():Promise<app.ProfileDTO>;
 
-export function GetProfilePic(arg1:string):Promise<string>;
-
 export function GetRecommendedChannels(arg1:string):Promise<Array<app.ChannelDTO>>;
 
 export function GetStarred():Promise<Array<app.SearchHitDTO>>;
@@ -112,8 +110,6 @@ export function ReactChannel(arg1:string,arg2:string,arg3:number,arg4:string):Pr
 export function RemoveContactLabel(arg1:string):Promise<void>;
 
 export function Reply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
-
-export function RequestPhotos(arg1:Array<string>):Promise<void>;
 
 export function SaveContactLabel(arg1:string,arg2:string):Promise<void>;
 

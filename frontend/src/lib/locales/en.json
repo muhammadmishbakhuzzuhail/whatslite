@@ -320,5 +320,14 @@
  "status_reply_ph": "Reply to status…",
  "status_replied": "Reply sent",
  "transcribe": "Transcribe",
- "transcribe_unavailable": "Transcription needs local whisper (set WALITE_WHISPER_MODEL)."
+ "transcribe_unavailable": "Transcription needs local whisper (set WALITE_WHISPER_MODEL).",
+ "kbd_title": "Keyboard shortcuts",
+ "kbd_search": "Search in chat",
+ "kbd_new_chat": "New chat",
+ "kbd_mute": "Mute / unmute chat",
+ "kbd_unread": "Mark read / unread",
+ "kbd_next": "Next chat",
+ "kbd_prev": "Previous chat",
+ "kbd_help": "Show shortcuts",
+ "kbd_close": "Close / back"
 }

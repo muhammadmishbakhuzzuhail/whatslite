@@ -320,5 +320,14 @@
  "status_reply_ph": "Responder al estado…",
  "status_replied": "Respuesta enviada",
  "transcribe": "Transcribir",
- "transcribe_unavailable": "La transcripción necesita whisper local (configura WALITE_WHISPER_MODEL)."
+ "transcribe_unavailable": "La transcripción necesita whisper local (configura WALITE_WHISPER_MODEL).",
+ "kbd_title": "Atajos de teclado",
+ "kbd_search": "Buscar en el chat",
+ "kbd_new_chat": "Chat nuevo",
+ "kbd_mute": "Silenciar / activar chat",
+ "kbd_unread": "Marcar leído / no leído",
+ "kbd_next": "Chat siguiente",
+ "kbd_prev": "Chat anterior",
+ "kbd_help": "Mostrar atajos",
+ "kbd_close": "Cerrar / atrás"
 }

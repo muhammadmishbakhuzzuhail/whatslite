@@ -320,5 +320,14 @@
  "status_reply_ph": "Balas status…",
  "status_replied": "Balasan terkirim",
  "transcribe": "Transkrip",
- "transcribe_unavailable": "Transkrip butuh whisper lokal (atur WALITE_WHISPER_MODEL)."
+ "transcribe_unavailable": "Transkrip butuh whisper lokal (atur WALITE_WHISPER_MODEL).",
+ "kbd_title": "Pintasan keyboard",
+ "kbd_search": "Cari dalam chat",
+ "kbd_new_chat": "Chat baru",
+ "kbd_mute": "Bisukan / nyalakan chat",
+ "kbd_unread": "Tandai dibaca / belum",
+ "kbd_next": "Chat berikutnya",
+ "kbd_prev": "Chat sebelumnya",
+ "kbd_help": "Tampilkan pintasan",
+ "kbd_close": "Tutup / kembali"
 }

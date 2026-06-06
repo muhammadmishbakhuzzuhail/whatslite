@@ -105,6 +105,22 @@ export function resolvePrompt(ok, val) {
   if (ok && d && d.onYes && (val || "").trim()) d.onYes(val.trim());
 }
 
+// --- Terjemahan: cache per-pesan (bertahan saat scroll/reload) + auto per-chat ---
+export const translations = writable({}); // msgId -> teks terjemahan
+export function setTranslation(id, text) { translations.update((m) => ({ ...m, [id]: text })); }
+export function clearTranslation(id) { translations.update((m) => { const n = { ...m }; delete n[id]; return n; }); }
+let _autoTrInit = [];
+try { _autoTrInit = JSON.parse(localStorage.getItem("wa-autotranslate") || "[]") || []; } catch (e) {}
+export const autoTranslateChats = writable(new Set(_autoTrInit));
+export function toggleAutoTranslate(jid) {
+  autoTranslateChats.update((s) => {
+    const n = new Set(s);
+    n.has(jid) ? n.delete(jid) : n.add(jid);
+    try { localStorage.setItem("wa-autotranslate", JSON.stringify([...n])); } catch (e) {}
+    return n;
+  });
+}
+
 // --- Folder/filter chat kustom (lokal) ---
 let _foldInit = [];
 try { _foldInit = JSON.parse(localStorage.getItem("wa-folders") || "[]") || []; } catch (e) {}

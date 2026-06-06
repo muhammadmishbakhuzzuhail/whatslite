@@ -6,7 +6,7 @@
   import { translateMessage } from "../../services/translate.js";
   import { addReminder } from "../../services/data.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages, translations, setTranslation, clearTranslation, autoTranslateChats } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -138,7 +138,7 @@
   // belum punya proto tersimpan) jatuh ke thumb data-URI. Cegah gambar kosong.
   $: imgSrc = mediaErr ? (msg.thumb || "") : (mediaUrl || msg.thumb || "");
 
-  let translated = null;
+  $: translated = $translations[msg.id] || null; // dari cache → tahan scroll/reload
   let busy = false;
   let playing = false;
   let audioEl = null;
@@ -180,9 +180,10 @@
     if (audioEl) audioEl.playbackRate = vRate;
   }
   async function doTranslate() {
-    if (busy) return;
+    if (busy || translated) return;
     busy = true;
-    translated = await translateMessage(source, $translateLang);
+    const r = await translateMessage(source, $translateLang);
+    if (r) setTranslation(msg.id, r);
     busy = false;
   }
   // Pratinjau tautan: ambil URL pertama di teks → fetch OG (sisi Go).
@@ -195,6 +196,8 @@
   onMount(() => {
     const p = new URLSearchParams(location.search);
     if (p.get("tr") === "1" && canTranslate && msg.dir === "in") doTranslate();
+    // Auto-translate per-chat: pesan masuk diterjemahkan otomatis.
+    if (canTranslate && msg.dir === "in" && $autoTranslateChats.has(chatId) && !translated) doTranslate();
     if (p.get("menu") !== null && Number(p.get("menu")) === idx) menuOpen = true; // pratinjau
     if (msg.type === "poll") {
       loadPollVotes();
@@ -243,7 +246,7 @@
   function editMsg() { editDraft.set({ chatId, id: msg.id, text: source }); menuOpen = false; }
   function replyPrivate() { activeChatId.set(msg.senderId); replyDraft.set({ name: msg.sender, text: source, id: msg.id, senderId: msg.senderId }); menuOpen = false; }
   function menuTranslate() {
-    if (translated) translated = null;
+    if (translated) clearTranslation(msg.id);
     else doTranslate();
     menuOpen = false;
   }

@@ -1,6 +1,6 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
-  import { infoOpen, chatStatus, typingChats, inChatSearch, pinChat, muteChat, archiveChat, clearChatMessages, blockContact, leaveGroup, pushToast, askConfirm } from "../../stores.js";
+  import { infoOpen, chatStatus, typingChats, inChatSearch, pinChat, muteChat, archiveChat, clearChatMessages, blockContact, leaveGroup, pushToast, askConfirm, autoTranslateChats, toggleAutoTranslate } from "../../stores.js";
   import { avatarUrl } from "../../services/data.js";
   import { t } from "../i18n.js";
   export let chat;
@@ -41,6 +41,7 @@
           <button class="mi" on:click={act(() => pinChat(chat.id, !chat.pinned))}>{chat.pinned ? $t("unpin") : $t("pin_msg")}</button>
           <button class="mi" on:click={act(() => muteChat(chat.id, !chat.muted))}>{chat.muted ? $t("unmute") : $t("mute")}</button>
           <button class="mi" on:click={act(() => archiveChat(chat.id, true))}>{$t("archived")}</button>
+          <button class="mi" on:click={act(() => toggleAutoTranslate(chat.id))}>{$autoTranslateChats.has(chat.id) ? $t("autotranslate_off") : $t("autotranslate_on")}</button>
           <button class="mi" on:click={doClear}>{$t("clear_chat")}</button>
           {#if chat.group}
             <button class="mi danger" on:click={doLeave}>{$t("leave_group")}</button>

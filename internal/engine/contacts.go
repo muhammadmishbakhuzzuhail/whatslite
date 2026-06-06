@@ -4,11 +4,22 @@ package engine
 
 import (
 	"context"
+	"time"
 
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
+
+// SetDefaultDisappearing menyetel timer hilang-otomatis default utk chat baru.
+func (e *Engine) SetDefaultDisappearing(ctx context.Context, secs int) error {
+	return e.Client.SetDefaultDisappearingTimer(ctx, time.Duration(secs)*time.Second)
+}
+
+// MyQRLink mengambil tautan QR kontak sendiri (revoke=true buat ulang).
+func (e *Engine) MyQRLink(ctx context.Context, revoke bool) (string, error) {
+	return e.Client.GetContactQRLink(ctx, revoke)
+}
 
 // WACheck = hasil cek "ada di WhatsApp?" untuk satu nomor.
 type WACheck struct {

@@ -210,6 +210,10 @@ export function MuteChannel(arg1, arg2) {
   return window['go']['app']['App']['MuteChannel'](arg1, arg2);
 }
 
+export function MyQR(arg1) {
+  return window['go']['app']['App']['MyQR'](arg1);
+}
+
 export function Notify(arg1, arg2) {
   return window['go']['app']['App']['Notify'](arg1, arg2);
 }
@@ -312,6 +316,10 @@ export function SendTyping(arg1, arg2) {
 
 export function ServeHTTP(arg1, arg2) {
   return window['go']['app']['App']['ServeHTTP'](arg1, arg2);
+}
+
+export function SetDefaultDisappearing(arg1) {
+  return window['go']['app']['App']['SetDefaultDisappearing'](arg1);
 }
 
 export function SetDisappearing(arg1, arg2) {

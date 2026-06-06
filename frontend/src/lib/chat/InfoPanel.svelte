@@ -80,6 +80,12 @@
     const link = await groupInviteLink(chat.id, false);
     if (link) { navigator.clipboard?.writeText(link); pushToast($t("invite_copied"), "ok"); }
   }
+  function resetInvite() {
+    askConfirm($t("invite_reset_confirm"), async () => {
+      const link = await groupInviteLink(chat.id, true); // reset=true → tautan baru
+      if (link) { navigator.clipboard?.writeText(link); pushToast($t("invite_reset_done"), "ok"); }
+    });
+  }
   async function doExport() {
     const txt = await exportChat(chat.id);
     if (!txt) { pushToast($t("export_empty")); return; }
@@ -176,6 +182,10 @@
           <button class="info-row" on:click={copyInvite}>
             <svg viewBox="0 0 24 24"><path d="M9 15l6-6M8 13l-2 2a3 3 0 0 0 4 4l2-2M16 11l2-2a3 3 0 0 0-4-4l-2 2"/></svg>
             <span class="grow">{$t("invite_link")}</span>
+          </button>
+          <button class="info-row" on:click={resetInvite}>
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M18 4v5h-5M6 20v-5h5"/></svg>
+            <span class="grow">{$t("invite_reset")}</span>
           </button>
         </div>
 

@@ -308,5 +308,12 @@
  "join_failed": "No se pudo unir — revisa el enlace",
  "number_not_wa": "Ese número no está en WhatsApp",
  "report_confirm": "¿Reportar a {name}? También será bloqueado.",
- "reported_toast": "Reportado y bloqueado"
+ "reported_toast": "Reportado y bloqueado",
+ "default_disappearing": "Temporizador de mensajes predeterminado",
+ "default_disappearing_d": "Temporizador de mensajes temporales para los chats nuevos que inicies.",
+ "my_qr": "Mi código QR",
+ "my_qr_sub": "Deja que alguien lo escanee para añadirte en WhatsApp.",
+ "invite_reset": "Restablecer enlace de invitación",
+ "invite_reset_confirm": "¿Restablecer el enlace? El enlace anterior dejará de funcionar.",
+ "invite_reset_done": "Nuevo enlace copiado"
 }

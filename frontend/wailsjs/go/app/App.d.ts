@@ -108,6 +108,8 @@ export function Mute(arg1:string,arg2:boolean):Promise<void>;
 
 export function MuteChannel(arg1:string,arg2:boolean):Promise<void>;
 
+export function MyQR(arg1:boolean):Promise<string>;
+
 export function Notify(arg1:string,arg2:string):Promise<void>;
 
 export function OpenChat(arg1:string):Promise<void>;
@@ -159,6 +161,8 @@ export function SendTextMentioned(arg1:string,arg2:string,arg3:Array<string>):Pr
 export function SendTyping(arg1:string,arg2:boolean):Promise<void>;
 
 export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<void>;
+
+export function SetDefaultDisappearing(arg1:number):Promise<void>;
 
 export function SetDisappearing(arg1:string,arg2:number):Promise<void>;
 

@@ -308,5 +308,12 @@
  "join_failed": "Couldn't join — check the link",
  "number_not_wa": "That number isn't on WhatsApp",
  "report_confirm": "Report {name}? They will also be blocked.",
- "reported_toast": "Reported and blocked"
+ "reported_toast": "Reported and blocked",
+ "default_disappearing": "Default message timer",
+ "default_disappearing_d": "Disappearing-messages timer applied to new chats you start.",
+ "my_qr": "My QR code",
+ "my_qr_sub": "Let someone scan this to add you on WhatsApp.",
+ "invite_reset": "Reset invite link",
+ "invite_reset_confirm": "Reset the invite link? The old link will stop working.",
+ "invite_reset_done": "New link copied"
 }

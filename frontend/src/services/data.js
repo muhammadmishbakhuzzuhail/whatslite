@@ -429,6 +429,10 @@ export async function previewGroupLink(link) { if (LIVE) return await A.PreviewG
 export async function isOnWhatsApp(phones) { if (LIVE) return (await A.IsOnWhatsApp(phones)) || []; return []; }
 // Login via nomor telepon (kode 8-char alternatif QR).
 export async function linkWithPhone(phone) { if (LIVE) return await A.LinkWithPhone(phone); return ""; }
+// Timer hilang-otomatis default (detik) untuk chat baru.
+export function setDefaultDisappearing(seconds) { if (LIVE) A.SetDefaultDisappearing(seconds); }
+// QR kontak sendiri (PNG data-URI; revoke=buat ulang).
+export async function myQR(revoke = false) { if (LIVE) return await A.MyQR(revoke); return ""; }
 
 // Unduh media dari URL web (sisi Go → tanpa CORS) → data-URI. "" bila gagal.
 export async function fetchRemoteMedia(url) {

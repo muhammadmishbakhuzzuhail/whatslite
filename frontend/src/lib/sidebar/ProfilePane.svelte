@@ -1,12 +1,15 @@
 <script>
   import { onMount } from "svelte";
   import { railView, updateMyName, updateMyAbout } from "../../stores.js";
-  import { getProfile, fetchProfile } from "../../services/data.js";
+  import { getProfile, fetchProfile, myQR } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
   let me = getProfile(); // mock instan
   onMount(async () => { me = await fetchProfile(); });
+
+  let qrImg = null, qrOpen = false;
+  async function showQR() { qrOpen = true; if (!qrImg) qrImg = await myQR(false); }
 
   const pencil = '<svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>';
 
@@ -65,4 +68,30 @@
     <div class="pf-lbl">{$t("profile_phone")}</div>
     <div class="pf-val">{me.phone}</div>
   </div>
+
+  <div class="profile-field">
+    <button class="pf-qr-btn" on:click={showQR}>
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h2v2M18 14h2M20 18v2h-2M16 20h-2"/></svg>
+      {$t("my_qr")}
+    </button>
+  </div>
 </div>
+
+{#if qrOpen}
+  <button class="modal-backdrop" aria-label={$t("close")} on:click={() => (qrOpen = false)}></button>
+  <div class="qr-modal" role="dialog" aria-modal="true">
+    <div class="qr-title">{$t("my_qr")}</div>
+    {#if qrImg}<img class="qr-modal-img" src={qrImg} alt="QR" />{:else}<div class="qr-loading">…</div>{/if}
+    <div class="qr-sub">{$t("my_qr_sub")}</div>
+  </div>
+{/if}
+
+<style>
+  .pf-qr-btn { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--bg2); border: 0; border-radius: 10px; padding: 12px 14px; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+  .pf-qr-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .qr-modal { position: fixed; z-index: 96; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(360px, 90vw); background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 50px rgba(0,0,0,.35); padding: 22px; text-align: center; }
+  .qr-title { font-weight: 700; color: var(--text); margin-bottom: 14px; }
+  .qr-modal-img { width: 260px; height: 260px; border-radius: 12px; background: #fff; padding: 8px; }
+  .qr-loading { padding: 80px; color: var(--text2); }
+  .qr-sub { margin-top: 12px; color: var(--text2); font-size: 13px; }
+</style>

@@ -1,6 +1,6 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted } from "../../stores.js";
-  import { getProfile, getSettingsItems, getRetention, setRetention } from "../../services/data.js";
+  import { getProfile, getSettingsItems, getRetention, setRetention, setDefaultDisappearing } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import LangPicker from "../common/LangPicker.svelte";
   import { initial } from "../util.js";
@@ -13,6 +13,9 @@
   let retDays = 90;
   onMount(async () => { retDays = await getRetention(); });
   function pickRetention(d) { retDays = d; setRetention(d); }
+  const DISAPPEAR = [[0, "disappearing_off"], [86400, "disappearing_24h"], [604800, "disappearing_7d"], [7776000, "disappearing_90d"]];
+  let defDis = 0;
+  function pickDisappear(s) { defDis = s; setDefaultDisappearing(s); }
   const toggleLock = () => ($pinSet ? removePin() : beginSetPin());
 
   const icons = {
@@ -107,6 +110,20 @@
         <div class="theme-modes">
           {#each RETENTIONS as d}
             <button class="theme-mode {retDays === d ? 'on' : ''}" on:click={() => pickRetention(d)}>{d === 0 ? $t("retention_forever") : $t("retention_days", { n: d })}</button>
+          {/each}
+        </div>
+      </div>
+    </div>
+
+    <!-- Timer hilang-otomatis default (chat baru) -->
+    <div class="settings-item" style="align-items:flex-start">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      <div class="grow">
+        <div class="si-name">{$t("default_disappearing")}</div>
+        <div class="si-desc">{$t("default_disappearing_d")}</div>
+        <div class="theme-modes">
+          {#each DISAPPEAR as [s, key]}
+            <button class="theme-mode {defDis === s ? 'on' : ''}" on:click={() => pickDisappear(s)}>{$t(key)}</button>
           {/each}
         </div>
       </div>

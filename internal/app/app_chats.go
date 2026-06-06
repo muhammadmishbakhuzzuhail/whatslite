@@ -82,7 +82,8 @@ type ChatDTO struct {
 	Time    string `json:"time"`
 	Ts      int64  `json:"ts"`
 	Group   bool   `json:"group"`
-	Sent    bool   `json:"sent"`
+	Sent    bool   `json:"sent"`       // pesan terakhir dari kita → tampilkan centang
+	Status  string `json:"status"`     // status pesan keluar terakhir (sent/delivered/read)
 	Unread  bool   `json:"unread"`
 	Badge   int    `json:"badge"`
 	Pinned  bool   `json:"pinned"`
@@ -164,9 +165,17 @@ func (a *App) chatDTO(c storage.Chat) ChatDTO {
 			preview = c.LastSender + ": " + preview
 		}
 	}
+	status := ""
+	if c.LastFromMe {
+		status = c.LastStatus
+		if status == "" {
+			status = "sent"
+		}
+	}
 	return ChatDTO{
 		ID: c.JID, Name: name, Preview: preview,
 		Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: isGroupJID(c.JID),
+		Sent: c.LastFromMe, Status: status,
 		Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
 	}
 }

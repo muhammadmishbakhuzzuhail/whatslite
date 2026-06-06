@@ -30,6 +30,7 @@ type Chat struct {
 	Muted      bool
 	LastSender string // nama pengirim pesan terakhir (utk prefix preview grup)
 	LastFromMe bool
+	LastStatus string // status pesan keluar terakhir (sent/delivered/read) → centang sidebar
 }
 
 // Message adalah satu pesan dalam percakapan.

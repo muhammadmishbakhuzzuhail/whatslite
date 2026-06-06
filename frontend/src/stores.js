@@ -159,6 +159,12 @@ function nowTime() {
 async function refreshChats() {
   chats.set(await data.getChats());
 }
+// Debounce refresh sidebar (receipt grup = puluhan event → 1 query saja).
+let _chatRefreshTimer = null;
+function scheduleChatRefresh() {
+  clearTimeout(_chatRefreshTimer);
+  _chatRefreshTimer = setTimeout(refreshChats, 500);
+}
 
 // Batasi memori: simpan pesan hanya utk ~6 chat terakhir dibuka (buang LRU).
 const MAX_CACHED_CHATS = 6;
@@ -458,6 +464,7 @@ if (data.LIVE) {
         }),
       };
     });
+    scheduleChatRefresh(); // perbarui centang di sidebar (debounce → receipt grup banyak)
   });
   data.onEvent("wa:error", (e) => { console.error("WA error:", e); pushToast(typeof e === "string" ? e : tr("err_generic")); });
   data.onEvent("wa:loggedout", () => {

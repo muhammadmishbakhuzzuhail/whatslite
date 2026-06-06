@@ -46,14 +46,23 @@ ON CONFLICT(chat_jid, id) DO UPDATE SET
 	if !m.FromMe && !strings.HasSuffix(m.ChatJID, "@g.us") {
 		name = m.PushName
 	}
+	// Pengirim utk prefix preview grup ("Budi: …"); kosong utk 1:1 / from_me.
+	lastSender := ""
+	if !m.FromMe && strings.HasSuffix(m.ChatJID, "@g.us") {
+		lastSender = m.PushName
+	}
+	// last_from_me / last_sender HARUS ikut ter-update (dulu cuma RecomputeSummaries
+	// startup → stale → centang sidebar tak muncul utk pesan baru terkirim).
 	_, err = s.db.ExecContext(ctx, `
-INSERT INTO chats (jid, name, last_text, last_ts)
-VALUES (?, ?, ?, ?)
+INSERT INTO chats (jid, name, last_text, last_ts, last_from_me, last_sender)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(jid) DO UPDATE SET
-	last_text = CASE WHEN excluded.last_ts >= chats.last_ts THEN excluded.last_text ELSE chats.last_text END,
-	last_ts   = MAX(chats.last_ts, excluded.last_ts),
-	name      = CASE WHEN chats.name = '' THEN excluded.name ELSE chats.name END`,
-		m.ChatJID, name, preview, m.Timestamp.Unix())
+	last_text    = CASE WHEN excluded.last_ts >= chats.last_ts THEN excluded.last_text    ELSE chats.last_text    END,
+	last_from_me = CASE WHEN excluded.last_ts >= chats.last_ts THEN excluded.last_from_me ELSE chats.last_from_me END,
+	last_sender  = CASE WHEN excluded.last_ts >= chats.last_ts THEN excluded.last_sender  ELSE chats.last_sender  END,
+	last_ts      = MAX(chats.last_ts, excluded.last_ts),
+	name         = CASE WHEN chats.name = '' THEN excluded.name ELSE chats.name END`,
+		m.ChatJID, name, preview, m.Timestamp.Unix(), b2i(m.FromMe), lastSender)
 	if err != nil {
 		return fmt.Errorf("upsert chat: %w", err)
 	}

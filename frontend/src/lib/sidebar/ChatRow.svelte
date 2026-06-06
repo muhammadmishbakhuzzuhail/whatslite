@@ -39,7 +39,7 @@
         {#if typing}
           <span class="typing">{typeof typing === "string" ? `${typing} ${$t("typing")}` : $t("typing")}</span>
         {:else}
-          {#if chat.sent}<Ticks status="read" />{/if}
+          {#if chat.sent}<Ticks status={chat.status || "sent"} />{/if}
           <span>{chat.preview}</span>
         {/if}
       </span>

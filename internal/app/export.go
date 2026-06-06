@@ -44,6 +44,7 @@ func RunExport(path string) error {
 	// (RecomputeSummaries/ListChats) — runtime.* hanya di jalur error/recover.
 	a := &App{ctx: ctx, eng: eng, store: store}
 
+	_ = store.RecomputeSummaries(ctx) // segarkan last_from_me/last_sender utk akurat
 	chats := a.GetChats()
 
 	const topN = 14

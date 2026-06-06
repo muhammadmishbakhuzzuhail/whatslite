@@ -5,6 +5,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -158,7 +159,8 @@ WHERE EXISTS (SELECT 1 FROM messages m WHERE m.chat_jid = chats.jid)`)
 // ListChats mengembalikan semua chat (kecuali diarsipkan), terbaru di atas.
 func (s *Store) ListChats(ctx context.Context) ([]Chat, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me
+		`SELECT jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me,
+		   (SELECT status FROM messages WHERE chat_jid = chats.jid AND from_me = 1 ORDER BY ts DESC LIMIT 1) AS last_status
 		 FROM chats WHERE archived = 0 ORDER BY pinned DESC, last_ts DESC`)
 	if err != nil {
 		return nil, err
@@ -170,7 +172,8 @@ func (s *Store) ListChats(ctx context.Context) ([]Chat, error) {
 		var c Chat
 		var ts int64
 		var pinned, archived, muted, fromMe int
-		if err := rows.Scan(&c.JID, &c.Name, &c.LastText, &ts, &c.Unread, &pinned, &archived, &muted, &c.LastSender, &fromMe); err != nil {
+		var status sql.NullString
+		if err := rows.Scan(&c.JID, &c.Name, &c.LastText, &ts, &c.Unread, &pinned, &archived, &muted, &c.LastSender, &fromMe, &status); err != nil {
 			return nil, err
 		}
 		c.LastTS = time.Unix(ts, 0)
@@ -178,6 +181,7 @@ func (s *Store) ListChats(ctx context.Context) ([]Chat, error) {
 		c.Archived = archived != 0
 		c.Muted = muted != 0
 		c.LastFromMe = fromMe != 0
+		c.LastStatus = status.String
 		out = append(out, c)
 	}
 	return out, rows.Err()
@@ -186,7 +190,8 @@ func (s *Store) ListChats(ctx context.Context) ([]Chat, error) {
 // ListArchivedChats mengembalikan chat yang diarsipkan (panel terpisah).
 func (s *Store) ListArchivedChats(ctx context.Context) ([]Chat, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me
+		`SELECT jid, name, last_text, last_ts, unread, pinned, archived, muted, last_sender, last_from_me,
+		   (SELECT status FROM messages WHERE chat_jid = chats.jid AND from_me = 1 ORDER BY ts DESC LIMIT 1) AS last_status
 		 FROM chats WHERE archived = 1 ORDER BY last_ts DESC`)
 	if err != nil {
 		return nil, err
@@ -198,7 +203,8 @@ func (s *Store) ListArchivedChats(ctx context.Context) ([]Chat, error) {
 		var c Chat
 		var ts int64
 		var pinned, archived, muted, fromMe int
-		if err := rows.Scan(&c.JID, &c.Name, &c.LastText, &ts, &c.Unread, &pinned, &archived, &muted, &c.LastSender, &fromMe); err != nil {
+		var status sql.NullString
+		if err := rows.Scan(&c.JID, &c.Name, &c.LastText, &ts, &c.Unread, &pinned, &archived, &muted, &c.LastSender, &fromMe, &status); err != nil {
 			return nil, err
 		}
 		c.LastTS = time.Unix(ts, 0)
@@ -206,6 +212,7 @@ func (s *Store) ListArchivedChats(ctx context.Context) ([]Chat, error) {
 		c.Archived = archived != 0
 		c.Muted = muted != 0
 		c.LastFromMe = fromMe != 0
+		c.LastStatus = status.String
 		out = append(out, c)
 	}
 	return out, rows.Err()

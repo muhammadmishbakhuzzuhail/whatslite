@@ -58,6 +58,7 @@ export namespace app {
 	    ts: number;
 	    group: boolean;
 	    sent: boolean;
+	    status: string;
 	    unread: boolean;
 	    badge: number;
 	    pinned: boolean;
@@ -76,6 +77,7 @@ export namespace app {
 	        this.ts = source["ts"];
 	        this.group = source["group"];
 	        this.sent = source["sent"];
+	        this.status = source["status"];
 	        this.unread = source["unread"];
 	        this.badge = source["badge"];
 	        this.pinned = source["pinned"];

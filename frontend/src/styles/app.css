@@ -336,26 +336,18 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    overflow:hidden HANYA di media-box (bukan bubble) → menu hover tak terpotong. */
 .msg.in .bubble.media, .msg.out .bubble.media { background: transparent; box-shadow: none; padding: 0; }
 .bubble.media::before { display: none; }
-/* Nama pengirim + reply/quote = dlm PILL kecil (bg in/out, rounded) di ATAS
-   media. Media-nya sendiri tetap flat/transparan di bawah pill (ala WhatsApp
-   utk stiker). Pill membungkus konten (inline-block), gap ke media. */
-.msg.in .bubble.media .head, .msg.out .bubble.media .head {
-  display: inline-block; max-width: 360px; padding: 5px 10px; margin: 0 0 4px;
-  background: var(--in-bg); border-radius: 11px; box-shadow: var(--shadow); }
-.msg.out .bubble.media .head { background: var(--out-bg); }
-/* quote di dlm pill: garis tepi tipis saja (tak dobel kotak bg). */
+/* Nama pengirim + reply = FLAT (tanpa pill putih) di atas media, ala Discord.
+   reply = garis-kiri tipis transparan; sender = teks warna; semua di atas doodle. */
+.bubble.media .head { display: block; max-width: 360px; margin: 0 0 5px; padding: 0;
+  background: none; box-shadow: none; }
 .bubble.media .head .quote { margin: 4px 0 0; background: transparent; border-radius: 0;
   border-left: 3px solid var(--quote-bar); padding: 1px 0 1px 8px; }
-/* sender margin 0 → pill memeluk teks, tanpa ruang kosong di bawah. */
-.bubble.media .head .sender { margin: 0; }
+.bubble.media .head .sender { margin: 0 0 3px; }
 .bubble.media .head .forwarded { margin: 0 0 3px; }
-/* Waktu media (stiker/foto/GIF/video) = PILL kecil sendiri, rata kanan di
-   bawah media (bg in/out senada head). */
+/* Waktu media = FLAT (abu, tanpa pill), rata kanan di bawah media. */
 .bubble.media .meta { position: static; float: none; clear: both;
-  display: flex; align-items: center; gap: 3px; width: fit-content;
-  margin: 5px 0 0 auto; padding: 2px 8px; border-radius: 10px;
-  background: var(--in-bg); box-shadow: var(--shadow); color: var(--text2); }
-.msg.out .bubble.media .meta { background: var(--out-bg); }
+  display: flex; justify-content: flex-end; align-items: center; gap: 3px;
+  margin: 4px 2px 0; padding: 0; background: none; box-shadow: none; color: var(--text2); }
 .bubble.media .meta .ticks { stroke: var(--text2); }
 .bubble.media .meta .ticks.read { stroke: var(--accent); }
 /* Foto/video/GIF: media rounded penuh, sudut membuka ke latar chat. */

@@ -5,6 +5,8 @@ package app
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -381,7 +383,7 @@ func (a *App) SendContact(jid, displayName, phone string) string {
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: "👤 " + displayName, Timestamp: time.Now(), FromMe: true,
+		ID: id, ChatJID: jid, Kind: "contact", Text: "👤 " + displayName, Thumb: num, Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
 	return id
@@ -399,7 +401,8 @@ func (a *App) SendLocation(jid string, lat, lng float64, name string) string {
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: "📍 " + nonEmpty(name, "Lokasi"), Timestamp: time.Now(), FromMe: true,
+		ID: id, ChatJID: jid, Kind: "location", Text: nonEmpty(name, "📍 Lokasi"),
+		Thumb: fmt.Sprintf("%f,%f", lat, lng), Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
 	return id
@@ -416,8 +419,9 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
 	}
+	optJSON, _ := json.Marshal(options)
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: "📊 " + question, Timestamp: time.Now(), FromMe: true,
+		ID: id, ChatJID: jid, Kind: "poll", Text: question, Thumb: string(optJSON), Timestamp: time.Now(), FromMe: true,
 	})
 	runtime.EventsEmit(a.ctx, "wa:message", jid)
 	return id

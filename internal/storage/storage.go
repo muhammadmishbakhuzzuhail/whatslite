@@ -223,6 +223,15 @@ var schemaMigrations = []struct {
 	{5, []string{
 		`ALTER TABLE messages ADD COLUMN expire_at INTEGER NOT NULL DEFAULT 0`,
 	}},
+	// v6: pesan terjadwal + pengingat pesan (fitur power-user, client-side).
+	{6, []string{
+		`CREATE TABLE IF NOT EXISTS scheduled (
+			id TEXT PRIMARY KEY, chat_jid TEXT NOT NULL, chat_name TEXT NOT NULL DEFAULT '',
+			text TEXT NOT NULL, send_at INTEGER NOT NULL, created INTEGER NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS reminders (
+			id TEXT PRIMARY KEY, chat_jid TEXT NOT NULL, chat_name TEXT NOT NULL DEFAULT '',
+			msg_id TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', remind_at INTEGER NOT NULL)`,
+	}},
 }
 
 // runMigrations menjalankan langkah dgn versi > user_version saat ini, urut,

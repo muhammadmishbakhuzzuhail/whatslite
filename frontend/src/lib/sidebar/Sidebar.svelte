@@ -12,6 +12,7 @@
   import ContactsPane from "./ContactsPane.svelte";
   import CallsPane from "./CallsPane.svelte";
   import StoragePane from "./StoragePane.svelte";
+  import ScheduledPane from "./ScheduledPane.svelte";
   import PlaceholderPane from "./PlaceholderPane.svelte";
 </script>
 
@@ -38,6 +39,8 @@
     <CallsPane />
   {:else if $railView === "storage"}
     <StoragePane />
+  {:else if $railView === "scheduled"}
+    <ScheduledPane />
   {:else}
     <ChatsPane />
   {/if}

@@ -1002,6 +1002,50 @@ export namespace storage {
 	        this.bytes = source["bytes"];
 	    }
 	}
+	export class Reminder {
+	    id: string;
+	    chatJid: string;
+	    chatName: string;
+	    msgId: string;
+	    note: string;
+	    remindAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Reminder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.chatJid = source["chatJid"];
+	        this.chatName = source["chatName"];
+	        this.msgId = source["msgId"];
+	        this.note = source["note"];
+	        this.remindAt = source["remindAt"];
+	    }
+	}
+	export class Scheduled {
+	    id: string;
+	    chatJid: string;
+	    chatName: string;
+	    text: string;
+	    sendAt: number;
+	    created: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Scheduled(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.chatJid = source["chatJid"];
+	        this.chatName = source["chatName"];
+	        this.text = source["text"];
+	        this.sendAt = source["sendAt"];
+	        this.created = source["created"];
+	    }
+	}
 
 }
 

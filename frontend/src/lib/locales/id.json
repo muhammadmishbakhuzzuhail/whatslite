@@ -344,5 +344,14 @@
  "add_via_qr": "Tambah via kode QR",
  "qr_invalid": "Kode QR tidak valid atau kedaluwarsa",
  "ch_post_ph": "Posting ke saluran…",
- "jump_to_date": "Lompat ke tanggal"
+ "jump_to_date": "Lompat ke tanggal",
+ "schedule_msg": "Jadwalkan pesan",
+ "scheduled_ok": "Pesan dijadwalkan",
+ "schedule_past": "Pilih waktu yang akan datang",
+ "scheduled_reminders": "Terjadwal & pengingat",
+ "no_scheduled": "Tak ada pesan terjadwal",
+ "reminders": "Pengingat",
+ "no_reminders": "Tak ada pengingat",
+ "remind_me": "Ingatkan saya",
+ "reminder_set": "Pengingat dibuat"
 }

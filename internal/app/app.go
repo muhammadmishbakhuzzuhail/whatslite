@@ -157,6 +157,8 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}()
 
+	a.startScheduler() // pesan terjadwal + pengingat (ticker sendiri)
+
 	// IPC single-instance: instance ke-2 yang gagal flock akan men-dial socket ini
 	// → kita angkat window ke depan (bukan diam).
 	sock := filepath.Join(dataDir, ".ipc.sock")

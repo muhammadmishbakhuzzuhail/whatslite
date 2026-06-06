@@ -2,7 +2,7 @@
   import { tick, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft, theme, setDraft, getDraft } from "../../stores.js";
-  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia } from "../../services/data.js";
+  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia, scheduleMessage } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
   import { t } from "../i18n.js";
@@ -18,6 +18,18 @@
     _draftChat = chatId;
   }
   function saveDraft() { if (!$editDraft) setDraft(chatId, value); }
+  // Jadwalkan pesan: pilih waktu → simpan terjadwal (dikirim oleh ticker).
+  let schedInput;
+  function openSchedule() { if (schedInput) { schedInput.showPicker ? schedInput.showPicker() : schedInput.click(); } }
+  function onSchedule(e) {
+    const v = e.target.value; e.target.value = "";
+    if (!v || !value.trim()) return;
+    const at = Math.floor(new Date(v).getTime() / 1000);
+    if (at * 1000 < Date.now()) { pushToast($t("schedule_past")); return; }
+    scheduleMessage(chatId, value.trim(), at);
+    value = ""; setDraft(chatId, "");
+    pushToast($t("scheduled_ok"), "ok");
+  }
   // Mode sunting: isi composer dgn teks pesan yg disunting.
   let lastEdit = null;
   $: if ($editDraft && $editDraft.id !== lastEdit) { lastEdit = $editDraft.id; value = $editDraft.text; }
@@ -500,6 +512,12 @@
       <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
         bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); saveDraft(); }} on:click={detectMention}></textarea>
     </div>
+  {/if}
+  {#if typing && !$editDraft}
+    <button class="icon-btn" title={$t("schedule_msg")} on:click={openSchedule}>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>
+    </button>
+    <input type="datetime-local" bind:this={schedInput} on:change={onSchedule} style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
   {/if}
   <button class="icon-btn mic {recording ? 'rec' : ''}" aria-label={typing ? $t("send") : recording ? $t("send") : $t("voice_msg")} on:click={handleMic}>
     {#if typing}

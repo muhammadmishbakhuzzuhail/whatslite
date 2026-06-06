@@ -81,7 +81,7 @@ export const railView = writable(params.get("view") || "chats");
 // Pindah ke section non-chat (Status/Saluran/Komunitas) → tutup chat aktif agar
 // panel kanan tak menampilkan grup yang tak nyambung dgn sidebar.
 railView.subscribe((v) => {
-  if (v === "status" || v === "channels" || v === "communities" || v === "calls") activeChatId.set(null);
+  if (v === "status" || v === "channels" || v === "communities" || v === "calls" || v === "storage" || v === "scheduled") activeChatId.set(null);
 });
 
 // --- Panggilan (signaling-only: log + tolak; tak ada media call) ---
@@ -495,6 +495,7 @@ if (data.LIVE) {
   data.onEvent("wa:qr", (img) => { qrImage.set(img); loggedIn.set(false); });
   data.onEvent("wa:ready", () => { loggedIn.set(true); init(); refreshCalls(); });
   data.onEvent("wa:call", (c) => { if (c) { incomingCall.set(c); refreshCalls(); playNotifSound(); } });
+  data.onEvent("wa:reminder", (r) => { if (r) { pushToast("🔔 " + (r.chatName || "") + (r.note ? ": " + r.note : ""), "ok"); playNotifSound(); } });
   data.onEvent("wa:callupdate", () => refreshCalls());
   data.onEvent("wa:message", async (chat) => {
     await refreshChats();

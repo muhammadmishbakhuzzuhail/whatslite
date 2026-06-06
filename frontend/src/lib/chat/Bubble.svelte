@@ -1,10 +1,10 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import Ticks from "../common/Ticks.svelte";
   import Avatar from "../common/Avatar.svelte";
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
-  import { transcribeVoice } from "../../services/data.js";
+  import { transcribeVoice, addReminder } from "../../services/data.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
   import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages } from "../../stores.js";
 
@@ -297,12 +297,23 @@
   function pin() { pinMessageAction(chatId, idx, !msg.pinned); menuOpen = false; }
   function info() { showMessageInfo(chatId, idx); menuOpen = false; }
   function selectThis() { enterSelect(idx); menuOpen = false; }
+  let remindInput;
+  function remindMe() { menuOpen = false; tick().then(() => remindInput && (remindInput.showPicker ? remindInput.showPicker() : remindInput.click())); }
+  function onRemind(e) {
+    const v = e.target.value; e.target.value = "";
+    if (!v) return;
+    const at = Math.floor(new Date(v).getTime() / 1000);
+    if (at * 1000 < Date.now()) { pushToast($t("schedule_past")); return; }
+    addReminder(chatId, msg.id, (source || "").slice(0, 80), at);
+    pushToast($t("reminder_set"), "ok");
+  }
   function onRowClick() { if ($selectMode) toggleSelect(idx); }
   $: isSelected = $selectMode && $selectedIdx.includes(idx);
 </script>
 
 <div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''} {$selectMode ? 'selmode' : ''} {isSelected ? 'sel' : ''}" data-mid={msg.id} data-ts={msg.ts}
   on:click={onRowClick} on:contextmenu|preventDefault={ctxMenu} role={$selectMode ? "button" : undefined} tabindex={$selectMode ? 0 : undefined}>
+  <input type="datetime-local" bind:this={remindInput} on:change={onRemind} style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
   {#if $selectMode}
     <span class="sel-check {isSelected ? 'on' : ''}">{isSelected ? "✓" : ""}</span>
   {/if}
@@ -492,6 +503,7 @@
         <button class="mi" on:click={star}>{msg.starred ? $t("star") + " ✓" : $t("star")}</button>
         <button class="mi" on:click={pin}>{msg.pinned ? $t("unpin") : $t("pin_msg")}</button>
         {#if msg.dir === "out"}<button class="mi" on:click={info}>{$t("msg_info")}</button>{/if}
+        <button class="mi" on:click={remindMe}>{$t("remind_me")}</button>
         <button class="mi" on:click={selectThis}>{$t("select_messages")}</button>
         <button class="mi danger" on:click={del}>{$t("delete")}</button>
       </div>

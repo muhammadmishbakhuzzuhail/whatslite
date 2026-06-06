@@ -4,11 +4,17 @@ import {app} from '../models';
 import {storage} from '../models';
 import {http} from '../models';
 
+export function AddReminder(arg1:string,arg2:string,arg3:string,arg4:number):Promise<void>;
+
 export function AddViaQR(arg1:string):Promise<string>;
 
 export function Archive(arg1:string,arg2:boolean):Promise<void>;
 
 export function Block(arg1:string,arg2:boolean):Promise<void>;
+
+export function CancelReminder(arg1:string):Promise<void>;
+
+export function CancelScheduled(arg1:string):Promise<void>;
 
 export function ClearChat(arg1:string):Promise<void>;
 
@@ -86,7 +92,11 @@ export function GetProxy():Promise<string>;
 
 export function GetRecommendedChannels(arg1:string):Promise<Array<app.ChannelDTO>>;
 
+export function GetReminders():Promise<Array<storage.Reminder>>;
+
 export function GetRetention():Promise<number>;
+
+export function GetScheduled():Promise<Array<storage.Scheduled>>;
 
 export function GetStarred():Promise<Array<app.SearchHitDTO>>;
 
@@ -153,6 +163,8 @@ export function Reply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:strin
 export function ReplyStatus(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function SaveContactLabel(arg1:string,arg2:string):Promise<void>;
+
+export function ScheduleMessage(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function SearchGifs(arg1:string,arg2:string):Promise<app.GifPage>;
 

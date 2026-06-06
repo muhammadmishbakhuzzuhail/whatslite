@@ -23,6 +23,7 @@
         <div class="row-menu hdr-menu">
           <button class="mi" on:click={() => { newChatOpen.set(true); menuOpen = false; }}>{$t("group_new")}</button>
           <button class="mi" on:click={() => go("starred")}>{$t("starred_msg")}</button>
+          <button class="mi" on:click={() => go("scheduled")}>{$t("scheduled_reminders")}</button>
           <button class="mi" on:click={() => go("archived")}>{$t("archived")}</button>
           <button class="mi" on:click={() => go("settings")}>{$t("rail_settings")}</button>
         </div>

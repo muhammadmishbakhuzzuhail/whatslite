@@ -51,10 +51,11 @@ type Message struct {
 	QuotedSender string
 	QuotedText   string
 
-	Status  string // sent | delivered | read (pesan sendiri)
-	Pinned  bool   // disematkan di chat
-	Edited  bool   // pernah disunting
-	Revoked bool   // ditarik pengirim (hapus-utk-semua) — konten tetap disimpan (anti-delete)
+	Status   string // sent | delivered | read (pesan sendiri)
+	Pinned   bool   // disematkan di chat
+	Edited   bool   // pernah disunting
+	Revoked  bool   // ditarik pengirim (hapus-utk-semua) — konten tetap disimpan (anti-delete)
+	ExpireAt int64  // unix kedaluwarsa (disappearing); 0 = tak hilang
 }
 
 // Store membungkus koneksi SQLite ke app.db.
@@ -217,6 +218,10 @@ var schemaMigrations = []struct {
 	// pasca-prune mengembalikan ruang ke OS.
 	{4, []string{
 		`CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+	}},
+	// v5: disappearing messages — waktu kedaluwarsa per pesan (0 = tak hilang).
+	{5, []string{
+		`ALTER TABLE messages ADD COLUMN expire_at INTEGER NOT NULL DEFAULT 0`,
 	}},
 }
 

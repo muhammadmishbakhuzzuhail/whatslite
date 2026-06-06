@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor, avatarUrl, createChannel } from "../../services/data.js";
+  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor, avatarUrl, createChannel, postChannel } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -52,6 +52,13 @@
     channels = channels.filter((x) => x.jid !== c.jid);
     if (active && active.jid === c.jid) back();
     pushToast($t("ch_unfollowed"), "ok");
+  }
+  let postVal = "";
+  async function doPost() {
+    if (!postVal.trim() || !active) return;
+    postChannel(active.jid, postVal.trim());
+    postVal = "";
+    setTimeout(async () => { feed = await getChannelMessages(active.jid); }, 1200);
   }
   let createOpen = false, cName = "", cDesc = "", cBusy = false;
   async function doCreate() {
@@ -105,6 +112,14 @@
       {/if}
     {/if}
   </div>
+  {#if active.role === "owner" || active.role === "admin"}
+    <div class="ch-composer">
+      <input placeholder={$t("ch_post_ph")} bind:value={postVal} on:keydown={(e) => e.key === "Enter" && doPost()} />
+      <button class="ch-post-send" disabled={!postVal.trim()} on:click={doPost} aria-label={$t("send")}>
+        <svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>
+      </button>
+    </div>
+  {/if}
 {:else}
   <!-- Daftar saluran: Diikuti / Jelajahi -->
   <header class="pane-head">
@@ -218,6 +233,11 @@
   .ch-act { background:none; border:0; cursor:pointer; font-size:15px; opacity:.6; padding:4px; }
   .ch-act:hover { opacity:1; }
   .ch-feed { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px; }
+  .ch-composer { display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid var(--line); }
+  .ch-composer input { flex:1; border:0; border-radius:20px; padding:10px 14px; background:var(--bg2); color:var(--text); font:inherit; outline:none; }
+  .ch-post-send { width:40px; height:40px; border-radius:50%; border:0; background:var(--accent); color:#fff; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+  .ch-post-send svg { width:19px; height:19px; fill:currentColor; }
+  .ch-post-send:disabled { opacity:.5; }
   .ch-post { background:var(--bubble-in, var(--bg2)); border:1px solid var(--line); border-radius:14px; padding:10px 12px; }
   .ch-post-media { width:100%; border-radius:10px; margin-bottom:8px; object-fit:cover; }
   .ch-post-text { font-size:14.5px; white-space:pre-wrap; word-break:break-word; }

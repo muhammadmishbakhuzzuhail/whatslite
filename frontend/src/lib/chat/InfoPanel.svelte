@@ -110,6 +110,7 @@
       infoOpen.set(false);
     });
   }
+  let memberQ = ""; // filter pencarian anggota grup
   // Galeri media chat (foto/video/stiker/gif/dok) untuk panel info.
   let media = [], mediaFor = null, mediaOpen = false;
   $: if (chat && chat.id !== mediaFor) loadMedia(chat.id);
@@ -243,8 +244,11 @@
       {/if}
       <div class="info-block">
         <div class="lbl">{$t("members_n").replace("%n", groupInfo.participants.length)}</div>
+        {#if groupInfo.participants.length > 8}
+          <input class="member-search" placeholder={$t("search")} bind:value={memberQ} />
+        {/if}
         <div class="members">
-          {#each groupInfo.participants as p (p.jid)}
+          {#each groupInfo.participants.filter((p) => !memberQ.trim() || (p.name || p.jid).toLowerCase().includes(memberQ.trim().toLowerCase())) as p (p.jid)}
             <div class="member">
               <Avatar name={p.name} color={chat.color} photo={avatarUrl(p.jid)} sm={true} />
               <span class="m-name">{p.name || p.jid.split("@")[0]}</span>

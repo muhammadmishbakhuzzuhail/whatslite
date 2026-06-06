@@ -139,6 +139,24 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	})
 
+	// Disappearing messages: sapu yang kedaluwarsa saat boot + tiap 60 dtk.
+	go func() {
+		sweep := func() {
+			if a.store == nil {
+				return
+			}
+			if n, _ := a.store.SweepExpired(a.ctx, time.Now().Unix()); n > 0 {
+				runtime.EventsEmit(a.ctx, "wa:sync", "")
+			}
+		}
+		sweep()
+		t := time.NewTicker(60 * time.Second)
+		defer t.Stop()
+		for range t.C {
+			sweep()
+		}
+	}()
+
 	// IPC single-instance: instance ke-2 yang gagal flock akan men-dial socket ini
 	// → kita angkat window ke depan (bukan diam).
 	sock := filepath.Join(dataDir, ".ipc.sock")
@@ -167,12 +185,17 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// Pesan masuk → simpan ke storage → beri tahu UI (chat JID-nya).
 	eng.OnMessage(func(m engine.IncomingMessage) {
 		chat := eng.CanonicalJID(m.Chat) // satukan @lid↔nomor → 1 chat
+		var expireAt int64
+		if m.ExpireSecs > 0 { // disappearing → set waktu kedaluwarsa
+			expireAt = m.Timestamp.Add(time.Duration(m.ExpireSecs) * time.Second).Unix()
+		}
 		a.bg(func() {
 			_ = store.SaveMessage(a.ctx, storage.Message{
 				ID: m.ID, ChatJID: chat, Sender: m.Sender, PushName: m.PushName,
 				Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 				Timestamp: m.Timestamp, FromMe: m.FromMe,
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
+				ExpireAt: expireAt,
 			})
 			runtime.EventsEmit(a.ctx, "wa:message", chat)
 		})

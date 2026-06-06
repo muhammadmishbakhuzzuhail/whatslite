@@ -20,18 +20,19 @@ func (s *Store) SaveMessage(ctx context.Context, m Message) error {
 		st = "sent"
 	}
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, quoted_id, quoted_sender, quoted_text, status)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, quoted_id, quoted_sender, quoted_text, status, expire_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(chat_jid, id) DO UPDATE SET
 	text = excluded.text, kind = excluded.kind, thumb = excluded.thumb, media = excluded.media,
 	sender = excluded.sender, push_name = excluded.push_name,
 	quoted_id = excluded.quoted_id, quoted_sender = excluded.quoted_sender, quoted_text = excluded.quoted_text,
+	expire_at = CASE WHEN excluded.expire_at > 0 THEN excluded.expire_at ELSE messages.expire_at END,
 	status = CASE
 		WHEN (CASE excluded.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
 		   > (CASE messages.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
 		THEN excluded.status ELSE messages.status END`,
 		m.ID, m.ChatJID, m.Sender, m.PushName, m.Text, kindOr(m.Kind), m.Thumb, m.Media, m.Timestamp.Unix(), b2i(m.FromMe),
-		m.QuotedID, m.QuotedSender, m.QuotedText, st)
+		m.QuotedID, m.QuotedSender, m.QuotedText, st, m.ExpireAt)
 	if err != nil {
 		return fmt.Errorf("save message: %w", err)
 	}

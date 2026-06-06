@@ -46,6 +46,19 @@ func (a *App) CreateChannel(name, desc string) string {
 	return jid
 }
 
+// PostChannel mengirim teks ke saluran (hanya owner/admin). whatsmeow mengarah-
+// kan SendMessage ke JID @newsletter secara otomatis.
+func (a *App) PostChannel(jid, text string) {
+	if a.eng == nil || text == "" {
+		return
+	}
+	if _, err := a.eng.SendText(a.ctx, jid, text); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+}
+
 // GetChannels mengembalikan saluran yang diikuti.
 func (a *App) GetChannels() (out []ChannelDTO) {
 	out = []ChannelDTO{}

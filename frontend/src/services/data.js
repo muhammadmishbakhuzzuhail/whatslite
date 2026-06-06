@@ -393,6 +393,7 @@ export function setMyPhoto(fullURI, previewURI) {
   if (LIVE) A.SetMyPhoto(fullURI, previewURI || "");
 }
 export async function createChannel(name, desc) { if (LIVE) return await A.CreateChannel(name, desc || ""); return ""; }
+export function postChannel(jid, text) { if (LIVE) A.PostChannel(jid, text); }
 export async function getBusinessProfile(jid) { if (LIVE) return await A.GetBusinessProfile(jid); return { isBiz: false }; }
 export async function getLinkedDevices() { if (LIVE) return await A.GetLinkedDevices(); return 0; }
 export async function getProxy() { if (LIVE) return await A.GetProxy(); return ""; }

@@ -342,5 +342,6 @@
  "proxy": "Proxy",
  "proxy_d": "Salurkan koneksi lewat proxy HTTP/SOCKS. Berlaku setelah restart.",
  "add_via_qr": "Tambah via kode QR",
- "qr_invalid": "Kode QR tidak valid atau kedaluwarsa"
+ "qr_invalid": "Kode QR tidak valid atau kedaluwarsa",
+ "ch_post_ph": "Posting ke saluran…"
 }

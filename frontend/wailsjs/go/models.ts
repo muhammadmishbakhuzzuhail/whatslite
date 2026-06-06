@@ -358,6 +358,7 @@ export namespace app {
 	    emoji: string;
 	    count: number;
 	    mine: boolean;
+	    who: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ReactionDTO(source);
@@ -368,6 +369,7 @@ export namespace app {
 	        this.emoji = source["emoji"];
 	        this.count = source["count"];
 	        this.mine = source["mine"];
+	        this.who = source["who"];
 	    }
 	}
 	export class MessageDTO {

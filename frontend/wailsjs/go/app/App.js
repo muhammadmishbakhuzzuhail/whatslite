@@ -250,6 +250,10 @@ export function PinMessage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['PinMessage'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function PostChannel(arg1, arg2) {
+  return window['go']['app']['App']['PostChannel'](arg1, arg2);
+}
+
 export function PostMediaStatus(arg1, arg2, arg3) {
   return window['go']['app']['App']['PostMediaStatus'](arg1, arg2, arg3);
 }

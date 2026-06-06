@@ -51,6 +51,9 @@ type IncomingMessage struct {
 	// Status centang (hanya bermakna utk pesan sendiri): "delivered" | "read".
 	// Diisi dari history sync (WebMessageInfo.Status); "" → default 'sent'.
 	Status string
+
+	// ExpireSecs = TTL disappearing-message (detik) dari ContextInfo; 0 = tetap.
+	ExpireSecs uint32
 }
 
 // OnMessage mendaftarkan callback untuk pesan masuk.
@@ -79,6 +82,7 @@ func (e *Engine) OnMessage(fn func(IncomingMessage)) {
 			QuotedID:     qid,
 			QuotedSender: qsender,
 			QuotedText:   qtext,
+			ExpireSecs:   ephemeralTTL(m.Message),
 		})
 	})
 }
@@ -449,6 +453,15 @@ func extractQuote(msg *waE2E.Message) (id, sender, text string) {
 		}
 	}
 	return id, sender, text
+}
+
+// ephemeralTTL membaca TTL disappearing (detik) dari ContextInfo.Expiration.
+// 0 = pesan biasa (tak hilang).
+func ephemeralTTL(msg *waE2E.Message) uint32 {
+	if ci := msgContext(msg); ci != nil {
+		return ci.GetExpiration()
+	}
+	return 0
 }
 
 // msgContext mengambil ContextInfo dari tipe pesan yang mendukungnya.

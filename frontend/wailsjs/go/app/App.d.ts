@@ -128,6 +128,8 @@ export function Pin(arg1:string,arg2:boolean):Promise<void>;
 
 export function PinMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5:boolean):Promise<void>;
 
+export function PostChannel(arg1:string,arg2:string):Promise<void>;
+
 export function PostMediaStatus(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function PostTextStatus(arg1:string):Promise<string>;

@@ -213,6 +213,12 @@
     }
     menuOpen = !menuOpen;
   }
+  // Klik-kanan (desktop) → buka menu pesan langsung.
+  function ctxMenu(e) {
+    if (deletedView || $selectMode) return;
+    menuUp = e.clientY > window.innerHeight * 0.55;
+    menuOpen = true;
+  }
   const QUICK = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
   function react(e) { reactMessage(chatId, idx, e); menuOpen = false; }
   // Buka emoji-picker PENUH, di-anchor ke tombol (kanan) — bukan grid kecil.
@@ -228,6 +234,7 @@
   }
   function del() { deleteMessage(chatId, idx, true); menuOpen = false; } // hapus utk semua → placeholder
   function undoReact(emoji) { reactMessage(chatId, idx, emoji); } // klik reaksi sendiri → lepas (toggle)
+  let whoFor = null; // emoji yang sedang ditampilkan "siapa yang react"
   function star() { starMessage(chatId, idx, !msg.starred); menuOpen = false; }
   function forward() { forwardDraft.set({ chat: chatId, idx }); menuOpen = false; }
   function copyText() { if (source) navigator.clipboard?.writeText(source).then(() => pushToast($t("copied"), "ok")); menuOpen = false; }
@@ -277,7 +284,7 @@
 </script>
 
 <div class="msg {msg.dir} {isGroupIn ? 'gin' : ''} {firstOfRun ? '' : 'cont'} {msg.reactions ? 'has-react' : ''} {$selectMode ? 'selmode' : ''} {isSelected ? 'sel' : ''}" data-mid={msg.id} data-ts={msg.ts}
-  on:click={onRowClick} role={$selectMode ? "button" : undefined} tabindex={$selectMode ? 0 : undefined}>
+  on:click={onRowClick} on:contextmenu|preventDefault={ctxMenu} role={$selectMode ? "button" : undefined} tabindex={$selectMode ? 0 : undefined}>
   {#if $selectMode}
     <span class="sel-check {isSelected ? 'on' : ''}">{isSelected ? "✓" : ""}</span>
   {/if}
@@ -439,7 +446,17 @@
     {/if}
 
     {#if msg.reactions && msg.reactions.length}
-      <div class="reactions">{#each msg.reactions as r}<button class="reaction" class:mine={r.mine} on:click={() => r.mine && undoReact(r.emoji)} title={r.mine ? $t("reaction_remove") : ""}>{r.emoji}{#if r.count > 1} {r.count}{/if}</button>{/each}</div>
+      <div class="reactions">{#each msg.reactions as r}<button class="reaction" class:mine={r.mine} on:click={() => (whoFor = whoFor === r.emoji ? null : r.emoji)} title={(r.who || []).join(", ")}>{r.emoji}{#if r.count > 1} {r.count}{/if}</button>{/each}</div>
+      {#if whoFor}
+        {@const rr = (msg.reactions || []).find((x) => x.emoji === whoFor)}
+        {#if rr}
+          <div class="react-who">
+            <div class="rw-emoji">{rr.emoji}</div>
+            <div class="rw-names">{(rr.who || []).join(", ")}</div>
+            {#if rr.mine}<button class="rw-undo" on:click={() => { undoReact(rr.emoji); whoFor = null; }}>{$t("reaction_remove")}</button>{/if}
+          </div>
+        {/if}
+      {/if}
     {/if}
 
     {#if menuOpen}

@@ -239,9 +239,10 @@ type MessageDTO struct {
 
 // ReactionDTO = satu emoji teragregasi pada pesan.
 type ReactionDTO struct {
-	Emoji string `json:"emoji"`
-	Count int    `json:"count"`
-	Mine  bool   `json:"mine"`
+	Emoji string   `json:"emoji"`
+	Count int      `json:"count"`
+	Mine  bool     `json:"mine"`
+	Who   []string `json:"who"` // nama pengirim reaksi (utk sheet "siapa yang react")
 }
 
 // attachReactions mengisi field Reactions tiap DTO dari peta reaksi chat.
@@ -272,8 +273,16 @@ func (a *App) attachReactions(out []MessageDTO, chat string) {
 				order = append(order, r.Emoji)
 			}
 			d.Count++
-			if self != "" && userPart(r.Sender) == self {
+			mine := self != "" && userPart(r.Sender) == self
+			if mine {
 				d.Mine = true
+				d.Who = append(d.Who, "Anda")
+			} else {
+				nm := a.displayName(r.Sender)
+				if nm == "" {
+					nm = shortJID(r.Sender)
+				}
+				d.Who = append(d.Who, nm)
 			}
 		}
 		for _, e := range order {

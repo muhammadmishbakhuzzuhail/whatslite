@@ -45,6 +45,17 @@ func (s *Store) PruneMessages(ctx context.Context, cutoff int64) (int64, error) 
 	return n, nil
 }
 
+// SweepExpired menghapus pesan disappearing yang sudah kedaluwarsa (expire_at>0
+// dan < now). Mengembalikan jumlah terhapus.
+func (s *Store) SweepExpired(ctx context.Context, now int64) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE expire_at > 0 AND expire_at < ?`, now)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // Vacuum mengembalikan ruang ke OS (pasca-prune) + memangkas WAL.
 func (s *Store) Vacuum(ctx context.Context) error {
 	_, _ = s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`)

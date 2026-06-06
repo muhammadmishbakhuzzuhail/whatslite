@@ -20,7 +20,17 @@ type GroupInfoDTO struct {
 	Topic        string           `json:"topic"`
 	Owner        string           `json:"owner"`
 	AmAdmin      bool             `json:"amAdmin"` // saya admin grup ini?
+	Announce     bool             `json:"announce"`
+	Locked       bool             `json:"locked"`
+	JoinApproval bool             `json:"joinApproval"`
+	AdminAddOnly bool             `json:"adminAddOnly"`
 	Participants []GroupMemberDTO `json:"participants"`
+}
+
+// GroupRequestDTO = permintaan bergabung yang menunggu persetujuan.
+type GroupRequestDTO struct {
+	JID  string `json:"jid"`
+	Name string `json:"name"`
 }
 
 // GetGroupInfo mengambil detail grup (subjek, deskripsi, anggota).
@@ -32,7 +42,10 @@ func (a *App) GetGroupInfo(jid string) *GroupInfoDTO {
 	if err != nil || gi == nil {
 		return nil
 	}
-	out := &GroupInfoDTO{JID: gi.JID, Name: gi.Name, Topic: gi.Topic, Owner: gi.Owner}
+	out := &GroupInfoDTO{
+		JID: gi.JID, Name: gi.Name, Topic: gi.Topic, Owner: gi.Owner,
+		Announce: gi.Announce, Locked: gi.Locked, JoinApproval: gi.JoinApproval, AdminAddOnly: gi.AdminAddOnly,
+	}
 	self := userPart(a.eng.SelfJID())
 	for _, p := range gi.Participants {
 		out.Participants = append(out.Participants, GroupMemberDTO{JID: p.JID, Name: p.Name, IsAdmin: p.IsAdmin})
@@ -137,5 +150,65 @@ func (a *App) UpdateGroupParticipants(jid string, members []string, action strin
 	}
 	if err := a.eng.UpdateParticipants(a.ctx, jid, members, action); err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
+// --- Setelan admin grup ---
+func (a *App) emitErr(err error) bool {
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return true
+	}
+	return false
+}
+
+// SetGroupAnnounce: true = hanya admin boleh kirim.
+func (a *App) SetGroupAnnounce(jid string, on bool) {
+	if a.eng != nil && !a.emitErr(a.eng.SetGroupAnnounce(a.ctx, jid, on)) {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
+	}
+}
+
+// SetGroupLocked: true = hanya admin boleh ubah info.
+func (a *App) SetGroupLocked(jid string, on bool) {
+	if a.eng != nil && !a.emitErr(a.eng.SetGroupLocked(a.ctx, jid, on)) {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
+	}
+}
+
+// SetGroupJoinApproval: true = anggota baru butuh persetujuan.
+func (a *App) SetGroupJoinApproval(jid string, on bool) {
+	if a.eng != nil && !a.emitErr(a.eng.SetGroupJoinApproval(a.ctx, jid, on)) {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
+	}
+}
+
+// SetGroupAddMode: adminOnly=true → hanya admin tambah anggota.
+func (a *App) SetGroupAddMode(jid string, adminOnly bool) {
+	if a.eng != nil && !a.emitErr(a.eng.SetGroupAddMode(a.ctx, jid, adminOnly)) {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
+	}
+}
+
+// GetGroupRequests daftar permintaan bergabung menunggu persetujuan.
+func (a *App) GetGroupRequests(jid string) []GroupRequestDTO {
+	out := []GroupRequestDTO{}
+	if a.eng == nil {
+		return out
+	}
+	reqs, err := a.eng.GroupRequests(a.ctx, jid)
+	if err != nil {
+		return out
+	}
+	for _, r := range reqs {
+		out = append(out, GroupRequestDTO{JID: r.JID, Name: r.Name})
+	}
+	return out
+}
+
+// UpdateGroupRequest menyetujui/menolak permintaan bergabung.
+func (a *App) UpdateGroupRequest(jid string, members []string, approve bool) {
+	if a.eng != nil && !a.emitErr(a.eng.UpdateGroupRequest(a.ctx, jid, members, approve)) {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
 	}
 }

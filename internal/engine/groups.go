@@ -61,6 +61,16 @@ type GroupFullInfo struct {
 	Topic        string
 	Owner        string
 	Participants []GroupMember
+	Announce     bool // true = hanya admin boleh kirim
+	Locked       bool // true = hanya admin boleh ubah info grup
+	JoinApproval bool // true = anggota baru butuh persetujuan admin
+	AdminAddOnly bool // true = hanya admin boleh menambah anggota
+}
+
+// GroupJoinRequest = satu permintaan bergabung (menunggu persetujuan admin).
+type GroupJoinRequest struct {
+	JID  string
+	Name string
 }
 
 // GroupInfo mengambil detail grup (subjek, deskripsi, anggota, admin).
@@ -75,6 +85,8 @@ func (e *Engine) GroupInfo(ctx context.Context, jid string) (*GroupFullInfo, err
 	}
 	out := &GroupFullInfo{
 		JID: jid, Name: info.Name, Topic: info.Topic, Owner: info.OwnerJID.String(),
+		Announce: info.IsAnnounce, Locked: info.IsLocked, JoinApproval: info.IsJoinApprovalRequired,
+		AdminAddOnly: info.MemberAddMode == types.GroupMemberAddModeAdmin,
 	}
 	for _, p := range info.Participants {
 		name := e.ChatName(p.JID.String())
@@ -167,6 +179,87 @@ func (e *Engine) GroupInviteLink(ctx context.Context, jid string, reset bool) (s
 		return "", err
 	}
 	return e.Client.GetGroupInviteLink(ctx, j, reset)
+}
+
+// SetGroupAnnounce: true = hanya admin boleh kirim pesan.
+func (e *Engine) SetGroupAnnounce(ctx context.Context, jid string, on bool) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	return e.Client.SetGroupAnnounce(ctx, j, on)
+}
+
+// SetGroupLocked: true = hanya admin boleh ubah info grup.
+func (e *Engine) SetGroupLocked(ctx context.Context, jid string, on bool) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	return e.Client.SetGroupLocked(ctx, j, on)
+}
+
+// SetGroupJoinApproval: true = anggota baru butuh persetujuan admin.
+func (e *Engine) SetGroupJoinApproval(ctx context.Context, jid string, on bool) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	return e.Client.SetGroupJoinApprovalMode(ctx, j, on)
+}
+
+// SetGroupAddMode: adminOnly=true → hanya admin tambah anggota.
+func (e *Engine) SetGroupAddMode(ctx context.Context, jid string, adminOnly bool) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	mode := types.GroupMemberAddModeAllMember
+	if adminOnly {
+		mode = types.GroupMemberAddModeAdmin
+	}
+	return e.Client.SetGroupMemberAddMode(ctx, j, mode)
+}
+
+// GroupRequests daftar permintaan bergabung yang menunggu persetujuan.
+func (e *Engine) GroupRequests(ctx context.Context, jid string) ([]GroupJoinRequest, error) {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return nil, err
+	}
+	reqs, err := e.Client.GetGroupRequestParticipants(ctx, j)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]GroupJoinRequest, 0, len(reqs))
+	for _, r := range reqs {
+		name := e.ChatName(r.JID.String())
+		if name == "" {
+			name = e.ReadableID(r.JID.String())
+		}
+		out = append(out, GroupJoinRequest{JID: r.JID.String(), Name: name})
+	}
+	return out, nil
+}
+
+// UpdateGroupRequest menyetujui/menolak permintaan bergabung. approve=false → tolak.
+func (e *Engine) UpdateGroupRequest(ctx context.Context, jid string, members []string, approve bool) error {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return err
+	}
+	parts := make([]types.JID, 0, len(members))
+	for _, m := range members {
+		if mj, err := types.ParseJID(m); err == nil {
+			parts = append(parts, mj)
+		}
+	}
+	action := whatsmeow.ParticipantChangeReject
+	if approve {
+		action = whatsmeow.ParticipantChangeApprove
+	}
+	_, err = e.Client.UpdateGroupRequestParticipants(ctx, j, parts, action)
+	return err
 }
 
 // SetGroupPhoto mengganti foto grup (avatar = JPEG bytes; nil = hapus).

@@ -54,6 +54,8 @@ export function GetContacts():Promise<Array<app.ContactRowDTO>>;
 
 export function GetGroupInfo(arg1:string):Promise<app.GroupInfoDTO>;
 
+export function GetGroupRequests(arg1:string):Promise<Array<app.GroupRequestDTO>>;
+
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;
 
 export function GetMessageInfo(arg1:string,arg2:string):Promise<app.MsgInfoDTO>;
@@ -150,7 +152,15 @@ export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<vo
 
 export function SetDisappearing(arg1:string,arg2:number):Promise<void>;
 
+export function SetGroupAddMode(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetGroupAnnounce(arg1:string,arg2:boolean):Promise<void>;
+
 export function SetGroupDescription(arg1:string,arg2:string):Promise<void>;
+
+export function SetGroupJoinApproval(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetGroupLocked(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetGroupPhoto(arg1:string,arg2:string):Promise<void>;
 
@@ -173,5 +183,7 @@ export function Translate(arg1:string,arg2:string):Promise<string>;
 export function UnfollowChannel(arg1:string):Promise<void>;
 
 export function UpdateGroupParticipants(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;
+
+export function UpdateGroupRequest(arg1:string,arg2:Array<string>,arg3:boolean):Promise<void>;
 
 export function VotePoll(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;

@@ -245,6 +245,10 @@ export namespace app {
 	    topic: string;
 	    owner: string;
 	    amAdmin: boolean;
+	    announce: boolean;
+	    locked: boolean;
+	    joinApproval: boolean;
+	    adminAddOnly: boolean;
 	    participants: GroupMemberDTO[];
 	
 	    static createFrom(source: any = {}) {
@@ -258,6 +262,10 @@ export namespace app {
 	        this.topic = source["topic"];
 	        this.owner = source["owner"];
 	        this.amAdmin = source["amAdmin"];
+	        this.announce = source["announce"];
+	        this.locked = source["locked"];
+	        this.joinApproval = source["joinApproval"];
+	        this.adminAddOnly = source["adminAddOnly"];
 	        this.participants = this.convertValues(source["participants"], GroupMemberDTO);
 	    }
 	
@@ -280,6 +288,20 @@ export namespace app {
 		}
 	}
 	
+	export class GroupRequestDTO {
+	    jid: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupRequestDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.jid = source["jid"];
+	        this.name = source["name"];
+	    }
+	}
 	export class LinkPreviewDTO {
 	    url: string;
 	    title: string;

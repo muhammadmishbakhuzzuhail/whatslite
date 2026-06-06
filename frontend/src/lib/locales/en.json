@@ -290,5 +290,11 @@
  "retention": "Message retention",
  "retention_d": "Older messages are auto-removed locally to keep the app fast. Starred & pinned are always kept.",
  "retention_days": "{n} days",
- "retention_forever": "Forever"
+ "retention_forever": "Forever",
+ "group_admin_settings": "Group settings",
+ "group_announce": "Only admins can send messages",
+ "group_locked": "Only admins can edit group info",
+ "group_join_approval": "Approve new members",
+ "group_admin_add": "Only admins can add members",
+ "group_requests": "Join requests"
 }

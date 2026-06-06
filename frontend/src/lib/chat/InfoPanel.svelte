@@ -1,7 +1,7 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox, askConfirm } from "../../stores.js";
-  import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat } from "../../services/data.js";
+  import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat, setGroupAnnounce, setGroupLocked, setGroupJoinApproval, setGroupAddMode, getGroupRequests, updateGroupRequest } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
@@ -54,6 +54,17 @@
       updateGroupParticipants(chat.id, [digits + "@s.whatsapp.net"], "add");
       reloadSoon();
     } };
+  }
+  // Setelan admin grup → ubah lalu muat ulang info.
+  function toggle(fn, val) { fn(chat.id, val); reloadSoon(); }
+  // Permintaan bergabung (mode approval).
+  let requests = [], reqFor = null;
+  $: if (groupInfo && amAdmin && groupInfo.joinApproval && reqFor !== chat.id) loadRequests();
+  async function loadRequests() { reqFor = chat.id; requests = await getGroupRequests(chat.id); }
+  function decideReq(jid, approve) {
+    updateGroupRequest(chat.id, [jid], approve);
+    requests = requests.filter((r) => r.jid !== jid);
+    reloadSoon();
   }
   function memberAction(p, action) {
     if (action === "remove") {
@@ -151,6 +162,46 @@
             <span class="grow">{$t("invite_link")}</span>
           </button>
         </div>
+
+        <!-- Setelan admin grup -->
+        <div class="info-block">
+          <div class="lbl">{$t("group_admin_settings")}</div>
+          <button class="info-row" on:click={() => toggle(setGroupAnnounce, !groupInfo.announce)}>
+            <span class="grow">{$t("group_announce")}</span>
+            <span class="switch {groupInfo.announce ? '' : 'off'}"></span>
+          </button>
+          <button class="info-row" on:click={() => toggle(setGroupLocked, !groupInfo.locked)}>
+            <span class="grow">{$t("group_locked")}</span>
+            <span class="switch {groupInfo.locked ? '' : 'off'}"></span>
+          </button>
+          <button class="info-row" on:click={() => toggle(setGroupJoinApproval, !groupInfo.joinApproval)}>
+            <span class="grow">{$t("group_join_approval")}</span>
+            <span class="switch {groupInfo.joinApproval ? '' : 'off'}"></span>
+          </button>
+          <button class="info-row" on:click={() => toggle(setGroupAddMode, !groupInfo.adminAddOnly)}>
+            <span class="grow">{$t("group_admin_add")}</span>
+            <span class="switch {groupInfo.adminAddOnly ? '' : 'off'}"></span>
+          </button>
+        </div>
+
+        <!-- Permintaan bergabung (approval) -->
+        {#if groupInfo.joinApproval && requests.length}
+          <div class="info-block">
+            <div class="lbl">{$t("group_requests")} ({requests.length})</div>
+            <div class="members">
+              {#each requests as r (r.jid)}
+                <div class="member">
+                  <Avatar name={r.name} color={chat.color} photo={avatarUrl(r.jid)} sm={true} />
+                  <span class="m-name">{r.name || r.jid.split("@")[0]}</span>
+                  <span class="m-actions">
+                    <button title={$t("ok")} on:click={() => decideReq(r.jid, true)}>✓</button>
+                    <button title={$t("call_reject")} class="danger" on:click={() => decideReq(r.jid, false)}>✕</button>
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       {/if}
       <div class="info-block">
         <div class="lbl">{$t("members_n").replace("%n", groupInfo.participants.length)}</div>

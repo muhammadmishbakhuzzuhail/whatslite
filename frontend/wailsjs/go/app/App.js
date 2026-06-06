@@ -102,6 +102,10 @@ export function GetGroupInfo(arg1) {
   return window['go']['app']['App']['GetGroupInfo'](arg1);
 }
 
+export function GetGroupRequests(arg1) {
+  return window['go']['app']['App']['GetGroupRequests'](arg1);
+}
+
 export function GetLinkPreview(arg1) {
   return window['go']['app']['App']['GetLinkPreview'](arg1);
 }
@@ -294,8 +298,24 @@ export function SetDisappearing(arg1, arg2) {
   return window['go']['app']['App']['SetDisappearing'](arg1, arg2);
 }
 
+export function SetGroupAddMode(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupAddMode'](arg1, arg2);
+}
+
+export function SetGroupAnnounce(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupAnnounce'](arg1, arg2);
+}
+
 export function SetGroupDescription(arg1, arg2) {
   return window['go']['app']['App']['SetGroupDescription'](arg1, arg2);
+}
+
+export function SetGroupJoinApproval(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupJoinApproval'](arg1, arg2);
+}
+
+export function SetGroupLocked(arg1, arg2) {
+  return window['go']['app']['App']['SetGroupLocked'](arg1, arg2);
 }
 
 export function SetGroupPhoto(arg1, arg2) {
@@ -340,6 +360,10 @@ export function UnfollowChannel(arg1) {
 
 export function UpdateGroupParticipants(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateGroupParticipants'](arg1, arg2, arg3);
+}
+
+export function UpdateGroupRequest(arg1, arg2, arg3) {
+  return window['go']['app']['App']['UpdateGroupRequest'](arg1, arg2, arg3);
 }
 
 export function VotePoll(arg1, arg2, arg3, arg4) {

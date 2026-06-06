@@ -415,6 +415,13 @@ export async function groupInviteLink(jid, reset = false) {
 export function setGroupPhoto(jid, dataURI) {
   if (LIVE) A.SetGroupPhoto(jid, dataURI);
 }
+// --- Setelan admin grup ---
+export function setGroupAnnounce(jid, on) { if (LIVE) A.SetGroupAnnounce(jid, on); }
+export function setGroupLocked(jid, on) { if (LIVE) A.SetGroupLocked(jid, on); }
+export function setGroupJoinApproval(jid, on) { if (LIVE) A.SetGroupJoinApproval(jid, on); }
+export function setGroupAddMode(jid, adminOnly) { if (LIVE) A.SetGroupAddMode(jid, adminOnly); }
+export async function getGroupRequests(jid) { if (LIVE) return (await A.GetGroupRequests(jid)) || []; return []; }
+export function updateGroupRequest(jid, members, approve) { if (LIVE) A.UpdateGroupRequest(jid, members, approve); }
 
 // Unduh media dari URL web (sisi Go → tanpa CORS) → data-URI. "" bila gagal.
 export async function fetchRemoteMedia(url) {

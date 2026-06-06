@@ -290,5 +290,11 @@
  "retention": "Retensi pesan",
  "retention_d": "Pesan lama dihapus otomatis dari lokal agar app tetap cepat. Berbintang & disematkan selalu disimpan.",
  "retention_days": "{n} hari",
- "retention_forever": "Selamanya"
+ "retention_forever": "Selamanya",
+ "group_admin_settings": "Setelan grup",
+ "group_announce": "Hanya admin yang boleh kirim pesan",
+ "group_locked": "Hanya admin yang boleh ubah info grup",
+ "group_join_approval": "Setujui anggota baru",
+ "group_admin_add": "Hanya admin yang boleh tambah anggota",
+ "group_requests": "Permintaan bergabung"
 }

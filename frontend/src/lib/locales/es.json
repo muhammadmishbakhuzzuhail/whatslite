@@ -290,5 +290,11 @@
  "retention": "Retención de mensajes",
  "retention_d": "Los mensajes antiguos se eliminan localmente para mantener la app rápida. Los destacados y fijados se conservan.",
  "retention_days": "{n} días",
- "retention_forever": "Siempre"
+ "retention_forever": "Siempre",
+ "group_admin_settings": "Ajustes del grupo",
+ "group_announce": "Solo los admins pueden enviar mensajes",
+ "group_locked": "Solo los admins pueden editar la info del grupo",
+ "group_join_approval": "Aprobar nuevos miembros",
+ "group_admin_add": "Solo los admins pueden añadir miembros",
+ "group_requests": "Solicitudes para unirse"
 }

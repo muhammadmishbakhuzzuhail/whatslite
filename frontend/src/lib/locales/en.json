@@ -374,5 +374,10 @@
  "mark_all_read": "Mark all read",
  "all_read_done": "All chats marked read",
  "quick_react": "Quick reactions",
- "quick_react_edit": "Type an emoji"
+ "quick_react_edit": "Type an emoji",
+ "sct_all": "All",
+ "sct_image": "Photos",
+ "sct_video": "Videos",
+ "sct_document": "Docs",
+ "sct_link": "Links"
 }

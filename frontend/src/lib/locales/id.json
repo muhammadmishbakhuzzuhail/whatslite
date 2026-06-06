@@ -374,5 +374,10 @@
  "mark_all_read": "Tandai semua dibaca",
  "all_read_done": "Semua chat ditandai dibaca",
  "quick_react": "Reaksi cepat",
- "quick_react_edit": "Ketik emoji"
+ "quick_react_edit": "Ketik emoji",
+ "sct_all": "Semua",
+ "sct_image": "Foto",
+ "sct_video": "Video",
+ "sct_document": "Dokumen",
+ "sct_link": "Tautan"
 }

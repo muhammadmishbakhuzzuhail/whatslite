@@ -1133,3 +1133,4 @@ button.info-row:hover { background: var(--hover); }
 .acc-sw.on { border-color: var(--text); }
 .qre-sw { font-size: 18px; background: var(--bg2); border: 0; border-radius: 8px; width: 36px; height: 32px; cursor: pointer; }
 .qre-sw:hover { background: var(--hover, var(--line)); }
+.sc-types { display: flex; gap: 6px; padding: 6px 12px 8px; flex-wrap: wrap; }

@@ -36,10 +36,18 @@
     return null;
   }
 
-  // Pencarian dalam chat.
+  // Pencarian dalam chat (+ filter jenis: all/photo/video/doc/link).
   let scQuery = "";
   let scIdx = 0;
-  $: scMatches = scQuery.trim().length < 2 ? [] : messages.filter((m) => (m.text || "").toLowerCase().includes(scQuery.trim().toLowerCase()));
+  let scType = "all";
+  const SC_TYPES = ["all", "image", "video", "document", "link"];
+  function scTypeMatch(m) {
+    if (scType === "all") return true;
+    if (scType === "link") return /https?:\/\//.test(m.text || "");
+    return m.type === scType;
+  }
+  $: scMatches = (scQuery.trim().length < 2 && scType === "all") ? []
+    : messages.filter((m) => scTypeMatch(m) && (!scQuery.trim() || (m.text || "").toLowerCase().includes(scQuery.trim().toLowerCase())));
   $: if ($inChatSearch && scMatches.length && scIdx >= scMatches.length) scIdx = 0;
   function scGo(d) {
     if (!scMatches.length) return;
@@ -98,6 +106,11 @@
         <button class="icon-btn" disabled={!scMatches.length} on:click={() => scGo(-1)} title="↑"><svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg></button>
         <button class="icon-btn" disabled={!scMatches.length} on:click={() => scGo(1)} title="↓"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
         <button class="icon-btn" on:click={scClose} title={$t("close")}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="sc-types">
+        {#each SC_TYPES as ty}
+          <button class="chip {scType === ty ? 'active' : ''}" on:click={() => (scType = ty)}>{$t("sct_" + ty)}</button>
+        {/each}
       </div>
     {/if}
     <MessageList {messages} group={!!chat.group} chatId={chat.id} peerName={chat.name} {firstUnreadId} {unreadCount} />

@@ -204,11 +204,16 @@ func (e *Engine) SendMedia(ctx context.Context, to, kind, mime, caption, fileNam
 
 // PostTextStatus mengunggah status teks ke status@broadcast. whatsmeow otomatis
 // menyusun daftar penerima (kontak) — kita cukup kirim ke StatusBroadcastJID.
-func (e *Engine) PostTextStatus(ctx context.Context, text string) (string, error) {
-	msg := &waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-		Text: proto.String(text),
-	}}
-	resp, err := e.Client.SendMessage(ctx, types.StatusBroadcastJID, msg)
+func (e *Engine) PostTextStatus(ctx context.Context, text string, bgArgb uint32, font uint32) (string, error) {
+	etm := &waE2E.ExtendedTextMessage{Text: proto.String(text)}
+	if bgArgb != 0 {
+		etm.BackgroundArgb = proto.Uint32(bgArgb)
+	}
+	if font != 0 {
+		f := waE2E.ExtendedTextMessage_FontType(font)
+		etm.Font = &f
+	}
+	resp, err := e.Client.SendMessage(ctx, types.StatusBroadcastJID, &waE2E.Message{ExtendedTextMessage: etm})
 	if err != nil {
 		return "", err
 	}

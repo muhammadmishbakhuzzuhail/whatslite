@@ -6,7 +6,7 @@
   import { translateMessage } from "../../services/translate.js";
   import { transcribeVoice } from "../../services/data.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -274,8 +274,14 @@
     setTimeout(loadPollVotes, 400);
   }
   function openMedia() {
-    if (msg.type === "image") { if (imgSrc) lightbox.set({ url: imgSrc, type: "image", caption }); }
-    else if (msg.type === "video") videoPlaying = true; // putar inline
+    if (msg.type === "image") {
+      // Album: kumpulkan semua foto/video chat yg termuat → swipe prev/next.
+      const arr = ($allMessages[chatId] || []).filter((m) => m.type === "image" || m.type === "video");
+      const items = arr.map((m) => ({ url: `/media/${chatId}/${m.id}`, type: m.type, caption: m.caption || "" }));
+      const idx = arr.findIndex((m) => m.id === msg.id);
+      if (items.length > 1) lightbox.set({ items, i: idx < 0 ? 0 : idx });
+      else if (imgSrc) lightbox.set({ url: imgSrc, type: "image", caption });
+    } else if (msg.type === "video") videoPlaying = true; // putar inline
     // stiker: tak ada aksi
   }
   function pin() { pinMessageAction(chatId, idx, !msg.pinned); menuOpen = false; }

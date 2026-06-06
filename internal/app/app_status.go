@@ -130,12 +130,12 @@ func (a *App) GetStatusViewers(statusID string) []ReceiptDTO {
 	return out
 }
 
-// PostTextStatus mengunggah status teks (broadcast ke kontak). Best-effort.
-func (a *App) PostTextStatus(text string) string {
+// PostTextStatus mengunggah status teks (bg ARGB + font opsional). Best-effort.
+func (a *App) PostTextStatus(text string, bgArgb int64, font int) string {
 	if a.eng == nil || strings.TrimSpace(text) == "" {
 		return ""
 	}
-	id, err := a.eng.PostTextStatus(a.ctx, text)
+	id, err := a.eng.PostTextStatus(a.ctx, text, uint32(bgArgb), uint32(font))
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""

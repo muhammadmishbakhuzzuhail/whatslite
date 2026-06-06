@@ -103,11 +103,21 @@
   // --- compose status teks ---
   let composeOpen = false;
   let draft = "";
+  // Warna latar status teks (ARGB). null = default akun.
+  const STATUS_BG = [
+    { argb: 0, css: "linear-gradient(135deg,#1f2c34,#0b141a)" },
+    { argb: 0xff06b67f, css: "#06b67f" }, { argb: 0xff5b6ef5, css: "#5b6ef5" },
+    { argb: 0xffe5614e, css: "#e5614e" }, { argb: 0xfff2a33c, css: "#f2a33c" },
+    { argb: 0xff9b59b6, css: "#9b59b6" }, { argb: 0xff2d3436, css: "#2d3436" },
+  ];
+  let bgArgb = 0;
+  $: bgCss = (STATUS_BG.find((b) => b.argb === bgArgb) || STATUS_BG[0]).css;
   async function post() {
     const txt = draft.trim();
     if (!txt) return;
     composeOpen = false; draft = "";
-    const id = await postTextStatus(txt);
+    const id = await postTextStatus(txt, bgArgb, 0);
+    bgArgb = 0;
     pushToast(id ? $t("status_posted") : $t("status_failed"), id ? "ok" : "error");
     setTimeout(load, 1200);
   }
@@ -183,8 +193,14 @@
   <div class="nc-modal" on:click|self={() => composeOpen = false}>
     <div class="nc-card" style="max-width:420px">
       <h3 style="margin:0 0 12px">{$t("status_new")}</h3>
-      <textarea bind:value={draft} rows="4" placeholder={$t("status_placeholder")}
-        style="width:100%;resize:none;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg2);color:var(--text);font:inherit"></textarea>
+      <div class="st-preview" style="background:{bgCss}">{draft || $t("status_placeholder")}</div>
+      <textarea bind:value={draft} rows="3" placeholder={$t("status_placeholder")}
+        style="width:100%;resize:none;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg2);color:var(--text);font:inherit;margin-top:10px"></textarea>
+      <div class="st-bg-row">
+        {#each STATUS_BG as b}
+          <button class="st-bg-sw {bgArgb === b.argb ? 'on' : ''}" style="background:{b.css}" on:click={() => (bgArgb = b.argb)} aria-label="bg"></button>
+        {/each}
+      </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
         <button class="btn-ghost" on:click={() => composeOpen = false}>{$t("cancel")}</button>
         <button class="btn-accent" on:click={post} disabled={!draft.trim()}>{$t("send")}</button>
@@ -263,6 +279,10 @@
   .status-name { font-weight:600; font-size:15px; }
   .status-sub { font-size:12.5px; color:var(--text2); }
 
+  .st-preview { min-height:90px; border-radius:12px; display:flex; align-items:center; justify-content:center; text-align:center; color:#fff; font-size:20px; font-weight:500; padding:16px; word-break:break-word; text-shadow:0 1px 3px rgba(0,0,0,.4); }
+  .st-bg-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .st-bg-sw { width:30px; height:30px; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+  .st-bg-sw.on { border-color:var(--accent); }
   .st-react-row { display:flex; justify-content:center; gap:10px; padding:8px 12px 0; }
   .st-react { background:rgba(255,255,255,.12); border:0; border-radius:50%; width:42px; height:42px; font-size:22px; cursor:pointer; }
   .st-react:hover { background:rgba(255,255,255,.22); transform:scale(1.1); }

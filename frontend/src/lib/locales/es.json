@@ -331,5 +331,12 @@
  "kbd_help": "Mostrar atajos",
  "kbd_close": "Cerrar / atrás",
  "change_photo": "Cambiar foto",
- "photo_updated": "Foto de perfil actualizada"
+ "photo_updated": "Foto de perfil actualizada",
+ "ch_create": "Crear canal",
+ "ch_name": "Nombre del canal",
+ "ch_desc": "Descripción (opcional)",
+ "ch_created": "Canal creado",
+ "business_account": "Cuenta de empresa",
+ "business_info": "Información de empresa",
+ "linked_devices": "Dispositivos vinculados"
 }

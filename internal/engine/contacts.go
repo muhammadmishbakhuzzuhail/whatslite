@@ -21,6 +21,45 @@ func (e *Engine) MyQRLink(ctx context.Context, revoke bool) (string, error) {
 	return e.Client.GetContactQRLink(ctx, revoke)
 }
 
+// BizProfile = profil bisnis (alamat/email/kategori) bila kontak akun bisnis.
+type BizProfile struct {
+	Address  string
+	Email    string
+	Category string
+}
+
+// BusinessProfile mengambil profil bisnis kontak (nil bila bukan bisnis).
+func (e *Engine) BusinessProfile(ctx context.Context, jid string) *BizProfile {
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return nil
+	}
+	bp, err := e.Client.GetBusinessProfile(ctx, j)
+	if err != nil || bp == nil {
+		return nil
+	}
+	cat := ""
+	if len(bp.Categories) > 0 {
+		cat = bp.Categories[0].Name
+	}
+	if bp.Address == "" && bp.Email == "" && cat == "" {
+		return nil
+	}
+	return &BizProfile{Address: bp.Address, Email: bp.Email, Category: cat}
+}
+
+// MyDeviceCount = jumlah perangkat tertaut akun (HP + companion).
+func (e *Engine) MyDeviceCount(ctx context.Context) int {
+	if e.Client.Store.ID == nil {
+		return 0
+	}
+	ds, err := e.Client.GetUserDevices(ctx, []types.JID{e.Client.Store.ID.ToNonAD()})
+	if err != nil {
+		return 0
+	}
+	return len(ds)
+}
+
 // WACheck = hasil cek "ada di WhatsApp?" untuk satu nomor.
 type WACheck struct {
 	Query      string

@@ -331,5 +331,12 @@
  "kbd_help": "Tampilkan pintasan",
  "kbd_close": "Tutup / kembali",
  "change_photo": "Ganti foto",
- "photo_updated": "Foto profil diperbarui"
+ "photo_updated": "Foto profil diperbarui",
+ "ch_create": "Buat saluran",
+ "ch_name": "Nama saluran",
+ "ch_desc": "Deskripsi (opsional)",
+ "ch_created": "Saluran dibuat",
+ "business_account": "Akun bisnis",
+ "business_info": "Info bisnis",
+ "linked_devices": "Perangkat tertaut"
 }

@@ -3,15 +3,16 @@
   // Tampilkan avatar/nama/nomor/about + aksi Pesan & Simpan-nama (label LOKAL,
   // tidak sinkron ke buku-alamat HP/WA).
   import { profileJid, closeProfile, messageContact, saveContactLabel, removeContactLabel, pushToast, lightbox } from "../../stores.js";
-  import { getContactProfile, avatarUrl, senderColorFor } from "../../services/data.js";
+  import { getContactProfile, avatarUrl, senderColorFor, getBusinessProfile } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
-  let prof = null, loadedFor = null;
+  let prof = null, loadedFor = null, biz = null;
   $: if ($profileJid && $profileJid !== loadedFor) load($profileJid);
   async function load(jid) {
-    loadedFor = jid; prof = null;
+    loadedFor = jid; prof = null; biz = null;
     prof = await getContactProfile(jid);
+    biz = await getBusinessProfile(jid); // {isBiz, address, email, category}
   }
 
   // prompt() tak jalan di WebKitGTK → modal inline.
@@ -60,7 +61,16 @@
         <div class="iname">{prof.name}</div>
         {#if prof.phone}<div class="iphone">{prof.phone}</div>{/if}
         {#if prof.saved}<div class="saved-chip">{$t("contact_saved_chip")}</div>{/if}
+        {#if biz && biz.isBiz}<div class="biz-chip">✔ {$t("business_account")}{biz.category ? ` · ${biz.category}` : ""}</div>{/if}
       </div>
+
+      {#if biz && biz.isBiz && (biz.address || biz.email)}
+        <div class="info-block">
+          <div class="lbl">{$t("business_info")}</div>
+          {#if biz.address}<div class="val">📍 {biz.address}</div>{/if}
+          {#if biz.email}<div class="val">✉️ {biz.email}</div>{/if}
+        </div>
+      {/if}
 
       {#if prof.about}
         <div class="info-block">

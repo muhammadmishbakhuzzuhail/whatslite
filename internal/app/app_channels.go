@@ -32,6 +32,20 @@ type ChannelMsgDTO struct {
 	Views    int    `json:"views"`
 }
 
+// CreateChannel membuat saluran baru; kembalikan JID (atau "").
+func (a *App) CreateChannel(name, desc string) string {
+	if a.eng == nil || name == "" {
+		return ""
+	}
+	jid, err := a.eng.CreateChannel(a.ctx, name, desc, nil)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return ""
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	return jid
+}
+
 // GetChannels mengembalikan saluran yang diikuti.
 func (a *App) GetChannels() (out []ChannelDTO) {
 	out = []ChannelDTO{}

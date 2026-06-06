@@ -85,6 +85,34 @@ func (a *App) SubscribePresence(jid string) {
 	a.eng.SubscribePresence(jid)
 }
 
+// BizProfileDTO = profil bisnis kontak (kosong bila bukan bisnis).
+type BizProfileDTO struct {
+	Address  string `json:"address"`
+	Email    string `json:"email"`
+	Category string `json:"category"`
+	IsBiz    bool   `json:"isBiz"`
+}
+
+// GetBusinessProfile mengambil info bisnis kontak (alamat/email/kategori).
+func (a *App) GetBusinessProfile(jid string) BizProfileDTO {
+	if a.eng == nil {
+		return BizProfileDTO{}
+	}
+	bp := a.eng.BusinessProfile(a.ctx, jid)
+	if bp == nil {
+		return BizProfileDTO{}
+	}
+	return BizProfileDTO{Address: bp.Address, Email: bp.Email, Category: bp.Category, IsBiz: true}
+}
+
+// GetLinkedDevices mengembalikan jumlah perangkat tertaut (HP + companion).
+func (a *App) GetLinkedDevices() int {
+	if a.eng == nil {
+		return 0
+	}
+	return a.eng.MyDeviceCount(a.ctx)
+}
+
 // GetContactAbout mengambil teks info/status seorang kontak.
 func (a *App) GetContactAbout(jid string) string {
 	if a.eng == nil {

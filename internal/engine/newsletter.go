@@ -37,6 +37,17 @@ type ChannelMsg struct {
 	Views     int
 }
 
+// CreateChannel membuat saluran (newsletter) baru; kembalikan JID.
+func (e *Engine) CreateChannel(ctx context.Context, name, desc string, picture []byte) (string, error) {
+	md, err := e.Client.CreateNewsletter(ctx, whatsmeow.CreateNewsletterParams{
+		Name: name, Description: desc, Picture: picture,
+	})
+	if err != nil {
+		return "", err
+	}
+	return md.ID.String(), nil
+}
+
 // ListChannels mengembalikan saluran yang sedang diikuti.
 func (e *Engine) ListChannels(ctx context.Context) ([]ChannelInfo, error) {
 	metas, err := e.Client.GetSubscribedNewsletters(ctx)

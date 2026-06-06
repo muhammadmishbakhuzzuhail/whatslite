@@ -18,6 +18,10 @@ export function Connect() {
   return window['go']['app']['App']['Connect']();
 }
 
+export function CreateChannel(arg1, arg2) {
+  return window['go']['app']['App']['CreateChannel'](arg1, arg2);
+}
+
 export function CreateGroup(arg1, arg2) {
   return window['go']['app']['App']['CreateGroup'](arg1, arg2);
 }
@@ -66,6 +70,10 @@ export function GetBlockedContacts() {
   return window['go']['app']['App']['GetBlockedContacts']();
 }
 
+export function GetBusinessProfile(arg1) {
+  return window['go']['app']['App']['GetBusinessProfile'](arg1);
+}
+
 export function GetCalls() {
   return window['go']['app']['App']['GetCalls']();
 }
@@ -112,6 +120,10 @@ export function GetGroupRequests(arg1) {
 
 export function GetLinkPreview(arg1) {
   return window['go']['app']['App']['GetLinkPreview'](arg1);
+}
+
+export function GetLinkedDevices() {
+  return window['go']['app']['App']['GetLinkedDevices']();
 }
 
 export function GetMessageInfo(arg1, arg2) {

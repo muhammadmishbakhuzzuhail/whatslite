@@ -1,13 +1,14 @@
 <script>
   import { onMount } from "svelte";
   import { railView, updateMyName, updateMyAbout, pushToast } from "../../stores.js";
-  import { getProfile, fetchProfile, myQR, setMyPhoto, avatarUrl } from "../../services/data.js";
+  import { getProfile, fetchProfile, myQR, setMyPhoto, avatarUrl, getLinkedDevices } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
   import Avatar from "../common/Avatar.svelte";
 
   let me = getProfile(); // mock instan
-  onMount(async () => { me = await fetchProfile(); });
+  let nDevices = 0;
+  onMount(async () => { me = await fetchProfile(); nDevices = await getLinkedDevices(); });
 
   let qrImg = null, qrOpen = false;
   async function showQR() { qrOpen = true; if (!qrImg) qrImg = await myQR(false); }
@@ -101,6 +102,13 @@
     <div class="pf-lbl">{$t("profile_phone")}</div>
     <div class="pf-val">{me.phone}</div>
   </div>
+
+  {#if nDevices > 0}
+    <div class="profile-field">
+      <div class="pf-lbl">{$t("linked_devices")}</div>
+      <div class="pf-val">{nDevices}</div>
+    </div>
+  {/if}
 
   <div class="profile-field">
     <button class="pf-qr-btn" on:click={showQR}>

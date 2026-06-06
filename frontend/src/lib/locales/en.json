@@ -331,5 +331,12 @@
  "kbd_help": "Show shortcuts",
  "kbd_close": "Close / back",
  "change_photo": "Change photo",
- "photo_updated": "Profile photo updated"
+ "photo_updated": "Profile photo updated",
+ "ch_create": "Create channel",
+ "ch_name": "Channel name",
+ "ch_desc": "Description (optional)",
+ "ch_created": "Channel created",
+ "business_account": "Business account",
+ "business_info": "Business info",
+ "linked_devices": "Linked devices"
 }

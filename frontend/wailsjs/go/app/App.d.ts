@@ -12,6 +12,8 @@ export function ClearChat(arg1:string):Promise<void>;
 
 export function Connect():Promise<void>;
 
+export function CreateChannel(arg1:string,arg2:string):Promise<string>;
+
 export function CreateGroup(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function DeleteChat(arg1:string):Promise<void>;
@@ -36,6 +38,8 @@ export function GetArchivedChats():Promise<Array<app.ChatDTO>>;
 
 export function GetBlockedContacts():Promise<Array<app.ContactRowDTO>>;
 
+export function GetBusinessProfile(arg1:string):Promise<app.BizProfileDTO>;
+
 export function GetCalls():Promise<Array<storage.Call>>;
 
 export function GetChannelMessages(arg1:string):Promise<Array<app.ChannelMsgDTO>>;
@@ -59,6 +63,8 @@ export function GetGroupInfo(arg1:string):Promise<app.GroupInfoDTO>;
 export function GetGroupRequests(arg1:string):Promise<Array<app.GroupRequestDTO>>;
 
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;
+
+export function GetLinkedDevices():Promise<number>;
 
 export function GetMessageInfo(arg1:string,arg2:string):Promise<app.MsgInfoDTO>;
 

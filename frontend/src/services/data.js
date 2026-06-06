@@ -392,6 +392,9 @@ export function setMyAbout(text) {
 export function setMyPhoto(dataURI) {
   if (LIVE) A.SetMyPhoto(dataURI);
 }
+export async function createChannel(name, desc) { if (LIVE) return await A.CreateChannel(name, desc || ""); return ""; }
+export async function getBusinessProfile(jid) { if (LIVE) return await A.GetBusinessProfile(jid); return { isBiz: false }; }
+export async function getLinkedDevices() { if (LIVE) return await A.GetLinkedDevices(); return 0; }
 
 // --- Grup (Tier 5) ---
 export async function getGroupInfo(jid) {

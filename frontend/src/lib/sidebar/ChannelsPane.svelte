@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor, avatarUrl } from "../../services/data.js";
+  import { getChannels, getChannelMessages, followChannel, followChannelByJID, getRecommendedChannels, unfollowChannel, muteChannel, reactChannel, colorFor, avatarUrl, createChannel } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -53,6 +53,15 @@
     if (active && active.jid === c.jid) back();
     pushToast($t("ch_unfollowed"), "ok");
   }
+  let createOpen = false, cName = "", cDesc = "", cBusy = false;
+  async function doCreate() {
+    if (!cName.trim()) return;
+    cBusy = true;
+    const jid = await createChannel(cName.trim(), cDesc.trim());
+    cBusy = false;
+    if (jid) { pushToast($t("ch_created"), "ok"); createOpen = false; cName = ""; cDesc = ""; load(); }
+    else pushToast($t("err_generic"));
+  }
   function toggleMute(c) {
     c.muted = !c.muted; channels = channels;
     muteChannel(c.jid, c.muted);
@@ -100,10 +109,23 @@
   <!-- Daftar saluran: Diikuti / Jelajahi -->
   <header class="pane-head">
     <h2>{$t("rail_channels")}</h2>
-    <button class="icon-btn" title={$t("ch_follow")} style="margin-left:auto" on:click={() => followOpen = true}>
+    <button class="icon-btn" title={$t("ch_create")} style="margin-left:auto" on:click={() => createOpen = true}>
+      <svg viewBox="0 0 24 24"><path d="M19 9v6M16 12h6"/><circle cx="9" cy="8" r="4"/><path d="M2 20a7 7 0 0 1 12-5"/></svg>
+    </button>
+    <button class="icon-btn" title={$t("ch_follow")} on:click={() => followOpen = true}>
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </header>
+
+  {#if createOpen}
+    <button class="modal-backdrop" aria-label={$t("close")} on:click={() => (createOpen = false)}></button>
+    <div class="nc-modal" role="dialog">
+      <div class="nc-head"><span>{$t("ch_create")}</span><button class="icon-btn" on:click={() => (createOpen = false)} aria-label={$t("close")}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <input class="nc-name" placeholder={$t("ch_name")} bind:value={cName} />
+      <input class="nc-name" placeholder={$t("ch_desc")} bind:value={cDesc} />
+      <button class="nc-create" disabled={cBusy || !cName.trim()} on:click={doCreate}>{$t("ch_create")}</button>
+    </div>
+  {/if}
   <div class="ch-tabs">
     <button class:on={tab === "following"} on:click={() => (tab = "following")}>{$t("ch_following")}</button>
     <button class:on={tab === "discover"} on:click={() => (tab = "discover")}>{$t("ch_discover")}</button>

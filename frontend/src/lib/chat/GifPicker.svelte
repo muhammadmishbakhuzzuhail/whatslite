@@ -92,7 +92,7 @@
       {#if loadingMore}<div class="gif-empty">…</div>{/if}
     {/if}
   </div>
-  <div class="gif-credit">Powered by Tenor</div>
+  <div class="gif-credit">Powered by KLIPY</div>
 </div>
 
 <style>
@@ -101,9 +101,10 @@
   /* Grid 2-kolom (Y-only). CSS `columns` lama bikin kolom meluber HORIZONTAL
      saat tinggi dibatasi → X-scroll + scrollHeight kacau (infinite-scroll mati).
      Grid → scroll vertikal saja + deteksi scroll andal → muat banyak GIF. */
-  .gif-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; align-content:start;
+  /* auto-fill → kolom otomatis sesuai lebar, tak pernah meluber/kepotong. */
+  .gif-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; align-content:start;
     max-height:360px; overflow-y:auto; overflow-x:hidden; }
-  .gif-cell { position:relative; display:block; width:100%; margin:0; padding:0; border:0;
+  .gif-cell { box-sizing:border-box; position:relative; display:block; width:100%; margin:0; padding:0; border:0;
     background:var(--bg2); border-radius:8px; overflow:hidden; cursor:pointer; }
   .gif-cell img { width:100%; height:100%; object-fit:cover; display:block; aspect-ratio:1; }
   .gif-load { position:absolute; inset:0; display:grid; align-items:center;justify-items:center; background:rgba(0,0,0,.4); color:#fff; }

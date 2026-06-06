@@ -163,7 +163,7 @@
         {#if onlineMore}<div class="stk-empty">…</div>{/if}
       {/if}
     </div>
-    <div class="stk-credit">Powered by Tenor</div>
+    <div class="stk-credit">Powered by Sticker.ly</div>
   {:else if tab === "recents"}
     <div class="stk-grid">
       {#each recents as uri}
@@ -209,8 +209,9 @@
   .stk-tabs button.active { background:var(--accent); color:#fff; }
   .stk-search { width:100%; border:0; border-radius:9px; padding:8px 12px; background:var(--bg2); color:var(--text); font:inherit; outline:none; margin-bottom:8px; }
   .stk-credit { text-align:center; font-size:10px; color:var(--text2); margin-top:6px; letter-spacing:.5px; }
-  .stk-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; max-height:320px; overflow-y:auto; overflow-x:hidden; }
-  .stk-cell { padding:6px; border:0; background:var(--bg2); border-radius:10px; cursor:pointer; aspect-ratio:1; }
+  /* auto-fill → kolom otomatis sesuai lebar, tak pernah meluber/kepotong. */
+  .stk-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:6px; max-height:320px; overflow-y:auto; overflow-x:hidden; }
+  .stk-cell { box-sizing:border-box; width:100%; padding:6px; border:0; background:var(--bg2); border-radius:10px; cursor:pointer; aspect-ratio:1; }
   .stk-cell img { width:100%; height:100%; object-fit:contain; }
   .stk-empty, .stk-busy { grid-column:1/-1; text-align:center; color:var(--text2); padding:28px 12px; }
   .stk-create { min-height:180px; display:grid; align-items:center;justify-items:center; }

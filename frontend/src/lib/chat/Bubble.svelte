@@ -330,7 +330,13 @@
         {/if}
         {#if msg.type === "video" && !videoPlaying}<span class="play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>{/if}
       </div>
-      {#if caption}<span class="text caption" dir="auto">{caption}</span>{/if}
+      {#if caption}
+        <!-- caption + waktu = SATU pill (waktu nyelip kanan-bawah, ala bubble teks) -->
+        <span class="text caption mcap" class:out={msg.dir === 'out'} dir="auto">{caption}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span><span class="mcap-meta"><span class="time">{msg.time}</span>{#if msg.dir === "out"}<Ticks status={msg.status || "sent"} />{/if}</span></span>
+      {:else}
+        <!-- tanpa caption → pill waktu saja -->
+        <span class="mtime"><span class="time">{msg.time}</span>{#if msg.dir === "out"}<Ticks status={msg.status || "sent"} />{/if}</span>
+      {/if}
     {:else if msg.type === "voice"}
       <button class="play" aria-label="Play" on:click={playVoice}>
         {#if playing}
@@ -383,10 +389,12 @@
       <div class="tr-block" dir="auto"><span class="tr-lbl">{$t("translated")}</span>{translated}</div>
     {/if}
 
-    <span class="meta">
-      <span class="time">{msg.time}</span>
-      {#if msg.dir === "out"}<Ticks status={msg.status || "sent"} />{/if}
-    </span>
+    {#if !isMedia}
+      <span class="meta">
+        <span class="time">{msg.time}</span>
+        {#if msg.dir === "out"}<Ticks status={msg.status || "sent"} />{/if}
+      </span>
+    {/if}
 
     {#if msg.reactions && msg.reactions.length}
       <div class="reactions">{#each msg.reactions as r}<button class="reaction" class:mine={r.mine} on:click={() => r.mine && undoReact(r.emoji)} title={r.mine ? $t("reaction_remove") : ""}>{r.emoji}{#if r.count > 1} {r.count}{/if}</button>{/each}</div>

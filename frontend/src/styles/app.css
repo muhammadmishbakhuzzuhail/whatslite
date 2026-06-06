@@ -336,20 +336,33 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    overflow:hidden HANYA di media-box (bukan bubble) → menu hover tak terpotong. */
 .msg.in .bubble.media, .msg.out .bubble.media { background: transparent; box-shadow: none; padding: 0; }
 .bubble.media::before { display: none; }
-/* Nama pengirim + reply = FLAT (tanpa pill putih) di atas media, ala Discord.
-   reply = garis-kiri tipis transparan; sender = teks warna; semua di atas doodle. */
-.bubble.media .head { display: block; max-width: 360px; margin: 0 0 5px; padding: 0;
-  background: none; box-shadow: none; }
+/* Media: HEAD (nama + reply) = PILL putih (bg in/out) di atas foto flat.
+   Foto sendiri tanpa bg. Caption+waktu / waktu-saja juga pill (di bawah). */
+.msg.in .bubble.media .head, .msg.out .bubble.media .head {
+  display: inline-block; max-width: 360px; padding: 5px 10px; margin: 0 0 5px;
+  background: var(--in-bg); border-radius: 11px; box-shadow: var(--shadow); }
+.msg.out .bubble.media .head { background: var(--out-bg); }
 .bubble.media .head .quote { margin: 4px 0 0; background: transparent; border-radius: 0;
   border-left: 3px solid var(--quote-bar); padding: 1px 0 1px 8px; }
-.bubble.media .head .sender { margin: 0 0 3px; }
+.bubble.media .head .sender { margin: 0; }
 .bubble.media .head .forwarded { margin: 0 0 3px; }
-/* Waktu media = FLAT (abu, tanpa pill), rata kanan di bawah media. */
-.bubble.media .meta { position: static; float: none; clear: both;
-  display: flex; justify-content: flex-end; align-items: center; gap: 3px;
-  margin: 4px 2px 0; padding: 0; background: none; box-shadow: none; color: var(--text2); }
-.bubble.media .meta .ticks { stroke: var(--text2); }
-.bubble.media .meta .ticks.read { stroke: var(--accent); }
+/* Caption + waktu = SATU pill (waktu absolute kanan-bawah; spacer di teks
+   menjaga baris akhir tak ketiban — sama teknik bubble teks). */
+.msg.in .bubble.media .mcap, .msg.out .bubble.media .mcap {
+  position: relative; display: inline-block; max-width: 360px; margin: 5px 0 0;
+  padding: 6px 11px; background: var(--in-bg); border-radius: 11px; box-shadow: var(--shadow);
+  color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.msg.out .bubble.media .mcap { background: var(--out-bg); }
+.bubble.media .mcap-meta { position: absolute; right: 9px; bottom: 5px;
+  display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text2); }
+/* Tanpa caption → pill WAKTU saja, rata kanan. */
+.msg.in .bubble.media .mtime, .msg.out .bubble.media .mtime {
+  display: flex; align-items: center; gap: 3px; width: fit-content; margin: 5px 0 0 auto;
+  padding: 2px 8px; border-radius: 10px; background: var(--in-bg); box-shadow: var(--shadow);
+  font-size: 11px; color: var(--text2); }
+.msg.out .bubble.media .mtime { background: var(--out-bg); }
+.bubble.media .mcap-meta .ticks, .bubble.media .mtime .ticks { stroke: var(--text2); }
+.bubble.media .mcap-meta .ticks.read, .bubble.media .mtime .ticks.read { stroke: var(--accent); }
 /* Foto/video/GIF: media rounded penuh, sudut membuka ke latar chat. */
 /* Foto/video: ukuran NATURAL (tak di-upscale), di-cap, RATA-KIRI (sejajar pill
    reply + caption — ala WhatsApp/Discord; tepi kiri konsisten). */

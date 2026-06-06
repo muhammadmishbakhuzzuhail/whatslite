@@ -14,6 +14,7 @@ type ProfileDTO struct {
 	Name  string `json:"name"`
 	Phone string `json:"phone"`
 	About string `json:"about"`
+	Jid   string `json:"jid"`
 }
 
 // WACheckDTO = hasil cek "ada di WhatsApp?".
@@ -54,7 +55,24 @@ func (a *App) GetProfile() ProfileDTO {
 	if phone == "" {
 		phone = shortJID(self)
 	}
-	return ProfileDTO{Name: name, Phone: phone, About: a.eng.ContactAbout(a.ctx, self)}
+	return ProfileDTO{Name: name, Phone: phone, About: a.eng.ContactAbout(a.ctx, self), Jid: a.eng.CanonicalJID(self)}
+}
+
+// SetMyPhoto mengganti foto profil sendiri dari data-URI (di-encode JPEG di FE).
+func (a *App) SetMyPhoto(dataURI string) {
+	if a.eng == nil {
+		return
+	}
+	_, data, err := decodeDataURI(dataURI)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	if err := a.eng.SetOwnPhoto(a.ctx, data); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
 }
 
 // SubscribePresence berlangganan presence (online/last seen) satu kontak —

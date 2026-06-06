@@ -388,6 +388,10 @@ export function setMyName(name) {
 export function setMyAbout(text) {
   if (LIVE) A.SetMyAbout(text);
 }
+// Ganti foto profil sendiri (data-URI JPEG; di-encode di FE via canvas).
+export function setMyPhoto(dataURI) {
+  if (LIVE) A.SetMyPhoto(dataURI);
+}
 
 // --- Grup (Tier 5) ---
 export async function getGroupInfo(jid) {

@@ -498,6 +498,7 @@ export namespace app {
 	    name: string;
 	    phone: string;
 	    about: string;
+	    jid: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProfileDTO(source);
@@ -508,6 +509,7 @@ export namespace app {
 	        this.name = source["name"];
 	        this.phone = source["phone"];
 	        this.about = source["about"];
+	        this.jid = source["jid"];
 	    }
 	}
 	

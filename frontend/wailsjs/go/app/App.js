@@ -370,6 +370,10 @@ export function SetMyName(arg1) {
   return window['go']['app']['App']['SetMyName'](arg1);
 }
 
+export function SetMyPhoto(arg1) {
+  return window['go']['app']['App']['SetMyPhoto'](arg1);
+}
+
 export function SetPrivacy(arg1, arg2) {
   return window['go']['app']['App']['SetPrivacy'](arg1, arg2);
 }

@@ -329,5 +329,7 @@
  "kbd_next": "Chat berikutnya",
  "kbd_prev": "Chat sebelumnya",
  "kbd_help": "Tampilkan pintasan",
- "kbd_close": "Tutup / kembali"
+ "kbd_close": "Tutup / kembali",
+ "change_photo": "Ganti foto",
+ "photo_updated": "Foto profil diperbarui"
 }

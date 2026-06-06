@@ -329,5 +329,7 @@
  "kbd_next": "Next chat",
  "kbd_prev": "Previous chat",
  "kbd_help": "Show shortcuts",
- "kbd_close": "Close / back"
+ "kbd_close": "Close / back",
+ "change_photo": "Change photo",
+ "photo_updated": "Profile photo updated"
 }

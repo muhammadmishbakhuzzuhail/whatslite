@@ -372,5 +372,7 @@
  "quit_app": "Keluar aplikasi",
  "read_aloud": "Bacakan",
  "mark_all_read": "Tandai semua dibaca",
- "all_read_done": "Semua chat ditandai dibaca"
+ "all_read_done": "Semua chat ditandai dibaca",
+ "quick_react": "Reaksi cepat",
+ "quick_react_edit": "Ketik emoji"
 }

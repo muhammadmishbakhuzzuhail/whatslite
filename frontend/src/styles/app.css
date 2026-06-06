@@ -1131,3 +1131,5 @@ button.info-row:hover { background: var(--hover); }
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; }
 .acc-sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; color: var(--text2); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
 .acc-sw.on { border-color: var(--text); }
+.qre-sw { font-size: 18px; background: var(--bg2); border: 0; border-radius: 8px; width: 36px; height: 32px; cursor: pointer; }
+.qre-sw:hover { background: var(--hover, var(--line)); }

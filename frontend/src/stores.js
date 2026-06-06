@@ -23,6 +23,13 @@ export const accent = writable(_accentInit);
 let _scaleInit = 100;
 try { _scaleInit = +(localStorage.getItem("wa-scale") || 100) || 100; } catch (e) {}
 export const uiScale = writable(_scaleInit);
+// Reaksi-cepat kustom (6 emoji di atas pesan saat hover).
+let _qrInit = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
+try { const s = JSON.parse(localStorage.getItem("wa-quickreactions") || "null"); if (Array.isArray(s) && s.length === 6) _qrInit = s; } catch (e) {}
+export const quickReactions = writable(_qrInit);
+export function setQuickReaction(i, emoji) {
+  quickReactions.update((a) => { const n = [...a]; n[i] = emoji; try { localStorage.setItem("wa-quickreactions", JSON.stringify(n)); } catch (e) {} return n; });
+}
 uiScale.subscribe((v) => { try { localStorage.setItem("wa-scale", String(v)); } catch (e) {} });
 accent.subscribe((v) => { try { v ? localStorage.setItem("wa-accent", v) : localStorage.removeItem("wa-accent"); } catch (e) {} });
 theme.subscribe((v) => { try { localStorage.setItem("wa-theme", v); } catch (e) {} });

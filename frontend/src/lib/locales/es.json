@@ -372,5 +372,7 @@
  "quit_app": "Salir de la app",
  "read_aloud": "Leer en voz alta",
  "mark_all_read": "Marcar todo leído",
- "all_read_done": "Todos los chats marcados como leídos"
+ "all_read_done": "Todos los chats marcados como leídos",
+ "quick_react": "Reacciones rápidas",
+ "quick_react_edit": "Escribe un emoji"
 }

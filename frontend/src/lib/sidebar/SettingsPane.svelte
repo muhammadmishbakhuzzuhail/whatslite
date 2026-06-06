@@ -1,7 +1,8 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted, accent } from "../../stores.js";
   import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp } from "../../services/data.js";
-  import { uiScale } from "../../stores.js";
+  import { uiScale, quickReactions, setQuickReaction, askPrompt } from "../../stores.js";
+  function editQR(i) { askPrompt($t("quick_react_edit"), $quickReactions[i], (v) => setQuickReaction(i, [...v][0] || $quickReactions[i])); }
   import { TRANSLATE_LANGS } from "../langs.js";
   import LangPicker from "../common/LangPicker.svelte";
   import { initial } from "../util.js";
@@ -179,6 +180,19 @@
         <div class="grow"><div class="si-name">{$t("lock_now")}</div></div>
       </div>
     {/if}
+
+    <!-- Reaksi cepat kustom -->
+    <div class="settings-item" style="align-items:flex-start">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+      <div class="grow">
+        <div class="si-name">{$t("quick_react")}</div>
+        <div class="theme-modes" style="gap:6px">
+          {#each $quickReactions as e, i}
+            <button class="qre-sw" on:click={() => editQR(i)} title={$t("quick_react_edit")}>{e}</button>
+          {/each}
+        </div>
+      </div>
+    </div>
 
     <!-- Ukuran tampilan (zoom UI) -->
     <div class="settings-item" style="align-items:flex-start">

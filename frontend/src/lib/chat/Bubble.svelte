@@ -6,7 +6,7 @@
   import { translateMessage } from "../../services/translate.js";
   import { addReminder } from "../../services/data.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
-  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages, translations, setTranslation, clearTranslation, autoTranslateChats } from "../../stores.js";
+  import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted, allMessages, translations, setTranslation, clearTranslation, autoTranslateChats, quickReactions } from "../../stores.js";
 
   export let msg;
   export let group = false;
@@ -224,7 +224,6 @@
     menuUp = e.clientY > window.innerHeight * 0.55;
     menuOpen = true;
   }
-  const QUICK = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
   function react(e) { reactMessage(chatId, idx, e); menuOpen = false; }
   // Buka emoji-picker PENUH, di-anchor ke tombol (kanan) — bukan grid kecil.
   function openReact(e) {
@@ -491,7 +490,7 @@
     {#if menuOpen}
       <div class="msg-menu {menuUp ? 'up' : ''}">
         <div class="react-row">
-          {#each QUICK as e}<button class="rx" on:click={() => react(e)}>{e}</button>{/each}
+          {#each $quickReactions as e}<button class="rx" on:click={() => react(e)}>{e}</button>{/each}
           <button class="rx rx-more" on:click|stopPropagation={openReact} aria-label={$t("emoji")}>+</button>
         </div>
         <button class="mi" on:click={reply}>{$t("reply")}</button>

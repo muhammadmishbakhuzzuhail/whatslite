@@ -359,10 +359,10 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .bubble.media .meta .ticks { stroke: var(--text2); }
 .bubble.media .meta .ticks.read { stroke: var(--accent); }
 /* Foto/video/GIF: media rounded penuh, sudut membuka ke latar chat. */
-/* Foto/video: ukuran NATURAL (tak di-upscale), di-cap, lalu DI-TENGAH-kan dalam
-   bubble (margin auto) → foto sempit + caption/preview lebar tak lagi mepet kiri. */
+/* Foto/video: ukuran NATURAL (tak di-upscale), di-cap, RATA-KIRI (sejajar pill
+   reply + caption — ala WhatsApp/Discord; tepi kiri konsisten). */
 .bubble.imgcard .media-box.card { display: block; width: fit-content; max-width: 100%;
-  min-width: 0; margin: 0 auto; overflow: hidden; border-radius: 14px; }
+  min-width: 0; margin: 0; overflow: hidden; border-radius: 14px; }
 .bubble.imgcard .media-box.card .media-img { border-radius: 14px; display: block;
   width: auto; max-width: 100%; height: auto; max-height: 380px; min-height: 0; object-fit: contain; }
 .bubble.imgcard .text.caption { margin: 6px 2px 0; }

@@ -316,5 +316,7 @@
  "invite_reset": "Reset invite link",
  "invite_reset_confirm": "Reset the invite link? The old link will stop working.",
  "invite_reset_done": "New link copied",
- "wallpaper_default": "Default"
+ "wallpaper_default": "Default",
+ "status_reply_ph": "Reply to status…",
+ "status_replied": "Reply sent"
 }

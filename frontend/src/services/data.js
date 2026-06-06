@@ -271,6 +271,8 @@ export async function getStatuses() {
   if (LIVE) return (await A.GetStatuses()) || [];
   return [];
 }
+export function reactStatus(posterJid, statusID, emoji) { if (LIVE) A.ReactStatus(posterJid, statusID, emoji); }
+export function replyStatus(posterJid, statusID, statusText, text) { if (LIVE) A.ReplyStatus(posterJid, statusID, statusText, text); }
 export async function postTextStatus(text) {
   if (LIVE) return A.PostTextStatus(text);
   return "";

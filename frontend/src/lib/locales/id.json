@@ -316,5 +316,7 @@
  "invite_reset": "Setel ulang tautan undangan",
  "invite_reset_confirm": "Setel ulang tautan undangan? Tautan lama berhenti berfungsi.",
  "invite_reset_done": "Tautan baru disalin",
- "wallpaper_default": "Bawaan"
+ "wallpaper_default": "Bawaan",
+ "status_reply_ph": "Balas status…",
+ "status_replied": "Balasan terkirim"
 }

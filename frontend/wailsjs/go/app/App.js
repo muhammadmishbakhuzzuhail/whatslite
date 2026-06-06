@@ -250,6 +250,10 @@ export function ReactChannel(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['ReactChannel'](arg1, arg2, arg3, arg4);
 }
 
+export function ReactStatus(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ReactStatus'](arg1, arg2, arg3);
+}
+
 export function RejectCall(arg1, arg2) {
   return window['go']['app']['App']['RejectCall'](arg1, arg2);
 }
@@ -260,6 +264,10 @@ export function RemoveContactLabel(arg1) {
 
 export function Reply(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['Reply'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ReplyStatus(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['ReplyStatus'](arg1, arg2, arg3, arg4);
 }
 
 export function SaveContactLabel(arg1, arg2) {

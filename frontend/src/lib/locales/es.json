@@ -316,5 +316,7 @@
  "invite_reset": "Restablecer enlace de invitación",
  "invite_reset_confirm": "¿Restablecer el enlace? El enlace anterior dejará de funcionar.",
  "invite_reset_done": "Nuevo enlace copiado",
- "wallpaper_default": "Predeterminado"
+ "wallpaper_default": "Predeterminado",
+ "status_reply_ph": "Responder al estado…",
+ "status_replied": "Respuesta enviada"
 }

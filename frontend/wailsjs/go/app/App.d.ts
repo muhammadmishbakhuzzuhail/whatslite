@@ -128,11 +128,15 @@ export function React(arg1:string,arg2:string,arg3:string,arg4:string,arg5:boole
 
 export function ReactChannel(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
 
+export function ReactStatus(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function RejectCall(arg1:string,arg2:string):Promise<void>;
 
 export function RemoveContactLabel(arg1:string):Promise<void>;
 
 export function Reply(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<string>;
+
+export function ReplyStatus(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function SaveContactLabel(arg1:string,arg2:string):Promise<void>;
 

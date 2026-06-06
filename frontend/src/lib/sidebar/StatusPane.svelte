@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { getStatuses, postTextStatus, postMediaStatus, getStatusViewers, colorFor, avatarUrl } from "../../services/data.js";
+  import { getStatuses, postTextStatus, postMediaStatus, getStatusViewers, colorFor, avatarUrl, reactStatus, replyStatus } from "../../services/data.js";
   import { pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
   import { initial } from "../util.js";
@@ -34,6 +34,20 @@
     loading = false;
   }
   onMount(load);
+
+  // --- balas / react status (hanya status orang lain) ---
+  let replyVal = "";
+  function sendReply() {
+    if (!viewG || !cur || !replyVal.trim()) return;
+    replyStatus(viewG.jid, cur.id, cur.text || "", replyVal.trim());
+    replyVal = "";
+    pushToast($t("status_replied"), "ok");
+  }
+  function sendReact(emoji) {
+    if (!viewG || !cur) return;
+    reactStatus(viewG.jid, cur.id, emoji);
+    pushToast(emoji, "ok");
+  }
 
   // --- viewer (fullscreen tap-through) ---
   let viewG = null;   // grup aktif
@@ -218,6 +232,19 @@
           {#if viewers.length === 0}<div class="st-vs-empty">{$t("status_no_viewers")}</div>{/if}
         </div>
       {/if}
+    {:else}
+      <div class="st-react-row">
+        {#each ["❤️", "😂", "😮", "😢", "🙏", "👍"] as e}
+          <button class="st-react" on:click={() => sendReact(e)}>{e}</button>
+        {/each}
+      </div>
+      <div class="st-reply">
+        <input placeholder={$t("status_reply_ph")} bind:value={replyVal}
+          on:keydown={(e) => e.key === "Enter" && sendReply()} />
+        <button class="st-reply-send" disabled={!replyVal.trim()} on:click={sendReply} aria-label={$t("send")}>
+          <svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg>
+        </button>
+      </div>
     {/if}
   </div>
 {/if}
@@ -236,6 +263,15 @@
   .status-name { font-weight:600; font-size:15px; }
   .status-sub { font-size:12.5px; color:var(--text2); }
 
+  .st-react-row { display:flex; justify-content:center; gap:10px; padding:8px 12px 0; }
+  .st-react { background:rgba(255,255,255,.12); border:0; border-radius:50%; width:42px; height:42px; font-size:22px; cursor:pointer; }
+  .st-react:hover { background:rgba(255,255,255,.22); transform:scale(1.1); }
+  .st-reply { display:flex; align-items:center; gap:8px; padding:10px 14px 16px; }
+  .st-reply input { flex:1; border:0; border-radius:22px; padding:11px 16px; background:rgba(255,255,255,.12); color:#fff; outline:none; font:inherit; }
+  .st-reply input::placeholder { color:rgba(255,255,255,.6); }
+  .st-reply-send { width:42px; height:42px; border-radius:50%; border:0; background:var(--accent); color:#fff; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+  .st-reply-send svg { width:20px; height:20px; fill:currentColor; }
+  .st-reply-send:disabled { opacity:.5; }
   .st-viewer { position:fixed; inset:0; z-index:60; background:#0b141a; display:flex; flex-direction:column; }
   .st-bars { display:flex; gap:4px; padding:10px 12px 4px; }
   .st-bar { flex:1; height:3px; border-radius:3px; background:rgba(255,255,255,.3); overflow:hidden; }

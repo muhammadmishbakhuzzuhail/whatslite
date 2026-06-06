@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"whatsapp-lite/internal/storage"
 )
 
 // StatusItemDTO = satu unggahan status (teks / media).
@@ -157,6 +159,36 @@ func (a *App) PostMediaStatus(kind, caption, dataURI string) string {
 		return ""
 	}
 	return id
+}
+
+// ReactStatus memberi reaksi emoji pada status seseorang.
+func (a *App) ReactStatus(posterJid, statusID, emoji string) {
+	if a.eng == nil {
+		return
+	}
+	if err := a.eng.React(a.ctx, "status@broadcast", a.canon(posterJid), statusID, emoji, false); err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+	}
+}
+
+// ReplyStatus membalas status (kirim ke chat 1:1 pemilik, mengutip status itu).
+func (a *App) ReplyStatus(posterJid, statusID, statusText, text string) {
+	if a.eng == nil || strings.TrimSpace(text) == "" {
+		return
+	}
+	to := a.canon(posterJid)
+	id, err := a.eng.Reply(a.ctx, to, text, statusID, a.canon(posterJid), statusText)
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		return
+	}
+	if a.store != nil {
+		_ = a.store.SaveMessage(a.ctx, storage.Message{
+			ID: id, ChatJID: to, Text: text, Timestamp: time.Now(), FromMe: true,
+			QuotedID: statusID, QuotedText: statusText,
+		})
+	}
+	runtime.EventsEmit(a.ctx, "wa:message", to)
 }
 
 // userPart mengambil bagian pengguna JID (sebelum ':' device & '@' server).

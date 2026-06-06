@@ -33,7 +33,6 @@
         <path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>
       </svg>
     </button>
-    <button class="rail-btn meta-ai" title={$t("rail_meta")}><span class="ai-ring"></span></button>
   </div>
   <div class="rail-bottom">
     <button class="rail-btn {$railView === 'settings' ? 'active' : ''}" title={$t("rail_settings")} on:click={() => go("settings")}>

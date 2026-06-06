@@ -17,8 +17,6 @@
   function doClear() { menuOpen = false; askConfirm($t("clear_chat_confirm"), () => clearChatMessages(chat.id)); }
   function doBlock() { menuOpen = false; askConfirm($t("block_confirm", { name: chat.name }), () => { blockContact(chat.id, true); pushToast($t("blocked_toast").replace("%s", chat.name), "ok"); }); }
   function doLeave() { menuOpen = false; askConfirm($t("leave_confirm", { name: chat.name }), () => leaveGroup(chat.id)); }
-  // whatsmeow tak punya media call → panggilan keluar tak didukung.
-  function callUnsupported() { pushToast($t("calls_unsupported")); }
 </script>
 
 <header class="conv-head">
@@ -30,9 +28,6 @@
     </div>
   </div>
   <div class="conv-actions">
-    <button class="icon-btn" title={$t("video_call")} on:click={callUnsupported}>
-      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>
-    </button>
     <button class="icon-btn" title={$t("search")} on:click={() => inChatSearch.set(true)}>
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     </button>

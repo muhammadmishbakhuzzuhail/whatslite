@@ -1,13 +1,12 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted } from "../../stores.js";
-  import { getProfile, getSettingsItems, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy } from "../../services/data.js";
+  import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import LangPicker from "../common/LangPicker.svelte";
   import { initial } from "../util.js";
   import { onMount } from "svelte";
   import { t, locale } from "../i18n.js";
   const me = getProfile();
-  const settingsItems = getSettingsItems();
   const THEME_MODES = ["light", "dark", "system"];
   const RETENTIONS = [30, 90, 180, 0]; // 0 = selamanya
   let retDays = 90;
@@ -46,16 +45,6 @@
   </div>
 
   <div class="settings-list">
-    {#each settingsItems as s}
-      <div class="settings-item" role="button" tabindex="0">
-        {@html icons[s.icon]}
-        <div>
-          <div class="si-name">{$t(s.key)}</div>
-          <div class="si-desc">{$t(s.key + "_d")}</div>
-        </div>
-      </div>
-    {/each}
-
     <!-- Tema app (terang / gelap / ikuti sistem) -->
     <div class="settings-item" style="align-items:flex-start">
       {@html icons.theme}

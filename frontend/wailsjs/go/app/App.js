@@ -78,6 +78,10 @@ export function GetChannels() {
   return window['go']['app']['App']['GetChannels']();
 }
 
+export function GetChatMedia(arg1) {
+  return window['go']['app']['App']['GetChatMedia'](arg1);
+}
+
 export function GetChats() {
   return window['go']['app']['App']['GetChats']();
 }

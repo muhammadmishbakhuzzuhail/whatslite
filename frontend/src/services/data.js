@@ -422,6 +422,7 @@ export function setGroupJoinApproval(jid, on) { if (LIVE) A.SetGroupJoinApproval
 export function setGroupAddMode(jid, adminOnly) { if (LIVE) A.SetGroupAddMode(jid, adminOnly); }
 export async function getGroupRequests(jid) { if (LIVE) return (await A.GetGroupRequests(jid)) || []; return []; }
 export function updateGroupRequest(jid, members, approve) { if (LIVE) A.UpdateGroupRequest(jid, members, approve); }
+export async function getChatMedia(jid) { if (LIVE) return (await A.GetChatMedia(jid)) || []; return []; }
 export async function joinGroupLink(link) { if (LIVE) return await A.JoinGroupLink(link); return ""; }
 export async function previewGroupLink(link) { if (LIVE) return await A.PreviewGroupLink(link); return ""; }
 // Cek nomor terdaftar di WhatsApp (sebelum mulai chat / simpan kontak).

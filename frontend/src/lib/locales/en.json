@@ -306,5 +306,7 @@
  "join_group": "Join group",
  "start_chat": "Start chat",
  "join_failed": "Couldn't join — check the link",
- "number_not_wa": "That number isn't on WhatsApp"
+ "number_not_wa": "That number isn't on WhatsApp",
+ "report_confirm": "Report {name}? They will also be blocked.",
+ "reported_toast": "Reported and blocked"
 }

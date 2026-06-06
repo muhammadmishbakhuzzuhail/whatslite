@@ -1,7 +1,7 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox, askConfirm } from "../../stores.js";
-  import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat, setGroupAnnounce, setGroupLocked, setGroupJoinApproval, setGroupAddMode, getGroupRequests, updateGroupRequest } from "../../services/data.js";
+  import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat, setGroupAnnounce, setGroupLocked, setGroupJoinApproval, setGroupAddMode, getGroupRequests, updateGroupRequest, getChatMedia } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
@@ -94,6 +94,22 @@
       clearChatMessages(chat.id);
       pushToast($t("clear_chat"), "ok");
     });
+  }
+  // Lapor: whatsmeow tak punya API report → konfirmasi lalu blokir + toast.
+  function doReport() {
+    askConfirm($t("report_confirm", { name: chat.name }), () => {
+      blockContact(chat.id, true);
+      pushToast($t("reported_toast"), "ok");
+      infoOpen.set(false);
+    });
+  }
+  // Galeri media chat (foto/video/stiker/gif/dok) untuk panel info.
+  let media = [], mediaFor = null, mediaOpen = false;
+  $: if (chat && chat.id !== mediaFor) loadMedia(chat.id);
+  async function loadMedia(id) { mediaFor = id; mediaOpen = false; media = await getChatMedia(id); }
+  function openMedia(m) {
+    if (m.type === "image" || m.type === "sticker") lightbox.set({ url: `/media/${chat.id}/${m.id}`, type: "image" });
+    else if (m.type === "video" || m.type === "gif") lightbox.set({ url: `/media/${chat.id}/${m.id}`, type: "video" });
   }
   let photoInput;
   function pickPhoto() { photoInput && photoInput.click(); }
@@ -233,6 +249,27 @@
       </div>
     {/if}
 
+    {#if media.length}
+      <div class="info-block">
+        <button class="lbl media-lbl" on:click={() => (mediaOpen = !mediaOpen)}>
+          {$t("info_media")} ({media.length})
+          <span class="chev">{mediaOpen ? "▾" : "▸"}</span>
+        </button>
+        <div class="media-grid">
+          {#each (mediaOpen ? media : media.slice(0, 9)) as m (m.id)}
+            {#if m.type === "document"}
+              <div class="media-cell doc" title={m.text}><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></div>
+            {:else}
+              <button class="media-cell" on:click={() => openMedia(m)}>
+                <img src={`/media/${chat.id}/${m.id}`} alt="" loading="lazy" />
+                {#if m.type === "video" || m.type === "gif"}<span class="media-play">▶</span>{/if}
+              </button>
+            {/if}
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     <div class="info-row" style="align-items:center">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       <div class="grow">{$t("disappearing_msg")}</div>
@@ -271,7 +308,7 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/></svg>
           <span class="grow">{$t("block", { name: chat.name })}</span>
         </button>
-        <button class="info-row danger">
+        <button class="info-row danger" on:click={doReport}>
           <svg viewBox="0 0 24 24"><path d="M10 3h4l1 4h5v3H4V7h5z"/><path d="M6 10v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-9"/></svg>
           <span class="grow">{$t("report", { name: chat.name })}</span>
         </button>

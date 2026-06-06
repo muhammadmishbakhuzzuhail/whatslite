@@ -42,6 +42,8 @@ export function GetChannelMessages(arg1:string):Promise<Array<app.ChannelMsgDTO>
 
 export function GetChannels():Promise<Array<app.ChannelDTO>>;
 
+export function GetChatMedia(arg1:string):Promise<Array<app.MessageDTO>>;
+
 export function GetChats():Promise<Array<app.ChatDTO>>;
 
 export function GetCommunities():Promise<Array<app.CommunityDTO>>;

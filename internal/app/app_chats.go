@@ -303,6 +303,25 @@ func (a *App) GetMessages(jid string) (out []MessageDTO) {
 	return
 }
 
+// GetChatMedia: pesan media satu chat (galeri "Media, tautan & dok" panel info).
+func (a *App) GetChatMedia(jid string) (out []MessageDTO) {
+	out = []MessageDTO{}
+	defer func() {
+		if r := recover(); r != nil {
+			out = []MessageDTO{}
+		}
+	}()
+	if a.store == nil {
+		return
+	}
+	ms, err := a.store.ListMedia(a.ctx, a.canon(jid))
+	if err != nil {
+		return
+	}
+	out = a.toDTO(ms)
+	return
+}
+
 // GetMessagesBefore: hingga 50 pesan lebih LAMA dari beforeTs (pagination scroll atas).
 func (a *App) GetMessagesBefore(jid string, beforeTs int64) (out []MessageDTO) {
 	out = []MessageDTO{}

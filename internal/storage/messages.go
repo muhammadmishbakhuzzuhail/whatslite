@@ -128,6 +128,33 @@ ORDER BY ts DESC`, since.Unix())
 	return out, rows.Err()
 }
 
+// ListMedia mengembalikan pesan media satu chat (foto/video/stiker/gif/doc),
+// terbaru dulu, untuk galeri "Media, tautan & dok" di panel info. Ringan (thumb).
+func (s *Store) ListMedia(ctx context.Context, jid string) ([]Message, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me
+FROM messages
+WHERE chat_jid = ? AND kind IN ('image','video','sticker','gif','document')
+ORDER BY ts DESC LIMIT 300`, jid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Message{}
+	for rows.Next() {
+		var m Message
+		var ts int64
+		var fromMe int
+		if err := rows.Scan(&m.ID, &m.ChatJID, &m.Sender, &m.PushName, &m.Text, &m.Kind, &m.Thumb, &ts, &fromMe); err != nil {
+			return nil, err
+		}
+		m.Timestamp = time.Unix(ts, 0)
+		m.FromMe = fromMe != 0
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 // SetMessageStatus menaikkan status pesan sendiri (sent→delivered→read). Tak
 // pernah menurunkan (receipt bisa tiba tak berurutan).
 func (s *Store) SetMessageStatus(ctx context.Context, chatJID string, ids []string, status string) error {

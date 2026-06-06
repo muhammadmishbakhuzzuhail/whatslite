@@ -306,5 +306,7 @@
  "join_group": "Gabung grup",
  "start_chat": "Mulai chat",
  "join_failed": "Gagal bergabung — cek tautannya",
- "number_not_wa": "Nomor itu tidak ada di WhatsApp"
+ "number_not_wa": "Nomor itu tidak ada di WhatsApp",
+ "report_confirm": "Laporkan {name}? Dia juga akan diblokir.",
+ "reported_toast": "Dilaporkan dan diblokir"
 }

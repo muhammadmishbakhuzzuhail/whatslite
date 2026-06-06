@@ -153,23 +153,41 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// History sync → simpan semua percakapan & riwayat dalam SATU transaksi
 	// (ribuan baris → 1 fsync). Off-socket-loop lewat antrian writer.
 	eng.OnHistorySync(func(convs []engine.HistoryConversation, pushnames map[string]string) {
-		chats := make([]storage.HistoryChat, 0, len(convs))
-		msgs := make([]storage.Message, 0, len(convs)*8)
-		for _, c := range convs {
-			cj := eng.CanonicalJID(c.JID) // satukan @lid↔nomor → 1 chat
-			chats = append(chats, storage.HistoryChat{
-				JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
-			})
-			for _, m := range c.Messages {
-				msgs = append(msgs, storage.Message{
-					ID: m.ID, ChatJID: cj, Sender: m.Sender, PushName: m.PushName,
-					Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
-					Timestamp: m.Timestamp, FromMe: m.FromMe, Status: m.Status,
-				})
-			}
-		}
 		a.bg(func() {
-			_ = store.SaveHistory(a.ctx, chats, msgs, pushnames)
+			// Tulis berkelompok (~2000 pesan/tx) — bukan satu transaksi raksasa →
+			// puncak memori + pertumbuhan WAL terbatas saat blob history besar.
+			const batch = 2000
+			bchats := make([]storage.HistoryChat, 0, 64)
+			bmsgs := make([]storage.Message, 0, batch)
+			flush := func() {
+				if len(bchats) == 0 && len(bmsgs) == 0 {
+					return
+				}
+				_ = store.SaveHistory(a.ctx, bchats, bmsgs, nil)
+				bchats = bchats[:0]
+				bmsgs = bmsgs[:0]
+			}
+			for _, c := range convs {
+				cj := eng.CanonicalJID(c.JID) // satukan @lid↔nomor → 1 chat
+				bchats = append(bchats, storage.HistoryChat{
+					JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
+				})
+				for _, m := range c.Messages {
+					bmsgs = append(bmsgs, storage.Message{
+						ID: m.ID, ChatJID: cj, Sender: m.Sender, PushName: m.PushName,
+						Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
+						Timestamp: m.Timestamp, FromMe: m.FromMe, Status: m.Status,
+					})
+					if len(bmsgs) >= batch {
+						flush()
+					}
+				}
+			}
+			flush()
+			// Pushname → nama chat (UPDATE) HARUS setelah semua chat ter-insert.
+			if len(pushnames) > 0 {
+				_ = store.SaveHistory(a.ctx, nil, nil, pushnames)
+			}
 			a.dedupChats(eng, store)
 			_ = store.RecomputeSummaries(a.ctx)
 			runtime.EventsEmit(a.ctx, "wa:sync", "")

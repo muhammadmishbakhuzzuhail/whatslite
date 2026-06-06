@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -116,6 +117,13 @@ func (a *App) SearchGifs(query, pos string) GifPage {
 // + kursor next. Preview = format kecil transparan; Mp4 (URL unduh) = webp/gif
 // transparan penuh utk dikirim sbg stiker.
 func (a *App) SearchStickers(query, pos string) GifPage {
+	// Trending → Stickerly (library besar, PNG/webp 512² transparan).
+	if strings.TrimSpace(query) == "" {
+		if p := a.stickerlyTrending(pos); len(p.Items) > 0 {
+			return p
+		}
+	}
+	// Cari kata kunci / fallback → KLIPY lalu Tenor.
 	if k := a.klipyKey(); k != "" {
 		return a.klipySearch(k, "stickers", query, pos)
 	}
@@ -270,4 +278,93 @@ func (a *App) klipySearch(key, kind, query, pos string) GifPage {
 		page.Items = append(page.Items, GifDTO{ID: id, Preview: preview, Mp4: full})
 	}
 	return page
+}
+
+// ============================ STICKERLY (unofficial) ============================
+// Sumber stiker BESAR (PNG/webp 512² transparan) via API tak-resmi sticker.ly.
+// Endpoint `recommend` balikin ratusan pack sekaligus → di-flatten + cache 10mnt,
+// disajikan per-halaman ke picker. Catatan: tak resmi → bisa berubah/putus
+// sewaktu-waktu (fallback KLIPY/Tenor tetap ada).
+const stickerlyUA = "androidapp.stickerly/3.14.1 (Redmi Note 8; U; Android 11; en; brand/Redmi;)"
+
+var (
+	stickerlyMu    sync.Mutex
+	stickerlyCache []GifDTO
+	stickerlyAt    time.Time
+)
+
+// stickerlyTrending mengembalikan satu halaman (60) dari daftar stiker trending
+// Stickerly yg sudah di-flatten + cache.
+func (a *App) stickerlyTrending(pos string) GifPage {
+	const per = 60
+	p := 1
+	if n, err := strconv.Atoi(pos); err == nil && n > 0 {
+		p = n
+	}
+	list := a.stickerlyList()
+	page := GifPage{Items: []GifDTO{}}
+	start := (p - 1) * per
+	if start >= len(list) {
+		return page
+	}
+	end := start + per
+	if end > len(list) {
+		end = len(list)
+	}
+	page.Items = list[start:end]
+	if end < len(list) {
+		page.Next = itoa(p + 1)
+	}
+	return page
+}
+
+// stickerlyList → daftar stiker (cache 10mnt). Tiap stiker: url = prefix+file.
+func (a *App) stickerlyList() []GifDTO {
+	stickerlyMu.Lock()
+	if len(stickerlyCache) > 0 && time.Since(stickerlyAt) < 10*time.Minute {
+		defer stickerlyMu.Unlock()
+		return stickerlyCache
+	}
+	stickerlyMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.sticker.ly/v4/stickerPack/recommend", nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", stickerlyUA)
+	resp, err := tenorHTTP.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var body struct {
+		Result struct {
+			StickerPacks []struct {
+				ResourceURLPrefix string   `json:"resourceUrlPrefix"`
+				ResourceFiles     []string `json:"resourceFiles"`
+			} `json:"stickerPacks"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil
+	}
+	var out []GifDTO
+	for pi, pk := range body.Result.StickerPacks {
+		for fi, f := range pk.ResourceFiles {
+			u := pk.ResourceURLPrefix + f
+			out = append(out, GifDTO{ID: "sly_" + itoa(pi) + "_" + itoa(fi), Preview: u, Mp4: u})
+		}
+	}
+	if len(out) > 0 {
+		stickerlyMu.Lock()
+		stickerlyCache = out
+		stickerlyAt = time.Now()
+		stickerlyMu.Unlock()
+	}
+	return out
 }

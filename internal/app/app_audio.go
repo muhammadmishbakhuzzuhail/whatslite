@@ -12,6 +12,33 @@ import (
 	"time"
 )
 
+// transcodeToWebpSticker → WebP 512² transparan (format stiker WhatsApp) dari
+// PNG/gif/dll via ffmpeg. (nil,false) bila ffmpeg absen/gagal.
+func transcodeToWebpSticker(ctx context.Context, data []byte) ([]byte, bool) {
+	if len(data) == 0 {
+		return nil, false
+	}
+	bin, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		return nil, false
+	}
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(cctx, bin,
+		"-hide_banner", "-loglevel", "error", "-i", "pipe:0",
+		"-vf", "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000",
+		"-c:v", "libwebp", "-pix_fmt", "yuva420p", "-q:v", "75", "-f", "webp", "pipe:1",
+	)
+	cmd.Stdin = bytes.NewReader(data)
+	var out, errBuf bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil || out.Len() == 0 {
+		return nil, false
+	}
+	return out.Bytes(), true
+}
+
 // mmss memformat detik → "m:ss" (durasi voice note di bubble lokal).
 func mmss(sec int) string {
 	if sec < 0 {

@@ -343,5 +343,6 @@
  "proxy_d": "Route the connection through an HTTP/SOCKS proxy. Applies after restart.",
  "add_via_qr": "Add via QR code",
  "qr_invalid": "Invalid or expired QR code",
- "ch_post_ph": "Post to channel…"
+ "ch_post_ph": "Post to channel…",
+ "jump_to_date": "Jump to date"
 }

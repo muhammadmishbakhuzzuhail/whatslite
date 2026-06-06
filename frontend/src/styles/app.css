@@ -1044,9 +1044,9 @@ button.info-row:hover { background: var(--hover); }
 
 /* Tanggal mengambang (sticky saat scroll) */
 .float-date { position: absolute; top: 10px; left: 0; right: 0; z-index: 6; display: flex; justify-content: center;
-  pointer-events: none; opacity: 0; transition: opacity .25s; }
+  pointer-events: none; opacity: 0; transition: opacity .25s; border: 0; background: none; }
 .float-date.on { opacity: 1; }
-.float-date span { background: var(--bg2); color: var(--text2); font-size: 12px; font-weight: 600;
+.float-date span { pointer-events: auto; cursor: pointer; background: var(--bg2); color: var(--text2); font-size: 12px; font-weight: 600;
   padding: 4px 12px; border-radius: 12px; box-shadow: var(--shadow); }
 /* Badge pesan baru di FAB (FAB sendiri tetap position:absolute dari atas →
    konteks utk badge sudah ada; JANGAN override jadi relative atau FAB jadi

@@ -172,11 +172,34 @@
     }
     jumpMsg.set(null);
   }
+
+  // Lompat ke tanggal: pilih tanggal → ke pesan pertama hari itu (dalam yang
+  // termuat; muat lebih lama beberapa kali bila perlu).
+  let dateInput;
+  function openDatePick() {
+    if (!dateInput) return;
+    if (dateInput.showPicker) dateInput.showPicker(); else dateInput.click();
+  }
+  async function onPickDate(e) {
+    const v = e.target.value;
+    if (!v) return;
+    const target = new Date(v + "T00:00:00").getTime() / 1000;
+    for (let tries = 0; tries < 10; tries++) {
+      const m = messages.find((x) => x.ts && x.ts >= target);
+      if (m) { jumpMsg.set(m.id); return; }
+      if (noMore || !box || box.scrollTop > 120) break;
+      await maybeLoadOlder();
+      await tick();
+    }
+    // tak ketemu (lebih lama dari yg termuat) → ke paling atas yg ada.
+    if (messages.length) jumpMsg.set(messages[0].id);
+  }
 </script>
 
 <div class="msg-wrap">
   {#if floatDate}
-    <div class="float-date {floatVisible ? 'on' : ''}"><span>{floatDate}</span></div>
+    <button class="float-date {floatVisible ? 'on' : ''}" on:click={openDatePick} title={$t("jump_to_date")}><span>{floatDate}</span></button>
+    <input type="date" bind:this={dateInput} on:change={onPickDate} style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
   {/if}
   <div class="messages" bind:this={box} on:scroll={onScroll} style={$wallpapers[chatId] ? `background-color:${$wallpapers[chatId]}` : ""}>
     {#each items as it (it.m.id || it.idx)}

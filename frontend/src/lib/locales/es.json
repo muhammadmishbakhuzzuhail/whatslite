@@ -343,5 +343,6 @@
  "proxy_d": "Enruta la conexión por un proxy HTTP/SOCKS. Se aplica tras reiniciar.",
  "add_via_qr": "Añadir por código QR",
  "qr_invalid": "Código QR no válido o caducado",
- "ch_post_ph": "Publicar en el canal…"
+ "ch_post_ph": "Publicar en el canal…",
+ "jump_to_date": "Ir a la fecha"
 }

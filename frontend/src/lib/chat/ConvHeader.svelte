@@ -7,7 +7,9 @@
   const openInfo = () => infoOpen.set(true);
   $: typing = $typingChats[chat.id];
   $: live = $chatStatus[chat.id];
-  $: subtitle = typing ? $t("typing") : live || (chat.group ? chat.members || chat.status : chat.status) || "";
+  // typing string (grup) → "Budi mengetik…"; true (1:1) → "mengetik…".
+  $: typeLabel = typeof typing === "string" ? `${typing} ${$t("typing")}` : $t("typing");
+  $: subtitle = typing ? typeLabel : live || (chat.group ? chat.members || chat.status : chat.status) || "";
 </script>
 
 <header class="conv-head">

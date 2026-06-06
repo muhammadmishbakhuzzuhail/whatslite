@@ -64,10 +64,11 @@ func (e *Engine) OnPresence(fn func(jid string, online bool, lastSeen time.Time)
 }
 
 // OnChatPresence: lawan bicara sedang mengetik (composing) / berhenti.
-func (e *Engine) OnChatPresence(fn func(chat string, composing bool)) {
+// sender = pengirim presence (utk grup → tampilkan siapa yg mengetik).
+func (e *Engine) OnChatPresence(fn func(chat, sender string, composing bool)) {
 	e.Client.AddEventHandler(func(evt interface{}) {
 		if cp, ok := evt.(*events.ChatPresence); ok {
-			fn(cp.MessageSource.Chat.String(), cp.State == types.ChatPresenceComposing)
+			fn(cp.MessageSource.Chat.String(), cp.MessageSource.Sender.String(), cp.State == types.ChatPresenceComposing)
 		}
 	})
 }

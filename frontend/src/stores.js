@@ -434,7 +434,9 @@ if (data.LIVE) {
   });
   data.onEvent("wa:typing", (e) => {
     if (!e || !e.chat) return;
-    typingChats.update((m) => ({ ...m, [e.chat]: !!e.on }));
+    // value: nama (grup) | true (1:1) saat mengetik; false saat berhenti.
+    const v = e.on ? (e.who || true) : false;
+    typingChats.update((m) => ({ ...m, [e.chat]: v }));
     if (e.on) setTimeout(() => typingChats.update((m) => ({ ...m, [e.chat]: false })), 6000);
   });
   data.onEvent("wa:receipt", (e) => {

@@ -180,6 +180,22 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:ready", eng.SelfJID())
 		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
 		go eng.SyncContacts()
+		// Umumkan online + langganan presence semua chat → indikator "mengetik"
+		// muncul di sidebar (bukan hanya chat yg terbuka). Throttle ringan.
+		go func() {
+			eng.SendAvailable()
+			jids, err := store.ListChatJIDs(a.ctx)
+			if err != nil {
+				return
+			}
+			for _, j := range jids {
+				if isGroupJID(j) || strings.HasSuffix(j, "@newsletter") {
+					continue // grup kirim presence tanpa subscribe; saluran tak relevan
+				}
+				eng.SubscribePresence(j)
+				time.Sleep(40 * time.Millisecond) // hindari banjir IQ
+			}
+		}()
 		// Satukan chat ganda @lid↔nomor dari data build lama (lid_map sudah persist).
 		a.bg(func() {
 			a.dedupChats(eng, store)
@@ -237,8 +253,13 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		}
 		runtime.EventsEmit(a.ctx, "wa:presence", map[string]string{"jid": jid, "text": txt})
 	})
-	eng.OnChatPresence(func(chat string, composing bool) {
-		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing})
+	eng.OnChatPresence(func(chat, sender string, composing bool) {
+		chat = eng.CanonicalJID(chat) // samakan dgn id chat di UI (cegah @lid mismatch)
+		who := ""
+		if composing && isGroupJID(chat) && sender != "" {
+			who = a.displayName(sender) // grup → "Budi sedang mengetik…"
+		}
+		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {
 		chat = eng.CanonicalJID(chat)

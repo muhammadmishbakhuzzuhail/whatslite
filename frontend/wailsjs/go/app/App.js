@@ -10,6 +10,10 @@ export function Block(arg1, arg2) {
   return window['go']['app']['App']['Block'](arg1, arg2);
 }
 
+export function ClearChat(arg1) {
+  return window['go']['app']['App']['ClearChat'](arg1);
+}
+
 export function Connect() {
   return window['go']['app']['App']['Connect']();
 }

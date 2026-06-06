@@ -7,6 +7,8 @@
   export let group = false;
   export let chatId;
   export let peerName = "";
+  export let firstUnreadId = null; // id pesan pertama belum dibaca (pembatas)
+  export let unreadCount = 0;      // jumlah belum dibaca (label pembatas)
 
   let box;            // wadah scroll
   let atBottom = true;
@@ -15,7 +17,15 @@
   let floatDate = "";        // tanggal mengambang saat scroll
   let floatVisible = false;
   let _floatTimer;
-  $: chatId, (noMore = false, newCount = 0); // reset saat ganti chat
+  $: chatId, (noMore = false, newCount = 0, _scrolledUnread = null); // reset saat ganti chat
+
+  // Gulir ke pembatas "belum dibaca" begitu ia muncul (dihitung sedikit setelah
+  // pesan termuat) — sekali per chat.
+  let _scrolledUnread = null;
+  $: if (firstUnreadId && firstUnreadId !== _scrolledUnread && box && items) {
+    _scrolledUnread = firstUnreadId;
+    tick().then(() => { const d = box && box.querySelector(".unread-divider"); if (d) d.scrollIntoView({ block: "center" }); });
+  }
 
   // === Scroll behavior (pola kanonik beforeUpdate/afterUpdate) ===
   // follow=true → "menempel" ke bawah (ikut pesan baru). User scroll-up → false.
@@ -103,7 +113,7 @@
     return !media && m.type !== "day" && m.type !== "system" && m.type !== "unread" && !(m.text && m.text.trim()) && !m.thumb;
   }
 
-  $: items = build(messages, group);
+  $: items = build(messages, group, firstUnreadId, unreadCount);
   function dayLabel(ts) {
     if (!ts) return "";
     const d = new Date(ts * 1000), now = new Date();
@@ -114,12 +124,17 @@
     return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   }
 
-  function build(msgs, grp) {
+  function build(msgs, grp, unreadId, unreadN) {
     let prevKey = null;
     let prevDay = null;
     const out = [];
     msgs.forEach((m, idx) => {
       if (empty(m)) return; // idx tetap index asli (untuk hapus/reaksi)
+      // Pembatas "belum dibaca" tepat sebelum pesan pertama yg belum dibaca.
+      if (unreadId && m.id === unreadId) {
+        out.push({ m: { type: "unread", count: unreadN }, idx: "unread", firstOfRun: false });
+        prevKey = null; // putus runtun
+      }
       // Sisipkan pemisah hari saat tanggal berganti (abaikan chip/sistem bawaan).
       if (m.type !== "day" && m.type !== "system" && m.type !== "unread" && m.ts) {
         const d = new Date(m.ts * 1000);

@@ -1,6 +1,6 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
-  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast } from "../../stores.js";
+  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox } from "../../stores.js";
   import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
@@ -68,6 +68,11 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
+  function doClear() {
+    if (!confirm($t("clear_chat_confirm"))) return;
+    clearChatMessages(chat.id);
+    pushToast($t("clear_chat"), "ok");
+  }
   let photoInput;
   function pickPhoto() { photoInput && photoInput.click(); }
   function onPhoto(e) {
@@ -90,8 +95,10 @@
     </div>
 
     <div class="info-hero">
-      {#if chat.photo}
-        <img class="avatar big photo" src={chat.photo} alt={chat.name} />
+      {#if avatarUrl(chat.id) || chat.photo}
+        <img class="avatar big photo zoomable" src={avatarUrl(chat.id) || chat.photo} alt={chat.name}
+          on:click={() => lightbox.set({ url: avatarUrl(chat.id) || chat.photo, type: "image", caption: chat.name })}
+          on:error={(e) => (e.target.style.display = 'none')} />
       {:else if chat.group}
         <div class="avatar big group" style="--c:{chat.color}">
           <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V18h14v-1.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.99 1.97 3.45V18h6v-1.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
@@ -185,6 +192,10 @@
       <button class="info-row" on:click={doExport}>
         <svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
         <span class="grow">{$t("export_chat")}</span>
+      </button>
+      <button class="info-row danger" on:click={doClear}>
+        <svg viewBox="0 0 24 24"><path d="M10 3h4l1 4h5v3H4V7h5z"/><path d="M6 10v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-9"/></svg>
+        <span class="grow">{$t("clear_chat")}</span>
       </button>
       {#if chat.group}
         <button class="info-row danger" on:click={doLeave}>

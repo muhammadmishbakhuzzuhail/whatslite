@@ -270,5 +270,9 @@
  "lock_confirm_pin": "Re-enter PIN",
  "lock_wrong": "Wrong PIN",
  "active": "On",
- "clear": "Clear history"
+ "clear": "Clear history",
+ "draft": "Draft",
+ "clear_chat": "Clear chat",
+ "clear_chat_confirm": "Delete all messages in this chat? The chat stays in your list.",
+ "unread_messages": "Unread messages"
 }

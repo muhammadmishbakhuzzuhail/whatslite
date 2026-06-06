@@ -156,6 +156,31 @@ export function removeContactLabel(jid) { data.removeContactLabel(jid); }
 
 // (Foto profil kini lazy via /avatar/<jid> di komponen Avatar — tak perlu store.)
 
+// --- Draf teks per-chat ---
+// Teks yang sudah diketik tapi belum dikirim disimpan saat pindah chat
+// (localStorage), dipulihkan saat chat dibuka lagi, & tampil "Draf: …" di sidebar.
+let _draftInit = {};
+try { _draftInit = JSON.parse(localStorage.getItem("wa-drafts") || "{}") || {}; } catch (e) {}
+export const drafts = writable(_draftInit);
+export function setDraft(chatId, text) {
+  if (!chatId) return;
+  drafts.update((d) => {
+    const n = { ...d };
+    if (text && text.trim()) n[chatId] = text;
+    else delete n[chatId];
+    try { localStorage.setItem("wa-drafts", JSON.stringify(n)); } catch (e) {}
+    return n;
+  });
+}
+export function getDraft(chatId) { return get(drafts)[chatId] || ""; }
+
+// Kosongkan isi chat (hapus semua pesan, chat tetap ada).
+export function clearChatMessages(jid) {
+  if (!jid) return;
+  data.clearChat(jid);
+  allMessages.update((m) => { const n = { ...m }; delete n[jid]; return n; });
+}
+
 function nowTime() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");

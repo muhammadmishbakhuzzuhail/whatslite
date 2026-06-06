@@ -1,7 +1,7 @@
 <script>
   import { tick, onDestroy } from "svelte";
   import { get } from "svelte/store";
-  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft, theme } from "../../stores.js";
+  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft, theme, setDraft, getDraft } from "../../stores.js";
   import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
@@ -10,6 +10,14 @@
   export let group = false;
 
   let value = "";
+  // Draf per-chat: simpan teks chat lama saat pindah, pulihkan draf chat baru.
+  let _draftChat = null;
+  $: if (chatId !== _draftChat) {
+    if (_draftChat != null && !$editDraft) setDraft(_draftChat, value);
+    value = $editDraft ? value : getDraft(chatId);
+    _draftChat = chatId;
+  }
+  function saveDraft() { if (!$editDraft) setDraft(chatId, value); }
   // Mode sunting: isi composer dgn teks pesan yg disunting.
   let lastEdit = null;
   $: if ($editDraft && $editDraft.id !== lastEdit) { lastEdit = $editDraft.id; value = $editDraft.text; }
@@ -245,6 +253,7 @@
     }
     sendMessage(chatId, finalText, $replyDraft, jids);
     value = ""; picked = []; mOpen = false;
+    setDraft(chatId, ""); // teks terkirim → buang draf
     replyDraft.set(null);
   }
   function onKey(e) {
@@ -280,7 +289,7 @@
   function cancelRec() { if (!recording) return; recCancel = true; mediaRec && mediaRec.stop(); }
   // Ganti chat / unmount saat merekam → batalkan: hentikan timer + recorder
   // (onstop melepas track mic), supaya mic tak tetap hidup.
-  onDestroy(() => { if (recording) { recCancel = true; try { mediaRec && mediaRec.stop(); } catch (e) {} } stopRecTimer(); });
+  onDestroy(() => { saveDraft(); if (recording) { recCancel = true; try { mediaRec && mediaRec.stop(); } catch (e) {} } stopRecTimer(); });
   async function handleMic() {
     if (value.trim()) { send(); return; }
     if (recording) { mediaRec && mediaRec.stop(); return; }    // tap lagi = stop & kirim
@@ -489,7 +498,7 @@
   {:else}
     <div class="input">
       <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
-        bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); }} on:click={detectMention}></textarea>
+        bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); saveDraft(); }} on:click={detectMention}></textarea>
     </div>
   {/if}
   <button class="icon-btn mic {recording ? 'rec' : ''}" aria-label={typing ? $t("send") : recording ? $t("send") : $t("voice_msg")} on:click={handleMic}>

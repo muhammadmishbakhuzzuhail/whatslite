@@ -7,6 +7,8 @@ export function Archive(arg1:string,arg2:boolean):Promise<void>;
 
 export function Block(arg1:string,arg2:boolean):Promise<void>;
 
+export function ClearChat(arg1:string):Promise<void>;
+
 export function Connect():Promise<void>;
 
 export function CreateGroup(arg1:string,arg2:Array<string>):Promise<string>;

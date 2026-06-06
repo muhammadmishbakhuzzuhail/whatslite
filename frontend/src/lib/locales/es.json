@@ -270,5 +270,9 @@
  "lock_confirm_pin": "Repite el PIN",
  "lock_wrong": "PIN incorrecto",
  "active": "Activado",
- "clear": "Borrar historial"
+ "clear": "Borrar historial",
+ "draft": "Borrador",
+ "clear_chat": "Vaciar chat",
+ "clear_chat_confirm": "¿Eliminar todos los mensajes de este chat? El chat permanece en la lista.",
+ "unread_messages": "Mensajes no leídos"
 }

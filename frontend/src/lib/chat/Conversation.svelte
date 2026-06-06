@@ -12,6 +12,30 @@
   // Ganti chat → reset state per-chat (cegah draft balas/edit "bocor" ke chat lain).
   $: if ($activeChatId !== _lastChat) { _lastChat = $activeChatId; clearSelect(); inChatSearch.set(false); replyDraft.set(null); editDraft.set(null); }
 
+  // --- Pembatas "pesan belum dibaca" ---
+  // Snapshot jumlah unread SAAT chat dibuka (sebelum MarkRead meresetnya), lalu
+  // cari pesan pertama yang belum dibaca = pesan masuk ke-N dari bawah.
+  let _unreadChat = null, _pendUnread = 0, unreadCount = 0, firstUnreadId = null;
+  $: if ($activeChatId !== _unreadChat) {
+    _unreadChat = $activeChatId;
+    firstUnreadId = null; unreadCount = 0;
+    _pendUnread = chat ? (chat.unread || chat.badge || 0) : 0;
+  }
+  $: if ($activeChatId === _unreadChat && _pendUnread > 0 && firstUnreadId === null && messages.length) {
+    firstUnreadId = firstUnread(messages, _pendUnread);
+    unreadCount = _pendUnread;
+    _pendUnread = 0; // hitung sekali
+  }
+  function firstUnread(msgs, n) {
+    let c = 0;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].dir === "in") { c++; if (c === n) return msgs[i].id; }
+    }
+    // unread > pesan masuk yang termuat → tandai pesan masuk paling atas.
+    for (const m of msgs) if (m.dir === "in") return m.id;
+    return null;
+  }
+
   // Pencarian dalam chat.
   let scQuery = "";
   let scIdx = 0;
@@ -76,7 +100,7 @@
         <button class="icon-btn" on:click={scClose} title={$t("close")}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
     {/if}
-    <MessageList {messages} group={!!chat.group} chatId={chat.id} peerName={chat.name} />
+    <MessageList {messages} group={!!chat.group} chatId={chat.id} peerName={chat.name} {firstUnreadId} {unreadCount} />
     <Composer chatId={chat.id} group={!!chat.group} />
   {:else}
     <div class="conv-splash">

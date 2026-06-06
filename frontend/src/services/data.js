@@ -236,6 +236,9 @@ export function markUnread(jid, on) {
 export function deleteChat(jid) {
   if (LIVE) A.DeleteChat(jid);
 }
+export function clearChat(jid) {
+  if (LIVE) A.ClearChat(jid);
+}
 export async function searchMessages(query) {
   if (LIVE) return (await A.SearchMessages(query)) || [];
   return [];

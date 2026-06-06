@@ -270,5 +270,9 @@
  "lock_confirm_pin": "Ulangi PIN",
  "lock_wrong": "PIN salah",
  "active": "Aktif",
- "clear": "Hapus riwayat"
+ "clear": "Hapus riwayat",
+ "draft": "Draf",
+ "clear_chat": "Bersihkan chat",
+ "clear_chat_confirm": "Hapus semua pesan di chat ini? Chat tetap ada di daftar.",
+ "unread_messages": "Pesan belum dibaca"
 }

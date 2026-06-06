@@ -283,6 +283,23 @@ func (s *Store) ListChatJIDs(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
+// ClearMessages menghapus SEMUA pesan satu chat tapi MEMPERTAHANKAN baris chat
+// (chat tetap di sidebar, hanya isinya kosong). Ringkasan direset.
+func (s *Store) ClearMessages(ctx context.Context, jid string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {
+		return err
+	}
+	for _, q := range []string{
+		`DELETE FROM reactions WHERE chat_jid = ?`,
+		`DELETE FROM receipts WHERE chat_jid = ?`,
+	} {
+		_, _ = s.db.ExecContext(ctx, q, jid)
+	}
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE chats SET last_text='', last_sender='', last_from_me=0, unread=0 WHERE jid = ?`, jid)
+	return err
+}
+
 // DeleteChat menghapus chat beserta pesannya dari penyimpanan lokal.
 func (s *Store) DeleteChat(ctx context.Context, jid string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {

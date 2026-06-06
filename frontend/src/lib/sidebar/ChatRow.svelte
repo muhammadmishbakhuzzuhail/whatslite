@@ -1,13 +1,14 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import Ticks from "../common/Ticks.svelte";
-  import { activeChatId, railView, pinChat, muteChat, archiveChat, markChatUnread, removeChat, typingChats } from "../../stores.js";
+  import { activeChatId, railView, pinChat, muteChat, archiveChat, markChatUnread, removeChat, typingChats, drafts } from "../../stores.js";
   import { avatarUrl } from "../../services/data.js";
   import { t } from "../i18n.js";
 
   export let chat;
   $: active = $activeChatId === chat.id;
   $: typing = $typingChats[chat.id]; // dari event presence (bukan flag statis chat.typing)
+  $: draft = $activeChatId !== chat.id ? ($drafts[chat.id] || "") : ""; // draf chat lain → "Draf: …"
   function open() {
     activeChatId.set(chat.id);
     railView.set("chats");
@@ -38,6 +39,8 @@
       <span class="row-preview">
         {#if typing}
           <span class="typing">{typeof typing === "string" ? `${typing} ${$t("typing")}` : $t("typing")}</span>
+        {:else if draft}
+          <span class="draft">{$t("draft")}:</span> <span>{draft}</span>
         {:else}
           {#if chat.sent}<Ticks status={chat.status || "sent"} />{/if}
           <span>{chat.preview}</span>

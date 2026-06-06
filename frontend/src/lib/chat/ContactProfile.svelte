@@ -2,7 +2,7 @@
   // ContactProfile — panel profil kontak (klik mention / pengirim grup).
   // Tampilkan avatar/nama/nomor/about + aksi Pesan & Simpan-nama (label LOKAL,
   // tidak sinkron ke buku-alamat HP/WA).
-  import { profileJid, closeProfile, messageContact, saveContactLabel, removeContactLabel, pushToast } from "../../stores.js";
+  import { profileJid, closeProfile, messageContact, saveContactLabel, removeContactLabel, pushToast, lightbox } from "../../stores.js";
   import { getContactProfile, avatarUrl, senderColorFor } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
@@ -45,7 +45,9 @@
     {#if prof}
       <div class="info-hero">
         {#if avatarUrl(prof.jid)}
-          <img class="avatar big photo" src={avatarUrl(prof.jid)} alt={prof.name} on:error={(e) => (e.target.style.display = 'none')} />
+          <img class="avatar big photo zoomable" src={avatarUrl(prof.jid)} alt={prof.name}
+            on:click={() => lightbox.set({ url: avatarUrl(prof.jid), type: "image", caption: prof.name })}
+            on:error={(e) => (e.target.style.display = 'none')} />
         {:else if /[\p{L}]/u.test(initial(prof.name))}
           <div class="avatar big" style="--c:{senderColorFor(prof.jid)}"><span>{initial(prof.name)}</span></div>
         {:else}

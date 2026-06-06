@@ -77,6 +77,15 @@ func (a *App) DeleteChat(jid string) {
 	runtime.EventsEmit(a.ctx, "wa:sync", "")
 }
 
+// ClearChat mengosongkan isi chat (hapus semua pesan) tapi chat tetap ada.
+func (a *App) ClearChat(jid string) {
+	if a.store == nil {
+		return
+	}
+	_ = a.store.ClearMessages(a.ctx, a.canon(jid))
+	runtime.EventsEmit(a.ctx, "wa:sync", "")
+}
+
 // SearchHitDTO = satu hasil pencarian isi pesan.
 type SearchHitDTO struct {
 	ChatJID  string `json:"chatJid"`

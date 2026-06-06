@@ -195,6 +195,20 @@ export function setDraft(chatId, text) {
 }
 export function getDraft(chatId) { return get(drafts)[chatId] || ""; }
 
+// --- Wallpaper per-chat (lokal) ---
+let _wpInit = {};
+try { _wpInit = JSON.parse(localStorage.getItem("wa-wallpaper") || "{}") || {}; } catch (e) {}
+export const wallpapers = writable(_wpInit);
+export function setWallpaper(jid, val) {
+  if (!jid) return;
+  wallpapers.update((w) => {
+    const n = { ...w };
+    if (val) n[jid] = val; else delete n[jid];
+    try { localStorage.setItem("wa-wallpaper", JSON.stringify(n)); } catch (e) {}
+    return n;
+  });
+}
+
 // Kosongkan isi chat (hapus semua pesan, chat tetap ada).
 export function clearChatMessages(jid) {
   if (!jid) return;

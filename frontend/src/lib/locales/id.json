@@ -315,5 +315,6 @@
  "my_qr_sub": "Biarkan orang memindai ini untuk menambahkanmu di WhatsApp.",
  "invite_reset": "Setel ulang tautan undangan",
  "invite_reset_confirm": "Setel ulang tautan undangan? Tautan lama berhenti berfungsi.",
- "invite_reset_done": "Tautan baru disalin"
+ "invite_reset_done": "Tautan baru disalin",
+ "wallpaper_default": "Bawaan"
 }

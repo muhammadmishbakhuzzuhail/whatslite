@@ -2,7 +2,7 @@
   import Bubble from "./Bubble.svelte";
   import { t } from "../i18n.js";
   import { tick, beforeUpdate, afterUpdate } from "svelte";
-  import { loadOlder, jumpMsg } from "../../stores.js";
+  import { loadOlder, jumpMsg, wallpapers } from "../../stores.js";
   export let messages = [];
   export let group = false;
   export let chatId;
@@ -178,7 +178,7 @@
   {#if floatDate}
     <div class="float-date {floatVisible ? 'on' : ''}"><span>{floatDate}</span></div>
   {/if}
-  <div class="messages" bind:this={box} on:scroll={onScroll}>
+  <div class="messages" bind:this={box} on:scroll={onScroll} style={$wallpapers[chatId] ? `background-color:${$wallpapers[chatId]}` : ""}>
     {#each items as it (it.m.id || it.idx)}
       {#if it.m.type === "day"}
         <div class="day-chip"><span>{it.m.label || $t("today")}</span></div>

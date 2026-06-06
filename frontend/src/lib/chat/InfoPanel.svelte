@@ -1,6 +1,6 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
-  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox, askConfirm } from "../../stores.js";
+  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox, askConfirm, wallpapers, setWallpaper } from "../../stores.js";
   import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat, setGroupAnnounce, setGroupLocked, setGroupJoinApproval, setGroupAddMode, getGroupRequests, updateGroupRequest, getChatMedia } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
@@ -279,6 +279,20 @@
         </div>
       </div>
     {/if}
+
+    <!-- Wallpaper per-chat (lokal) -->
+    <div class="info-row" style="align-items:flex-start">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/></svg>
+      <div class="grow">
+        <div>{$t("wallpaper")}</div>
+        <div class="wp-swatches">
+          <button class="wp-sw none {!$wallpapers[chat.id] ? 'on' : ''}" title={$t("wallpaper_default")} on:click={() => setWallpaper(chat.id, "")}>✕</button>
+          {#each ["#0b141a", "#111b21", "#1d2b22", "#2a2233", "#11212b", "#e7ddd0", "#d9e4dd", "#efe7da"] as c}
+            <button class="wp-sw {$wallpapers[chat.id] === c ? 'on' : ''}" style="background:{c}" title={c} on:click={() => setWallpaper(chat.id, c)}></button>
+          {/each}
+        </div>
+      </div>
+    </div>
 
     <div class="info-row" style="align-items:center">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>

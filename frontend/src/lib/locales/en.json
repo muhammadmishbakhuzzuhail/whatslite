@@ -315,5 +315,6 @@
  "my_qr_sub": "Let someone scan this to add you on WhatsApp.",
  "invite_reset": "Reset invite link",
  "invite_reset_confirm": "Reset the invite link? The old link will stop working.",
- "invite_reset_done": "New link copied"
+ "invite_reset_done": "New link copied",
+ "wallpaper_default": "Default"
 }

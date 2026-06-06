@@ -49,6 +49,15 @@
   // --- menu lampiran (file / lokasi / polling) ---
   let attachOpen = false;
   function toggleAttach() { attachOpen = !attachOpen; }
+
+  // Quick replies (template balasan tersimpan, lokal).
+  let qrOpen = false, quickReplies = [];
+  try { quickReplies = JSON.parse(localStorage.getItem("wa-quickreplies") || "[]") || []; } catch (e) {}
+  function saveQR(v) { try { localStorage.setItem("wa-quickreplies", JSON.stringify(v)); } catch (e) {} }
+  function openQuick() { attachOpen = false; qrOpen = true; }
+  function insertQuick(txt) { value = value ? value + " " + txt : txt; qrOpen = false; focusInput(); saveDraft(); }
+  function addQuick() { const v = value.trim(); if (!v) return; quickReplies = [v, ...quickReplies.filter((x) => x !== v)].slice(0, 30); saveQR(quickReplies); }
+  function delQuick(t) { quickReplies = quickReplies.filter((x) => x !== t); saveQR(quickReplies); }
   function attachFile() { attachOpen = false; pickFile(); }
   // Dokumen: file APA PUN → kirim sebagai dokumen (bukan pratinjau gambar).
   let docInput;
@@ -413,6 +422,9 @@
     <button class="am-item" on:click={openContact}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>{$t("attach_contact")}
     </button>
+    <button class="am-item" on:click={openQuick}>
+      <svg viewBox="0 0 24 24"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>{$t("quick_replies")}
+    </button>
     <button class="am-item" on:click={attachDocument}>
       <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>{$t("attach_document")}
     </button>
@@ -449,6 +461,19 @@
 {#if stickerOpen}
   <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (stickerOpen = false)}></button>
   <StickerPicker on:pick={onStickerPick} />
+{/if}
+
+{#if qrOpen}
+  <button class="menu-backdrop" aria-label={$t("close")} on:click={() => (qrOpen = false)}></button>
+  <div class="qr-panel">
+    <div class="qr-head">{$t("quick_replies")}<button class="qr-add" on:click={addQuick} disabled={!value.trim()}>+ {$t("save")}</button></div>
+    <div class="qr-list">
+      {#each quickReplies as qr}
+        <div class="qr-item"><button class="qr-text" on:click={() => insertQuick(qr)}>{qr}</button><button class="qr-del" on:click={() => delQuick(qr)}>✕</button></div>
+      {/each}
+      {#if quickReplies.length === 0}<div class="qr-empty">{$t("quick_replies_empty")}</div>{/if}
+    </div>
+  </div>
 {/if}
 
 {#if pollOpen}

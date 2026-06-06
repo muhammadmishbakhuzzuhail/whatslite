@@ -360,5 +360,7 @@
  "note_to_self": "Mensaje a ti mismo",
  "broadcast": "Difusión",
  "broadcast_msg": "Mensaje de difusión:",
- "broadcast_sent": "Enviado a %n chats"
+ "broadcast_sent": "Enviado a %n chats",
+ "quick_replies": "Respuestas rápidas",
+ "quick_replies_empty": "Sin plantillas. Escribe un mensaje y guarda."
 }

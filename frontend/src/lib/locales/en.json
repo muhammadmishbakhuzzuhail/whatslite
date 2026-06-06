@@ -360,5 +360,7 @@
  "note_to_self": "Message yourself",
  "broadcast": "Broadcast",
  "broadcast_msg": "Broadcast message:",
- "broadcast_sent": "Sent to %n chats"
+ "broadcast_sent": "Sent to %n chats",
+ "quick_replies": "Quick replies",
+ "quick_replies_empty": "No templates. Type a message then Save."
 }

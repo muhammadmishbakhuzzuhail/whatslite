@@ -360,5 +360,7 @@
  "note_to_self": "Pesan ke diri sendiri",
  "broadcast": "Siaran",
  "broadcast_msg": "Pesan siaran:",
- "broadcast_sent": "Terkirim ke %n chat"
+ "broadcast_sent": "Terkirim ke %n chat",
+ "quick_replies": "Balasan cepat",
+ "quick_replies_empty": "Belum ada template. Ketik pesan lalu Simpan."
 }

@@ -138,10 +138,6 @@ export function GetLinkPreview(arg1) {
   return window['go']['app']['App']['GetLinkPreview'](arg1);
 }
 
-export function GetLinkedDevices() {
-  return window['go']['app']['App']['GetLinkedDevices']();
-}
-
 export function GetMessageInfo(arg1, arg2) {
   return window['go']['app']['App']['GetMessageInfo'](arg1, arg2);
 }
@@ -444,10 +440,6 @@ export function StarMessage(arg1, arg2, arg3, arg4, arg5) {
 
 export function SubscribePresence(arg1) {
   return window['go']['app']['App']['SubscribePresence'](arg1);
-}
-
-export function TranscribeVoice(arg1, arg2) {
-  return window['go']['app']['App']['TranscribeVoice'](arg1, arg2);
 }
 
 export function Translate(arg1, arg2) {

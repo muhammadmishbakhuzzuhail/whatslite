@@ -57,17 +57,6 @@ func (e *Engine) BusinessProfile(ctx context.Context, jid string) *BizProfile {
 	return &BizProfile{Address: bp.Address, Email: bp.Email, Category: cat}
 }
 
-// MyDeviceCount = jumlah perangkat tertaut akun (HP + companion).
-func (e *Engine) MyDeviceCount(ctx context.Context) int {
-	if e.Client.Store.ID == nil {
-		return 0
-	}
-	ds, err := e.Client.GetUserDevices(ctx, []types.JID{e.Client.Store.ID.ToNonAD()})
-	if err != nil {
-		return 0
-	}
-	return len(ds)
-}
 
 // WACheck = hasil cek "ada di WhatsApp?" untuk satu nomor.
 type WACheck struct {

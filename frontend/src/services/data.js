@@ -395,7 +395,6 @@ export function setMyPhoto(fullURI, previewURI) {
 export async function createChannel(name, desc) { if (LIVE) return await A.CreateChannel(name, desc || ""); return ""; }
 export function postChannel(jid, text) { if (LIVE) A.PostChannel(jid, text); }
 export async function getBusinessProfile(jid) { if (LIVE) return await A.GetBusinessProfile(jid); return { isBiz: false }; }
-export async function getLinkedDevices() { if (LIVE) return await A.GetLinkedDevices(); return 0; }
 export async function getStorageUsage() { if (LIVE) return await A.GetStorageUsage(); return { dbBytes: 0, mediaBytes: 0, msgCount: 0, kinds: [] }; }
 // --- Pesan terjadwal + pengingat (client-side) ---
 export function scheduleMessage(jid, text, sendAt) { if (LIVE) A.ScheduleMessage(jid, text, sendAt); }
@@ -444,8 +443,6 @@ export function setGroupAddMode(jid, adminOnly) { if (LIVE) A.SetGroupAddMode(ji
 export async function getGroupRequests(jid) { if (LIVE) return (await A.GetGroupRequests(jid)) || []; return []; }
 export function updateGroupRequest(jid, members, approve) { if (LIVE) A.UpdateGroupRequest(jid, members, approve); }
 export async function getChatMedia(jid) { if (LIVE) return (await A.GetChatMedia(jid)) || []; return []; }
-// Transkrip voice note → teks (STT lokal, "" bila whisper tak terpasang).
-export async function transcribeVoice(jid, msgId) { if (LIVE) return await A.TranscribeVoice(jid, msgId); return ""; }
 export async function joinGroupLink(link) { if (LIVE) return await A.JoinGroupLink(link); return ""; }
 export async function previewGroupLink(link) { if (LIVE) return await A.PreviewGroupLink(link); return ""; }
 // Cek nomor terdaftar di WhatsApp (sebelum mulai chat / simpan kontak).

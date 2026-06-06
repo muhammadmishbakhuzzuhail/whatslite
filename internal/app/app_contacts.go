@@ -122,14 +122,6 @@ func (a *App) AddViaQR(code string) string {
 	return jid
 }
 
-// GetLinkedDevices mengembalikan jumlah perangkat tertaut (HP + companion).
-func (a *App) GetLinkedDevices() int {
-	if a.eng == nil {
-		return 0
-	}
-	return a.eng.MyDeviceCount(a.ctx)
-}
-
 // GetContactAbout mengambil teks info/status seorang kontak.
 func (a *App) GetContactAbout(jid string) string {
 	if a.eng == nil {

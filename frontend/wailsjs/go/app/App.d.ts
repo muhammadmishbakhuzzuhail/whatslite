@@ -72,8 +72,6 @@ export function GetGroupRequests(arg1:string):Promise<Array<app.GroupRequestDTO>
 
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;
 
-export function GetLinkedDevices():Promise<number>;
-
 export function GetMessageInfo(arg1:string,arg2:string):Promise<app.MsgInfoDTO>;
 
 export function GetMessages(arg1:string):Promise<Array<app.MessageDTO>>;
@@ -225,8 +223,6 @@ export function SetRetention(arg1:number):Promise<void>;
 export function StarMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5:boolean):Promise<void>;
 
 export function SubscribePresence(arg1:string):Promise<void>;
-
-export function TranscribeVoice(arg1:string,arg2:string):Promise<string>;
 
 export function Translate(arg1:string,arg2:string):Promise<string>;
 

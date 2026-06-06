@@ -31,27 +31,6 @@ func (a *App) DownloadMedia(chatJID, msgID string) string {
 	return uri
 }
 
-// TranscribeVoice mentranskrip voice note → teks (STT lokal, best-effort).
-// "" bila whisper/model tak terpasang (lihat transcribeAudio).
-func (a *App) TranscribeVoice(chatJID, msgID string) string {
-	if a.eng == nil || a.store == nil {
-		return ""
-	}
-	pb, err := a.store.GetMedia(a.ctx, a.canon(chatJID), msgID)
-	if err != nil || pb == "" {
-		return ""
-	}
-	data, _, err := a.eng.DownloadMediaRaw(pb)
-	if err != nil || len(data) == 0 {
-		return ""
-	}
-	txt, ok := transcribeAudio(a.ctx, data)
-	if !ok {
-		return ""
-	}
-	return txt
-}
-
 // serveMedia menyajikan media via asset-server: GET /media/<chatJID>/<msgID>.
 // Cache-first: kalau file sudah ada → kirim; kalau belum → unduh dari proto
 // (tersimpan di DB), tulis ke FILE (bukan DB/memori), lalu kirim. Ringan +

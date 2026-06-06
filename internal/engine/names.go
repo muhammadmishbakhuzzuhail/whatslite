@@ -147,7 +147,8 @@ func (e *Engine) SyncContacts() {
 		appstate.WAPatchRegularHigh,        // pin
 		appstate.WAPatchRegularLow,         // arsip/mute
 	} {
-		_ = e.Client.FetchAppState(ctx, name, false, true)
+		n := name
+		_ = retry(ctx, 3, func() error { return e.Client.FetchAppState(ctx, n, false, true) })
 	}
 }
 

@@ -82,7 +82,8 @@ func (e *Engine) ForwardMedia(ctx context.Context, to, srcProtoB64 string) (stri
 
 // SendSticker mengunggah webp lalu mengirimnya sebagai stiker.
 func (e *Engine) SendSticker(ctx context.Context, to string, data []byte) (string, error) {
-	up, err := e.Client.Upload(ctx, data, whatsmeow.MediaImage)
+	var up whatsmeow.UploadResponse
+	err := retry(ctx, 3, func() (e2 error) { up, e2 = e.Client.Upload(ctx, data, whatsmeow.MediaImage); return })
 	if err != nil {
 		return "", fmt.Errorf("upload: %w", err)
 	}
@@ -101,7 +102,8 @@ func (e *Engine) SendGif(ctx context.Context, to, mime string, data []byte) (str
 	if mime == "" {
 		mime = "video/mp4"
 	}
-	up, err := e.Client.Upload(ctx, data, whatsmeow.MediaVideo)
+	var up whatsmeow.UploadResponse
+	err := retry(ctx, 3, func() (e2 error) { up, e2 = e.Client.Upload(ctx, data, whatsmeow.MediaVideo); return })
 	if err != nil {
 		return "", fmt.Errorf("upload: %w", err)
 	}
@@ -131,7 +133,8 @@ func (e *Engine) SendMedia(ctx context.Context, to, kind, mime, caption, fileNam
 	if err != nil {
 		return "", err
 	}
-	up, err := e.Client.Upload(ctx, data, mt)
+	var up whatsmeow.UploadResponse
+	err = retry(ctx, 3, func() (e2 error) { up, e2 = e.Client.Upload(ctx, data, mt); return })
 	if err != nil {
 		return "", fmt.Errorf("upload: %w", err)
 	}
@@ -256,7 +259,8 @@ func (e *Engine) PostMediaStatus(ctx context.Context, kind, mime, caption string
 	if err != nil {
 		return "", err
 	}
-	up, err := e.Client.Upload(ctx, data, mt)
+	var up whatsmeow.UploadResponse
+	err = retry(ctx, 3, func() (e2 error) { up, e2 = e.Client.Upload(ctx, data, mt); return })
 	if err != nil {
 		return "", fmt.Errorf("upload: %w", err)
 	}

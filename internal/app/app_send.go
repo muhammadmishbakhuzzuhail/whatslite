@@ -54,6 +54,9 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 	if kind == "voice" && seconds > 0 { // tampilkan durasi di bubble voice lokal
 		txt = mmss(seconds)
 	}
+	if kind == "document" && fileName != "" { // doc: bubble pakai nama file (tampil + unduh)
+		txt = fileName
+	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: txt, Kind: kind,
 		Timestamp: time.Now(), FromMe: true,

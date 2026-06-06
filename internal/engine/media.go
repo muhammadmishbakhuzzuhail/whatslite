@@ -103,7 +103,8 @@ func (e *Engine) DownloadMediaRaw(protoB64 string) ([]byte, string, error) {
 	default:
 		return nil, "", fmt.Errorf("no downloadable media")
 	}
-	data, err := e.Client.Download(context.Background(), dl)
+	var data []byte
+	err = retry(context.Background(), 3, func() (e2 error) { data, e2 = e.Client.Download(context.Background(), dl); return })
 	if err != nil {
 		return nil, "", err
 	}

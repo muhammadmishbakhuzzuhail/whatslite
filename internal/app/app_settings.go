@@ -4,10 +4,14 @@ package app
 
 import (
 	"encoding/base64"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"whatsapp-lite/internal/storage"
 )
 
 func atoiDef(s string, def int) int {
@@ -57,6 +61,31 @@ func (a *App) SetProxy(addr string) {
 		_ = a.store.SetMeta(a.ctx, "proxy", addr)
 	}
 	runtime.EventsEmit(a.ctx, "wa:sync", "")
+}
+
+// StorageUsageDTO = rincian penyimpanan untuk layar setelan.
+type StorageUsageDTO struct {
+	DBBytes    int64              `json:"dbBytes"`
+	MediaBytes int64              `json:"mediaBytes"`
+	MsgCount   int                `json:"msgCount"`
+	Kinds      []storage.KindStat `json:"kinds"`
+}
+
+// GetStorageUsage menghitung ukuran DB + cache media + rincian per-jenis.
+func (a *App) GetStorageUsage() StorageUsageDTO {
+	out := StorageUsageDTO{Kinds: []storage.KindStat{}}
+	if a.store != nil {
+		out.MsgCount, out.DBBytes, out.Kinds, _ = a.store.StorageStats(a.ctx)
+	}
+	if a.mediaDir != "" {
+		_ = filepath.Walk(a.mediaDir, func(_ string, info os.FileInfo, err error) error {
+			if err == nil && info != nil && !info.IsDir() {
+				out.MediaBytes += info.Size()
+			}
+			return nil
+		})
+	}
+	return out
 }
 
 // GetRetention mengembalikan jumlah hari retensi pesan (0 = selamanya).

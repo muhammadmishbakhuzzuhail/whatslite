@@ -96,6 +96,8 @@ export function GetStatusViewers(arg1:string):Promise<Array<app.ReceiptDTO>>;
 
 export function GetStatuses():Promise<Array<app.StatusGroupDTO>>;
 
+export function GetStorageUsage():Promise<app.StorageUsageDTO>;
+
 export function GroupInviteLink(arg1:string,arg2:boolean):Promise<string>;
 
 export function IsOnWhatsApp(arg1:Array<string>):Promise<Array<app.WACheckDTO>>;

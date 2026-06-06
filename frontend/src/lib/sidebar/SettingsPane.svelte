@@ -141,6 +141,12 @@
       </div>
     </div>
 
+    <!-- Penyimpanan & data (rincian) -->
+    <div class="settings-item" role="button" tabindex="0" on:click={() => railView.set("storage")} on:keydown={(e) => e.key === "Enter" && railView.set("storage")}>
+      {@html icons.disk}
+      <div class="grow"><div class="si-name">{$t("storage")}</div><div class="si-desc">{$t("storage_d")}</div></div>
+    </div>
+
     <!-- Privasi -->
     <div class="settings-item" role="button" tabindex="0" on:click={() => railView.set("privacy")} on:keydown={(e) => e.key === "Enter" && railView.set("privacy")}>
       <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>

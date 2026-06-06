@@ -619,6 +619,42 @@ export namespace app {
 		}
 	}
 	
+	export class StorageUsageDTO {
+	    dbBytes: number;
+	    mediaBytes: number;
+	    msgCount: number;
+	    kinds: storage.KindStat[];
+	
+	    static createFrom(source: any = {}) {
+	        return new StorageUsageDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dbBytes = source["dbBytes"];
+	        this.mediaBytes = source["mediaBytes"];
+	        this.msgCount = source["msgCount"];
+	        this.kinds = this.convertValues(source["kinds"], storage.KindStat);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class WACheckDTO {
 	    query: string;
 	    jid: string;
@@ -948,6 +984,22 @@ export namespace storage {
 	        this.group = source["group"];
 	        this.status = source["status"];
 	        this.ts = source["ts"];
+	    }
+	}
+	export class KindStat {
+	    kind: string;
+	    count: number;
+	    bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new KindStat(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.count = source["count"];
+	        this.bytes = source["bytes"];
 	    }
 	}
 

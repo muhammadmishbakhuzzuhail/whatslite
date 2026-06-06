@@ -396,6 +396,7 @@ export async function createChannel(name, desc) { if (LIVE) return await A.Creat
 export function postChannel(jid, text) { if (LIVE) A.PostChannel(jid, text); }
 export async function getBusinessProfile(jid) { if (LIVE) return await A.GetBusinessProfile(jid); return { isBiz: false }; }
 export async function getLinkedDevices() { if (LIVE) return await A.GetLinkedDevices(); return 0; }
+export async function getStorageUsage() { if (LIVE) return await A.GetStorageUsage(); return { dbBytes: 0, mediaBytes: 0, msgCount: 0, kinds: [] }; }
 export async function getProxy() { if (LIVE) return await A.GetProxy(); return ""; }
 export function setProxy(addr) { if (LIVE) A.SetProxy(addr); }
 export async function addViaQR(code) { if (LIVE) return await A.AddViaQR(code); return ""; }

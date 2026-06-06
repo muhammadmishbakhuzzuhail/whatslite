@@ -56,6 +56,37 @@ func (s *Store) SweepExpired(ctx context.Context, now int64) (int64, error) {
 	return n, nil
 }
 
+// KindStat = ringkasan penyimpanan per jenis pesan.
+type KindStat struct {
+	Kind  string `json:"kind"`
+	Count int    `json:"count"`
+	Bytes int64  `json:"bytes"`
+}
+
+// StorageStats mengembalikan ukuran app.db + rincian per-jenis pesan.
+func (s *Store) StorageStats(ctx context.Context) (msgCount int, dbBytes int64, kinds []KindStat, err error) {
+	kinds = []KindStat{}
+	_ = s.db.QueryRowContext(ctx, `SELECT count(*) FROM messages`).Scan(&msgCount)
+	var pc, ps int64
+	_ = s.db.QueryRowContext(ctx, `PRAGMA page_count`).Scan(&pc)
+	_ = s.db.QueryRowContext(ctx, `PRAGMA page_size`).Scan(&ps)
+	dbBytes = pc * ps
+	rows, e := s.db.QueryContext(ctx,
+		`SELECT kind, count(*), COALESCE(SUM(length(media)+length(thumb)+length(text)),0)
+		 FROM messages GROUP BY kind ORDER BY 3 DESC`)
+	if e != nil {
+		return msgCount, dbBytes, kinds, e
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k KindStat
+		if rows.Scan(&k.Kind, &k.Count, &k.Bytes) == nil {
+			kinds = append(kinds, k)
+		}
+	}
+	return msgCount, dbBytes, kinds, rows.Err()
+}
+
 // Vacuum mengembalikan ruang ke OS (pasca-prune) + memangkas WAL.
 func (s *Store) Vacuum(ctx context.Context) error {
 	_, _ = s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`)

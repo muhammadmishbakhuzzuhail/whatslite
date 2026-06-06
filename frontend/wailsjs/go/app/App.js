@@ -186,6 +186,10 @@ export function GetStatuses() {
   return window['go']['app']['App']['GetStatuses']();
 }
 
+export function GetStorageUsage() {
+  return window['go']['app']['App']['GetStorageUsage']();
+}
+
 export function GroupInviteLink(arg1, arg2) {
   return window['go']['app']['App']['GroupInviteLink'](arg1, arg2);
 }

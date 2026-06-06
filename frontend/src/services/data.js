@@ -395,6 +395,7 @@ export function setMyPhoto(fullURI, previewURI) {
 export async function createChannel(name, desc) { if (LIVE) return await A.CreateChannel(name, desc || ""); return ""; }
 export function postChannel(jid, text) { if (LIVE) A.PostChannel(jid, text); }
 export async function getBusinessProfile(jid) { if (LIVE) return await A.GetBusinessProfile(jid); return { isBiz: false }; }
+export async function getCommonGroups(jid) { if (LIVE) return (await A.GetCommonGroups(jid)) || []; return []; }
 export async function getStorageUsage() { if (LIVE) return await A.GetStorageUsage(); return { dbBytes: 0, mediaBytes: 0, msgCount: 0, kinds: [] }; }
 // --- Pesan terjadwal + pengingat (client-side) ---
 export function scheduleMessage(jid, text, sendAt) { if (LIVE) A.ScheduleMessage(jid, text, sendAt); }

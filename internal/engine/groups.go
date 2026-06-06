@@ -172,6 +172,30 @@ func (e *Engine) UpdateParticipants(ctx context.Context, jid string, members []s
 	return err
 }
 
+// CommonGroups mengembalikan grup yang memuat kontak `jid` (grup bersama).
+// Iterasi grup diikuti + GroupInfo tiap grup (bisa lambat bila banyak grup).
+func (e *Engine) CommonGroups(ctx context.Context, jid string) []GroupSummary {
+	out := []GroupSummary{}
+	target, err := types.ParseJID(jid)
+	if err != nil {
+		return out
+	}
+	tu := target.ToNonAD().User
+	gs, err := e.Client.GetJoinedGroups(ctx)
+	if err != nil {
+		return out
+	}
+	for _, g := range gs {
+		for _, p := range g.Participants {
+			if p.JID.ToNonAD().User == tu {
+				out = append(out, GroupSummary{JID: g.JID.String(), Name: g.Name})
+				break
+			}
+		}
+	}
+	return out
+}
+
 // JoinGroupViaLink bergabung ke grup via kode/tautan undangan; kembalikan JID.
 func (e *Engine) JoinGroupViaLink(ctx context.Context, code string) (string, error) {
 	j, err := e.Client.JoinGroupWithLink(ctx, code)

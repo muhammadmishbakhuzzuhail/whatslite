@@ -60,6 +60,8 @@ export function GetChatMedia(arg1:string):Promise<Array<app.MessageDTO>>;
 
 export function GetChats():Promise<Array<app.ChatDTO>>;
 
+export function GetCommonGroups(arg1:string):Promise<Array<app.GroupRequestDTO>>;
+
 export function GetCommunities():Promise<Array<app.CommunityDTO>>;
 
 export function GetContactAbout(arg1:string):Promise<string>;

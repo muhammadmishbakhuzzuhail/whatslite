@@ -114,6 +114,10 @@ export function GetChats() {
   return window['go']['app']['App']['GetChats']();
 }
 
+export function GetCommonGroups(arg1) {
+  return window['go']['app']['App']['GetCommonGroups'](arg1);
+}
+
 export function GetCommunities() {
   return window['go']['app']['App']['GetCommunities']();
 }

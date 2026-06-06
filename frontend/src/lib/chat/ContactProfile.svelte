@@ -3,17 +3,20 @@
   // Tampilkan avatar/nama/nomor/about + aksi Pesan & Simpan-nama (label LOKAL,
   // tidak sinkron ke buku-alamat HP/WA).
   import { profileJid, closeProfile, messageContact, saveContactLabel, removeContactLabel, pushToast, lightbox } from "../../stores.js";
-  import { getContactProfile, avatarUrl, senderColorFor, getBusinessProfile } from "../../services/data.js";
+  import { getContactProfile, avatarUrl, senderColorFor, getBusinessProfile, getCommonGroups } from "../../services/data.js";
+  import { activeChatId, railView } from "../../stores.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
 
-  let prof = null, loadedFor = null, biz = null;
+  let prof = null, loadedFor = null, biz = null, common = [];
   $: if ($profileJid && $profileJid !== loadedFor) load($profileJid);
   async function load(jid) {
-    loadedFor = jid; prof = null; biz = null;
+    loadedFor = jid; prof = null; biz = null; common = [];
     prof = await getContactProfile(jid);
     biz = await getBusinessProfile(jid); // {isBiz, address, email, category}
+    common = await getCommonGroups(jid);
   }
+  function openGroup(jid) { activeChatId.set(jid); railView.set("chats"); closeProfile(); }
 
   // prompt() tak jalan di WebKitGTK → modal inline.
   let renameOpen = false, renameVal = "";
@@ -95,6 +98,18 @@
           </button>
         {/if}
       </div>
+      {#if common.length}
+        <div class="info-block">
+          <div class="lbl">{$t("common_groups")} ({common.length})</div>
+          {#each common as g (g.jid)}
+            <button class="info-row" on:click={() => openGroup(g.jid)} style="width:100%">
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M2 20c0-3 3-5 7-5M16 8a3 3 0 0 1 0 6M15 20c0-2 2-4 5-4"/></svg>
+              <span class="grow" style="text-align:left">{g.name || g.jid.split("@")[0]}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
       <div class="local-note">{$t("local_label_note")}</div>
     {:else}
       <div class="prof-loading">…</div>

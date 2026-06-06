@@ -381,5 +381,6 @@
  "sct_document": "Dokumen",
  "sct_link": "Tautan",
  "dnd": "Jangan ganggu",
- "dnd_d": "Bisukan notifikasi pada rentang jam ini."
+ "dnd_d": "Bisukan notifikasi pada rentang jam ini.",
+ "common_groups": "Grup bersama"
 }

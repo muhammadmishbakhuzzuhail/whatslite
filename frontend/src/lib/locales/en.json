@@ -381,5 +381,6 @@
  "sct_document": "Docs",
  "sct_link": "Links",
  "dnd": "Do not disturb",
- "dnd_d": "Silence notifications during these hours."
+ "dnd_d": "Silence notifications during these hours.",
+ "common_groups": "Groups in common"
 }

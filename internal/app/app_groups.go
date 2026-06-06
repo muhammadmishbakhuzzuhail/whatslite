@@ -18,6 +18,18 @@ func inviteCode(link string) string {
 	return strings.TrimSpace(s)
 }
 
+// GetCommonGroups mengembalikan grup bersama dengan kontak (jid).
+func (a *App) GetCommonGroups(jid string) []GroupRequestDTO {
+	out := []GroupRequestDTO{}
+	if a.eng == nil {
+		return out
+	}
+	for _, g := range a.eng.CommonGroups(a.ctx, jid) {
+		out = append(out, GroupRequestDTO{JID: g.JID, Name: g.Name})
+	}
+	return out
+}
+
 // JoinGroupLink bergabung ke grup via tautan undangan; kembalikan JID (atau "").
 func (a *App) JoinGroupLink(link string) string {
 	if a.eng == nil {

@@ -629,9 +629,6 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .rail-badge { position: absolute; top: 3px; right: 5px; background: var(--badge);
   color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px;
   border-radius: 8px; padding: 0 4px; display: grid; align-items: center; justify-items: center; line-height: 1; }
-.meta-ai .ai-ring { width: 24px; height: 24px; border-radius: 50%;
-  background: conic-gradient(from 90deg, #2ad0ff, #8b5cf6, #ff4fa3, #ffb13d, #2ad0ff); }
-
 /* filter chips: angka + tombol plus */
 .chip.plus { font-size: 17px; line-height: 1; padding: 4px 11px; }
 
@@ -1046,9 +1043,6 @@ button.info-row:hover { background: var(--hover); }
 .wave span.on { background:var(--accent); }
 .vrate { background:var(--bg2); border:0; border-radius:10px; padding:2px 7px; font-size:11px; font-weight:600; color:var(--text2); cursor:pointer; margin-left:4px; }
 .vrate:hover { color:var(--accent); }
-.vtranscribe { background:var(--bg2); border:0; border-radius:10px; padding:2px 7px; font-size:11px; font-weight:700; color:var(--text2); cursor:pointer; margin-left:4px; }
-.vtranscribe:hover { color:var(--accent); }
-.vtranscript { flex-basis:100%; margin-top:6px; font-size:13.5px; color:var(--text); background:rgba(127,127,127,.1); border-radius:8px; padding:6px 9px; }
 
 /* Reaksi post channel */
 .ch-post-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; }

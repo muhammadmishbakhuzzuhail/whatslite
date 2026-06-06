@@ -271,7 +271,6 @@
   .status-row:hover { background:var(--hover); }
   .status-av-wrap { position:relative; flex:0 0 auto; }
   .status-av { width:48px; height:48px; border-radius:50%; display:grid; align-items:center;justify-items:center; color:#fff; font-weight:600; font-size:18px; object-fit:cover; }
-  .status-av.sm { width:34px; height:34px; font-size:14px; }
   .ring { display:block; padding:2.5px; border-radius:50%; background:conic-gradient(var(--accent) 0, var(--accent) 100%); }
   .ring.seen { background:var(--line); }
   .status-add { position:absolute; right:-2px; bottom:-2px; width:18px; height:18px; border-radius:50%; background:var(--accent); color:#fff; display:grid; align-items:center;justify-items:center; font-size:14px; border:2px solid var(--bg); }

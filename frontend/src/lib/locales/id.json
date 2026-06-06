@@ -370,5 +370,7 @@
  "bg_run": "Jalan di latar belakang",
  "bg_run_d": "Menutup window tetap menjalankan app (notifikasi, pesan terjadwal, pengingat).",
  "quit_app": "Keluar aplikasi",
- "read_aloud": "Bacakan"
+ "read_aloud": "Bacakan",
+ "mark_all_read": "Tandai semua dibaca",
+ "all_read_done": "Semua chat ditandai dibaca"
 }

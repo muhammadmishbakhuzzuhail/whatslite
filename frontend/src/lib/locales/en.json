@@ -370,5 +370,7 @@
  "bg_run": "Run in background",
  "bg_run_d": "Closing the window keeps the app running (notifications, scheduled messages, reminders).",
  "quit_app": "Quit app",
- "read_aloud": "Read aloud"
+ "read_aloud": "Read aloud",
+ "mark_all_read": "Mark all read",
+ "all_read_done": "All chats marked read"
 }

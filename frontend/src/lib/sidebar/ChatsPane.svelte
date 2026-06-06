@@ -3,10 +3,11 @@
   import Filters from "./Filters.svelte";
   import ChatList from "./ChatList.svelte";
   import { t } from "../i18n.js";
-  import { syncing, newChatOpen, railView } from "../../stores.js";
+  import { syncing, newChatOpen, railView, markAllRead, pushToast } from "../../stores.js";
   let showNotif = true;
   let menuOpen = false;
   function go(v) { railView.set(v); menuOpen = false; }
+  function allRead() { markAllRead(); menuOpen = false; pushToast($t("all_read_done"), "ok"); }
 </script>
 
 <header class="sidebar-head">
@@ -22,6 +23,7 @@
       {#if menuOpen}
         <div class="row-menu hdr-menu">
           <button class="mi" on:click={() => { newChatOpen.set(true); menuOpen = false; }}>{$t("group_new")}</button>
+          <button class="mi" on:click={allRead}>{$t("mark_all_read")}</button>
           <button class="mi" on:click={() => go("starred")}>{$t("starred_msg")}</button>
           <button class="mi" on:click={() => go("scheduled")}>{$t("scheduled_reminders")}</button>
           <button class="mi" on:click={() => go("archived")}>{$t("archived")}</button>

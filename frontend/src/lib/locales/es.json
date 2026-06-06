@@ -370,5 +370,7 @@
  "bg_run": "Ejecutar en segundo plano",
  "bg_run_d": "Cerrar la ventana mantiene la app activa (notificaciones, mensajes programados, recordatorios).",
  "quit_app": "Salir de la app",
- "read_aloud": "Leer en voz alta"
+ "read_aloud": "Leer en voz alta",
+ "mark_all_read": "Marcar todo leído",
+ "all_read_done": "Todos los chats marcados como leídos"
 }

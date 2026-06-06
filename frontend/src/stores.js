@@ -498,6 +498,10 @@ export function markChatUnread(id, on) {
   data.markUnread(id, on);
   chats.update((cs) => cs.map((c) => (c.id === id ? { ...c, unread: on, badge: on ? (c.badge || 1) : 0 } : c)));
 }
+// Tandai semua chat sudah dibaca sekaligus (sync mark-read ke server + lokal).
+export function markAllRead() {
+  for (const c of get(chats)) if (c.unread) markChatUnread(c.id, false);
+}
 export function removeChat(id) {
   data.deleteChat(id);
   chats.update((cs) => cs.filter((c) => c.id !== id));

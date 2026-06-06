@@ -115,56 +115,13 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender_ts ON messages(sender, ts);
 	if _, err := s.db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
-	// Untuk DB lama: tambah kolom bila belum ada (abaikan error "duplicate column").
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN thumb TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN media TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN unread INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN muted INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN last_sender TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE chats ADD COLUMN last_from_me INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN quoted_id TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN quoted_sender TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN quoted_text TEXT NOT NULL DEFAULT ''`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN pinned_in_chat INTEGER NOT NULL DEFAULT 0`)
-	s.db.ExecContext(ctx, `ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0`)
-	// Reaksi per (pesan, pengirim) — satu reaksi terakhir per orang.
-	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS reactions (
-		chat_jid TEXT NOT NULL,
-		msg_id   TEXT NOT NULL,
-		sender   TEXT NOT NULL,
-		emoji    TEXT NOT NULL,
-		ts       INTEGER NOT NULL,
-		PRIMARY KEY (chat_jid, msg_id, sender)
-	)`)
-	// Suara polling per-pemilih (satu baris terakhir per voter) → rekap hasil.
-	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS poll_votes (
-		poll_id TEXT NOT NULL,
-		voter   TEXT NOT NULL,
-		options TEXT NOT NULL,
-		ts      INTEGER NOT NULL,
-		PRIMARY KEY (poll_id, voter)
-	)`)
-	// Label kontak lokal — nama yg disimpan pengguna di app ini (BUKAN sync ke
-	// HP/WA). Otoritatif atas nama tampil: kalau ada di sini, pakai ini.
-	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS contact_labels (
-		jid     TEXT PRIMARY KEY,
-		name    TEXT NOT NULL,
-		created INTEGER NOT NULL DEFAULT 0
-	)`)
-	// Tanda terima per-penerima (grup: per anggota) → daftar baca di "Info pesan".
-	s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS receipts (
-		chat_jid  TEXT NOT NULL,
-		msg_id    TEXT NOT NULL,
-		recipient TEXT NOT NULL,
-		status    TEXT NOT NULL,
-		ts        INTEGER NOT NULL,
-		PRIMARY KEY (chat_jid, msg_id, recipient)
-	)`)
+	// Migrasi BERVERSI (PRAGMA user_version): tiap langkah jalan SEKALI, urut.
+	// Beda dgn pendekatan lama (ALTER tiap boot + telan semua error): di sini
+	// hanya error "duplicate column" (kolom sudah ada di DB lama) yg diabaikan;
+	// error lain MUNCUL. Setelah versi terakhir, boot berikut langsung lewat.
+	if err := s.runMigrations(ctx); err != nil {
+		return err
+	}
 
 	// FTS5 EXTERNAL-CONTENT: index hanya kolom `text`, baris asli tetap di
 	// `messages` (tanpa duplikasi teks). Sinkron OTOMATIS via TRIGGER → tak ada
@@ -198,6 +155,80 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender_ts ON messages(sender, ts);
 		}
 	}
 	return nil
+}
+
+// schemaMigrations = langkah migrasi berurut. Tambah entri baru di AKHIR dgn
+// versi naik; JANGAN ubah/urut ulang yg lama (DB pengguna sudah lewati).
+// ALTER yg kolomnya mungkin sudah ada di DB lama aman — error "duplicate
+// column" diabaikan; error lain dianggap gagal nyata.
+var schemaMigrations = []struct {
+	v     int
+	stmts []string
+}{
+	{1, []string{
+		`ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'`,
+		`ALTER TABLE messages ADD COLUMN thumb TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE messages ADD COLUMN media TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE chats ADD COLUMN unread INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE chats ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE chats ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE chats ADD COLUMN muted INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE chats ADD COLUMN last_sender TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE chats ADD COLUMN last_from_me INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE messages ADD COLUMN quoted_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE messages ADD COLUMN quoted_sender TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE messages ADD COLUMN quoted_text TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'`,
+		`ALTER TABLE messages ADD COLUMN pinned_in_chat INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0`,
+		// Reaksi per (pesan, pengirim) — satu reaksi terakhir per orang.
+		`CREATE TABLE IF NOT EXISTS reactions (
+			chat_jid TEXT NOT NULL, msg_id TEXT NOT NULL, sender TEXT NOT NULL,
+			emoji TEXT NOT NULL, ts INTEGER NOT NULL,
+			PRIMARY KEY (chat_jid, msg_id, sender))`,
+		// Suara polling per-pemilih (satu baris terakhir per voter) → rekap.
+		`CREATE TABLE IF NOT EXISTS poll_votes (
+			poll_id TEXT NOT NULL, voter TEXT NOT NULL, options TEXT NOT NULL,
+			ts INTEGER NOT NULL, PRIMARY KEY (poll_id, voter))`,
+		// Label kontak lokal (BUKAN sync ke HP/WA) — otoritatif atas nama tampil.
+		`CREATE TABLE IF NOT EXISTS contact_labels (
+			jid TEXT PRIMARY KEY, name TEXT NOT NULL, created INTEGER NOT NULL DEFAULT 0)`,
+		// Tanda terima per-penerima (grup: per anggota) → daftar baca "Info pesan".
+		`CREATE TABLE IF NOT EXISTS receipts (
+			chat_jid TEXT NOT NULL, msg_id TEXT NOT NULL, recipient TEXT NOT NULL,
+			status TEXT NOT NULL, ts INTEGER NOT NULL,
+			PRIMARY KEY (chat_jid, msg_id, recipient))`,
+	}},
+}
+
+// runMigrations menjalankan langkah dgn versi > user_version saat ini, urut,
+// lalu naikkan user_version. Idempoten antar-boot (skip yg sudah lewat).
+func (s *Store) runMigrations(ctx context.Context) error {
+	var ver int
+	if err := s.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&ver); err != nil {
+		return fmt.Errorf("read user_version: %w", err)
+	}
+	for _, m := range schemaMigrations {
+		if m.v <= ver {
+			continue
+		}
+		for _, st := range m.stmts {
+			if _, err := s.db.ExecContext(ctx, st); err != nil && !isDupColumn(err) {
+				return fmt.Errorf("migration v%d: %w", m.v, err)
+			}
+		}
+		// user_version tak bisa di-parameter → format int (aman).
+		if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, m.v)); err != nil {
+			return fmt.Errorf("set user_version %d: %w", m.v, err)
+		}
+	}
+	return nil
+}
+
+// isDupColumn = error ALTER pada kolom yg sudah ada (DB lama) → aman diabaikan.
+func isDupColumn(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate column name")
 }
 
 // Close menutup koneksi DB.

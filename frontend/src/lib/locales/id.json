@@ -353,5 +353,9 @@
  "reminders": "Pengingat",
  "no_reminders": "Tak ada pengingat",
  "remind_me": "Ingatkan saya",
- "reminder_set": "Pengingat dibuat"
+ "reminder_set": "Pengingat dibuat",
+ "folders": "Folder",
+ "folder_new": "Folder baru",
+ "no_folders": "Belum ada folder",
+ "note_to_self": "Pesan ke diri sendiri"
 }

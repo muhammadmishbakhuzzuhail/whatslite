@@ -1,12 +1,15 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import { chats, newChatOpen, activeChatId, railView, createGroup, pushToast } from "../../stores.js";
-  import { avatarUrl, joinGroupLink, isOnWhatsApp, addViaQR } from "../../services/data.js";
+  import { avatarUrl, joinGroupLink, isOnWhatsApp, addViaQR, fetchProfile } from "../../services/data.js";
+  import { onMount } from "svelte";
   import { t } from "../i18n.js";
 
   let mode = "list"; // "list" | "group" | "join" (gabung via tautan) | "number" (chat via nomor)
   let q = "", name = "", selected = new Set();
-  let linkVal = "", numVal = "", qrVal = "", busy = false;
+  let linkVal = "", numVal = "", qrVal = "", busy = false, selfJid = "";
+  onMount(async () => { const p = await fetchProfile(); selfJid = p && p.jid ? p.jid : ""; });
+  function noteToSelf() { if (selfJid) { activeChatId.set(selfJid); railView.set("chats"); close(); } }
   async function doQR() {
     if (!qrVal.trim()) return;
     busy = true;
@@ -74,6 +77,12 @@
         <span class="nc-ico"><svg viewBox="0 0 24 24"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span>
         {$t("chat_by_number")}
       </button>
+      {#if selfJid}
+        <button class="nc-action" on:click={noteToSelf}>
+          <span class="nc-ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span>
+          {$t("note_to_self")}
+        </button>
+      {/if}
       <button class="nc-action" on:click={() => (mode = "join")}>
         <span class="nc-ico"><svg viewBox="0 0 24 24"><path d="M9 15l6-6M8 13l-2 2a3 3 0 0 0 4 4l2-2M16 11l2-2a3 3 0 0 0-4-4l-2 2"/></svg></span>
         {$t("join_via_link")}

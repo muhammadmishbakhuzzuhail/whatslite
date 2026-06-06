@@ -1,6 +1,6 @@
 <script>
   import ChatRow from "./ChatRow.svelte";
-  import { chats, search, filter, activeChatId, railView, searchMessages, jumpMsg } from "../../stores.js";
+  import { chats, search, filter, activeChatId, railView, searchMessages, jumpMsg, folders } from "../../stores.js";
   import { onMount } from "svelte";
   import { getArchivedChats, colorFor } from "../../services/data.js";
   import { t } from "../i18n.js";
@@ -15,6 +15,10 @@
     if ($filter === "Belum dibaca") matchF = !!c.unread;
     else if ($filter === "Grup") matchF = !!c.group;
     else if ($filter === "Favorit") matchF = !!c.pinned;
+    else if ($filter && $filter.startsWith("folder:")) {
+      const f = $folders.find((x) => x.name === $filter.slice(7));
+      matchF = !!(f && f.jids.includes(c.id));
+    }
     return matchQ && matchF;
   });
   $: pinned = filtered.filter((c) => c.pinned);

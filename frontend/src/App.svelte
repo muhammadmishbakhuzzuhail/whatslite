@@ -14,6 +14,8 @@
   import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
   import IncomingCall from "./lib/chat/IncomingCall.svelte";
   import ConfirmDialog from "./lib/common/ConfirmDialog.svelte";
+  import PromptDialog from "./lib/common/PromptDialog.svelte";
+  import FolderPicker from "./lib/sidebar/FolderPicker.svelte";
   import Toast from "./lib/Toast.svelte";
   import { effectiveTheme, infoOpen, loggedIn, lockState, inChatSearch, activeChatId, newChatOpen, lightbox, forwardDraft, profileJid, chats, muteChat, markChatUnread } from "./stores.js";
   import { locale, t } from "./lib/i18n.js";
@@ -87,6 +89,8 @@
   <IncomingCall />
 {/if}
 <ConfirmDialog />
+<PromptDialog />
+<FolderPicker />
 {#if shortcutsOpen}
   <button class="modal-backdrop" aria-label={$t("close")} on:click={() => (shortcutsOpen = false)}></button>
   <div class="kbd-modal" role="dialog" aria-modal="true">

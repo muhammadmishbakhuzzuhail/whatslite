@@ -353,5 +353,9 @@
  "reminders": "Reminders",
  "no_reminders": "No reminders",
  "remind_me": "Remind me",
- "reminder_set": "Reminder set"
+ "reminder_set": "Reminder set",
+ "folders": "Folders",
+ "folder_new": "New folder",
+ "no_folders": "No folders yet",
+ "note_to_self": "Message yourself"
 }

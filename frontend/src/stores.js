@@ -96,6 +96,30 @@ export function rejectIncomingCall(c) {
 }
 export function dismissIncomingCall() { incomingCall.set(null); }
 
+// --- Dialog input teks (prompt() native TAK jalan di WebKitGTK) ---
+export const promptDialog = writable(null); // {title, value, onYes}
+export function askPrompt(title, def, onYes) { promptDialog.set({ title, value: def || "", onYes }); }
+export function resolvePrompt(ok, val) {
+  const d = get(promptDialog);
+  promptDialog.set(null);
+  if (ok && d && d.onYes && (val || "").trim()) d.onYes(val.trim());
+}
+
+// --- Folder/filter chat kustom (lokal) ---
+let _foldInit = [];
+try { _foldInit = JSON.parse(localStorage.getItem("wa-folders") || "[]") || []; } catch (e) {}
+export const folders = writable(_foldInit);
+function persistFolders(v) { try { localStorage.setItem("wa-folders", JSON.stringify(v)); } catch (e) {} }
+export function addFolder(name) { folders.update((f) => { if (f.some((x) => x.name === name)) return f; const n = [...f, { name, jids: [] }]; persistFolders(n); return n; }); }
+export function deleteFolder(name) { folders.update((f) => { const n = f.filter((x) => x.name !== name); persistFolders(n); return n; }); }
+export function toggleChatFolder(name, jid) {
+  folders.update((f) => {
+    const n = f.map((x) => x.name === name ? { ...x, jids: x.jids.includes(jid) ? x.jids.filter((j) => j !== jid) : [...x.jids, jid] } : x);
+    persistFolders(n); return n;
+  });
+}
+export const folderPickFor = writable(null); // jid chat yg sedang diatur foldernya
+
 // --- Dialog konfirmasi (confirm()/prompt() native TAK jalan di WebKitGTK) ---
 export const confirmDialog = writable(null); // {text, onYes}
 export function askConfirm(text, onYes) { confirmDialog.set({ text, onYes }); }

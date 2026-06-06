@@ -353,5 +353,9 @@
  "reminders": "Recordatorios",
  "no_reminders": "No hay recordatorios",
  "remind_me": "Recordarme",
- "reminder_set": "Recordatorio creado"
+ "reminder_set": "Recordatorio creado",
+ "folders": "Carpetas",
+ "folder_new": "Nueva carpeta",
+ "no_folders": "Aún no hay carpetas",
+ "note_to_self": "Mensaje a ti mismo"
 }

@@ -1,7 +1,7 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
   import Ticks from "../common/Ticks.svelte";
-  import { activeChatId, railView, pinChat, muteChat, archiveChat, markChatUnread, removeChat, typingChats, drafts } from "../../stores.js";
+  import { activeChatId, railView, pinChat, muteChat, archiveChat, markChatUnread, removeChat, typingChats, drafts, folderPickFor } from "../../stores.js";
   import { avatarUrl } from "../../services/data.js";
   import { t } from "../i18n.js";
 
@@ -66,6 +66,7 @@
       <button class="mi" on:click={act(() => pinChat(chat.id, !chat.pinned))}>{chat.pinned ? $t("unpin") : $t("pin_msg")}</button>
       <button class="mi" on:click={act(() => muteChat(chat.id, !chat.muted))}>{chat.muted ? $t("unmute") : $t("mute")}</button>
       <button class="mi" on:click={act(() => markChatUnread(chat.id, !chat.unread))}>{chat.unread ? $t("mark_read") : $t("mark_unread")}</button>
+      <button class="mi" on:click={act(() => folderPickFor.set(chat.id))}>{$t("folders")}</button>
       <button class="mi" on:click={act(() => archiveChat(chat.id, true))}>{$t("archived")}</button>
       <button class="mi danger" on:click={act(() => removeChat(chat.id))}>{$t("delete")}</button>
     </div>

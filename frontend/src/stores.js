@@ -295,8 +295,12 @@ function nowTime() {
 async function refreshChats() {
   chats.set(await data.getChats());
 }
-// Badge unread di judul window (mode latar / taskbar).
-chats.subscribe((cs) => { try { data.setUnreadBadge((cs || []).reduce((n, c) => n + (c.unread ? 1 : 0), 0)); } catch (e) {} });
+// Badge unread di judul window (mode latar / taskbar) — hanya saat angka berubah.
+let _lastBadge = -1;
+chats.subscribe((cs) => {
+  const n = (cs || []).reduce((a, c) => a + (c.unread ? 1 : 0), 0);
+  if (n !== _lastBadge) { _lastBadge = n; try { data.setUnreadBadge(n); } catch (e) {} }
+});
 // Debounce refresh sidebar (receipt grup = puluhan event → 1 query saja).
 let _chatRefreshTimer = null;
 function scheduleChatRefresh() {
@@ -331,6 +335,14 @@ function mergeMessages(cur, fresh) {
   for (const m of cur) if (m && m.id) byId.set(m.id, m);
   for (const m of fresh) if (m && m.id) byId.set(m.id, m); // fresh menang (status/edit terbaru)
   return [...byId.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+}
+// Debounce reload chat aktif: pesan masuk beruntun (chat ramai) → 1 query, bukan
+// satu per pesan. 150ms cukup utk menggabung burst tanpa terasa lambat.
+let _reloadT = null, _reloadId = null;
+function reloadActive(id) {
+  _reloadId = id;
+  clearTimeout(_reloadT);
+  _reloadT = setTimeout(() => { if (get(activeChatId) === _reloadId) reloadMessages(_reloadId); }, 150);
 }
 async function reloadMessages(id) {
   if (id == null) return;
@@ -575,7 +587,7 @@ if (data.LIVE) {
   data.onEvent("wa:callupdate", () => refreshCalls());
   data.onEvent("wa:message", async (chat) => {
     await refreshChats();
-    if (get(activeChatId) === chat) reloadMessages(chat);
+    if (get(activeChatId) === chat) reloadActive(chat); // debounce → cegah badai 200-baris di chat ramai
     // Notifikasi desktop: hanya bila chat tak aktif / window tak fokus, & tak dibisukan.
     const focused = typeof document !== "undefined" && document.hasFocus();
     if (get(activeChatId) === chat && focused) return;

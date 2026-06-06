@@ -232,6 +232,10 @@ var schemaMigrations = []struct {
 			id TEXT PRIMARY KEY, chat_jid TEXT NOT NULL, chat_name TEXT NOT NULL DEFAULT '',
 			msg_id TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', remind_at INTEGER NOT NULL)`,
 	}},
+	// v7: index (kind, ts) → pencarian global by-jenis tak lagi full-scan 95k.
+	{7, []string{
+		`CREATE INDEX IF NOT EXISTS idx_messages_kind_ts ON messages(kind, ts)`,
+	}},
 }
 
 // runMigrations menjalankan langkah dgn versi > user_version saat ini, urut,

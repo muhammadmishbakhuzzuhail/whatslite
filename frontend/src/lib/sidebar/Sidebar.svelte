@@ -13,7 +13,6 @@
   import CallsPane from "./CallsPane.svelte";
   import StoragePane from "./StoragePane.svelte";
   import ScheduledPane from "./ScheduledPane.svelte";
-  import PlaceholderPane from "./PlaceholderPane.svelte";
 </script>
 
 <section class="sidebar">

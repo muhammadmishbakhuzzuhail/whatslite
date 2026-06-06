@@ -101,16 +101,11 @@
     e.target.value = "";
     if (!f) return;
     busy = true; preview = null;
-    try {
-      // Hapus background (ML in-browser, model di-unduh sekali oleh lib).
-      const { removeBackground } = await import("@imgly/background-removal");
-      const cut = await removeBackground(f);          // PNG transparan
-      preview = await toSticker(cut);                  // → webp 512 transparan
-    } catch (err) {
-      // fallback: tanpa hapus-BG (kotak) bila ML gagal.
-      try { preview = await toSticker(f); pushToast($t("sticker_bg_failed")); }
-      catch (e2) { pushToast($t("err_generic")); }
-    }
+    // Gambar → stiker webp 512² (crop persegi). Hapus-BG ML dibuang demi LEAN
+    // (dulu menyeret ONNX WASM ~24MB); kirim PNG transparan langsung sudah jadi
+    // stiker transparan tanpa ML.
+    try { preview = await toSticker(f); }
+    catch (e2) { pushToast($t("err_generic")); }
     busy = false;
   }
 

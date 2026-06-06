@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func (a *App) tenorFetch(query, pos, extra string) (*tenorResp, bool) {
 
 // SearchGifs mengembalikan satu halaman GIF (trending / hasil cari) + kursor next.
 func (a *App) SearchGifs(query, pos string) GifPage {
-	if k := klipyKey(); k != "" { // KLIPY (Tenor v1 sunset Jun 2026) bila key di-set
+	if k := a.klipyKey(); k != "" { // KLIPY (Tenor v1 sunset Jun 2026) bila key di-set
 		return a.klipySearch(k, "gifs", query, pos)
 	}
 	page := GifPage{Items: []GifDTO{}}
@@ -115,7 +116,7 @@ func (a *App) SearchGifs(query, pos string) GifPage {
 // + kursor next. Preview = format kecil transparan; Mp4 (URL unduh) = webp/gif
 // transparan penuh utk dikirim sbg stiker.
 func (a *App) SearchStickers(query, pos string) GifPage {
-	if k := klipyKey(); k != "" {
+	if k := a.klipyKey(); k != "" {
 		return a.klipySearch(k, "stickers", query, pos)
 	}
 	page := GifPage{Items: []GifDTO{}}
@@ -176,9 +177,19 @@ func itoa(n int) string {
 // ============================ KLIPY ============================
 // Tenor v1 dijadwalkan SHUTDOWN ~Jun 2026; Giphy berbayar. KLIPY = alternatif
 // gratis (key gratis, library besar, Tenor-compatible) yg dipakai WhatsApp.
-// Aktif bila env KLIPY_API_KEY di-set; kalau tidak → fallback Tenor (di atas).
-// Set: export KLIPY_API_KEY=xxxx  (daftar gratis di klipy.com/developers)
-func klipyKey() string { return os.Getenv("KLIPY_API_KEY") }
+// Key dibaca dari env KLIPY_API_KEY ATAU file <dataDir>/klipy.key (TIDAK
+// di-commit ke repo). Kosong → fallback Tenor (di atas).
+func (a *App) klipyKey() string {
+	if k := strings.TrimSpace(os.Getenv("KLIPY_API_KEY")); k != "" {
+		return k
+	}
+	if a.mediaDir != "" {
+		if b, err := os.ReadFile(filepath.Join(filepath.Dir(a.mediaDir), "klipy.key")); err == nil {
+			return strings.TrimSpace(string(b))
+		}
+	}
+	return ""
+}
 
 // klipySearch: GET api.klipy.com/api/v1/{key}/{kind}/{search|trending}. kind =
 // "gifs" | "stickers". pos = nomor halaman (string). Respons defensif: kumpulkan
@@ -226,24 +237,28 @@ func (a *App) klipySearch(key, kind, query, pos string) GifPage {
 		page.Next = itoa(p + 1)
 	}
 	for i, it := range body.Data.Data {
-		var urls []string
-		collectURLs(it["files"], &urls)
-		if len(urls) == 0 {
-			collectURLs(it, &urls) // fallback: cari URL di mana pun
+		// Bentuk: file.{hd|md|sm|xs}.{gif|webp|jpg|mp4|webm|png}.url
+		f, _ := it["file"].(map[string]any)
+		pick := func(fmt string, tiers ...string) string {
+			for _, t := range tiers {
+				tm, _ := f[t].(map[string]any)
+				fm, _ := tm[fmt].(map[string]any)
+				if u, ok := fm["url"].(string); ok && u != "" {
+					return u
+				}
+			}
+			return ""
 		}
 		var preview, full string
-		if kind == "stickers" {
-			full = firstURLWith(urls, ".webp", ".gif", ".png")
-			preview = firstURLWith(urls, ".gif", ".webp", ".png")
+		if kind == "stickers" { // transparan
+			preview = first(pick("webp", "sm", "md", "xs"), pick("gif", "sm", "md", "xs"))
+			full = first(pick("webp", "hd", "md", "sm"), pick("png", "hd", "md"), pick("gif", "hd", "md"))
 		} else {
-			full = firstURLWith(urls, ".mp4")
-			preview = firstURLWith(urls, ".gif", ".webp")
-			if full == "" {
-				full = preview
-			}
+			preview = first(pick("gif", "sm", "md", "xs"), pick("webp", "sm", "md")) // thumbnail kecil
+			full = first(pick("mp4", "hd", "md", "sm"), pick("gif", "hd", "md"))     // dikirim
 		}
-		if preview == "" {
-			preview = full
+		if full == "" {
+			full = preview
 		}
 		if preview == "" || full == "" {
 			continue
@@ -255,34 +270,4 @@ func (a *App) klipySearch(key, kind, query, pos string) GifPage {
 		page.Items = append(page.Items, GifDTO{ID: id, Preview: preview, Mp4: full})
 	}
 	return page
-}
-
-// collectURLs mengumpulkan semua string URL (http…) dari struktur JSON apa pun.
-func collectURLs(v any, out *[]string) {
-	switch t := v.(type) {
-	case string:
-		if strings.HasPrefix(t, "http") {
-			*out = append(*out, t)
-		}
-	case map[string]any:
-		for _, vv := range t {
-			collectURLs(vv, out)
-		}
-	case []any:
-		for _, vv := range t {
-			collectURLs(vv, out)
-		}
-	}
-}
-
-// firstURLWith → URL pertama yg mengandung salah satu sufiks (urut prioritas).
-func firstURLWith(urls []string, exts ...string) string {
-	for _, e := range exts {
-		for _, u := range urls {
-			if strings.Contains(u, e) {
-				return u
-			}
-		}
-	}
-	return ""
 }

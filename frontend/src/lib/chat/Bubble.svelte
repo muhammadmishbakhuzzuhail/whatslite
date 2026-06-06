@@ -180,10 +180,14 @@
     }
     menuOpen = !menuOpen;
   }
-  let emojiMore = false;
   const QUICK = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
-  const MORE = "😀 😅 😊 😍 🥰 😘 🤔 😎 🥳 😇 🙂 😉 😋 😜 🤩 🥺 😢 😭 😡 😱 😴 🤯 🤗 🙏 👍 👎 👏 🙌 💪 🔥 ✨ 🎉 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 💯 ✅ ❌ ⭐ 👀 🤝 🎁 🍕 ☕".split(" ");
-  function react(e) { reactMessage(chatId, idx, e); emojiMore = false; menuOpen = false; }
+  function react(e) { reactMessage(chatId, idx, e); menuOpen = false; }
+  // Buka emoji-picker PENUH, di-anchor ke tombol (kanan) — bukan grid kecil.
+  function openReact(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    reactionTarget.set({ chatId, idx, x: r.right, y: r.top });
+    menuOpen = false;
+  }
   function reply() {
     const name = msg.sender || (msg.dir === "out" ? $t("you") : peerName);
     replyDraft.set({ name, text: source || "📎", id: msg.id, senderId: msg.senderId });
@@ -257,7 +261,7 @@
     {#if msg.type !== "deleted" && !$selectMode}
       <div class="msg-actions">
         <button title="👍" on:click={() => react('👍')}>👍</button>
-        <button title={$t("reaction_remove")} on:click={() => reactionTarget.set({ chatId, idx })}>
+        <button title={$t("reaction_remove")} on:click={openReact}>
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.2"/><circle cx="15" cy="10" r="1.2"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/></svg>
         </button>
         <button title={$t("reply")} on:click={reply}>
@@ -392,11 +396,8 @@
       <div class="msg-menu {menuUp ? 'up' : ''}">
         <div class="react-row">
           {#each QUICK as e}<button class="rx" on:click={() => react(e)}>{e}</button>{/each}
-          <button class="rx rx-more" on:click|stopPropagation={() => (emojiMore = !emojiMore)} aria-label={$t("emoji")}>+</button>
+          <button class="rx rx-more" on:click|stopPropagation={openReact} aria-label={$t("emoji")}>+</button>
         </div>
-        {#if emojiMore}
-          <div class="rx-grid">{#each MORE as e}<button class="rx" on:click={() => react(e)}>{e}</button>{/each}</div>
-        {/if}
         <button class="mi" on:click={reply}>{$t("reply")}</button>
         {#if isGroupIn && msg.senderId}<button class="mi" on:click={replyPrivate}>{$t("reply_private")}</button>{/if}
         {#if source}<button class="mi" on:click={copyText}>{$t("copy")}</button>{/if}

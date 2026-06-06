@@ -310,14 +310,15 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .ticks { width: 16px; height: 12px; stroke: var(--text2); stroke-width: 1.7; }
 .ticks.read { stroke: var(--tick); }
 
-.quote { border-left: 4px solid var(--quote-bar); background: var(--quote-bg);
-  border-radius: 4px; padding: 5px 9px; margin-bottom: 5px; overflow: hidden;
-  max-width: 340px; }
+/* Reply preview MENGISI lebar bubble (ala WhatsApp) → tak ada gap putih di
+   kanan saat teks di bawahnya lebih lebar dari kutipan. */
+.quote { display: block; border-left: 4px solid var(--quote-bar); background: var(--quote-bg);
+  border-radius: 4px; padding: 5px 9px; margin-bottom: 5px; overflow: hidden; }
 .quote-name { font-size: 13px; font-weight: 600; color: var(--quote-bar);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Pratinjau kutipan SELALU 1 baris (apa pun panjang/multi-baris aslinya). */
 .quote-text { font-size: 13px; color: var(--text2); white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+  overflow: hidden; text-overflow: ellipsis; }
 
 /* Media + kutipan/nama/caption → beri padding agar tak menempel tepi & ada
    jarak ke gambar. (Bubble media transparan padding:0 by default.) */

@@ -379,5 +379,7 @@
  "sct_image": "Photos",
  "sct_video": "Videos",
  "sct_document": "Docs",
- "sct_link": "Links"
+ "sct_link": "Links",
+ "dnd": "Do not disturb",
+ "dnd_d": "Silence notifications during these hours."
 }

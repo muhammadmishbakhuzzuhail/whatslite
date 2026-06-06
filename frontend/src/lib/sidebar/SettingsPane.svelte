@@ -1,7 +1,7 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted, accent } from "../../stores.js";
   import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp } from "../../services/data.js";
-  import { uiScale, quickReactions, setQuickReaction, askPrompt } from "../../stores.js";
+  import { uiScale, quickReactions, setQuickReaction, askPrompt, dnd } from "../../stores.js";
   function editQR(i) { askPrompt($t("quick_react_edit"), $quickReactions[i], (v) => setQuickReaction(i, [...v][0] || $quickReactions[i])); }
   import { TRANSLATE_LANGS } from "../langs.js";
   import LangPicker from "../common/LangPicker.svelte";
@@ -180,6 +180,23 @@
         <div class="grow"><div class="si-name">{$t("lock_now")}</div></div>
       </div>
     {/if}
+
+    <!-- DND / jam tenang -->
+    <div class="settings-item" style="align-items:flex-start">
+      <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <div class="grow">
+        <div class="si-name">{$t("dnd")}</div>
+        <div class="si-desc">{$t("dnd_d")}</div>
+        {#if $dnd.on}
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--text2);font-size:13px">
+            <input type="time" bind:value={$dnd.from} style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:4px 8px;color:var(--text)" />
+            –
+            <input type="time" bind:value={$dnd.to} style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:4px 8px;color:var(--text)" />
+          </div>
+        {/if}
+      </div>
+      <span class="switch {$dnd.on ? '' : 'off'}" role="button" tabindex="0" on:click={() => ($dnd.on = !$dnd.on)} on:keydown={(e) => e.key === "Enter" && ($dnd.on = !$dnd.on)}></span>
+    </div>
 
     <!-- Reaksi cepat kustom -->
     <div class="settings-item" style="align-items:flex-start">

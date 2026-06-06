@@ -23,6 +23,19 @@ export const accent = writable(_accentInit);
 let _scaleInit = 100;
 try { _scaleInit = +(localStorage.getItem("wa-scale") || 100) || 100; } catch (e) {}
 export const uiScale = writable(_scaleInit);
+// DND / jam tenang: bisukan notif+suara dalam rentang jam (mis. 22:00–07:00).
+let _dndInit = { on: false, from: "22:00", to: "07:00" };
+try { _dndInit = { ..._dndInit, ...(JSON.parse(localStorage.getItem("wa-dnd") || "{}") || {}) }; } catch (e) {}
+export const dnd = writable(_dndInit);
+dnd.subscribe((v) => { try { localStorage.setItem("wa-dnd", JSON.stringify(v)); } catch (e) {} });
+export function inQuietHours() {
+  const d = get(dnd);
+  if (!d || !d.on) return false;
+  const now = new Date(); const cur = now.getHours() * 60 + now.getMinutes();
+  const p = (s) => { const [h, m] = (s || "0:0").split(":").map(Number); return h * 60 + m; };
+  const a = p(d.from), b = p(d.to);
+  return a <= b ? (cur >= a && cur < b) : (cur >= a || cur < b); // lewat tengah malam
+}
 // Reaksi-cepat kustom (6 emoji di atas pesan saat hover).
 let _qrInit = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
 try { const s = JSON.parse(localStorage.getItem("wa-quickreactions") || "null"); if (Array.isArray(s) && s.length === 6) _qrInit = s; } catch (e) {}
@@ -558,7 +571,7 @@ if (data.LIVE) {
   data.onEvent("wa:qr", (img) => { qrImage.set(img); loggedIn.set(false); });
   data.onEvent("wa:ready", () => { loggedIn.set(true); init(); refreshCalls(); });
   data.onEvent("wa:call", (c) => { if (c) { incomingCall.set(c); refreshCalls(); playNotifSound(); } });
-  data.onEvent("wa:reminder", (r) => { if (r) { pushToast("🔔 " + (r.chatName || "") + (r.note ? ": " + r.note : ""), "ok"); playNotifSound(); } });
+  data.onEvent("wa:reminder", (r) => { if (r) { pushToast("🔔 " + (r.chatName || "") + (r.note ? ": " + r.note : ""), "ok"); if (!inQuietHours()) playNotifSound(); } });
   data.onEvent("wa:callupdate", () => refreshCalls());
   data.onEvent("wa:message", async (chat) => {
     await refreshChats();
@@ -567,7 +580,7 @@ if (data.LIVE) {
     const focused = typeof document !== "undefined" && document.hasFocus();
     if (get(activeChatId) === chat && focused) return;
     const c = get(chats).find((x) => x.id === chat);
-    if (c && !c.muted) { data.notify(c.name, c.preview || tr("new_message")); playNotifSound(); }
+    if (c && !c.muted && !inQuietHours()) { data.notify(c.name, c.preview || tr("new_message")); playNotifSound(); }
   });
   data.onEvent("wa:sync", () => {
     syncing.set(false);

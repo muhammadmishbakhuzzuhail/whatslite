@@ -379,5 +379,7 @@
  "sct_image": "Foto",
  "sct_video": "Video",
  "sct_document": "Dokumen",
- "sct_link": "Tautan"
+ "sct_link": "Tautan",
+ "dnd": "Jangan ganggu",
+ "dnd_d": "Bisukan notifikasi pada rentang jam ini."
 }

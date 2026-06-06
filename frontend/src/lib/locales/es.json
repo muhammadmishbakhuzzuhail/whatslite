@@ -379,5 +379,7 @@
  "sct_image": "Fotos",
  "sct_video": "Videos",
  "sct_document": "Docs",
- "sct_link": "Enlaces"
+ "sct_link": "Enlaces",
+ "dnd": "No molestar",
+ "dnd_d": "Silencia notificaciones en este horario."
 }

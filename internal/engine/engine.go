@@ -133,7 +133,9 @@ func (e *Engine) SetProxy(addr string) error {
 // Connect (alur QR sudah memanggilnya) & belum ter-pair. Kode diketik di HP:
 // Tautkan perangkat → Tautkan dengan nomor telepon. Sukses → event login biasa.
 func (e *Engine) PairPhone(ctx context.Context, phone string) (string, error) {
-	return e.Client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "WhatsApp Lite")
+	// Display name WAJIB format "Browser (OS)" — server tolak 400 kalau bukan
+	// browser/OS umum (mis. "WhatsApp Lite" gagal). Pakai "Chrome (Linux)".
+	return e.Client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
 }
 
 // Logout memutus tautan perangkat (unpair). Setelah ini NeedsLogin() == true,

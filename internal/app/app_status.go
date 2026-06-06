@@ -177,7 +177,7 @@ func (a *App) ReplyStatus(posterJid, statusID, statusText, text string) {
 		return
 	}
 	to := a.canon(posterJid)
-	id, err := a.eng.Reply(a.ctx, to, text, statusID, a.canon(posterJid), statusText)
+	id, err := a.eng.ReplyToStatus(a.ctx, to, text, statusID, a.canon(posterJid), statusText)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return

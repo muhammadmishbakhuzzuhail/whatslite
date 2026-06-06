@@ -44,6 +44,21 @@ func (e *Engine) Reply(ctx context.Context, to, text, quotedID, quotedSender, qu
 	return e.sendMessage(ctx, to, msg)
 }
 
+// ReplyToStatus membalas status: kirim ke chat 1:1 pemilik, mengutip status
+// dgn RemoteJID=status@broadcast agar ter-link benar (bukan sekadar kutipan teks).
+func (e *Engine) ReplyToStatus(ctx context.Context, to, text, statusID, poster, statusText string) (string, error) {
+	ci := &waE2E.ContextInfo{
+		StanzaID:      proto.String(statusID),
+		Participant:   proto.String(poster),
+		RemoteJID:     proto.String("status@broadcast"),
+		QuotedMessage: &waE2E.Message{Conversation: proto.String(statusText)},
+	}
+	msg := &waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+		Text: proto.String(text), ContextInfo: ci,
+	}}
+	return e.sendMessage(ctx, to, msg)
+}
+
 // ForwardText meneruskan pesan teks (tandai "diteruskan").
 func (e *Engine) ForwardText(ctx context.Context, to, text string) (string, error) {
 	msg := &waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{

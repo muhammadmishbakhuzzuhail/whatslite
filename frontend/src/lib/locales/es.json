@@ -269,5 +269,6 @@
  "lock_set": "Crea un PIN (4 dígitos)",
  "lock_confirm_pin": "Repite el PIN",
  "lock_wrong": "PIN incorrecto",
- "active": "Activado"
+ "active": "Activado",
+ "clear": "Borrar historial"
 }

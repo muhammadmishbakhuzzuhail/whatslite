@@ -269,5 +269,6 @@
  "lock_set": "Create a new PIN (4 digits)",
  "lock_confirm_pin": "Re-enter PIN",
  "lock_wrong": "Wrong PIN",
- "active": "On"
+ "active": "On",
+ "clear": "Clear history"
 }

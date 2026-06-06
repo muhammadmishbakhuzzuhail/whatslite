@@ -269,5 +269,6 @@
  "lock_set": "Buat PIN baru (4 digit)",
  "lock_confirm_pin": "Ulangi PIN",
  "lock_wrong": "PIN salah",
- "active": "Aktif"
+ "active": "Aktif",
+ "clear": "Hapus riwayat"
 }

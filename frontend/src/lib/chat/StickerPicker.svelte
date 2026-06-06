@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { pushToast } from "../../stores.js";
   import { searchStickers, fetchRemoteMedia } from "../../services/data.js";
+  import { getHistory, addHistory, removeHistory, clearHistory, suggest } from "../searchHistory.js";
   import { t } from "../i18n.js";
 
   const dispatch = createEventDispatcher();
@@ -14,8 +15,12 @@
   function saveRecents() { try { localStorage.setItem(REC_KEY, JSON.stringify(recents.slice(0, 24))); } catch (e) {} }
   function savePack() { try { localStorage.setItem(PACK_KEY, JSON.stringify(pack.slice(0, 100))); } catch (e) {} }
 
-  // --- Stiker online (Tenor, transparan) — paginated infinite scroll ---
+  // --- Stiker online (transparan) — paginated infinite scroll + history/autocomplete ---
   let online = [], onlineQ = "", onlineLoading = false, onlineMore = false, onlineNext = "", onlineBusy = null, _ot, _oq = null, onlineGrid;
+  let sHist = getHistory("sticker");
+  let sAcOpen = true;
+  $: sSugg = sAcOpen ? suggest(onlineQ, sHist) : [];
+  function sCommit(term) { onlineQ = term; sAcOpen = false; sHist = addHistory("sticker", term); }
   async function fetchOnline(query) {
     onlineLoading = true; onlineNext = ""; _oq = query;
     const p = await searchStickers(query, "");
@@ -129,7 +134,24 @@
   </div>
 
   {#if tab === "online"}
-    <input class="stk-search" placeholder="{$t('search')} stiker" bind:value={onlineQ} />
+    <div class="pk-searchbox">
+      <input class="stk-search" placeholder="{$t('search')} stiker" bind:value={onlineQ}
+        on:input={() => (sAcOpen = true)}
+        on:keydown={(e) => e.key === "Enter" && onlineQ.trim() && sCommit(onlineQ.trim())} />
+      {#if onlineQ.trim() && sSugg.length}
+        <div class="ac-pop">
+          {#each sSugg as s}<button class="ac-item" on:click={() => sCommit(s)}>{s}</button>{/each}
+        </div>
+      {/if}
+    </div>
+    {#if !onlineQ.trim() && sHist.length}
+      <div class="hist-row">
+        {#each sHist as h}
+          <button class="hist-chip" on:click={() => sCommit(h)}>{h}<span class="hx" role="button" tabindex="0" on:click|stopPropagation={() => (sHist = removeHistory("sticker", h))} on:keydown={(e) => e.key === "Enter" && (sHist = removeHistory("sticker", h))}>×</span></button>
+        {/each}
+        <button class="hist-clear" on:click={() => (sHist = clearHistory("sticker"))}>{$t("clear")}</button>
+      </div>
+    {/if}
     <div class="stk-grid" bind:this={onlineGrid} on:scroll={onOnlineScroll}>
       {#if onlineLoading}
         <div class="stk-empty">…</div>
@@ -181,13 +203,13 @@
 </div>
 
 <style>
-  .stk-panel { position:absolute; bottom:68px; left:8px; right:8px; max-width:380px; z-index:40; background:var(--bg); border:1px solid var(--line); border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.18); padding:10px; }
+  .stk-panel { position:absolute; bottom:68px; left:8px; right:8px; max-width:520px; z-index:40; background:var(--bg); border:1px solid var(--line); border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.18); padding:10px; }
   .stk-tabs { display:flex; gap:6px; margin-bottom:10px; }
   .stk-tabs button { flex:1; padding:8px; border:0; background:var(--bg2); border-radius:9px; cursor:pointer; color:var(--text2); font-size:13px; font-weight:600; }
   .stk-tabs button.active { background:var(--accent); color:#fff; }
   .stk-search { width:100%; border:0; border-radius:9px; padding:8px 12px; background:var(--bg2); color:var(--text); font:inherit; outline:none; margin-bottom:8px; }
   .stk-credit { text-align:center; font-size:10px; color:var(--text2); margin-top:6px; letter-spacing:.5px; }
-  .stk-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; max-height:280px; overflow-y:auto; overflow-x:hidden; }
+  .stk-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; max-height:320px; overflow-y:auto; overflow-x:hidden; }
   .stk-cell { padding:6px; border:0; background:var(--bg2); border-radius:10px; cursor:pointer; aspect-ratio:1; }
   .stk-cell img { width:100%; height:100%; object-fit:contain; }
   .stk-empty, .stk-busy { grid-column:1/-1; text-align:center; color:var(--text2); padding:28px 12px; }

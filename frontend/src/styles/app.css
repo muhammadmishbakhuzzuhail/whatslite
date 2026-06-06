@@ -1058,3 +1058,21 @@ button.info-row:hover { background: var(--hover); }
   .rail { width: 54px; }
   .sidebar { width: 46%; min-width: 240px; }
 }
+
+/* ===== Picker GIF/Stiker: autocomplete + riwayat (dipakai 2 picker) ===== */
+.pk-searchbox { position: relative; }
+.ac-pop { position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 5;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow-md); overflow: hidden; max-height: 220px; overflow-y: auto; }
+.ac-item { display: block; width: 100%; text-align: left; border: 0; background: none;
+  color: var(--text); font: inherit; font-size: 13px; padding: 8px 12px; cursor: pointer; }
+.ac-item:hover { background: var(--hover); }
+.hist-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 6px 0 2px; }
+.hist-chip { display: inline-flex; align-items: center; gap: 5px; border: 0; cursor: pointer;
+  background: var(--bg2); color: var(--text2); border-radius: 12px; padding: 4px 9px;
+  font: inherit; font-size: 12px; }
+.hist-chip:hover { color: var(--text); }
+.hist-chip .hx { font-size: 13px; line-height: 1; opacity: .6; }
+.hist-chip .hx:hover { opacity: 1; color: #e0463e; }
+.hist-clear { margin-left: auto; border: 0; background: none; color: var(--accent);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; }

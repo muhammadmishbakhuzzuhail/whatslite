@@ -73,7 +73,6 @@ func (e *Engine) newsletterPicRaw(j types.JID) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 }
 
-
 // DownloadMediaRaw mengunduh media penuh dari proto pesan (base64) → (bytes, mime).
 // Dipakai untuk meng-cache ke FILE (ringan) lalu disajikan via asset-server.
 func (e *Engine) DownloadMediaRaw(protoB64 string) ([]byte, string, error) {

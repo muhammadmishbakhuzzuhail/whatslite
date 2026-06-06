@@ -21,9 +21,9 @@ import (
 
 // Chat adalah ringkasan satu percakapan untuk daftar sidebar.
 type Chat struct {
-	JID      string
-	Name     string
-	LastText string
+	JID        string
+	Name       string
+	LastText   string
 	LastTS     time.Time
 	Unread     int
 	Pinned     bool
@@ -51,9 +51,9 @@ type Message struct {
 	QuotedSender string
 	QuotedText   string
 
-	Status   string // sent | delivered | read (pesan sendiri)
-	Pinned   bool   // disematkan di chat
-	Edited   bool   // pernah disunting
+	Status string // sent | delivered | read (pesan sendiri)
+	Pinned bool   // disematkan di chat
+	Edited bool   // pernah disunting
 }
 
 // Store membungkus koneksi SQLite ke app.db.

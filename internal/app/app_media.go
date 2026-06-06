@@ -15,7 +15,6 @@ import (
 	"time"
 )
 
-
 // DownloadMedia mengunduh media penuh satu pesan → data-URI (atau "").
 func (a *App) DownloadMedia(chatJID, msgID string) string {
 	if a.eng == nil || a.store == nil {

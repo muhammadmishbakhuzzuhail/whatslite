@@ -82,8 +82,8 @@ type ChatDTO struct {
 	Time    string `json:"time"`
 	Ts      int64  `json:"ts"`
 	Group   bool   `json:"group"`
-	Sent    bool   `json:"sent"`       // pesan terakhir dari kita → tampilkan centang
-	Status  string `json:"status"`     // status pesan keluar terakhir (sent/delivered/read)
+	Sent    bool   `json:"sent"`   // pesan terakhir dari kita → tampilkan centang
+	Status  string `json:"status"` // status pesan keluar terakhir (sent/delivered/read)
 	Unread  bool   `json:"unread"`
 	Badge   int    `json:"badge"`
 	Pinned  bool   `json:"pinned"`
@@ -215,25 +215,25 @@ func (a *App) ExportChat(jid string) string {
 }
 
 type MessageDTO struct {
-	ID       string `json:"id"`
-	Dir      string `json:"dir"`
-	Type     string `json:"type"`
-	Text     string `json:"text"`
-	Thumb    string `json:"thumb"`
-	Time     string `json:"time"`
-	Sender      string `json:"sender"`      // nama tampil pengirim (grup)
-	SenderID    string `json:"senderId"`    // jid pengirim (utk foto/profil)
-	SenderPhone string `json:"senderPhone"` // "+62…" (grup, tak-tersimpan)
-	SenderSaved bool   `json:"senderSaved"` // pengirim ada di label/buku-alamat
-	Status      string `json:"status"`
-	Pinned    bool         `json:"pinned"` // disematkan di chat
-	Edited    bool         `json:"edited"` // pernah disunting
-	Ts        int64        `json:"ts"` // unix detik (kursor pagination)
-	QuoteID   string       `json:"quoteId"`   // balasan: id pesan dikutip (utk lompat)
-	QuoteName string       `json:"quoteName"` // balasan: nama pengirim yg dikutip
-	QuoteText string       `json:"quoteText"` // balasan: preview teks dikutip
-	Mentions  []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
-	Reactions []ReactionDTO `json:"reactions"` // reaksi emoji teragregasi
+	ID          string        `json:"id"`
+	Dir         string        `json:"dir"`
+	Type        string        `json:"type"`
+	Text        string        `json:"text"`
+	Thumb       string        `json:"thumb"`
+	Time        string        `json:"time"`
+	Sender      string        `json:"sender"`      // nama tampil pengirim (grup)
+	SenderID    string        `json:"senderId"`    // jid pengirim (utk foto/profil)
+	SenderPhone string        `json:"senderPhone"` // "+62…" (grup, tak-tersimpan)
+	SenderSaved bool          `json:"senderSaved"` // pengirim ada di label/buku-alamat
+	Status      string        `json:"status"`
+	Pinned      bool          `json:"pinned"`    // disematkan di chat
+	Edited      bool          `json:"edited"`    // pernah disunting
+	Ts          int64         `json:"ts"`        // unix detik (kursor pagination)
+	QuoteID     string        `json:"quoteId"`   // balasan: id pesan dikutip (utk lompat)
+	QuoteName   string        `json:"quoteName"` // balasan: nama pengirim yg dikutip
+	QuoteText   string        `json:"quoteText"` // balasan: preview teks dikutip
+	Mentions    []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
+	Reactions   []ReactionDTO `json:"reactions"` // reaksi emoji teragregasi
 }
 
 // ReactionDTO = satu emoji teragregasi pada pesan.
@@ -396,7 +396,7 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: m.Thumb,
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender,
 			SenderPhone: senderPhone, SenderSaved: senderSaved, Status: status,
-			Pinned:    m.Pinned, Edited: m.Edited,
+			Pinned: m.Pinned, Edited: m.Edited,
 			QuoteID: m.QuotedID, QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
 			Mentions: a.buildMentions(m.Text),
 		})

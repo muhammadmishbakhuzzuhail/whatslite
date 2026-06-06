@@ -162,4 +162,3 @@ func (e *Engine) OnContactsSynced(fn func()) {
 		}
 	})
 }
-

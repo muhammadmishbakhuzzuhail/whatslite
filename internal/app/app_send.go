@@ -321,17 +321,17 @@ func (a *App) SendSticker(jid, dataURI string) string {
 		return ""
 	}
 	jid = a.canon(jid)
-	mime, data, err := decodeDataURI(dataURI)
+	_, data, err := decodeDataURI(dataURI)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
 		return ""
 	}
-	// WhatsApp stiker WAJIB WebP. Sumber bisa PNG (Stickerly)/gif → konversi ke
-	// webp 512² transparan (best-effort ffmpeg; gagal → kirim apa adanya).
-	if !strings.Contains(mime, "webp") {
-		if wp, ok := transcodeToWebpSticker(a.ctx, data); ok {
-			data = wp
-		}
+	// WhatsApp stiker WAJIB WebP. SELALU lewat ffmpeg (bukan hanya non-webp):
+	// webp animasi dari sumber (KLIPY) kadang ber-loop-count 1 → stiker berhenti.
+	// Re-mux dgn -loop 0 menyetel ulang jadi berputar terus. Best-effort: gagal/
+	// ffmpeg absen → pakai data asli (mime webp masih valid).
+	if wp, ok := transcodeToWebpSticker(a.ctx, data); ok {
+		data = wp
 	}
 	id, err := a.eng.SendSticker(a.ctx, jid, data)
 	if err != nil {

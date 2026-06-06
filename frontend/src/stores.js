@@ -183,10 +183,21 @@ function touchChat(id) {
   });
 }
 
+// Gabung jendela "terbaru" (fresh, 200 terakhir, otoritatif utk status/edit)
+// dgn array saat ini — JANGAN buang pesan lama hasil loadOlder (yg sedang
+// dibaca saat scroll-up). Tanpa ini, pesan masuk meng-overwrite → array
+// menciut + posisi loncat ke bawah (auto-scroll padahal user scroll-up).
+function mergeMessages(cur, fresh) {
+  if (!cur || !cur.length) return fresh;
+  const byId = new Map();
+  for (const m of cur) if (m && m.id) byId.set(m.id, m);
+  for (const m of fresh) if (m && m.id) byId.set(m.id, m); // fresh menang (status/edit terbaru)
+  return [...byId.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+}
 async function reloadMessages(id) {
   if (id == null) return;
   const ms = await data.getMessages(id);
-  allMessages.update((x) => ({ ...x, [id]: ms }));
+  allMessages.update((x) => ({ ...x, [id]: mergeMessages(x[id], ms) }));
   touchChat(id);
   // Sedang dibuka → tandai dibaca (read-receipt + bersihkan badge).
   if (get(activeChatId) === id) markChatRead(id);

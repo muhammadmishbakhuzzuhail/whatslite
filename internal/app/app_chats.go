@@ -421,8 +421,15 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 				status = "sent"
 			}
 		}
+		// Stiker/GIF menyimpan media PENUH di kolom thumb (base64 bisa >1MB!) →
+		// JANGAN kirim ke FE (boros heap/IPC); dirender via /media saja. Image/
+		// video thumb kecil (~2-4KB, preview instan) tetap dikirim.
+		thumb := m.Thumb
+		if kind == "sticker" || kind == "gif" {
+			thumb = ""
+		}
 		out = append(out, MessageDTO{
-			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: m.Thumb,
+			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: thumb,
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender,
 			SenderPhone: senderPhone, SenderSaved: senderSaved, Status: status,
 			Pinned: m.Pinned, Edited: m.Edited, Revoked: m.Revoked,

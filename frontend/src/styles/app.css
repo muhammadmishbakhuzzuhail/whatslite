@@ -1129,3 +1129,5 @@ button.info-row:hover { background: var(--hover); }
 .hist-chip .hx:hover { opacity: 1; color: #e0463e; }
 .hist-clear { margin-left: auto; border: 0; background: none; color: var(--accent);
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; }
+.acc-sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; color: var(--text2); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.acc-sw.on { border-color: var(--text); }

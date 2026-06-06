@@ -1,5 +1,5 @@
 <script>
-  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted } from "../../stores.js";
+  import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted, accent } from "../../stores.js";
   import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy } from "../../services/data.js";
   import { TRANSLATE_LANGS } from "../langs.js";
   import LangPicker from "../common/LangPicker.svelte";
@@ -53,6 +53,20 @@
         <div class="theme-modes">
           {#each THEME_MODES as m}
             <button class="theme-mode {$theme === m ? 'on' : ''}" on:click={() => theme.set(m)}>{$t("theme_" + m)}</button>
+          {/each}
+        </div>
+      </div>
+    </div>
+
+    <!-- Warna aksen kustom -->
+    <div class="settings-item" style="align-items:flex-start">
+      {@html icons.theme}
+      <div class="grow">
+        <div class="si-name">{$t("accent_color")}</div>
+        <div class="theme-modes" style="gap:8px">
+          {#each ["", "#06b67f", "#5b6ef5", "#e5614e", "#f2a33c", "#9b59b6", "#e9418a"] as c}
+            <button class="acc-sw {(($accent || '') === c) ? 'on' : ''}" title={c || $t("wallpaper_default")}
+              style="background:{c || 'var(--accent)'}" on:click={() => accent.set(c)}>{c ? '' : '✕'}</button>
           {/each}
         </div>
       </div>

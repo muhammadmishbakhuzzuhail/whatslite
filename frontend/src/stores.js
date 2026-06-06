@@ -15,6 +15,11 @@ export const activeChatId = writable(null);
 export const search = writable("");
 export const filter = writable("Semua");
 export const theme = writable(initialTheme);
+// Warna aksen kustom (personalisasi). "" = bawaan (#06b67f dari CSS).
+let _accentInit = "";
+try { _accentInit = localStorage.getItem("wa-accent") || ""; } catch (e) {}
+export const accent = writable(_accentInit);
+accent.subscribe((v) => { try { v ? localStorage.setItem("wa-accent", v) : localStorage.removeItem("wa-accent"); } catch (e) {} });
 theme.subscribe((v) => { try { localStorage.setItem("wa-theme", v); } catch (e) {} });
 
 // Preferensi OS (dark?) — reaktif terhadap perubahan sistem saat theme="system".

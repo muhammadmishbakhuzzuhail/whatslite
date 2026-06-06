@@ -364,5 +364,6 @@
  "quick_replies": "Balasan cepat",
  "quick_replies_empty": "Belum ada template. Ketik pesan lalu Simpan.",
  "autotranslate_on": "Auto-terjemah aktif",
- "autotranslate_off": "Auto-terjemah mati"
+ "autotranslate_off": "Auto-terjemah mati",
+ "accent_color": "Warna aksen"
 }

@@ -277,11 +277,26 @@
     setDraft(chatId, ""); // teks terkirim → buang draf
     replyDraft.set(null);
   }
+  // Bungkus teks terpilih dgn penanda format WhatsApp (Ctrl+B/I/dll).
+  function wrapSel(mark) {
+    if (!inputEl) return;
+    const a = inputEl.selectionStart, b = inputEl.selectionEnd;
+    const sel = value.slice(a, b) || "";
+    value = value.slice(0, a) + mark + sel + mark + value.slice(b);
+    saveDraft();
+    tick().then(() => { inputEl.focus(); inputEl.selectionStart = a + mark.length; inputEl.selectionEnd = b + mark.length; });
+  }
   function onKey(e) {
     if (scOpen && e.key === "Enter") { e.preventDefault(); pickShortcode(scItems[0]); return; }
     if (scOpen && e.key === "Escape") { scOpen = false; return; }
     if (mOpen && e.key === "Enter") { e.preventDefault(); pickMention(mItems[0]); return; }
     if (mOpen && e.key === "Escape") { mOpen = false; return; }
+    if (e.ctrlKey || e.metaKey) {
+      const k = e.key.toLowerCase();
+      if (k === "b") { e.preventDefault(); wrapSel("*"); return; }   // tebal
+      if (k === "i") { e.preventDefault(); wrapSel("_"); return; }   // miring
+      if (e.shiftKey && k === "x") { e.preventDefault(); wrapSel("~"); return; } // coret
+    }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   }
   // Auto-grow textarea (multi-baris) sampai batas, lalu scroll.

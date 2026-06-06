@@ -364,5 +364,6 @@
  "quick_replies": "Quick replies",
  "quick_replies_empty": "No templates. Type a message then Save.",
  "autotranslate_on": "Auto-translate on",
- "autotranslate_off": "Auto-translate off"
+ "autotranslate_off": "Auto-translate off",
+ "accent_color": "Accent color"
 }

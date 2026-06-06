@@ -205,6 +205,14 @@ var schemaMigrations = []struct {
 	{2, []string{
 		`ALTER TABLE messages ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0`,
 	}},
+	// v3: log panggilan masuk (whatsmeow hanya signaling: tak ada media/WebRTC,
+	// jadi hanya catat + tolak; status: missed | rejected).
+	{3, []string{
+		`CREATE TABLE IF NOT EXISTS calls (
+			id TEXT PRIMARY KEY, jid TEXT NOT NULL, name TEXT NOT NULL,
+			video INTEGER NOT NULL DEFAULT 0, grp INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'missed', ts INTEGER NOT NULL)`,
+	}},
 }
 
 // runMigrations menjalankan langkah dgn versi > user_version saat ini, urut,

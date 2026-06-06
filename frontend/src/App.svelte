@@ -12,6 +12,8 @@
   import MediaPreviewModal from "./lib/chat/MediaPreviewModal.svelte";
   import ReactionPicker from "./lib/chat/ReactionPicker.svelte";
   import NewChatModal from "./lib/sidebar/NewChatModal.svelte";
+  import IncomingCall from "./lib/chat/IncomingCall.svelte";
+  import ConfirmDialog from "./lib/common/ConfirmDialog.svelte";
   import Toast from "./lib/Toast.svelte";
   import { effectiveTheme, infoOpen, loggedIn, lockState, inChatSearch, activeChatId, newChatOpen, lightbox, forwardDraft, profileJid } from "./stores.js";
   import { locale } from "./lib/i18n.js";
@@ -57,5 +59,7 @@
     <ReactionPicker />
     <NewChatModal />
   </div>
+  <IncomingCall />
 {/if}
+<ConfirmDialog />
 <Toast />

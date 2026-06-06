@@ -66,6 +66,10 @@ export function GetBlockedContacts() {
   return window['go']['app']['App']['GetBlockedContacts']();
 }
 
+export function GetCalls() {
+  return window['go']['app']['App']['GetCalls']();
+}
+
 export function GetChannelMessages(arg1) {
   return window['go']['app']['App']['GetChannelMessages'](arg1);
 }
@@ -212,6 +216,10 @@ export function React(arg1, arg2, arg3, arg4, arg5) {
 
 export function ReactChannel(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['ReactChannel'](arg1, arg2, arg3, arg4);
+}
+
+export function RejectCall(arg1, arg2) {
+  return window['go']['app']['App']['RejectCall'](arg1, arg2);
 }
 
 export function RemoveContactLabel(arg1) {

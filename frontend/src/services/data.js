@@ -248,6 +248,15 @@ export async function getStarred() {
   return [];
 }
 
+// --- Panggilan (log + tolak; tak ada media call) ---
+export async function getCalls() {
+  if (LIVE) return (await A.GetCalls()) || [];
+  return [];
+}
+export function rejectCall(jid, callID) {
+  if (LIVE) A.RejectCall(jid, callID);
+}
+
 // --- Status / Stories ---
 export async function getStatuses() {
   if (LIVE) return (await A.GetStatuses()) || [];

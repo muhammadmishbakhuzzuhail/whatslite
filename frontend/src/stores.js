@@ -81,8 +81,29 @@ export const railView = writable(params.get("view") || "chats");
 // Pindah ke section non-chat (Status/Saluran/Komunitas) → tutup chat aktif agar
 // panel kanan tak menampilkan grup yang tak nyambung dgn sidebar.
 railView.subscribe((v) => {
-  if (v === "status" || v === "channels" || v === "communities") activeChatId.set(null);
+  if (v === "status" || v === "channels" || v === "communities" || v === "calls") activeChatId.set(null);
 });
+
+// --- Panggilan (signaling-only: log + tolak; tak ada media call) ---
+export const calls = writable([]);          // log panggilan (CallsPane)
+export const incomingCall = writable(null); // {id,jid,name,video,group} → banner masuk
+export async function refreshCalls() { calls.set(await data.getCalls()); }
+export function rejectIncomingCall(c) {
+  if (!c) return;
+  data.rejectCall(c.jid, c.id);
+  incomingCall.set(null);
+  refreshCalls();
+}
+export function dismissIncomingCall() { incomingCall.set(null); }
+
+// --- Dialog konfirmasi (confirm()/prompt() native TAK jalan di WebKitGTK) ---
+export const confirmDialog = writable(null); // {text, onYes}
+export function askConfirm(text, onYes) { confirmDialog.set({ text, onYes }); }
+export function resolveConfirm(ok) {
+  const d = get(confirmDialog);
+  confirmDialog.set(null);
+  if (ok && d && d.onYes) d.onYes();
+}
 export const infoOpen = writable(params.get("info") === "1");
 export const loggedIn = writable(data.LIVE ? false : params.get("screen") !== "qr");
 export const qrImage = writable("");
@@ -458,7 +479,9 @@ init();
 
 if (data.LIVE) {
   data.onEvent("wa:qr", (img) => { qrImage.set(img); loggedIn.set(false); });
-  data.onEvent("wa:ready", () => { loggedIn.set(true); init(); });
+  data.onEvent("wa:ready", () => { loggedIn.set(true); init(); refreshCalls(); });
+  data.onEvent("wa:call", (c) => { if (c) { incomingCall.set(c); refreshCalls(); playNotifSound(); } });
+  data.onEvent("wa:callupdate", () => refreshCalls());
   data.onEvent("wa:message", async (chat) => {
     await refreshChats();
     if (get(activeChatId) === chat) reloadMessages(chat);

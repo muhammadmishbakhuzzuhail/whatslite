@@ -1,5 +1,5 @@
 <script>
-  import { lightbox } from "../../stores.js";
+  import { lightbox, pushToast } from "../../stores.js";
   import { t } from "../i18n.js";
 
   function close() { lightbox.set(null); }
@@ -15,7 +15,7 @@
       a.download = `wa-${Date.now()}.${ext}`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    } catch (e) {}
+    } catch (e) { pushToast($t("err_generic")); }
   }
 </script>
 

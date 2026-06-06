@@ -274,5 +274,17 @@
  "draft": "Draft",
  "clear_chat": "Clear chat",
  "clear_chat_confirm": "Delete all messages in this chat? The chat stays in your list.",
- "unread_messages": "Unread messages"
+ "unread_messages": "Unread messages",
+ "block_confirm": "Block {name}? They won't be able to message or call you.",
+ "leave_confirm": "Leave {name}? You'll stop receiving its messages.",
+ "remove_member_confirm": "Remove {name} from the group?",
+ "calls_unsupported": "Outgoing calls aren't supported (engine has no call media).",
+ "call_incoming": "Incoming call",
+ "call_video": "Video call",
+ "call_voice": "Voice call",
+ "call_missed": "Missed",
+ "call_rejected": "Declined",
+ "call_reject": "Decline",
+ "calls_empty": "No calls yet",
+ "ok": "OK"
 }

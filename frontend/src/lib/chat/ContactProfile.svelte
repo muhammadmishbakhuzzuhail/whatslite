@@ -46,7 +46,9 @@
       <div class="info-hero">
         {#if avatarUrl(prof.jid)}
           <img class="avatar big photo zoomable" src={avatarUrl(prof.jid)} alt={prof.name}
+            role="button" tabindex="0"
             on:click={() => lightbox.set({ url: avatarUrl(prof.jid), type: "image", caption: prof.name })}
+            on:keydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), lightbox.set({ url: avatarUrl(prof.jid), type: "image", caption: prof.name }))}
             on:error={(e) => (e.target.style.display = 'none')} />
         {:else if /[\p{L}]/u.test(initial(prof.name))}
           <div class="avatar big" style="--c:{senderColorFor(prof.jid)}"><span>{initial(prof.name)}</span></div>

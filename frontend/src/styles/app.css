@@ -237,9 +237,9 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
   display: flex; flex-direction: column; gap: 3px;
   scrollbar-gutter: stable; } /* gutter tetap → lebar konten tak berubah saat scrollbar muncul/hilang */
 .scroll-fab { position: absolute; right: 18px; bottom: 16px; width: 42px; height: 42px;
-  border-radius: 50%; border: 0; cursor: pointer; z-index: 5;
+  border-radius: 50%; border: 0; cursor: pointer; z-index: 8;
   background: var(--in-bg); color: var(--text2);
-  display: grid; align-items: center; justify-items: center;
+  display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 8px rgba(11,20,26,.18); transition: background .15s, color .15s; }
 .scroll-fab:hover { color: var(--text); }
 .scroll-fab svg { width: 24px; height: 24px; }

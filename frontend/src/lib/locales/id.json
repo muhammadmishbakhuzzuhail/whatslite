@@ -274,5 +274,17 @@
  "draft": "Draf",
  "clear_chat": "Bersihkan chat",
  "clear_chat_confirm": "Hapus semua pesan di chat ini? Chat tetap ada di daftar.",
- "unread_messages": "Pesan belum dibaca"
+ "unread_messages": "Pesan belum dibaca",
+ "block_confirm": "Blokir {name}? Dia tak bisa mengirim pesan atau menelepon.",
+ "leave_confirm": "Keluar dari {name}? Kamu berhenti menerima pesannya.",
+ "remove_member_confirm": "Keluarkan {name} dari grup?",
+ "calls_unsupported": "Panggilan keluar belum didukung (engine tanpa media call).",
+ "call_incoming": "Panggilan masuk",
+ "call_video": "Panggilan video",
+ "call_voice": "Panggilan suara",
+ "call_missed": "Tak terjawab",
+ "call_rejected": "Ditolak",
+ "call_reject": "Tolak",
+ "calls_empty": "Belum ada panggilan",
+ "ok": "OK"
 }

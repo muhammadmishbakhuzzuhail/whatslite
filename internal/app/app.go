@@ -260,6 +260,28 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	eng.OnLoggedOut(func() { runtime.EventsEmit(a.ctx, "wa:loggedout", "") })
 
+	// Panggilan masuk: whatsmeow hanya signaling (tanpa media) → catat + notif +
+	// kirim event ke UI (banner + tombol Tolak). Tak bisa menjawab/bicara.
+	eng.OnCall(func(fromJID string, video, group bool, callID string, ts time.Time) {
+		jid := eng.CanonicalJID(fromJID)
+		name := a.displayName(jid)
+		if name == "" {
+			name = eng.ReadableID(jid)
+		}
+		a.bg(func() {
+			if a.store != nil {
+				_ = a.store.SaveCall(a.ctx, storage.Call{
+					ID: callID, JID: jid, Name: name, Video: video, Group: group,
+					Status: "missed", Time: ts,
+				})
+			}
+		})
+		a.Notify(name, "Panggilan masuk")
+		runtime.EventsEmit(a.ctx, "wa:call", map[string]interface{}{
+			"id": callID, "jid": jid, "name": name, "video": video, "group": group, "ts": ts.Unix(),
+		})
+	})
+
 	eng.OnPresence(func(jid string, online bool, ls time.Time) {
 		txt := "online"
 		if !online {

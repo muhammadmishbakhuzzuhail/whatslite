@@ -863,6 +863,35 @@ export namespace pkix {
 
 }
 
+export namespace storage {
+	
+	export class Call {
+	    id: string;
+	    jid: string;
+	    name: string;
+	    video: boolean;
+	    group: boolean;
+	    status: string;
+	    ts: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Call(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.jid = source["jid"];
+	        this.name = source["name"];
+	        this.video = source["video"];
+	        this.group = source["group"];
+	        this.status = source["status"];
+	        this.ts = source["ts"];
+	    }
+	}
+
+}
+
 export namespace tls {
 	
 	export class ConnectionState {

@@ -1,6 +1,6 @@
 <script>
   import Avatar from "../common/Avatar.svelte";
-  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox } from "../../stores.js";
+  import { chats, activeChatId, infoOpen, blockContact, leaveGroup, fetchGroupInfo, pushToast, clearChatMessages, lightbox, askConfirm } from "../../stores.js";
   import { avatarUrl, updateGroupParticipants, setGroupSubject, setGroupDescription, groupInviteLink, setGroupPhoto, setDisappearing, exportChat } from "../../services/data.js";
   import { initial } from "../util.js";
   import { t } from "../i18n.js";
@@ -17,14 +17,18 @@
   const close = () => infoOpen.set(false);
   function doBlock() {
     if (!chat) return;
-    blockContact(chat.id, true);
-    pushToast($t("blocked_toast").replace("%s", chat.name), "ok");
+    askConfirm($t("block_confirm", { name: chat.name }), () => {
+      blockContact(chat.id, true);
+      pushToast($t("blocked_toast").replace("%s", chat.name), "ok");
+    });
   }
   function doLeave() {
     if (!chat) return;
-    leaveGroup(chat.id);
-    pushToast($t("left_toast").replace("%s", chat.name), "ok");
-    infoOpen.set(false);
+    askConfirm($t("leave_confirm", { name: chat.name }), () => {
+      leaveGroup(chat.id);
+      pushToast($t("left_toast").replace("%s", chat.name), "ok");
+      infoOpen.set(false);
+    });
   }
 
   // --- Aksi admin grup ---
@@ -52,6 +56,12 @@
     } };
   }
   function memberAction(p, action) {
+    if (action === "remove") {
+      askConfirm($t("remove_member_confirm", { name: p.name || p.jid }), () => {
+        updateGroupParticipants(chat.id, [p.jid], action); reloadSoon();
+      });
+      return;
+    }
     updateGroupParticipants(chat.id, [p.jid], action);
     reloadSoon();
   }
@@ -69,9 +79,10 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
   function doClear() {
-    if (!confirm($t("clear_chat_confirm"))) return;
-    clearChatMessages(chat.id);
-    pushToast($t("clear_chat"), "ok");
+    askConfirm($t("clear_chat_confirm"), () => {
+      clearChatMessages(chat.id);
+      pushToast($t("clear_chat"), "ok");
+    });
   }
   let photoInput;
   function pickPhoto() { photoInput && photoInput.click(); }
@@ -97,7 +108,9 @@
     <div class="info-hero">
       {#if avatarUrl(chat.id) || chat.photo}
         <img class="avatar big photo zoomable" src={avatarUrl(chat.id) || chat.photo} alt={chat.name}
+          role="button" tabindex="0"
           on:click={() => lightbox.set({ url: avatarUrl(chat.id) || chat.photo, type: "image", caption: chat.name })}
+          on:keydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), lightbox.set({ url: avatarUrl(chat.id) || chat.photo, type: "image", caption: chat.name }))}
           on:error={(e) => (e.target.style.display = 'none')} />
       {:else if chat.group}
         <div class="avatar big group" style="--c:{chat.color}">

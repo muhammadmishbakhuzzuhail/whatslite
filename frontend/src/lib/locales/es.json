@@ -274,5 +274,17 @@
  "draft": "Borrador",
  "clear_chat": "Vaciar chat",
  "clear_chat_confirm": "¿Eliminar todos los mensajes de este chat? El chat permanece en la lista.",
- "unread_messages": "Mensajes no leídos"
+ "unread_messages": "Mensajes no leídos",
+ "block_confirm": "¿Bloquear a {name}? No podrá enviarte mensajes ni llamarte.",
+ "leave_confirm": "¿Salir de {name}? Dejarás de recibir sus mensajes.",
+ "remove_member_confirm": "¿Quitar a {name} del grupo?",
+ "calls_unsupported": "Las llamadas salientes no están disponibles (el motor no tiene medios de llamada).",
+ "call_incoming": "Llamada entrante",
+ "call_video": "Videollamada",
+ "call_voice": "Llamada de voz",
+ "call_missed": "Perdida",
+ "call_rejected": "Rechazada",
+ "call_reject": "Rechazar",
+ "calls_empty": "Aún no hay llamadas",
+ "ok": "OK"
 }

@@ -1,21 +1,22 @@
 <script>
-  import { railView } from "../stores.js";
+  import { railView, chats } from "../stores.js";
   import { getProfile } from "../services/data.js";
   import { initial } from "./util.js";
   import { t } from "./i18n.js";
   const me = getProfile();
   const go = (v) => railView.set(v);
+  // Badge chat = total belum dibaca (bukan angka statis palsu).
+  $: unread = $chats.reduce((n, c) => n + (c.unread ? 1 : 0), 0);
 </script>
 
 <nav class="rail">
   <div class="rail-top">
     <button class="rail-btn {$railView === 'chats' ? 'active' : ''}" title={$t("rail_chats")} on:click={() => go("chats")}>
       <svg viewBox="0 0 24 24"><path d="M12 3C6.5 3 2 6.8 2 11.5c0 2.3 1.1 4.4 2.9 5.9-.1 1.2-.6 2.6-1.4 3.6 1.6-.2 3.2-.8 4.4-1.6 1.2.4 2.6.6 4.1.6 5.5 0 10-3.8 10-8.5S17.5 3 12 3z"/></svg>
-      <span class="rail-badge">5</span>
+      {#if unread > 0}<span class="rail-badge">{unread > 99 ? "99+" : unread}</span>{/if}
     </button>
-    <button class="rail-btn" title={$t("rail_calls")}>
+    <button class="rail-btn {$railView === 'calls' ? 'active' : ''}" title={$t("rail_calls")} on:click={() => go("calls")}>
       <svg viewBox="0 0 24 24"><path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>
-      <span class="rail-badge">1</span>
     </button>
     <button class="rail-btn {$railView === 'status' ? 'active' : ''}" title={$t("rail_status")} on:click={() => go("status")}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>

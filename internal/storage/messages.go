@@ -66,12 +66,7 @@ ON CONFLICT(jid) DO UPDATE SET
 	if err != nil {
 		return fmt.Errorf("upsert chat: %w", err)
 	}
-	// Sinkron FTS (untuk pencarian): ganti entri lama bila ada.
-	if m.Text != "" {
-		s.db.ExecContext(ctx, `DELETE FROM messages_fts WHERE msg_id = ? AND chat_jid = ?`, m.ID, m.ChatJID)
-		s.db.ExecContext(ctx, `INSERT INTO messages_fts(text, chat_jid, msg_id, ts) VALUES(?,?,?,?)`,
-			m.Text, m.ChatJID, m.ID, m.Timestamp.Unix())
-	}
+	// FTS disinkronkan otomatis oleh trigger messages_fts_* (insert/update).
 	return nil
 }
 
@@ -442,23 +437,15 @@ FROM messages WHERE starred = 1 ORDER BY ts DESC LIMIT ?`, limit)
 
 // EditText mengubah teks pesan (sunting) tanpa mengubah timestamp/urutan + sync FTS.
 func (s *Store) EditText(ctx context.Context, chatJID, id, newText string) error {
+	// Trigger messages_fts_au menyinkronkan FTS dari UPDATE ini.
 	_, err := s.db.ExecContext(ctx, `UPDATE messages SET text = ?, edited = 1 WHERE chat_jid = ? AND id = ?`, newText, chatJID, id)
-	if err == nil {
-		s.db.ExecContext(ctx, `DELETE FROM messages_fts WHERE msg_id = ? AND chat_jid = ?`, id, chatJID)
-		if newText != "" {
-			var ts int64
-			s.db.QueryRowContext(ctx, `SELECT ts FROM messages WHERE chat_jid=? AND id=?`, chatJID, id).Scan(&ts)
-			s.db.ExecContext(ctx, `INSERT INTO messages_fts(text, chat_jid, msg_id, ts) VALUES(?,?,?,?)`, newText, chatJID, id, ts)
-		}
-	}
 	return err
 }
 
 // DeleteLocalMessage menghapus satu pesan dari penyimpanan lokal (delete-for-me).
 func (s *Store) DeleteLocalMessage(ctx context.Context, chatJID, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ? AND id = ?`, chatJID, id)
-	// Buang juga baris FTS + reaksi → tak jadi hit pencarian hantu / bocor row.
-	_, _ = s.db.ExecContext(ctx, `DELETE FROM messages_fts WHERE chat_jid = ? AND msg_id = ?`, chatJID, id)
+	// FTS dibersihkan oleh trigger messages_fts_ad; reaksi dibuang manual.
 	_, _ = s.db.ExecContext(ctx, `DELETE FROM reactions WHERE chat_jid = ? AND msg_id = ?`, chatJID, id)
 	return err
 }
@@ -466,7 +453,7 @@ func (s *Store) DeleteLocalMessage(ctx context.Context, chatJID, id string) erro
 // MarkDeleted menandai pesan "dihapus" (revoke/hapus-utk-semua) — baris tetap ada
 // agar muncul placeholder "pesan dihapus" seperti WhatsApp. Kosongkan isi/media.
 func (s *Store) MarkDeleted(ctx context.Context, chatJID, id string) error {
-	s.db.ExecContext(ctx, `DELETE FROM messages_fts WHERE msg_id = ? AND chat_jid = ?`, id, chatJID)
+	// text='' → trigger messages_fts_au mengeluarkan pesan dari indeks pencarian.
 	_, err := s.db.ExecContext(ctx, `
 UPDATE messages SET kind='deleted', text='', thumb='', media='', quoted_id='', quoted_sender='', quoted_text=''
 WHERE chat_jid = ? AND id = ?`, chatJID, id)
@@ -480,9 +467,11 @@ func (s *Store) SearchMessages(ctx context.Context, query string, limit int) ([]
 	if match == "" {
 		return nil, nil
 	}
+	// External-content FTS: join balik ke messages via rowid utk ambil metadata.
 	rows, err := s.db.QueryContext(ctx, `
-SELECT msg_id, chat_jid, text, ts FROM messages_fts
-WHERE messages_fts MATCH ? ORDER BY ts DESC LIMIT ?`, match, limit)
+SELECT m.id, m.chat_jid, m.text, m.ts
+FROM messages_fts f JOIN messages m ON m.rowid = f.rowid
+WHERE messages_fts MATCH ? ORDER BY m.ts DESC LIMIT ?`, match, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -90,16 +90,7 @@ ON CONFLICT(chat_jid, id) DO UPDATE SET
 		return err
 	}
 	defer msgStmt.Close()
-	ftsDel, err := tx.PrepareContext(ctx, `DELETE FROM messages_fts WHERE msg_id = ? AND chat_jid = ?`)
-	if err != nil {
-		return err
-	}
-	defer ftsDel.Close()
-	ftsIns, err := tx.PrepareContext(ctx, `INSERT INTO messages_fts(text, chat_jid, msg_id, ts) VALUES(?,?,?,?)`)
-	if err != nil {
-		return err
-	}
-	defer ftsIns.Close()
+	// FTS disinkronkan otomatis oleh trigger messages_fts_* saat msgStmt menulis.
 	for _, m := range msgs {
 		st := m.Status
 		if st == "" {
@@ -107,10 +98,6 @@ ON CONFLICT(chat_jid, id) DO UPDATE SET
 		}
 		if _, err := msgStmt.ExecContext(ctx, m.ID, m.ChatJID, m.Sender, m.PushName, m.Text, kindOr(m.Kind), m.Thumb, m.Media, m.Timestamp.Unix(), b2i(m.FromMe), st); err != nil {
 			return err
-		}
-		if m.Text != "" {
-			_, _ = ftsDel.ExecContext(ctx, m.ID, m.ChatJID)
-			_, _ = ftsIns.ExecContext(ctx, m.Text, m.ChatJID, m.ID, m.Timestamp.Unix())
 		}
 	}
 
@@ -264,16 +251,12 @@ ON CONFLICT(jid) DO UPDATE SET
 		return err
 	}
 	// Pindahkan pesan (skip yg bentrok id), lalu sisa pesan duplikat dibuang.
+	// FTS ikut otomatis via trigger messages_fts_au (update) & _ad (delete) —
+	// ini juga membereskan duplikat FTS yg dulu muncul dari UPDATE OR IGNORE.
 	if _, err := tx.ExecContext(ctx, `UPDATE OR IGNORE messages SET chat_jid = ? WHERE chat_jid = ?`, toJID, fromJID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE OR IGNORE messages_fts SET chat_jid = ? WHERE chat_jid = ?`, toJID, fromJID); err != nil {
-		return err
-	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, fromJID); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM messages_fts WHERE chat_jid = ?`, fromJID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM chats WHERE jid = ?`, fromJID); err != nil {
@@ -305,9 +288,9 @@ func (s *Store) DeleteChat(ctx context.Context, jid string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {
 		return err
 	}
-	// Bersihkan tabel turunan → tak ada hit pencarian hantu / baris bocor.
+	// FTS dibersihkan otomatis oleh trigger messages_fts_ad (per pesan dihapus).
+	// Tabel turunan lain dibuang manual.
 	for _, q := range []string{
-		`DELETE FROM messages_fts WHERE chat_jid = ?`,
 		`DELETE FROM reactions WHERE chat_jid = ?`,
 		`DELETE FROM receipts WHERE chat_jid = ?`,
 	} {

@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -165,14 +166,35 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender_ts ON messages(sender, ts);
 		PRIMARY KEY (chat_jid, msg_id, recipient)
 	)`)
 
-	// FTS5 untuk pencarian isi pesan cepat (ganti LIKE-scan O(n)).
-	if _, err := s.db.ExecContext(ctx,
-		`CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(text, chat_jid UNINDEXED, msg_id UNINDEXED, ts UNINDEXED)`); err == nil {
-		var n int
-		s.db.QueryRowContext(ctx, `SELECT count(*) FROM messages_fts`).Scan(&n)
-		if n == 0 { // backfill sekali dari pesan yang sudah ada
-			s.db.ExecContext(ctx, `INSERT INTO messages_fts(text, chat_jid, msg_id, ts)
-				SELECT text, chat_jid, id, ts FROM messages WHERE text <> ''`)
+	// FTS5 EXTERNAL-CONTENT: index hanya kolom `text`, baris asli tetap di
+	// `messages` (tanpa duplikasi teks). Sinkron OTOMATIS via TRIGGER → tak ada
+	// sinkron manual yg bisa drift/duplikat. Migrasi sekali dari FTS standalone
+	// lama (skema tanpa content=) → drop & bangun ulang dari messages.
+	var ftsDef string
+	s.db.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='messages_fts'`).Scan(&ftsDef)
+	if !strings.Contains(ftsDef, "content=") {
+		s.db.ExecContext(ctx, `DROP TABLE IF EXISTS messages_fts`)
+		if _, err := s.db.ExecContext(ctx,
+			`CREATE VIRTUAL TABLE messages_fts USING fts5(text, content='messages', content_rowid='rowid')`); err != nil {
+			return fmt.Errorf("fts create: %w", err)
+		}
+		s.db.ExecContext(ctx, `INSERT INTO messages_fts(rowid, text) SELECT rowid, text FROM messages WHERE text <> ''`)
+	}
+	// Trigger sinkron (idempoten: drop+create tiap boot).
+	for _, q := range []string{
+		`DROP TRIGGER IF EXISTS messages_fts_ai`,
+		`CREATE TRIGGER messages_fts_ai AFTER INSERT ON messages BEGIN
+			INSERT INTO messages_fts(rowid, text) VALUES (new.rowid, new.text); END`,
+		`DROP TRIGGER IF EXISTS messages_fts_ad`,
+		`CREATE TRIGGER messages_fts_ad AFTER DELETE ON messages BEGIN
+			INSERT INTO messages_fts(messages_fts, rowid, text) VALUES('delete', old.rowid, old.text); END`,
+		`DROP TRIGGER IF EXISTS messages_fts_au`,
+		`CREATE TRIGGER messages_fts_au AFTER UPDATE ON messages BEGIN
+			INSERT INTO messages_fts(messages_fts, rowid, text) VALUES('delete', old.rowid, old.text);
+			INSERT INTO messages_fts(rowid, text) VALUES (new.rowid, new.text); END`,
+	} {
+		if _, err := s.db.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("fts trigger: %w", err)
 		}
 	}
 	return nil

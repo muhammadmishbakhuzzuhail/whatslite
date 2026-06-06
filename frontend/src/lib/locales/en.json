@@ -382,5 +382,9 @@
  "sct_link": "Links",
  "dnd": "Do not disturb",
  "dnd_d": "Silence notifications during these hours.",
- "common_groups": "Groups in common"
+ "common_groups": "Groups in common",
+ "favorites": "Favorites",
+ "no_favorites": "No favorites yet — right-click to add",
+ "fav_add_hint": "Right-click to favorite",
+ "fav_remove_hint": "Right-click to remove"
 }

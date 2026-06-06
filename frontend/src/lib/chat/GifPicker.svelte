@@ -18,6 +18,14 @@
   let next = "";
   let busyId = null;
   let _t, _q = null, grid;
+  // Favorit (lokal): simpan {id,preview,mp4}.
+  let favView = false, favs = [];
+  try { favs = JSON.parse(localStorage.getItem("wa-gif-fav") || "[]") || []; } catch (e) {}
+  function isFav(g) { return favs.some((x) => x.id === g.id); }
+  function toggleFav(g) {
+    favs = isFav(g) ? favs.filter((x) => x.id !== g.id) : [{ id: g.id, preview: g.preview, mp4: g.mp4 }, ...favs].slice(0, 60);
+    try { localStorage.setItem("wa-gif-fav", JSON.stringify(favs)); } catch (e) {}
+  }
 
   // Muat halaman pertama (reset) untuk query. Reaktif thd q (debounce).
   async function fetchGifs(query) {
@@ -73,18 +81,27 @@
     </div>
   {/if}
   <div class="gif-cats">
+    <button class="gif-cat {favView ? 'on' : ''}" on:click={() => (favView = !favView)} title={$t("favorites")}>★</button>
     {#each ["trending","lol","love","sad","wow","ok","thanks","hi","bye","angry","dance","clap"] as c}
-      <button class="gif-cat {(/(^|\s)/.test(q) && q.trim().toLowerCase()===c) || (c==='trending'&&!q.trim()) ? 'on' : ''}"
-        on:click={() => { acOpen = false; q = c === "trending" ? "" : c; }}>{c}</button>
+      <button class="gif-cat {!favView && ((/(^|\s)/.test(q) && q.trim().toLowerCase()===c) || (c==='trending'&&!q.trim())) ? 'on' : ''}"
+        on:click={() => { favView = false; acOpen = false; q = c === "trending" ? "" : c; }}>{c}</button>
     {/each}
   </div>
   <div class="gif-grid" bind:this={grid} on:scroll={onScroll}>
-    {#if loading}
+    {#if favView}
+      {#each favs as g (g.id)}
+        <button class="gif-cell" on:click={() => pick(g)} on:contextmenu|preventDefault={() => toggleFav(g)} disabled={busyId === g.id} title={$t("fav_remove_hint")}>
+          <img src={g.preview} alt="" loading="lazy" /><span class="gif-fav-on">★</span>
+        </button>
+      {/each}
+      {#if favs.length === 0}<div class="gif-empty">{$t("no_favorites")}</div>{/if}
+    {:else if loading}
       <div class="gif-empty">…</div>
     {:else}
       {#each gifs as g (g.id)}
-        <button class="gif-cell" on:click={() => pick(g)} disabled={busyId === g.id}>
+        <button class="gif-cell" on:click={() => pick(g)} on:contextmenu|preventDefault={() => toggleFav(g)} disabled={busyId === g.id} title={$t("fav_add_hint")}>
           <img src={g.preview} alt="" loading="lazy" />
+          {#if isFav(g)}<span class="gif-fav-on">★</span>{/if}
           {#if busyId === g.id}<span class="gif-load">…</span>{/if}
         </button>
       {/each}

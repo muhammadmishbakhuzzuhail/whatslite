@@ -18,6 +18,14 @@
   // --- Stiker online (transparan) — paginated infinite scroll + history/autocomplete ---
   let online = [], onlineQ = "", onlineLoading = false, onlineMore = false, onlineNext = "", onlineBusy = null, _ot, _oq = null, onlineGrid;
   let sHist = getHistory("sticker");
+  // Favorit stiker (lokal).
+  let sFavView = false, sFavs = [];
+  try { sFavs = JSON.parse(localStorage.getItem("wa-sticker-fav") || "[]") || []; } catch (e) {}
+  function isSFav(s) { return sFavs.some((x) => x.id === s.id); }
+  function toggleSFav(s) {
+    sFavs = isSFav(s) ? sFavs.filter((x) => x.id !== s.id) : [{ id: s.id, preview: s.preview, mp4: s.mp4 }, ...sFavs].slice(0, 60);
+    try { localStorage.setItem("wa-sticker-fav", JSON.stringify(sFavs)); } catch (e) {}
+  }
   let sAcOpen = true;
   $: sSugg = sAcOpen ? suggest(onlineQ, sHist) : [];
   function sCommit(term) { onlineQ = term; sAcOpen = false; sHist = addHistory("sticker", term); }
@@ -153,17 +161,23 @@
       </div>
     {/if}
     <div class="gif-cats">
+      <button class="gif-cat {sFavView ? 'on' : ''}" on:click={() => (sFavView = !sFavView)} title={$t("favorites")}>★</button>
       {#each ["trending","cute","love","happy","sad","angry","cat","dog","anime","meme","lol","thanks","hello","kiss","wow","good night"] as c}
-        <button class="gif-cat {(onlineQ.trim().toLowerCase() === c) || (c === 'trending' && !onlineQ.trim()) ? 'on' : ''}"
-          on:click={() => { sAcOpen = false; onlineQ = c === "trending" ? "" : c; }}>{c}</button>
+        <button class="gif-cat {!sFavView && ((onlineQ.trim().toLowerCase() === c) || (c === 'trending' && !onlineQ.trim())) ? 'on' : ''}"
+          on:click={() => { sFavView = false; sAcOpen = false; onlineQ = c === "trending" ? "" : c; }}>{c}</button>
       {/each}
     </div>
     <div class="stk-grid" bind:this={onlineGrid} on:scroll={onOnlineScroll}>
-      {#if onlineLoading}
+      {#if sFavView}
+        {#each sFavs as s (s.id)}
+          <button class="stk-cell" on:click={() => pickOnline(s)} on:contextmenu|preventDefault={() => toggleSFav(s)} disabled={onlineBusy === s.id} title={$t("fav_remove_hint")}><img src={s.preview} alt="" loading="lazy" /></button>
+        {/each}
+        {#if sFavs.length === 0}<div class="stk-empty">{$t("no_favorites")}</div>{/if}
+      {:else if onlineLoading}
         <div class="stk-empty">…</div>
       {:else}
         {#each online as s (s.id)}
-          <button class="stk-cell" on:click={() => pickOnline(s)} disabled={onlineBusy === s.id}><img src={s.preview} alt="" loading="lazy" /></button>
+          <button class="stk-cell" on:click={() => pickOnline(s)} on:contextmenu|preventDefault={() => toggleSFav(s)} disabled={onlineBusy === s.id} title={$t("fav_add_hint")}><img src={s.preview} alt="" loading="lazy" />{#if isSFav(s)}<span class="gif-fav-on">★</span>{/if}</button>
         {/each}
         {#if online.length === 0}<div class="stk-empty">{$t("no_match")}</div>{/if}
         {#if onlineMore}<div class="stk-empty">…</div>{/if}

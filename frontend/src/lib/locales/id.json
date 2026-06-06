@@ -382,5 +382,9 @@
  "sct_link": "Tautan",
  "dnd": "Jangan ganggu",
  "dnd_d": "Bisukan notifikasi pada rentang jam ini.",
- "common_groups": "Grup bersama"
+ "common_groups": "Grup bersama",
+ "favorites": "Favorit",
+ "no_favorites": "Belum ada favorit — klik-kanan utk tambah",
+ "fav_add_hint": "Klik-kanan untuk favoritkan",
+ "fav_remove_hint": "Klik-kanan untuk hapus"
 }

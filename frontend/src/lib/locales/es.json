@@ -382,5 +382,9 @@
  "sct_link": "Enlaces",
  "dnd": "No molestar",
  "dnd_d": "Silencia notificaciones en este horario.",
- "common_groups": "Grupos en común"
+ "common_groups": "Grupos en común",
+ "favorites": "Favoritos",
+ "no_favorites": "Sin favoritos — clic derecho para añadir",
+ "fav_add_hint": "Clic derecho para favorito",
+ "fav_remove_hint": "Clic derecho para quitar"
 }

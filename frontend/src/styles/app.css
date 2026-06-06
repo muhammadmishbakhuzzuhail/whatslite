@@ -1134,3 +1134,5 @@ button.info-row:hover { background: var(--hover); }
 .qre-sw { font-size: 18px; background: var(--bg2); border: 0; border-radius: 8px; width: 36px; height: 32px; cursor: pointer; }
 .qre-sw:hover { background: var(--hover, var(--line)); }
 .sc-types { display: flex; gap: 6px; padding: 6px 12px 8px; flex-wrap: wrap; }
+.gif-cell .gif-fav-on, .stk-cell .gif-fav-on { position: absolute; top: 3px; right: 4px; color: #ffd23f; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.stk-cell { position: relative; }

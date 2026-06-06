@@ -519,6 +519,43 @@ WHERE messages_fts MATCH ? ORDER BY m.ts DESC LIMIT ?`, match, limit)
 	return out, rows.Err()
 }
 
+// SearchAdvanced: pencarian lintas-chat berfilter jenis. typ ""/"text" → FTS;
+// "link" → pesan mengandung URL; lainnya → by kind. query opsional (boleh kosong
+// untuk jelajah semua media/dok).
+func (s *Store) SearchAdvanced(ctx context.Context, query, typ string, limit int) ([]Message, error) {
+	if typ == "" || typ == "text" {
+		return s.SearchMessages(ctx, query, limit)
+	}
+	where := "kind = ?"
+	args := []any{typ}
+	if typ == "link" {
+		where = "text LIKE '%http%'"
+		args = []any{}
+	}
+	if q := strings.TrimSpace(query); q != "" {
+		where += " AND lower(text) LIKE ?"
+		args = append(args, "%"+strings.ToLower(q)+"%")
+	}
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, chat_jid, text, kind, ts FROM messages WHERE `+where+` ORDER BY ts DESC LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Message
+	for rows.Next() {
+		var m Message
+		var ts int64
+		if err := rows.Scan(&m.ID, &m.ChatJID, &m.Text, &m.Kind, &ts); err != nil {
+			return nil, err
+		}
+		m.Timestamp = time.Unix(ts, 0)
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 // ftsQuery membangun ekspresi MATCH aman: ambil token alnum, tiap token jadi
 // prefix ("tok*"), digabung AND. Cegah error sintaks FTS dari tanda baca.
 func ftsQuery(q string) string {

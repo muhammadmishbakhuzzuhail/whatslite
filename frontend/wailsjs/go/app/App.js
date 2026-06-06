@@ -338,8 +338,8 @@ export function SearchGifs(arg1, arg2) {
   return window['go']['app']['App']['SearchGifs'](arg1, arg2);
 }
 
-export function SearchMessages(arg1) {
-  return window['go']['app']['App']['SearchMessages'](arg1);
+export function SearchMessages(arg1, arg2) {
+  return window['go']['app']['App']['SearchMessages'](arg1, arg2);
 }
 
 export function SearchStickers(arg1, arg2) {

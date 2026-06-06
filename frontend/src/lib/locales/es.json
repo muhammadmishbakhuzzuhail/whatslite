@@ -386,5 +386,6 @@
  "favorites": "Favoritos",
  "no_favorites": "Sin favoritos — clic derecho para añadir",
  "fav_add_hint": "Clic derecho para favorito",
- "fav_remove_hint": "Clic derecho para quitar"
+ "fav_remove_hint": "Clic derecho para quitar",
+ "sct_voice": "Voz"
 }

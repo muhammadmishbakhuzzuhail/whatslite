@@ -172,7 +172,7 @@ export function ScheduleMessage(arg1:string,arg2:string,arg3:number):Promise<voi
 
 export function SearchGifs(arg1:string,arg2:string):Promise<app.GifPage>;
 
-export function SearchMessages(arg1:string):Promise<Array<app.SearchHitDTO>>;
+export function SearchMessages(arg1:string,arg2:string):Promise<Array<app.SearchHitDTO>>;
 
 export function SearchStickers(arg1:string,arg2:string):Promise<app.GifPage>;
 

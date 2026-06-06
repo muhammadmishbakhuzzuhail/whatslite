@@ -96,13 +96,18 @@ type SearchHitDTO struct {
 	Group    bool   `json:"group"`
 }
 
-// SearchMessages mencari isi pesan lintas chat (maks 50 hasil terbaru).
-func (a *App) SearchMessages(query string) (out []SearchHitDTO) {
+// SearchMessages mencari isi pesan lintas chat (maks 50 hasil terbaru). typ:
+// ""/"text" (FTS) | "image"|"video"|"document"|"sticker"|"gif"|"voice" | "link".
+// Untuk filter jenis, query boleh kosong (jelajah semua).
+func (a *App) SearchMessages(query, typ string) (out []SearchHitDTO) {
 	out = []SearchHitDTO{}
-	if a.store == nil || query == "" {
+	if a.store == nil {
 		return
 	}
-	ms, err := a.store.SearchMessages(a.ctx, query, 50)
+	if (typ == "" || typ == "text") && query == "" {
+		return
+	}
+	ms, err := a.store.SearchAdvanced(a.ctx, query, typ, 50)
 	if err != nil {
 		return
 	}
@@ -114,8 +119,12 @@ func (a *App) SearchMessages(query string) (out []SearchHitDTO) {
 		if name == "" {
 			name = shortJID(m.ChatJID)
 		}
+		txt := m.Text
+		if txt == "" && typ != "" && typ != "text" {
+			txt = "[" + typ + "]"
+		}
 		out = append(out, SearchHitDTO{
-			ChatJID: m.ChatJID, ChatName: name, MsgID: m.ID, Text: m.Text,
+			ChatJID: m.ChatJID, ChatName: name, MsgID: m.ID, Text: txt,
 			Time: hm(m.Timestamp), Group: isGroupJID(m.ChatJID),
 		})
 	}

@@ -25,23 +25,31 @@
   $: others = filtered.filter((c) => !c.pinned);
   $: plain = !q && $filter === "Semua";
 
-  // Pencarian ISI pesan (FTS5 di BE) — debounce.
+  // Pencarian ISI pesan (FTS5 di BE) — debounce + filter jenis lintas-chat.
   let hits = [];
   let _t;
-  $: runSearch($search.trim());
-  function runSearch(query) {
+  let searchType = "all";
+  const SEARCH_TYPES = ["all", "image", "video", "document", "link", "voice"];
+  $: searching = !!$search.trim() || searchType !== "all";
+  $: runSearch($search.trim(), searchType);
+  function runSearch(query, typ) {
     clearTimeout(_t);
-    if (query.length < 2) { hits = []; return; }
-    _t = setTimeout(async () => { hits = await searchMessages(query); }, 220);
+    if (typ === "all" && query.length < 2) { hits = []; return; }
+    _t = setTimeout(async () => { hits = await searchMessages(query, typ === "all" ? "" : typ); }, 220);
   }
   function openHit(h) { activeChatId.set(h.chatJid); railView.set("chats"); jumpMsg.set(h.msgId); }
   function initial(s) { for (const ch of s || "") if (/[\p{L}\p{N}]/u.test(ch)) return ch.toUpperCase(); return "?"; }
 </script>
 
 <div class="chat-list">
-  {#if q}
-    <!-- Mode pencarian: chat (nama) + pesan (isi) -->
-    {#if filtered.length}
+  {#if searching}
+    <!-- Mode pencarian: filter jenis + chat (nama) + pesan (isi) -->
+    <div class="sc-types" style="padding:8px 12px">
+      {#each SEARCH_TYPES as ty}
+        <button class="chip {searchType === ty ? 'active' : ''}" on:click={() => (searchType = ty)}>{$t("sct_" + ty)}</button>
+      {/each}
+    </div>
+    {#if q && searchType === "all" && filtered.length}
       <div class="list-label">{$t("rail_chats")}</div>
       {#each filtered as c (c.id)}<ChatRow chat={c} />{/each}
     {/if}

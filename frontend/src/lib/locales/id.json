@@ -386,5 +386,6 @@
  "favorites": "Favorit",
  "no_favorites": "Belum ada favorit — klik-kanan utk tambah",
  "fav_add_hint": "Klik-kanan untuk favoritkan",
- "fav_remove_hint": "Klik-kanan untuk hapus"
+ "fav_remove_hint": "Klik-kanan untuk hapus",
+ "sct_voice": "Suara"
 }

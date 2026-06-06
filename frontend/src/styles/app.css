@@ -270,6 +270,11 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .msg.out.cont .bubble { border-top-right-radius: var(--r-lg); }
 
 .bubble .text { color: var(--text); white-space: pre-wrap; }
+/* Emoji-only (ala WhatsApp): besar, tanpa bubble bg/shadow/padding. */
+.bubble.emoji-lg, .bubble.emoji-md { background: transparent !important; box-shadow: none !important; padding: 0 2px !important; }
+.bubble.emoji-lg .text { font-size: 44px; line-height: 1.15; }
+.bubble.emoji-md .text { font-size: 30px; line-height: 1.2; }
+.bubble.emoji-lg .meta, .bubble.emoji-md .meta { color: var(--text2); }
 /* Tautan dalam pesan: biru klik-able (buka di browser sistem). */
 .msg-link { color: #1c8adb; text-decoration: underline; word-break: break-all; cursor: pointer; }
 [data-theme="dark"] .msg-link { color: #53bdeb; }

@@ -96,6 +96,18 @@
   // Hostname aman utk link-preview (URL rusak/kosong tak boleh throw saat render).
   function hostOf(u) { try { return new URL(u).hostname; } catch (e) { return u || ""; } }
   $: source = msg.text || msg.caption || "";
+  // Emoji-only (ala WhatsApp): pesan teks yang isinya cuma emoji → render besar
+  // tanpa bubble. ≤3 emoji terbesar, ≤6 sedang, >6 normal.
+  function emojiOnly(s) {
+    const t = (s || "").trim();
+    if (!t) return 0;
+    const stripped = t.replace(/[\p{Extended_Pictographic}\p{Emoji_Component}‍️⃣]/gu, "").trim();
+    if (stripped) return 0; // ada teks biasa → bukan emoji-only
+    const m = t.match(/\p{Extended_Pictographic}/gu);
+    return m ? m.length : 0;
+  }
+  $: eN = msg.type === "text" && !deletedView ? emojiOnly(source) : 0;
+  $: emojiClass = eN > 0 && eN <= 6 ? (eN <= 3 ? "emoji-lg" : "emoji-md") : "";
   // "Baca selengkapnya": klem pesan panjang ke N baris (CSS line-clamp), tombol
   // toggle. everLong dijaga agar tombol "lebih sedikit" tetap muncul saat dibuka.
   let expanded = false, overflowing = false, everLong = false;
@@ -260,7 +272,7 @@
     </div>
   {/if}
 
-  <div class="bubble {bubbleClass} {deletedView ? 'deleted' : ''}"
+  <div class="bubble {bubbleClass} {deletedView ? 'deleted' : ''} {emojiClass}"
     class:withtr={!!translated}
     class:hascap={isMedia && (msg.type === 'image' || msg.type === 'video') && caption}
     class:nohead={isMedia && (msg.type === 'image' || msg.type === 'video') && !(showSender || msg.forwarded || msg.quote || revokedShown)}>

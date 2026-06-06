@@ -143,6 +143,16 @@
   let playing = false;
   let audioEl = null;
   let vProgress = 0; // 0..1
+  // Waveform: tinggi bar bervariasi deterministik dari id pesan (stabil, tak
+  // seragam). Bukan amplitudo PCM nyata (itu perlu plumbing proto), tapi tampak
+  // natural & konsisten antar render.
+  $: waveBars = msg.type === "voice" ? (() => {
+    let seed = 0; const s = msg.id || "";
+    for (let i = 0; i < s.length; i++) seed = (seed * 31 + s.charCodeAt(i)) >>> 0;
+    const out = [];
+    for (let i = 0; i < 22; i++) { seed = (seed * 1103515245 + 12345) >>> 0; out.push(35 + (seed % 65)); }
+    return out;
+  })() : [];
   let vTxt = null, vBusy = false; // transkrip voice (STT lokal)
   async function doTranscribe() {
     if (vBusy) return;
@@ -399,7 +409,7 @@
         {/if}
       </button>
       <div class="wave" role="slider" aria-label="seek" tabindex="0" on:click={seekVoice} style="--vp:{vProgress}">
-        {#each Array(18) as _, i}<span class:on={i / 18 <= vProgress}></span>{/each}
+        {#each waveBars as h, i}<span class:on={i / waveBars.length <= vProgress} style="height:{h}%"></span>{/each}
       </div>
       <span class="vtime">{msg.duration || msg.text || ""}</span>
       {#if playing || vProgress > 0}<button class="vrate" on:click={cycleRate}>{vRate}×</button>{/if}

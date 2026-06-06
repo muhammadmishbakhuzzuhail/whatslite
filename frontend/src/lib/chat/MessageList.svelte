@@ -2,7 +2,7 @@
   import Bubble from "./Bubble.svelte";
   import { t } from "../i18n.js";
   import { tick, beforeUpdate, afterUpdate } from "svelte";
-  import { loadOlder, jumpMsg, wallpapers } from "../../stores.js";
+  import { loadOlder, jumpMsg, wallpapers, lightbox } from "../../stores.js";
   export let messages = [];
   export let group = false;
   export let chatId;
@@ -124,6 +124,12 @@
     return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   }
 
+  // Buka album di lightbox (swipe antar item).
+  function openAlbum(albumItems, start) {
+    const items = albumItems.map((a) => ({ url: `/media/${chatId}/${a.id}`, type: a.mtype, caption: "" }));
+    lightbox.set({ items, i: start });
+  }
+
   function build(msgs, grp, unreadId, unreadN) {
     let prevKey = null;
     let prevDay = null;
@@ -157,7 +163,30 @@
       }
       out.push({ m, idx, firstOfRun });
     });
-    return out;
+    return groupAlbums(out);
+  }
+
+  // Gabung 2+ foto/video beruntun (tanpa caption, arah/pengirim sama, tak
+  // dipisah chip/hari) → satu item "album" → grid (ala WhatsApp).
+  function groupAlbums(arr) {
+    const isMedia = (it) => it.m && (it.m.type === "image" || it.m.type === "video") && !(it.m.caption || "").trim() && !it.m.quote && !(it.m.reactions && it.m.reactions.length);
+    const res = [];
+    let i = 0;
+    while (i < arr.length) {
+      if (isMedia(arr[i])) {
+        let j = i + 1;
+        while (j < arr.length && isMedia(arr[j]) && arr[j].m.dir === arr[i].m.dir && (arr[j].m.sender || "") === (arr[i].m.sender || "")) j++;
+        if (j - i >= 2) {
+          const group = arr.slice(i, j);
+          res.push({ m: { type: "album", items: group.map((g) => ({ id: g.m.id, idx: g.idx, mtype: g.m.type, time: g.m.time })), dir: arr[i].m.dir, time: group[group.length - 1].m.time }, idx: "album-" + arr[i].idx, firstOfRun: arr[i].firstOfRun });
+          i = j;
+          continue;
+        }
+      }
+      res.push(arr[i]);
+      i++;
+    }
+    return res;
   }
 
   // Lompat + highlight ke pesan (dari hasil pencarian). Best-effort: hanya bila
@@ -212,6 +241,19 @@
         </div>
       {:else if it.m.type === "unread"}
         <div class="unread-divider"><span>{$t("unread_count", { n: it.m.count })}</span></div>
+      {:else if it.m.type === "album"}
+        <div class="msg {it.m.dir}">
+          <div class="album-grid n{Math.min(it.m.items.length, 4)} {it.m.dir}">
+            {#each it.m.items.slice(0, 4) as a, ai}
+              <button class="album-cell" on:click={() => openAlbum(it.m.items, ai)}>
+                <img src={`/media/${chatId}/${a.id}`} alt="" loading="lazy" on:error={(e) => (e.target.style.visibility = 'hidden')} />
+                {#if a.mtype === "video"}<span class="album-play">▶</span>{/if}
+                {#if ai === 3 && it.m.items.length > 4}<span class="album-more">+{it.m.items.length - 4}</span>{/if}
+              </button>
+            {/each}
+            <span class="album-time">{it.m.time}</span>
+          </div>
+        </div>
       {:else}
         <Bubble msg={it.m} {group} {chatId} {peerName} idx={it.idx} firstOfRun={it.firstOfRun} />
       {/if}

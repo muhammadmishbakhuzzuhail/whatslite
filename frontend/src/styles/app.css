@@ -1017,6 +1017,9 @@ button.info-row:hover { background: var(--hover); }
 .wave span.on { background:var(--accent); }
 .vrate { background:var(--bg2); border:0; border-radius:10px; padding:2px 7px; font-size:11px; font-weight:600; color:var(--text2); cursor:pointer; margin-left:4px; }
 .vrate:hover { color:var(--accent); }
+.vtranscribe { background:var(--bg2); border:0; border-radius:10px; padding:2px 7px; font-size:11px; font-weight:700; color:var(--text2); cursor:pointer; margin-left:4px; }
+.vtranscribe:hover { color:var(--accent); }
+.vtranscript { flex-basis:100%; margin-top:6px; font-size:13.5px; color:var(--text); background:rgba(127,127,127,.1); border-radius:8px; padding:6px 9px; }
 
 /* Reaksi post channel */
 .ch-post-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; }

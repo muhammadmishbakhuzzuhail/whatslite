@@ -4,6 +4,7 @@
   import Avatar from "../common/Avatar.svelte";
   import { t } from "../i18n.js";
   import { translateMessage } from "../../services/translate.js";
+  import { transcribeVoice } from "../../services/data.js";
   import { LIVE, senderColorFor, avatarUrl, getLinkPreview, votePoll, getPollVotes, onEvent } from "../../services/data.js";
   import { reactMessage, deleteMessage, starMessage, replyDraft, forwardDraft, activeChatId, chats, translateLang, editDraft, pushToast, pinMessageAction, showMessageInfo, lightbox, selectMode, selectedIdx, enterSelect, toggleSelect, jumpMsg, reactionTarget, openProfile, showDeleted } from "../../stores.js";
 
@@ -136,6 +137,14 @@
   let playing = false;
   let audioEl = null;
   let vProgress = 0; // 0..1
+  let vTxt = null, vBusy = false; // transkrip voice (STT lokal)
+  async function doTranscribe() {
+    if (vBusy) return;
+    vBusy = true;
+    const r = await transcribeVoice(chatId, msg.id);
+    vBusy = false;
+    vTxt = r || $t("transcribe_unavailable");
+  }
   let vRate = 1;
   function ensureAudio() {
     if (audioEl || !mediaUrl) return;
@@ -373,6 +382,10 @@
       </div>
       <span class="vtime">{msg.duration || msg.text || ""}</span>
       {#if playing || vProgress > 0}<button class="vrate" on:click={cycleRate}>{vRate}×</button>{/if}
+      <button class="vtranscribe" title={$t("transcribe")} on:click={doTranscribe} disabled={vBusy}>
+        {vBusy ? "…" : "Aa"}
+      </button>
+      {#if vTxt}<div class="vtranscript">{vTxt}</div>{/if}
     {:else if msg.type === "location"}
       <button class="loc-card" on:click={openMap}>
         <img class="loc-map" src={mapUrl} alt="" on:error={(e) => (e.target.style.display = 'none')} />

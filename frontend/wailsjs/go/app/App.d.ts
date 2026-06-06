@@ -196,6 +196,8 @@ export function StarMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg
 
 export function SubscribePresence(arg1:string):Promise<void>;
 
+export function TranscribeVoice(arg1:string,arg2:string):Promise<string>;
+
 export function Translate(arg1:string,arg2:string):Promise<string>;
 
 export function UnfollowChannel(arg1:string):Promise<void>;

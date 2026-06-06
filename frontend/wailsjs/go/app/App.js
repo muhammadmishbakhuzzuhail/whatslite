@@ -386,6 +386,10 @@ export function SubscribePresence(arg1) {
   return window['go']['app']['App']['SubscribePresence'](arg1);
 }
 
+export function TranscribeVoice(arg1, arg2) {
+  return window['go']['app']['App']['TranscribeVoice'](arg1, arg2);
+}
+
 export function Translate(arg1, arg2) {
   return window['go']['app']['App']['Translate'](arg1, arg2);
 }

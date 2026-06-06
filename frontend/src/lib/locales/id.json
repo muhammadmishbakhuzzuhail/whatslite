@@ -318,5 +318,7 @@
  "invite_reset_done": "Tautan baru disalin",
  "wallpaper_default": "Bawaan",
  "status_reply_ph": "Balas status…",
- "status_replied": "Balasan terkirim"
+ "status_replied": "Balasan terkirim",
+ "transcribe": "Transkrip",
+ "transcribe_unavailable": "Transkrip butuh whisper lokal (atur WALITE_WHISPER_MODEL)."
 }

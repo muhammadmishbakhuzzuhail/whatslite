@@ -318,5 +318,7 @@
  "invite_reset_done": "New link copied",
  "wallpaper_default": "Default",
  "status_reply_ph": "Reply to status…",
- "status_replied": "Reply sent"
+ "status_replied": "Reply sent",
+ "transcribe": "Transcribe",
+ "transcribe_unavailable": "Transcription needs local whisper (set WALITE_WHISPER_MODEL)."
 }

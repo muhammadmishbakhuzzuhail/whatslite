@@ -77,3 +77,39 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --notes-file notes.md \
             "dist/whatslite-${GITHUB_REF_NAME}-linux-amd64"
+
+  # Universal cross-distro artifact. Runs after the release exists, builds the
+  # Flatpak for the tagged version, and attaches the .flatpak bundle.
+  flatpak:
+    needs: release
+    runs-on: ubuntu-22.04
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Point manifest at the tagged source + version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          m=packaging/flatpak/io.github.muhammadmishbakhuzzuhail.WhatsLite.yml
+          curl -sL "https://github.com/${GITHUB_REPOSITORY}/archive/${tag}.tar.gz" -o /tmp/src.tgz
+          sha=$(sha256sum /tmp/src.tgz | cut -d' ' -f1)
+          sed -i \
+            -e "s#/archive/v0\.1\.0\.tar\.gz#/archive/${tag}.tar.gz#" \
+            -e "s#sha256: [0-9a-f]\{64\}#sha256: ${sha}#" \
+            -e "s#main\.version=v0\.1\.0#main.version=${tag}#" \
+            "$m"
+
+      - name: Build Flatpak bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: whatslite-${{ github.ref_name }}.flatpak
+          manifest-path: packaging/flatpak/io.github.muhammadmishbakhuzzuhail.WhatsLite.yml
+          cache-key: flatpak-${{ github.ref_name }}
+
+      - name: Attach bundle to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: whatslite-${{ github.ref_name }}.flatpak

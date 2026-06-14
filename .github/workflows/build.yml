@@ -54,5 +54,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: whatsapp-lite-linux
-          path: build/bin/whatsapp-lite
+          name: whatslite-linux
+          path: build/bin/whatslite

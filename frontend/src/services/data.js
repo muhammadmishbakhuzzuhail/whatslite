@@ -16,7 +16,7 @@ const A = typeof window !== "undefined" ? window.go?.app?.App : null;
 export const LIVE = !!(A && A.GetChats); // true di app native, false di browser
 
 // Mode ?data=real (browser): baca snapshot data nyata (real-data.json hasil
-// `whatsapp-lite --export-json`) menggantikan mock → screenshot data nyata + UI
+// `whatslite --export-json`) menggantikan mock → screenshot data nyata + UI
 // nyata tanpa display server. Tak aktif di app native (pakai engine langsung).
 const _params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 export const REAL = !LIVE && _params.get("data") === "real";

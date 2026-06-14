@@ -1,4 +1,4 @@
-// Command whatsapp-lite (Wails): app Linux native — UI web (Svelte) di dalam
+// Command whatslite (Wails): app Linux native — UI web (Svelte) di dalam
 // WebView sistem (WebKitGTK), engine whatsmeow (disambung belakangan).
 package main
 
@@ -15,8 +15,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/app"
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
 )
 
 // singleInstance memastikan hanya satu proses app jalan (flock). false = sudah
@@ -85,7 +85,7 @@ func main() {
 				c.Close()
 			}
 		}
-		println("WhatsApp Lite sudah berjalan.")
+		println("WhatsLite sudah berjalan.")
 		os.Exit(0)
 	}
 
@@ -95,7 +95,7 @@ func main() {
 	application := app.NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "WhatsApp Lite",
+		Title:     "WhatsLite",
 		Width:     1100,
 		Height:    720,
 		MinWidth:  760,
@@ -112,7 +112,7 @@ func main() {
 		OnBeforeClose:    application.BeforeClose,
 		Bind:             []interface{}{application},
 		Linux: &linux.Options{
-			ProgramName: "WhatsApp Lite",
+			ProgramName: "WhatsLite",
 		},
 	})
 	if err != nil {

@@ -1,4 +1,4 @@
-// Package engine adalah inti WhatsApp Lite: pembungkus whatsmeow + penyimpanan.
+// Package engine adalah inti WhatsLite: pembungkus whatsmeow + penyimpanan.
 //
 // Engine sengaja dibuat AGNOSTIK terhadap frontend (tidak tahu soal GUI/TUI)
 // supaya bisa dipakai oleh GUI Wails, TUI, maupun mode daemon headless nanti.
@@ -170,7 +170,7 @@ func (e *Engine) SetProxy(addr string) error {
 // Tautkan perangkat → Tautkan dengan nomor telepon. Sukses → event login biasa.
 func (e *Engine) PairPhone(ctx context.Context, phone string) (string, error) {
 	// Display name WAJIB format "Browser (OS)" — server tolak 400 kalau bukan
-	// browser/OS umum (mis. "WhatsApp Lite" gagal). Pakai "Chrome (Linux)".
+	// browser/OS umum (mis. "WhatsLite" gagal). Pakai "Chrome (Linux)".
 	return e.Client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
 }
 
@@ -205,9 +205,28 @@ func DefaultDataDir() (string, error) {
 		}
 		base = filepath.Join(home, ".local", "share")
 	}
-	dir := filepath.Join(base, "whatsapp-lite")
+	dir := filepath.Join(base, "whatslite")
+	// Migrasi rebrand (WhatsApp Lite → WhatsLite): pindahkan data lama sekali,
+	// HANYA bila folder baru belum ada & folder lama ada. Non-destruktif: bila
+	// gagal, data lama tetap utuh & app mulai bersih (perlu pairing ulang).
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		old := filepath.Join(base, "whatsapp-lite")
+		if fi, e := os.Stat(old); e == nil && fi.IsDir() {
+			_ = os.Rename(old, dir) // memindah app.db, media/, sesi, kunci API sekaligus
+		}
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
+	}
+	// Ganti nama file DB sesi whatsmeow: whatsapp-lite.db → whatslite.db (+ WAL/SHM).
+	newDB := filepath.Join(dir, "whatslite.db")
+	oldDB := filepath.Join(dir, "whatsapp-lite.db")
+	if _, err := os.Stat(newDB); os.IsNotExist(err) {
+		if _, e := os.Stat(oldDB); e == nil {
+			_ = os.Rename(oldDB, newDB)
+			_ = os.Rename(oldDB+"-wal", newDB+"-wal")
+			_ = os.Rename(oldDB+"-shm", newDB+"-shm")
+		}
 	}
 	return dir, nil
 }

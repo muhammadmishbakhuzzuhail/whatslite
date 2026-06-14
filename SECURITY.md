@@ -3,7 +3,7 @@
 ## Scope
 
 This project stores your **WhatsApp session and end-to-end encryption keys** locally in
-`~/.local/share/whatsapp-lite/` (SQLite). Vulnerabilities that leak or misuse this data are serious.
+`~/.local/share/whatslite/` (SQLite). Vulnerabilities that leak or misuse this data are serious.
 
 **In scope:**
 

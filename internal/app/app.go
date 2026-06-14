@@ -23,8 +23,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
 // App = konteks aplikasi Wails. Method publik di sini otomatis ter-bind ke JS
@@ -92,7 +92,7 @@ func (a *App) Startup(ctx context.Context) {
 		runtime.LogError(ctx, "data dir: "+err.Error())
 		return
 	}
-	eng, err := engine.New(ctx, filepath.Join(dataDir, "whatsapp-lite.db"), os.Getenv("WALITE_DEBUG") != "")
+	eng, err := engine.New(ctx, filepath.Join(dataDir, "whatslite.db"), os.Getenv("WALITE_DEBUG") != "")
 	if err != nil {
 		runtime.LogError(ctx, "engine: "+err.Error())
 		return

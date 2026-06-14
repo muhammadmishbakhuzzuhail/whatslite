@@ -1,4 +1,4 @@
-# WhatsApp Lite
+# WhatsLite
 
 A **lightweight, efficient** desktop WhatsApp client for Linux — **without bundling Chromium**. The UI
 runs in the **system WebView (WebKitGTK)**, not a browser shipped alongside the app like
@@ -61,7 +61,7 @@ machine-translated)**.
 | **Render** | WebKitGTK (system WebView, **not** a bundled Chromium) |
 | **Storage** | SQLite for session/keys/messages; media as files (not in the DB) |
 
-- Local data: `~/.local/share/whatsapp-lite/` · media cache: `~/.cache/whatsapp-lite/` (XDG).
+- Local data: `~/.local/share/whatslite/` · media cache: `~/.cache/whatslite/` (XDG).
 - The key differentiator is the **lean architecture** (local-first, media-as-file instead of base64 in the
   DB, evicted cache, bounded message retention, no telemetry) to offset the WebView overhead. Details in
   `PRODUCT-BRIEF.md` §12.3.
@@ -95,8 +95,8 @@ Build tags are **required** on Arch/CachyOS:
 wails dev -tags "webkit2_41 netgo"
 
 # release build (single binary):
-wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatsapp-lite
-./build/bin/whatsapp-lite
+wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatslite
+./build/bin/whatslite
 
 # debug CLI (engine only, no UI; static binary):
 CGO_ENABLED=0 go build -o walite-cli ./cmd/walite-cli

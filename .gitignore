@@ -1,7 +1,7 @@
 # Binary hasil build
-/whatsapp-lite
+/whatslite
 /walite-cli
-/cmd/whatsapp-lite/whatsapp-lite
+/cmd/whatslite/whatslite
 /build/bin/
 
 # Dependensi & artefak build frontend

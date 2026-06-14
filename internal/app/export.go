@@ -2,7 +2,7 @@ package app
 
 // Mode ekspor data nyata (OFFLINE) untuk autopilot/compare:
 //
-//	whatsapp-lite --export-json <path>
+//	whatslite --export-json <path>
 //
 // Buka DB store + app.db TANPA menyambung ke WhatsApp (no network → tak kena
 // sandbox), reuse logika resolusi nama/urutan yang sama dengan UI (GetChats/
@@ -16,8 +16,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
 // runExport menulis snapshot data nyata ke path (JSON). maxChatMsgs = jumlah
@@ -29,7 +29,7 @@ func RunExport(path string) error {
 	if err != nil {
 		return err
 	}
-	eng, err := engine.New(ctx, filepath.Join(dataDir, "whatsapp-lite.db"), false)
+	eng, err := engine.New(ctx, filepath.Join(dataDir, "whatslite.db"), false)
 	if err != nil {
 		return err
 	}

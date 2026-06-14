@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$ROOT/build/bin/whatsapp-lite"
+BIN="$ROOT/build/bin/whatslite"
 TOOLS="$ROOT/build/tools"
 APPDIR="$ROOT/build/AppDir"
 
@@ -26,12 +26,12 @@ fetch "https://github.com/AppImage/appimagetool/releases/download/continuous/app
 
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin"
-install -m755 "$BIN" "$APPDIR/usr/bin/whatsapp-lite"
+install -m755 "$BIN" "$APPDIR/usr/bin/whatslite"
 
 export APPIMAGE_EXTRACT_AND_RUN=1
 "$TOOLS/linuxdeploy" --appdir "$APPDIR" \
-  -d "$ROOT/build/linux/whatsapp-lite.desktop" \
-  -i "$ROOT/build/linux/whatsapp-lite.svg"
+  -d "$ROOT/build/linux/whatslite.desktop" \
+  -i "$ROOT/build/linux/whatslite.svg"
 
 ARCH="$ARCH" "$TOOLS/appimagetool" "$APPDIR" "$ROOT/build/bin/WhatsApp-Lite-${ARCH}.AppImage"
 echo "Selesai: build/bin/WhatsApp-Lite-${ARCH}.AppImage"

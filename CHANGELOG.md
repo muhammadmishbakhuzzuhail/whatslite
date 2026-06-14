@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the message-list scroll handler is coalesced to one run per animation frame.
 - Presence is no longer bulk-subscribed for every chat on connect — only the ~30 most-recent 1:1 chats
   (plus the open chat and the Contacts panel), reducing connect-time IQ traffic and battery use.
-- Go module path changed from `whatsapp-lite` to `github.com/muhammadmishbakhuzzuhail/whatsapp-lite`
+- Go module path changed from `whatslite` to `github.com/muhammadmishbakhuzzuhail/whatslite`
   so it can be `go install`-ed/vendored.
 
 ## [0.1.0] - 2026-06-14
@@ -47,5 +47,5 @@ First public release. A lightweight WhatsApp desktop client for Linux (Go + what
 - Scheduled messages, reminders, chat folders/filters, app lock (PIN), themes, i18n in 73 languages.
 - Lean architecture: media-as-file, evicting cache, bounded message retention, no telemetry.
 
-[Unreleased]: https://github.com/muhammadmishbakhuzzuhail/whatsapp-lite/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/muhammadmishbakhuzzuhail/whatsapp-lite/releases/tag/v0.1.0
+[Unreleased]: https://github.com/muhammadmishbakhuzzuhail/whatslite/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/muhammadmishbakhuzzuhail/whatslite/releases/tag/v0.1.0

@@ -12,7 +12,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
 // canon → bentuk kanonik JID (samakan dgn jalur incoming) agar pesan KELUAR

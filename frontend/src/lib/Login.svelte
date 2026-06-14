@@ -14,7 +14,7 @@
 </script>
 
 <div class="login">
-  <div class="login-bar">WhatsApp Lite</div>
+  <div class="login-bar">WhatsLite</div>
   <div class="login-card">
     <div class="login-left">
       <h2>{$t("login_title")}</h2>

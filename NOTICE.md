@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-WhatsApp Lite is licensed under **GPL-3.0** (see [`LICENSE`](./LICENSE)). It bundles or links the
+WhatsLite is licensed under **GPL-3.0** (see [`LICENSE`](./LICENSE)). It bundles or links the
 third-party components below. Each remains under its own license; those licenses are compatible with
 distributing the combined work under the GPL (notably MPL-2.0 §3.3, which permits distribution of a larger
 work under the GPL).

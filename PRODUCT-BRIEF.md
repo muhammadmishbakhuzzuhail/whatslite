@@ -1,4 +1,4 @@
-# Product Brief — WhatsApp Lite (lightweight WhatsApp desktop client for Linux)
+# Product Brief — WhatsLite (lightweight WhatsApp desktop client for Linux)
 
 > Product-direction document. Output of the PROJECT OVERVIEW + BRAINSTORM + TARGET MARKET sessions.
 > Status: **draft v2** · Date: 2026-06-02 · **Stack changed**: from Gio (native custom-drawn) to

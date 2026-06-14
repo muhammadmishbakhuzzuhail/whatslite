@@ -46,7 +46,7 @@ func (a *App) Quit() { runtime.Quit(a.ctx) }
 
 // SetUnreadBadge memperbarui judul window dgn jumlah belum dibaca ("(3) …").
 func (a *App) SetUnreadBadge(n int) {
-	title := "WhatsApp Lite"
+	title := "WhatsLite"
 	if n > 0 {
 		title = fmt.Sprintf("(%d) %s", n, title)
 	}

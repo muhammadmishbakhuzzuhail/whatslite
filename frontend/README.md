@@ -1,4 +1,4 @@
-# WhatsApp Lite frontend (Svelte + Vite)
+# WhatsLite frontend (Svelte + Vite)
 
 The web UI, packaged into a native Linux app via **Wails** (system WebView / WebKitGTK).
 During development it can also be opened in a regular browser with **mock data**.

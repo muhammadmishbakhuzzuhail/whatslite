@@ -12,7 +12,7 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 
-	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		fatal("tidak bisa menyiapkan direktori data: %v", err)
 	}
-	dbPath := filepath.Join(dataDir, "whatsapp-lite.db")
+	dbPath := filepath.Join(dataDir, "whatslite.db")
 
 	debug := os.Getenv("WALITE_DEBUG") != ""
 	eng, err := engine.New(ctx, dbPath, debug)

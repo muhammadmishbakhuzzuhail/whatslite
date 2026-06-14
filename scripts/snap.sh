@@ -9,7 +9,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$ROOT/build/bin/whatsapp-lite"
+BIN="$ROOT/build/bin/whatslite"
 DIST="$ROOT/frontend/dist"
 OUT="${SNAP_OUT:-/tmp}"
 

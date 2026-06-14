@@ -1,4 +1,4 @@
-# WhatsApp Lite — Target Architecture (proper, lightweight, Linux-optimized)
+# WhatsLite — Target Architecture (proper, lightweight, Linux-optimized)
 
 Goal: ~100% similar to WhatsApp (Web/macOS) **and more optimal on Linux**. Lean:
 a Go/whatsmeow engine, a web UI (Svelte) in WebKitGTK via Wails. This document is
@@ -112,7 +112,7 @@ disk kept in check (eviction).
 - **Tray** (optional): libappindicator / StatusNotifierItem — minimize-to-tray,
   unread badge.
 - **.desktop entry** + icon → app-menu integration, optional autostart.
-- **XDG dirs** (done: ~/.local/share). Cache in ~/.cache/whatsapp-lite (media
+- **XDG dirs** (done: ~/.local/share). Cache in ~/.cache/whatslite (media
   evictable) — kept separate from data.
 - **Wayland/X11**: runs on both (Wayland native + Xwayland fallback).
 

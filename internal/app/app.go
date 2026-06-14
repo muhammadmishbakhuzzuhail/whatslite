@@ -343,6 +343,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		})
 	})
 	eng.OnLoggedOut(func() { runtime.EventsEmit(a.ctx, "wa:loggedout", "") })
+	// Sesi direbut proses kembar → beri tahu (jangan reconnect, whatsmeow stop).
+	eng.OnStreamReplaced(func() { runtime.EventsEmit(a.ctx, "wa:streamreplaced", "") })
+	// Blokir sementara → tampilkan alasan + sisa menit (0 = tak diketahui).
+	eng.OnTemporaryBan(func(reason string, expire time.Duration) {
+		runtime.EventsEmit(a.ctx, "wa:tempban", map[string]interface{}{"reason": reason, "mins": int(expire.Minutes())})
+	})
 
 	// Panggilan masuk: whatsmeow hanya signaling (tanpa media) → catat + notif +
 	// kirim event ke UI (banner + tombol Tolak). Tak bisa menjawab/bicara.

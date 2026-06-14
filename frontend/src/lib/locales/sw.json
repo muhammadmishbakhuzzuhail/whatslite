@@ -394,5 +394,7 @@
  "keep_deleted_d": "Hifadhi maudhui ya ujumbe ambao wengine hufuta (kuzuia kufuta). Zima = fanya kama WhatsApp.",
  "rec_voice": "inarekodi sauti...",
  "virt_list": "Orodha ya ujumbe pepe",
- "virt_list_d": "Jaribio - toa ujumbe unaoonekana pekee (nyepesi kwenye gumzo kubwa)"
+ "virt_list_d": "Jaribio - toa ujumbe unaoonekana pekee (nyepesi kwenye gumzo kubwa)",
+ "stream_replaced": "Kipindi kilifunguliwa kwenye kifaa kingine - unganisha tena hapa ili uendelee",
+ "temp_banned": "Imezuiwa kwa muda na WhatsApp"
 }

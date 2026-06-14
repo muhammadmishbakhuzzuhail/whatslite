@@ -394,5 +394,7 @@
  "keep_deleted_d": "Boshqalar oʻchirib tashlagan xabarlar mazmunini saqlang (oʻchirishga qarshi). O'chirilgan = o'zingizni WhatsApp kabi tuting.",
  "rec_voice": "audio yozilmoqda…",
  "virt_list": "Virtual xabarlar ro'yxati",
- "virt_list_d": "Eksperimental - faqat ko'rinadigan xabarlarni ko'rsatish (katta chatlarda engilroq)"
+ "virt_list_d": "Eksperimental - faqat ko'rinadigan xabarlarni ko'rsatish (katta chatlarda engilroq)",
+ "stream_replaced": "Seans boshqa qurilmada ochildi — davom ettirish uchun shu yerda qayta ulaning",
+ "temp_banned": "WhatsApp tomonidan vaqtincha bloklangan"
 }

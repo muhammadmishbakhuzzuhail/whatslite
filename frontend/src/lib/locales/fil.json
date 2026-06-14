@@ -394,5 +394,7 @@
  "keep_deleted_d": "I-save ang nilalaman ng mga mensaheng tinanggal ng iba (anti-delete). Naka-off = kumilos tulad ng WhatsApp.",
  "rec_voice": "nagre-record ng audio…",
  "virt_list": "Listahan ng virtual na mensahe",
- "virt_list_d": "Eksperimental — mag-render lamang ng mga nakikitang mensahe (mas magaan sa malalaking chat)"
+ "virt_list_d": "Eksperimental — mag-render lamang ng mga nakikitang mensahe (mas magaan sa malalaking chat)",
+ "stream_replaced": "Binuksan ang session sa isa pang device — muling kumonekta dito para ipagpatuloy",
+ "temp_banned": "Pansamantalang na-block ng WhatsApp"
 }

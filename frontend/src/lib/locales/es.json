@@ -149,6 +149,8 @@
  "no_starred": "Aún no hay mensajes destacados.",
  "mention_all": "Todos",
  "err_generic": "Algo salió mal",
+ "stream_replaced": "Sesión abierta en otro dispositivo: vuelve a conectar aquí para continuar",
+ "temp_banned": "Bloqueado temporalmente por WhatsApp",
  "members_n": "%n miembros",
  "mic_denied": "Micrófono no disponible",
  "edit_message": "Editar mensaje",

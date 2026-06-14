@@ -394,5 +394,7 @@
  "keep_deleted_d": "Saglabājiet citu dzēsto ziņojumu saturu (pret dzēšanu). Izslēgts = uzvedies kā WhatsApp.",
  "rec_voice": "ieraksta audio…",
  "virt_list": "Virtuālais ziņojumu saraksts",
- "virt_list_d": "Eksperimentāls — atveidojiet tikai redzamus ziņojumus (vieglāk milzīgās tērzēšanas sarunās)"
+ "virt_list_d": "Eksperimentāls — atveidojiet tikai redzamus ziņojumus (vieglāk milzīgās tērzēšanas sarunās)",
+ "stream_replaced": "Sesija ir atvērta citā ierīcē — atkārtoti izveidojiet savienojumu šeit, lai atsāktu",
+ "temp_banned": "Īslaicīgi bloķēja WhatsApp"
 }

@@ -394,5 +394,7 @@
  "keep_deleted_d": "Lagre innholdet i meldinger andre sletter (anti-sletting). Av = oppfør deg som WhatsApp.",
  "rec_voice": "tar opp lyd...",
  "virt_list": "Virtuell meldingsliste",
- "virt_list_d": "Eksperimentell - gjengi bare synlige meldinger (lettere på store chatter)"
+ "virt_list_d": "Eksperimentell - gjengi bare synlige meldinger (lettere på store chatter)",
+ "stream_replaced": "Økt åpnet på en annen enhet – koble til på nytt her for å fortsette",
+ "temp_banned": "Midlertidig blokkert av WhatsApp"
 }

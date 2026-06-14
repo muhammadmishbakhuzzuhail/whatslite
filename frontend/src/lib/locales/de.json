@@ -394,5 +394,7 @@
  "keep_deleted_d": "Speichern Sie den Inhalt von Nachrichten, die andere löschen (Anti-Löschen). Aus = Verhalten wie WhatsApp.",
  "rec_voice": "Audio aufnehmen…",
  "virt_list": "Virtuelle Nachrichtenliste",
- "virt_list_d": "Experimentell – Nur sichtbare Nachrichten rendern (leichter bei großen Chats)"
+ "virt_list_d": "Experimentell – Nur sichtbare Nachrichten rendern (leichter bei großen Chats)",
+ "stream_replaced": "Sitzung auf einem anderen Gerät geöffnet – stellen Sie hier erneut eine Verbindung her, um fortzufahren",
+ "temp_banned": "Vorübergehend von WhatsApp blockiert"
 }

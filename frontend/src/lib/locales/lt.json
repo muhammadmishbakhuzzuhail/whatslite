@@ -394,5 +394,7 @@
  "keep_deleted_d": "Išsaugokite kitų ištrintų pranešimų turinį (anti-Delete). Išjungta = elkitės kaip „WhatsApp“.",
  "rec_voice": "įrašyti garsą…",
  "virt_list": "Virtualus pranešimų sąrašas",
- "virt_list_d": "Eksperimentinis – pateikti tik matomus pranešimus (šviesiau dideliuose pokalbiuose)"
+ "virt_list_d": "Eksperimentinis – pateikti tik matomus pranešimus (šviesiau dideliuose pokalbiuose)",
+ "stream_replaced": "Sesija atidaryta kitame įrenginyje – iš naujo prisijunkite čia, kad tęstumėte",
+ "temp_banned": "Laikinai užblokavo WhatsApp"
 }

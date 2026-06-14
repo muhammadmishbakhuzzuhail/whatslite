@@ -394,5 +394,7 @@
  "keep_deleted_d": "Başkalarının sildiği mesajların içeriğini kaydedin (silme önleme). Kapalı = WhatsApp gibi davran.",
  "rec_voice": "ses kaydediyor…",
  "virt_list": "Sanal mesaj listesi",
- "virt_list_d": "Deneysel — yalnızca görünür mesajları işleyin (büyük sohbetlerde daha hafif)"
+ "virt_list_d": "Deneysel — yalnızca görünür mesajları işleyin (büyük sohbetlerde daha hafif)",
+ "stream_replaced": "Oturum başka bir cihazda açıldı; devam etmek için buraya yeniden bağlanın",
+ "temp_banned": "WhatsApp tarafından geçici olarak engellendi"
 }

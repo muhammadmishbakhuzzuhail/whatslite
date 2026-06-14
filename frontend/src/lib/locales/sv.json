@@ -394,5 +394,7 @@
  "keep_deleted_d": "Spara innehållet i meddelanden som andra tar bort (anti-delete). Av = bete dig som WhatsApp.",
  "rec_voice": "spelar in ljud...",
  "virt_list": "Virtuell meddelandelista",
- "virt_list_d": "Experimentell – återge endast synliga meddelanden (lättare vid stora chattar)"
+ "virt_list_d": "Experimentell – återge endast synliga meddelanden (lättare vid stora chattar)",
+ "stream_replaced": "Session öppnad på en annan enhet – anslut här igen för att återuppta",
+ "temp_banned": "Tillfälligt blockerad av WhatsApp"
 }

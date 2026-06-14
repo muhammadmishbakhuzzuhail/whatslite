@@ -84,6 +84,18 @@ func New(ctx context.Context, dbPath string, debug bool) (*Engine, error) {
 	clientLog := waLog.Stdout("Client", level, true)
 	client := whatsmeow.NewClient(device, clientLog)
 
+	// Ketahanan & korektness (riset whatsmeow). EnableAutoReconnect &
+	// AutoTrustIdentity sudah default true.
+	// - rerequest pesan tak-terdekripsi dari HP → kurangi spam "Error decrypting"
+	//   (pesan gagal diisi ulang saat HP online; bkn sekadar hilang).
+	client.AutomaticMessageRerequestFromPhone = true
+	// - buang duplikat saat backlog offline dikirim ulang pasca-reconnect
+	//   (cegah pesan/efek/notif ganda). Buffer dibersihkan tiap 12 jam internal.
+	client.EnableDecryptedEventBuffer = true
+	// - simpan pesan terkirim ke DB → retry & dekripsi vote-poll tahan restart
+	//   (default cuma LRU 256 di memori, hilang saat restart).
+	client.UseRetryMessageStore = true
+
 	return &Engine{Client: client, container: container, groupNames: map[string]string{}}, nil
 }
 

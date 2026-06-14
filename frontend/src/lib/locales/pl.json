@@ -394,5 +394,7 @@
  "keep_deleted_d": "Zapisz treść wiadomości usuniętych przez innych (zabezpieczenie przed usunięciem). Wyłączone = zachowuj się jak WhatsApp.",
  "rec_voice": "nagrywanie dźwięku…",
  "virt_list": "Wirtualna lista wiadomości",
- "virt_list_d": "Eksperymentalne — renderuj tylko widoczne wiadomości (lżejsze w przypadku dużych czatów)"
+ "virt_list_d": "Eksperymentalne — renderuj tylko widoczne wiadomości (lżejsze w przypadku dużych czatów)",
+ "stream_replaced": "Sesja otwarta na innym urządzeniu — połącz się tutaj ponownie, aby wznowić",
+ "temp_banned": "Tymczasowo zablokowane przez WhatsApp"
 }

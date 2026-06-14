@@ -394,5 +394,7 @@
  "keep_deleted_d": "Simpen eusi pesen anu dihapus ku batur (anti-hapus). Pareum = kalakuanana kawas WhatsApp.",
  "rec_voice": "ngarékam audio…",
  "virt_list": "Daptar pesen virtual",
- "virt_list_d": "Ékspérimén — ngan ukur pesen anu katingali (leuwih hampang dina obrolan anu ageung)"
+ "virt_list_d": "Ékspérimén — ngan ukur pesen anu katingali (leuwih hampang dina obrolan anu ageung)",
+ "stream_replaced": "Sesi dibuka dina alat sejen - sambungkeun deui ka dieu pikeun neruskeun",
+ "temp_banned": "Samentawis diblokir ku WhatsApp"
 }

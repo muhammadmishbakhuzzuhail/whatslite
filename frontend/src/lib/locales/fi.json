@@ -394,5 +394,7 @@
  "keep_deleted_d": "Tallenna muiden poistamien viestien sisältö (poiston esto). Pois päältä = käyttäydy kuten WhatsApp.",
  "rec_voice": "äänittää ääntä…",
  "virt_list": "Virtuaalinen viestilista",
- "virt_list_d": "Kokeellinen – näytä vain näkyvät viestit (kevyempi suurissa keskusteluissa)"
+ "virt_list_d": "Kokeellinen – näytä vain näkyvät viestit (kevyempi suurissa keskusteluissa)",
+ "stream_replaced": "Istunto avattu toisella laitteella – yhdistä uudelleen tähän jatkaaksesi",
+ "temp_banned": "WhatsApp esti tilapäisesti"
 }

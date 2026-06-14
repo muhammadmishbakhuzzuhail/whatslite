@@ -394,5 +394,7 @@
  "keep_deleted_d": "Chekwa ọdịnaya nke ozi ndị ọzọ na-ehichapụ (mgbochi ihichapụ). Gbanyụọ = mee ka WhatsApp.",
  "rec_voice": "na-edekọ ọdịyo…",
  "virt_list": "Ndepụta ozi mebere",
- "virt_list_d": "Nnwale - nye naanị ozi a na-ahụ anya (ọ dị mfe na nnukwu nkata)"
+ "virt_list_d": "Nnwale - nye naanị ozi a na-ahụ anya (ọ dị mfe na nnukwu nkata)",
+ "stream_replaced": "Oge mepere na ngwaọrụ ọzọ - jikọọ ebe a ka ịmalitegharịa",
+ "temp_banned": "WhatsApp gbochiri nwa oge"
 }

@@ -394,5 +394,7 @@
  "keep_deleted_d": "Gorde besteek ezabatzen dituzten mezuen edukia (ezabatzearen aurkakoa). Desaktibatuta = WhatsApp bezala jokatu.",
  "rec_voice": "audioa grabatzen…",
  "virt_list": "Mezuen zerrenda birtualak",
- "virt_list_d": "Esperimentala — errendatu ikusgai mezuak soilik (arinago txat handietan)"
+ "virt_list_d": "Esperimentala — errendatu ikusgai mezuak soilik (arinago txat handietan)",
+ "stream_replaced": "Saioa beste gailu batean ireki da — berriro konektatu hemen berrekiteko",
+ "temp_banned": "WhatsApp-ek aldi baterako blokeatuta"
 }

@@ -394,5 +394,7 @@
  "keep_deleted_d": "A mások által törölt üzenetek tartalmának mentése (törlés-ellenes). Ki = úgy viselkedik, mint a WhatsApp.",
  "rec_voice": "hang rögzítése…",
  "virt_list": "Virtuális üzenetlista",
- "virt_list_d": "Kísérleti – csak a látható üzeneteket jelenítse meg (világosabb a hatalmas csevegéseknél)"
+ "virt_list_d": "Kísérleti – csak a látható üzeneteket jelenítse meg (világosabb a hatalmas csevegéseknél)",
+ "stream_replaced": "A munkamenet megnyitva egy másik eszközön – a folytatáshoz csatlakozzon újra",
+ "temp_banned": "A WhatsApp ideiglenesen letiltotta"
 }

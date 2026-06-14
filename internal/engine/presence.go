@@ -29,6 +29,27 @@ func (e *Engine) OnLoggedOut(fn func()) {
 	})
 }
 
+// OnStreamReplaced: sesi diambil alih klien lain dgn kunci sama (mis. proses
+// kembar). whatsmeow berhenti — JANGAN reconnect (akan saling rebut). Beritahu
+// pengguna saja.
+func (e *Engine) OnStreamReplaced(fn func()) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		if _, ok := evt.(*events.StreamReplaced); ok {
+			fn()
+		}
+	})
+}
+
+// OnTemporaryBan: blokir sementara (ConnectFailure TempBanned). Mundur jangan
+// reconnect-loop. Kembalikan alasan + sisa durasi (0 bila tak diketahui).
+func (e *Engine) OnTemporaryBan(fn func(reason string, expire time.Duration)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		if tb, ok := evt.(*events.TemporaryBan); ok {
+			fn(tb.Code.String(), tb.Expire)
+		}
+	})
+}
+
 // SendAvailable umumkan status online kita (perlu agar bisa terima presence balik).
 func (e *Engine) SendAvailable() {
 	_ = e.Client.SendPresence(context.Background(), types.PresenceAvailable)

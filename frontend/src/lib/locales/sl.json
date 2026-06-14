@@ -394,5 +394,7 @@
  "keep_deleted_d": "Shranite vsebino sporočil, ki jih drugi izbrišejo (proti brisanju). Izklopljen = obnašaj se kot WhatsApp.",
  "rec_voice": "snemanje zvoka …",
  "virt_list": "Virtualni seznam sporočil",
- "virt_list_d": "Eksperimentalno — upodobi samo vidna sporočila (svetlejša pri velikih klepetih)"
+ "virt_list_d": "Eksperimentalno — upodobi samo vidna sporočila (svetlejša pri velikih klepetih)",
+ "stream_replaced": "Seja je bila odprta v drugi napravi — za nadaljevanje se znova povežite tukaj",
+ "temp_banned": "Začasno blokiral WhatsApp"
 }

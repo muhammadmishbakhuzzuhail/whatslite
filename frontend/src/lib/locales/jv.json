@@ -394,5 +394,7 @@
  "keep_deleted_d": "Simpen isi pesen sing dibusak wong liya (anti-delete). Off = tumindak kaya WhatsApp.",
  "rec_voice": "ngrekam audio…",
  "virt_list": "Daftar pesen virtual",
- "virt_list_d": "Eksperimental - mung menehi pesen sing katon (luwih entheng ing obrolan gedhe)"
+ "virt_list_d": "Eksperimental - mung menehi pesen sing katon (luwih entheng ing obrolan gedhe)",
+ "stream_replaced": "Sesi dibukak ing piranti liyane - sambungake maneh ing kene kanggo nerusake",
+ "temp_banned": "Diblokir sementara dening WhatsApp"
 }

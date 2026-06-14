@@ -394,5 +394,7 @@
  "keep_deleted_d": "Salve o conteúdo das mensagens que outras pessoas excluem (anti-exclusão). Desligado = comportar-se como o WhatsApp.",
  "rec_voice": "gravando áudio…",
  "virt_list": "Lista de mensagens virtuais",
- "virt_list_d": "Experimental – renderiza apenas mensagens visíveis (mais leve em chats grandes)"
+ "virt_list_d": "Experimental – renderiza apenas mensagens visíveis (mais leve em chats grandes)",
+ "stream_replaced": "Sessão aberta em outro dispositivo – reconecte aqui para retomar",
+ "temp_banned": "Bloqueado temporariamente pelo WhatsApp"
 }

@@ -149,6 +149,8 @@
  "no_starred": "No starred messages yet.",
  "mention_all": "Everyone",
  "err_generic": "Something went wrong",
+ "stream_replaced": "Session opened on another device — reconnect here to resume",
+ "temp_banned": "Temporarily blocked by WhatsApp",
  "members_n": "%n members",
  "mic_denied": "Microphone unavailable",
  "edit_message": "Edit message",

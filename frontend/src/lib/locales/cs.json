@@ -394,5 +394,7 @@
  "keep_deleted_d": "Uložit obsah zpráv, které ostatní smažou (anti-delete). Vypnuto = chovat se jako WhatsApp.",
  "rec_voice": "nahrávání zvuku…",
  "virt_list": "Seznam virtuálních zpráv",
- "virt_list_d": "Experimentální – vykresluje pouze viditelné zprávy (lehčí na velkých chatech)"
+ "virt_list_d": "Experimentální – vykresluje pouze viditelné zprávy (lehčí na velkých chatech)",
+ "stream_replaced": "Relace otevřena na jiném zařízení – znovu se zde připojte a pokračujte",
+ "temp_banned": "Dočasně zablokováno aplikací WhatsApp"
 }

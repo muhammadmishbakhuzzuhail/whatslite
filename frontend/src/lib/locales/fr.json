@@ -394,5 +394,7 @@
  "keep_deleted_d": "Enregistrez le contenu des messages que d'autres suppriment (anti-suppression). Désactivé = se comporter comme WhatsApp.",
  "rec_voice": "enregistrement audio…",
  "virt_list": "Liste de messages virtuelle",
- "virt_list_d": "Expérimental : afficher uniquement les messages visibles (plus légers sur les discussions volumineuses)"
+ "virt_list_d": "Expérimental : afficher uniquement les messages visibles (plus légers sur les discussions volumineuses)",
+ "stream_replaced": "Session ouverte sur un autre appareil — reconnectez-vous ici pour reprendre",
+ "temp_banned": "Temporairement bloqué par WhatsApp"
 }

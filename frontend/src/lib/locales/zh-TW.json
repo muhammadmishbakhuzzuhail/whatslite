@@ -394,5 +394,7 @@
  "keep_deleted_d": "儲存別人刪除（反刪除）的訊息內容。關閉 = 行為類似於 WhatsApp。",
  "rec_voice": "錄製音訊...",
  "virt_list": "虛擬訊息列表",
- "virt_list_d": "實驗性的－僅渲染可見訊息（在大型聊天中更輕）"
+ "virt_list_d": "實驗性的－僅渲染可見訊息（在大型聊天中更輕）",
+ "stream_replaced": "會話已在另一台裝置上開啟 - 在此處重新連接以恢復",
+ "temp_banned": "暫時被 WhatsApp 封鎖"
 }

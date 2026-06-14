@@ -664,6 +664,13 @@ if (data.LIVE) {
     scheduleChatRefresh(); // perbarui centang di sidebar (debounce → receipt grup banyak)
   });
   data.onEvent("wa:error", (e) => { console.error("WA error:", e); pushToast(typeof e === "string" ? e : tr("err_generic")); });
+  // Sesi direbut perangkat/proses lain (jangan auto-reconnect, whatsmeow stop).
+  data.onEvent("wa:streamreplaced", () => { syncing.set(false); pushToast(tr("stream_replaced")); });
+  // Blokir sementara dari WhatsApp.
+  data.onEvent("wa:tempban", (e) => {
+    const mins = e && e.mins > 0 ? ` (${e.mins}m)` : "";
+    pushToast(tr("temp_banned") + (e && e.reason ? ": " + e.reason : "") + mins);
+  });
   data.onEvent("wa:loggedout", () => {
     loggedIn.set(false);
     syncing.set(false);

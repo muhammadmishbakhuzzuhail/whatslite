@@ -394,5 +394,7 @@
  "keep_deleted_d": "Garda o contido das mensaxes que outros eliminan (anti-borrado). Desactivado = comportarse como WhatsApp.",
  "rec_voice": "gravando audio...",
  "virt_list": "Lista de mensaxes virtuais",
- "virt_list_d": "Experimental: renderiza só as mensaxes visibles (máis lixeira nos chats grandes)"
+ "virt_list_d": "Experimental: renderiza só as mensaxes visibles (máis lixeira nos chats grandes)",
+ "stream_replaced": "Abriuse a sesión noutro dispositivo; volve conectar aquí para retomar",
+ "temp_banned": "Bloqueado temporalmente por WhatsApp"
 }

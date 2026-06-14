@@ -394,5 +394,7 @@
  "keep_deleted_d": "Londoloza okuqukethwe kwemilayezo abanye abayisusayo (anti-delete). Vala = ziphathise okweWhatsApp.",
  "rec_voice": "iqopha umsindo...",
  "virt_list": "Uhlu lwemiyalezo ebonakalayo",
- "virt_list_d": "Okokuhlola — nikeza imilayezo ebonakalayo kuphela (ilula ezingxoxweni ezinkulu)"
+ "virt_list_d": "Okokuhlola — nikeza imilayezo ebonakalayo kuphela (ilula ezingxoxweni ezinkulu)",
+ "stream_replaced": "Iseshini ivulwe kwenye idivayisi — xhuma kabusha lapha ukuze uqhubeke",
+ "temp_banned": "Ivinjwe okwesikhashana i-WhatsApp"
 }

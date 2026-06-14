@@ -394,5 +394,7 @@
  "keep_deleted_d": "Gem indholdet af beskeder, som andre sletter (anti-sletning). Off = opfør dig som WhatsApp.",
  "rec_voice": "optager lyd...",
  "virt_list": "Virtuel beskedliste",
- "virt_list_d": "Eksperimentel - gengiv kun synlige beskeder (lettere ved store chats)"
+ "virt_list_d": "Eksperimentel - gengiv kun synlige beskeder (lettere ved store chats)",
+ "stream_replaced": "Session åbnet på en anden enhed – tilslut igen her for at genoptage",
+ "temp_banned": "Midlertidigt blokeret af WhatsApp"
 }

@@ -394,5 +394,7 @@
  "keep_deleted_d": "Simpan kandungan mesej yang dipadamkan oleh orang lain (anti-padam). Mati = berkelakuan seperti WhatsApp.",
  "rec_voice": "merakam audio…",
  "virt_list": "Senarai mesej maya",
- "virt_list_d": "Percubaan — memaparkan hanya mesej yang boleh dilihat (lebih ringan pada sembang besar)"
+ "virt_list_d": "Percubaan — memaparkan hanya mesej yang boleh dilihat (lebih ringan pada sembang besar)",
+ "stream_replaced": "Sesi dibuka pada peranti lain — sambung semula di sini untuk menyambung semula",
+ "temp_banned": "Disekat buat sementara waktu oleh WhatsApp"
 }

@@ -149,6 +149,8 @@
  "no_starred": "Belum ada pesan berbintang.",
  "mention_all": "Semua",
  "err_generic": "Terjadi kesalahan",
+ "stream_replaced": "Sesi dibuka di perangkat lain — sambungkan lagi di sini untuk lanjut",
+ "temp_banned": "Diblokir sementara oleh WhatsApp",
  "members_n": "%n anggota",
  "mic_denied": "Mikrofon tak bisa diakses",
  "edit_message": "Edit pesan",

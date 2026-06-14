@@ -394,5 +394,7 @@
  "keep_deleted_d": "Desa el contingut dels missatges que altres eliminen (antisupressió). Apagat = comportar-se com WhatsApp.",
  "rec_voice": "enregistrament d'àudio...",
  "virt_list": "Llista de missatges virtuals",
- "virt_list_d": "Experimental: mostra només els missatges visibles (més lleuger en xats grans)"
+ "virt_list_d": "Experimental: mostra només els missatges visibles (més lleuger en xats grans)",
+ "stream_replaced": "La sessió s'ha obert en un altre dispositiu; torneu a connectar aquí per reprendre",
+ "temp_banned": "Bloquejat temporalment per WhatsApp"
 }

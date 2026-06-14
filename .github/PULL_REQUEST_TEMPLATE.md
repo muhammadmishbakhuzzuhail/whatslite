@@ -10,6 +10,7 @@ Apa yang diubah dan kenapa.
 ## Checklist (wajib — sama dengan CI)
 - [ ] `go vet ./...` bersih
 - [ ] `go test ./...` lulus
+- [ ] `npm --prefix frontend run lint:css` 0 error
 - [ ] `npm --prefix frontend run build` sukses, **0 warning unused-CSS**
 - [ ] `wails build -tags "webkit2_41 netgo"` sukses
 - [ ] Tidak menambah dependensi berat tanpa alasan kuat (lihat [filosofi lean](../CONTRIBUTING.md#filosofi-tetap-lean))

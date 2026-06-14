@@ -42,6 +42,7 @@ Jalankan semua ini (sama dengan CI di `.github/workflows/build.yml`):
 go vet ./...
 go test ./...
 npm --prefix frontend ci
+npm --prefix frontend run lint:css   # stylelint — harus 0 error
 npm --prefix frontend run build      # harus 0 warning unused-CSS
 wails build -tags "webkit2_41 netgo" # harus sukses
 ```

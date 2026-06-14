@@ -176,7 +176,6 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
    lepas dari flex/grid/baseline (WebKitGTK tak konsisten utk single-item). */
 .avatar > span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   line-height: 1; text-align: center; }
-[data-theme="dark"] .avatar { background: #243039; }
 [data-theme="dark"] .avatar { background: color-mix(in srgb, var(--c, #06b67f) 30%, #0e1318); }
 .avatar.group svg { width: 58%; height: 58%; fill: var(--c, #06b67f); stroke: none; }
 /* Avatar default (kontak tanpa foto & tanpa inisial huruf, mis. nomor): ikon
@@ -261,7 +260,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 /* Bubble modern: radius besar, tanpa ekor, shadow lembut (gaya iMessage 2025). */
 .bubble { position: relative; max-width: min(66%, 560px); width: fit-content; padding: 8px 13px;
   border-radius: var(--r-lg); box-shadow: var(--shadow); font-size: 14.5px;
-  line-height: 1.4; word-wrap: break-word; overflow-wrap: anywhere; }
+  line-height: 1.4; overflow-wrap: anywhere; }
 .msg.in .bubble { background: var(--in-bg); border-top-left-radius: 6px; }
 .msg.out .bubble { background: var(--out-bg); border-top-right-radius: 6px; }
 /* Pesan beruntun: rapat; sudut "ekor" hanya di pesan terakhir runtun (estetika modern). */
@@ -851,7 +850,6 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .msg.flash .bubble { animation: msgflash 1.4s ease; }
 @keyframes msgflash {
   0%, 40% { background: var(--selected); box-shadow: 0 0 0 3px var(--accent); }
-  100% { }
 }
 
 /* Input edit profil */

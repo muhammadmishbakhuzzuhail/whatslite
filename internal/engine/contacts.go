@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package engine
 
 // contacts.go — info kontak (about/status), blokir, dan profil sendiri.
@@ -56,7 +59,6 @@ func (e *Engine) BusinessProfile(ctx context.Context, jid string) *BizProfile {
 	}
 	return &BizProfile{Address: bp.Address, Email: bp.Email, Category: cat}
 }
-
 
 // WACheck = hasil cek "ada di WhatsApp?" untuk satu nomor.
 type WACheck struct {

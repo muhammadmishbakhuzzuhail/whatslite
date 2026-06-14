@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package storage
 
 // messages.go — tulis/baca pesan. SaveMessage juga memperbarui ringkasan chat

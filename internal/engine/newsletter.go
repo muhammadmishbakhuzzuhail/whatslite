@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package engine
 
 // newsletter.go — WhatsApp Channels (newsletter). Daftar saluran yang diikuti,

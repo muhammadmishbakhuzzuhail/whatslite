@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package app
 
 // app_translate.go — terjemah pesan on-demand (fitur "Terjemahkan" di menu chat,

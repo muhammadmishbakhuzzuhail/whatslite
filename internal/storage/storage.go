@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 // Package storage menyimpan chat & pesan ke SQLite (app.db).
 //
 // Sesuai prinsip ringan: DB hanya menyimpan teks/metadata; media (nanti)

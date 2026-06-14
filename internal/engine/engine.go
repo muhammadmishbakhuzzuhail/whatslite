@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 // Package engine adalah inti WhatsLite: pembungkus whatsmeow + penyimpanan.
 //
 // Engine sengaja dibuat AGNOSTIK terhadap frontend (tidak tahu soal GUI/TUI)

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 // Command walite-cli: mode CLI headless untuk uji engine (pairing QR di
 // terminal + log pesan masuk). Berguna untuk debugging tanpa GUI.
 package main

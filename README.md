@@ -195,7 +195,14 @@ reporting vulnerabilities privately. Change history in [`CHANGELOG.md`](./CHANGE
 
 ## License
 
-GPL-3.0 — see [`LICENSE`](./LICENSE). This project links [whatsmeow](https://github.com/tulir/whatsmeow),
+Copyright (C) 2026 Muhammad Mishbakhuz Zuhail. Licensed under **GPL-3.0** — see [`LICENSE`](./LICENSE)
+and [`COPYRIGHT`](./COPYRIGHT); contributors are listed in [`AUTHORS`](./AUTHORS).
+
+Forks and redistribution are welcome under the GPL: you may copy and modify, **but you must keep the
+copyright and license notices, stay GPL, and provide source** — you may not relicense it or claim it as
+your own work.
+
+This project links [whatsmeow](https://github.com/tulir/whatsmeow),
 which is **MPL-2.0**; MPL-2.0 §3.3 explicitly permits distributing the larger work under the GPL, so the
 combination is license-compatible. Third-party components and their licenses are listed in
 [`NOTICE.md`](./NOTICE.md).

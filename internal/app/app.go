@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package app
 
 // app.go — siklus hidup aplikasi Wails + perkabelan event engine→UI.
@@ -179,7 +182,7 @@ func (a *App) Startup(ctx context.Context) {
 	}()
 
 	bgClose.Store(store.GetMeta(ctx, "bg_close", "0") == "1") // mode latar
-	a.startScheduler() // pesan terjadwal + pengingat (ticker sendiri)
+	a.startScheduler()                                        // pesan terjadwal + pengingat (ticker sendiri)
 
 	// IPC single-instance: instance ke-2 yang gagal flock akan men-dial socket ini
 	// → kita angkat window ke depan (bukan diam).
@@ -246,9 +249,9 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				})
 			}
 			_ = store.SaveHistory(a.ctx, meta, nil, nil)
-			a.syncChatSettings()                                       // pin/arsip/bisukan dari HP (app-state)
-			runtime.EventsEmit(a.ctx, "wa:syncprogress", len(meta))    // indikator: jumlah chat
-			runtime.EventsEmit(a.ctx, "wa:sync", "")                   // sidebar tampil cepat (unread!)
+			a.syncChatSettings()                                    // pin/arsip/bisukan dari HP (app-state)
+			runtime.EventsEmit(a.ctx, "wa:syncprogress", len(meta)) // indikator: jumlah chat
+			runtime.EventsEmit(a.ctx, "wa:sync", "")                // sidebar tampil cepat (unread!)
 
 			// FASE 2 — ISI PESAN (lambat) streaming berkelompok (~2000/tx). TANPA
 			// kirim ulang metadata chat → tak menimpa apa pun.

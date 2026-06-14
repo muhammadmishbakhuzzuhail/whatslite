@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package app
 
 // app_gif.go — pencarian GIF & stiker lewat Tenor DARI SISI GO. WebKitGTK sering

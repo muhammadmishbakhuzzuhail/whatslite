@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 // ============================================================
 // services/data.js — SATU jembatan UI ↔ sumber data.
 // Mock (browser) ATAU engine Go nyata (app native Wails) — deteksi otomatis.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package storage
 
 // contacts.go — label kontak lokal (nama yg disimpan pengguna di app ini) +

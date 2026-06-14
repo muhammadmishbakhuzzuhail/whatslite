@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package storage
 
 import (
@@ -49,10 +52,10 @@ func TestNewFeatureStorage(t *testing.T) {
 			}
 		}
 	}
-	mustSave("old1", "text", old, false)   // harus ter-prune
-	mustSave("oldS", "text", old, true)    // berbintang → tetap
-	mustSave("img1", "image", now, false)  // media → galeri
-	mustSave("new1", "text", now, false)   // baru → tetap
+	mustSave("old1", "text", old, false)  // harus ter-prune
+	mustSave("oldS", "text", old, true)   // berbintang → tetap
+	mustSave("img1", "image", now, false) // media → galeri
+	mustSave("new1", "text", now, false)  // baru → tetap
 
 	cutoff := now.Add(-90 * 24 * time.Hour).Unix()
 	n, err := s.PruneMessages(ctx, cutoff)

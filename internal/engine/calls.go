@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 package engine
 
 // calls.go — panggilan masuk. whatsmeow hanya signaling (tak ada media/WebRTC):

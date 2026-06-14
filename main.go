@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 // Command whatslite (Wails): app Linux native — UI web (Svelte) di dalam
 // WebView sistem (WebKitGTK), engine whatsmeow (disambung belakangan).
 package main

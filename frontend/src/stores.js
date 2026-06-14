@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+
 import { writable, get, derived } from "svelte/store";
 import * as data from "./services/data.js";
 import { t } from "./lib/i18n.js";

@@ -11,7 +11,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 func atoiDef(s string, def int) int {

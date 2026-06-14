@@ -15,8 +15,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"whatsapp-lite/internal/app"
-	"whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/app"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
 )
 
 // singleInstance memastikan hanya satu proses app jalan (flock). false = sudah

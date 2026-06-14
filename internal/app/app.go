@@ -22,8 +22,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/engine"
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 // App = konteks aplikasi Wails. Method publik di sini otomatis ter-bind ke JS

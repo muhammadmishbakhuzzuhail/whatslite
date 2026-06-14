@@ -10,7 +10,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 // StatusItemDTO = satu unggahan status (teks / media).

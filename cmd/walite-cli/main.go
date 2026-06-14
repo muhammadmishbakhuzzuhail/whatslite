@@ -12,7 +12,7 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 
-	"whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
 )
 
 func main() {

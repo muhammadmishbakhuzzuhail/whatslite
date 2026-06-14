@@ -6,7 +6,7 @@ package app
 import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
 )
 
 // ChannelDTO = saluran utk daftar di sidebar.

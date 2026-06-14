@@ -16,8 +16,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"whatsapp-lite/internal/engine"
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 // runExport menulis snapshot data nyata ke path (JSON). maxChatMsgs = jumlah

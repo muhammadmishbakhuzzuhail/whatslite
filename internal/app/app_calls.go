@@ -6,7 +6,7 @@ package app
 import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 // GetCalls mengembalikan log panggilan terbaru.

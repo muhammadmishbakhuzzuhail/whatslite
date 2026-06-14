@@ -1,4 +1,4 @@
-module whatsapp-lite
+module github.com/muhammadmishbakhuzzuhail/whatsapp-lite
 
 go 1.26.3
 

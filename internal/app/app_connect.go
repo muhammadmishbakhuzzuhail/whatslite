@@ -11,7 +11,7 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"whatsapp-lite/internal/storage"
+	"github.com/muhammadmishbakhuzzuhail/whatsapp-lite/internal/storage"
 )
 
 // Connect memulai koneksi WhatsApp. Emit event: wa:qr (data-URI PNG), wa:ready, wa:error.

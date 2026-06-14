@@ -12,7 +12,7 @@ Lihat [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) untuk arah produk dan [`docs/ARCH
 
 ## ✅ Fitur
 
-**Pesan**: teks, @mention, foto/video/dokumen, **voice note** (ogg/opus), **stiker** (+ hapus-background otomatis via ML in-browser), **GIF** (Giphy), **lokasi**, **kontak** (vCard), **polling**, **foto sekali-lihat (view-once)**, **pesan sementara (disappearing)**.
+**Pesan**: teks, @mention, foto/video/dokumen, **voice note** (ogg/opus), **stiker** (statis & animasi), **GIF** (Tenor), **lokasi**, **kontak** (vCard), **polling**, **foto sekali-lihat (view-once)**, **pesan sementara (disappearing)**.
 
 **Aksi pesan**: balas/kutip, balas-pribadi (grup→japri), teruskan (satu & **massal**), reaksi emoji, edit, hapus (untuk-saya / untuk-semua), salin, **bintangi**, **sematkan di chat**, **info pesan** (centang terkirim/sampai/dibaca + daftar baca per-penerima), **terjemah** (auto-detect, 25 bahasa), **pilih banyak** (bulk).
 
@@ -20,7 +20,7 @@ Lihat [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) untuk arah produk dan [`docs/ARCH
 
 **Grup**: info + anggota, **admin** (ubah nama/foto, tambah/keluarkan anggota, promote/demote, **tautan undangan**), buat grup, keluar.
 
-**Lainnya**: **Status** (teks + foto/video, viewer tap-through), **Channels** (ikuti/feed/mute), **Komunitas** (sub-grup), **profil** (nama/info), **privasi** (last-seen/foto/status/grup, tanda-baca, **daftar blokir**), notifikasi **desktop + suara**, lightbox media, kunci-aplikasi (PIN), tema terang/gelap, **i18n (ID/EN/ES)**.
+**Lainnya**: **Status** (teks + foto/video, viewer tap-through), **Channels** (ikuti/feed/mute), **Komunitas** (sub-grup), **profil** (nama/info), **privasi** (last-seen/foto/status/grup, tanda-baca, **daftar blokir**), notifikasi **desktop + suara**, lightbox media, kunci-aplikasi (PIN), tema terang/gelap, **i18n (73 bahasa — ID/EN/ES dikurasi tangan, sisanya mesin)**.
 
 ---
 
@@ -46,8 +46,8 @@ Lihat [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) untuk arah produk dan [`docs/ARCH
 | **Penyimpanan** | SQLite untuk sesi/kunci/pesan; media sebagai file (bukan di DB) |
 
 - Data lokal: `~/.local/share/whatsapp-lite/` · cache media: `~/.cache/whatsapp-lite/` (XDG).
-- Pembeda utama = **arsitektur lean** (virtualized list, local-first, media-as-file, no telemetry) untuk
-  menutup overhead WebView. Detail di `PRODUCT-BRIEF.md` §12.3.
+- Pembeda utama = **arsitektur lean** (local-first, media-as-file bukan base64 di DB, cache ter-evict,
+  retensi pesan terbatas, no telemetry) untuk menutup overhead WebView. Detail di `PRODUCT-BRIEF.md` §12.3.
 
 ## Prasyarat build (Linux)
 
@@ -108,8 +108,13 @@ Bisa dikerjakan (belum): — (tak ada yang tersisa & realistis; lihat Keterbatas
 - **Panggilan suara/video** — whatsmeow tak punya WebRTC.
 - **Ganti foto profil sendiri** — tak ada API di whatsmeow (foto *grup* bisa).
 - **Paket stiker kurasi Meta & stiker AI** — endpoint tak diekspos / butuh model generatif.
-- **Animated sticker** — WebKit tak meng-encode animated-webp (stiker statis saja).
+
+## Kontribusi
+
+PR & issue diterima. Baca [`CONTRIBUTING.md`](./CONTRIBUTING.md) (termasuk **filosofi lean** & checklist
+pra-PR), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), dan [`SECURITY.md`](./SECURITY.md) untuk lapor
+celah keamanan secara privat. Riwayat perubahan di [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Lisensi
 
-GPL-3.0 (lihat berkas `LICENSE` — akan ditambahkan). whatsmeow (MIT) kompatibel dipakai di sini.
+GPL-3.0 (lihat berkas [`LICENSE`](./LICENSE)). whatsmeow (MIT) kompatibel dipakai di sini.

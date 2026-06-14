@@ -599,9 +599,9 @@ if (data.LIVE) {
   });
   data.onEvent("wa:sync", () => {
     syncing.set(false);
-    refreshChats();
+    scheduleChatRefresh();         // debounce → burst wa:sync saat connect (dedup+grup+kontak) jadi 1
     const a = get(activeChatId);
-    if (a != null) reloadMessages(a);
+    if (a != null) reloadActive(a); // debounce 150ms → tak reload berulang chat terbuka
   });
   data.onEvent("wa:presence", (e) => {
     if (e && e.jid) chatStatus.update((m) => ({ ...m, [e.jid]: e.text }));

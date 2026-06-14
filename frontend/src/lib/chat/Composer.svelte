@@ -1,8 +1,8 @@
 <script>
   import { tick, onDestroy } from "svelte";
   import { get } from "svelte/store";
-  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, chats, mediaDraft, theme, setDraft, getDraft } from "../../stores.js";
-  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia, scheduleMessage } from "../../services/data.js";
+  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, mediaDraft, theme, setDraft, getDraft } from "../../stores.js";
+  import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia, scheduleMessage, getContacts } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
   import { t } from "../i18n.js";
@@ -136,11 +136,18 @@
   function onStickerPick(e) { stickerOpen = false; sendSticker(chatId, e.detail); }
   // View-once kini toggle di preview media (MediaPreviewModal), bukan di attach menu.
   // --- kirim kontak ---
-  let contactOpen = false, contactQ = "";
-  function openContact() { attachOpen = false; contactOpen = true; contactQ = ""; }
-  $: contactList = $chats.filter((c) => !c.group && (c.name || "").toLowerCase().includes(contactQ.toLowerCase()));
+  let contactOpen = false, contactQ = "", sendContacts = [];
+  // Picker kirim-kontak = HANYA kontak tersimpan (buku-alamat/label lokal), sama
+  // seperti WhatsApp — BUKAN seluruh daftar chat (yang berisi nomor tak-tersimpan).
+  function openContact() { attachOpen = false; contactOpen = true; contactQ = ""; loadSendContacts(); }
+  async function loadSendContacts() { sendContacts = (await getContacts()) || []; }
+  $: contactList = sendContacts.filter((c) => {
+    const q = contactQ.trim().toLowerCase();
+    const qd = contactQ.replace(/\D/g, "");
+    return (c.name || "").toLowerCase().includes(q) || (qd !== "" && (c.phone || "").replace(/\D/g, "").includes(qd));
+  });
   function pickContact(c) {
-    const num = (c.id || "").split("@")[0].split(":")[0];
+    const num = (c.jid || "").split("@")[0].split(":")[0];
     sendContact(chatId, c.name, num);
     contactOpen = false;
   }
@@ -454,12 +461,13 @@
       <input bind:value={contactQ} placeholder={$t("search")}
         style="width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg2);color:var(--text);font:inherit;margin-bottom:10px" />
       <div style="overflow-y:auto;flex:1">
-        {#each contactList as c (c.id)}
+        {#each contactList as c (c.jid)}
           <button class="am-item" style="width:100%" on:click={() => pickContact(c)}>
-            <span style="width:34px;height:34px;border-radius:50%;background:{c.color};color:#fff;display:grid;align-items:center;justify-items:center;font-weight:600">{(c.name||"?")[0]}</span>
+            <span style="width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:grid;align-items:center;justify-items:center;font-weight:600">{(c.name||"?")[0]}</span>
             {c.name}
           </button>
         {/each}
+        {#if contactList.length === 0}<div style="text-align:center;color:var(--text2);padding:18px;font-size:13.5px">{$t("no_contacts") || "Tak ada kontak tersimpan"}</div>{/if}
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:12px">
         <button class="btn-ghost" on:click={() => (contactOpen = false)}>{$t("cancel")}</button>

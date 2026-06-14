@@ -3,10 +3,11 @@
   import { t } from "../i18n.js";
 
   let captions = []; // caption PER item (ala WhatsApp: tiap foto punya caption sendiri)
+  let names = [];    // nama file PER item (dokumen bisa di-rename sebelum kirim)
   let idx = 0;
   let last = null;
   let once = false; // sekali-lihat (view-once): toggle di preview, bukan attach menu
-  $: if ($mediaDraft && $mediaDraft !== last) { last = $mediaDraft; captions = ($mediaDraft.items || []).map(() => ""); idx = 0; once = !!$mediaDraft.viewOnce; }
+  $: if ($mediaDraft && $mediaDraft !== last) { last = $mediaDraft; captions = ($mediaDraft.items || []).map(() => ""); names = ($mediaDraft.items || []).map((it) => it.name || ""); idx = 0; once = !!$mediaDraft.viewOnce; }
   $: items = $mediaDraft?.items || [];
   $: cur = items[idx];
 
@@ -19,7 +20,7 @@
     // Tiap item dikirim dgn caption-nya sendiri.
     for (let i = 0; i < d.items.length; i++) {
       const it = d.items[i];
-      await sendMediaMessage(d.chatId, it.kind, (caps[i] || "").trim(), it.name || "", it.dataURI, once);
+      await sendMediaMessage(d.chatId, it.kind, (caps[i] || "").trim(), (names[i] || it.name || "").trim(), it.dataURI, once);
     }
     captions = []; once = false;
   }
@@ -40,7 +41,7 @@
         <video class="mp-media" src={cur.dataURI} controls></video>
       {:else if cur.kind === "document"}
         <div class="mp-doc">
-          <div class="mp-doc-name" title={cur.name}>{cur.name || "Dokumen"}</div>
+          <input class="mp-doc-name mp-doc-rename" bind:value={names[idx]} placeholder={$t("file_name") || "Nama file"} title={$t("rename") || "Ganti nama"} />
           {#if /\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(cur.name)}
             <div class="mp-doc-ico"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
             <audio class="mp-doc-audio" src={cur.dataURI} controls></audio>
@@ -94,6 +95,8 @@
   .mp-doc { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:680px; }
   .mp-doc-name { align-self:stretch; text-align:center; color:#fff; font-weight:600; font-size:15px;
     background:rgba(255,255,255,.1); border-radius:10px; padding:10px 14px; word-break:break-all; }
+  .mp-doc-rename { border:1px solid rgba(255,255,255,.18); outline:none; font-family:inherit; }
+  .mp-doc-rename:focus { border-color:var(--accent); background:rgba(255,255,255,.16); }
   .mp-doc-img { max-width:90vw; max-height:70vh; object-fit:contain; border-radius:8px; }
   .mp-doc-frame { width:min(90vw,680px); height:70vh; border:0; border-radius:8px; background:#fff; }
   .mp-doc-ico { width:120px; height:120px; color:#fff; opacity:.85; }

@@ -585,8 +585,8 @@ if (data.LIVE) {
   data.onEvent("wa:call", (c) => { if (c) { incomingCall.set(c); refreshCalls(); playNotifSound(); } });
   data.onEvent("wa:reminder", (r) => { if (r) { pushToast("🔔 " + (r.chatName || "") + (r.note ? ": " + r.note : ""), "ok"); if (!inQuietHours()) playNotifSound(); } });
   data.onEvent("wa:callupdate", () => refreshCalls());
-  data.onEvent("wa:message", async (chat) => {
-    await refreshChats();
+  data.onEvent("wa:message", (chat) => {
+    scheduleChatRefresh(); // debounce 500ms → backlog/flood reconnect tak picu ratusan full-reload
     if (get(activeChatId) === chat) reloadActive(chat); // debounce → cegah badai 200-baris di chat ramai
     // Notifikasi desktop DIHAPUS total (tak pernah kirim ke desktop) — flood notify-send
     // saat sinkronisasi backlog yang memicu crash. Suara saja, dan hanya untuk pesan LIVE

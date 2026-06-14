@@ -12,6 +12,25 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
+// ChatSettings membaca pin/arsip/bisukan TERKINI dari store app-state whatsmeow
+// (tabel ChatSettings; di-PutPinned saat mutasi diproses). Sumber sahih utk
+// kondisi YANG SUDAH ADA: events.Pin hanya fire saat BERUBAH, tak utk sematan
+// lama → query langsung di sini yang memunculkannya. ok=false bila tak diketahui.
+func (e *Engine) ChatSettings(jid string) (pinned, archived, muted, ok bool) {
+	if e == nil || e.Client == nil || e.Client.Store == nil || e.Client.Store.ChatSettings == nil {
+		return
+	}
+	j, err := types.ParseJID(jid)
+	if err != nil {
+		return
+	}
+	s, err := e.Client.Store.ChatSettings.GetChatSettings(context.Background(), j)
+	if err != nil || !s.Found {
+		return
+	}
+	return s.Pinned, s.Archived, s.MutedUntil.After(time.Now()), true
+}
+
 // OnChatAction memanggil fn saat pin/mute/arsip berubah dari perangkat lain
 // (mis. di-pin dari HP) — agar sidebar ikut tersinkron. action: "pin"|"mute"|"archive".
 func (e *Engine) OnChatAction(fn func(jid, action string, on bool)) {

@@ -210,24 +210,33 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			// Retensi saat ingest: jangan simpan pesan lebih tua dari cutoff →
 			// app.db tak pernah bengkak dari history-sync besar.
 			cutoff := a.retentionCutoff()
-			// Tulis berkelompok (~2000 pesan/tx) — bukan satu transaksi raksasa →
-			// puncak memori + pertumbuhan WAL terbatas saat blob history besar.
+			// FASE 1 — METADATA chat dulu (nama/ts/unread), SATU tulis ringan →
+			// sidebar + jumlah unread + urutan muncul SEGERA, tak menunggu ribuan
+			// baris isi pesan. (Pinned/arsip TIDAK dari sini — itu app-state.)
+			meta := make([]storage.HistoryChat, 0, len(convs))
+			for _, c := range convs {
+				cj := eng.CanonicalJID(c.JID) // satukan @lid↔nomor → 1 chat
+				meta = append(meta, storage.HistoryChat{
+					JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
+				})
+			}
+			_ = store.SaveHistory(a.ctx, meta, nil, nil)
+			a.syncChatSettings()                     // pin/arsip/bisukan dari HP (app-state)
+			runtime.EventsEmit(a.ctx, "wa:sync", "") // sidebar tampil cepat (unread!)
+
+			// FASE 2 — ISI PESAN (lambat) streaming berkelompok (~2000/tx). TANPA
+			// kirim ulang metadata chat → tak menimpa apa pun.
 			const batch = 2000
-			bchats := make([]storage.HistoryChat, 0, 64)
 			bmsgs := make([]storage.Message, 0, batch)
 			flush := func() {
-				if len(bchats) == 0 && len(bmsgs) == 0 {
+				if len(bmsgs) == 0 {
 					return
 				}
-				_ = store.SaveHistory(a.ctx, bchats, bmsgs, nil)
-				bchats = bchats[:0]
+				_ = store.SaveHistory(a.ctx, nil, bmsgs, nil)
 				bmsgs = bmsgs[:0]
 			}
 			for _, c := range convs {
-				cj := eng.CanonicalJID(c.JID) // satukan @lid↔nomor → 1 chat
-				bchats = append(bchats, storage.HistoryChat{
-					JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
-				})
+				cj := eng.CanonicalJID(c.JID)
 				for _, m := range c.Messages {
 					if cutoff > 0 && m.Timestamp.Unix() < cutoff {
 						continue // lebih tua dari retensi → lewati
@@ -276,6 +285,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		// Satukan chat ganda @lid↔nomor dari data build lama (lid_map sudah persist).
 		a.bg(func() {
 			a.dedupChats(eng, store)
+			a.syncChatSettings() // tarik pin/arsip/bisukan dari HP (app-state) → app.db
 			runtime.EventsEmit(a.ctx, "wa:sync", "")
 		})
 		// Ambil subjek grup yang diikuti → perbarui nama chat grup.
@@ -428,6 +438,43 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 // yang sama. Iterasi semua jid chat, hitung bentuk kanonik (engine.CanonicalJID);
 // bila berbeda → merge baris @lid ke baris nomor. Idempoten; dijalankan setelah
 // lid_map terisi (history-sync / connect). Murah: hanya jalan saat ada @lid.
+// syncChatSettings menarik pin/arsip/bisukan TERKINI dari store app-state
+// whatsmeow (engine.ChatSettings) ke app.db. Perlu karena events.Pin hanya fire
+// saat BERUBAH — sematan/bisukan yang SUDAH ADA di HP tak pernah ter-emit, tapi
+// tersimpan di tabel ChatSettings whatsmeow → query & terapkan. Emit wa:sync bila
+// ada perubahan agar sidebar (urutan pinned) ikut terbarui.
+func (a *App) syncChatSettings() {
+	if a.eng == nil || a.store == nil {
+		return
+	}
+	chats, err := a.store.ListChats(a.ctx)
+	if err != nil {
+		return
+	}
+	changed := false
+	for _, c := range chats {
+		pinned, archived, muted, ok := a.eng.ChatSettings(c.JID)
+		if !ok {
+			continue
+		}
+		if pinned != c.Pinned {
+			_ = a.store.SetPinned(a.ctx, c.JID, pinned)
+			changed = true
+		}
+		if muted != c.Muted {
+			_ = a.store.SetMuted(a.ctx, c.JID, muted)
+			changed = true
+		}
+		if archived && !c.Archived {
+			_ = a.store.SetArchived(a.ctx, c.JID, true)
+			changed = true
+		}
+	}
+	if changed {
+		runtime.EventsEmit(a.ctx, "wa:sync", "")
+	}
+}
+
 func (a *App) dedupChats(eng *engine.Engine, store *storage.Store) {
 	jids, err := store.ListChatJIDs(a.ctx)
 	if err != nil {

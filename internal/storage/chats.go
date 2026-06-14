@@ -28,8 +28,6 @@ VALUES (?, ?, '', ?, ?, ?, ?)
 ON CONFLICT(jid) DO UPDATE SET
 	last_ts  = MAX(chats.last_ts, excluded.last_ts),
 	unread   = excluded.unread,
-	pinned   = excluded.pinned,
-	archived = excluded.archived,
 	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`,
 		jid, name, ts, unread, b2i(pinned), b2i(archived))
 	return err
@@ -63,8 +61,6 @@ VALUES (?, ?, '', ?, ?, ?, ?)
 ON CONFLICT(jid) DO UPDATE SET
 	last_ts  = MAX(chats.last_ts, excluded.last_ts),
 	unread   = excluded.unread,
-	pinned   = excluded.pinned,
-	archived = excluded.archived,
 	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`)
 	if err != nil {
 		return err
@@ -207,16 +203,19 @@ func (s *Store) ListArchivedChats(ctx context.Context) ([]Chat, error) {
 
 // SetPinned / SetArchived / SetMuted / SetUnread memperbarui flag chat lokal
 // agar UI langsung mencerminkan aksi (server di-sinkron terpisah via app-state).
+// SetPinned/SetMuted/SetArchived = UPSERT: bila baris chat belum dibuat saat
+// event app-state (events.Pin/Mute/Archive) tiba — sebelum history-sync —
+// UPDATE biasa kena 0 baris → status hilang. Upsert membuat baris bila perlu.
 func (s *Store) SetPinned(ctx context.Context, jid string, v bool) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE chats SET pinned = ? WHERE jid = ?`, b2i(v), jid)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO chats (jid, pinned) VALUES (?, ?) ON CONFLICT(jid) DO UPDATE SET pinned = excluded.pinned`, jid, b2i(v))
 	return err
 }
 func (s *Store) SetArchived(ctx context.Context, jid string, v bool) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE chats SET archived = ? WHERE jid = ?`, b2i(v), jid)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO chats (jid, archived) VALUES (?, ?) ON CONFLICT(jid) DO UPDATE SET archived = excluded.archived`, jid, b2i(v))
 	return err
 }
 func (s *Store) SetMuted(ctx context.Context, jid string, v bool) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE chats SET muted = ? WHERE jid = ?`, b2i(v), jid)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO chats (jid, muted) VALUES (?, ?) ON CONFLICT(jid) DO UPDATE SET muted = excluded.muted`, jid, b2i(v))
 	return err
 }
 func (s *Store) SetUnread(ctx context.Context, jid string, n int) error {

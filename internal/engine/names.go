@@ -7,6 +7,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
@@ -125,13 +126,75 @@ func (e *Engine) ReadableID(jid string) string {
 	}
 	if j.Server == types.HiddenUserServer && e.Client.Store.LIDs != nil {
 		if pn, err := e.Client.Store.LIDs.GetPNForLID(context.Background(), j); err == nil && pn.User != "" {
-			return "+" + pn.User
+			return formatPhone(pn.User)
 		}
 	}
 	if j.Server == types.DefaultUserServer && j.User != "" {
-		return "+" + j.User
+		return formatPhone(j.User)
 	}
 	return ""
+}
+
+// ccSet = kode panggil negara (ITU) yang dikenal, utk pisah CC dari nomor
+// nasional. Dipakai longest-match (coba 3 digit, lalu 2, lalu 1).
+var ccSet = map[string]bool{
+	"1": true, "7": true,
+	"20": true, "27": true, "30": true, "31": true, "32": true, "33": true, "34": true,
+	"36": true, "39": true, "40": true, "41": true, "43": true, "44": true, "45": true,
+	"46": true, "47": true, "48": true, "49": true, "51": true, "52": true, "53": true,
+	"54": true, "55": true, "56": true, "57": true, "58": true, "60": true, "61": true,
+	"62": true, "63": true, "64": true, "65": true, "66": true, "81": true, "82": true,
+	"84": true, "86": true, "90": true, "91": true, "92": true, "93": true, "94": true,
+	"95": true, "98": true,
+	"212": true, "213": true, "216": true, "218": true, "220": true, "221": true, "234": true,
+	"254": true, "255": true, "256": true, "351": true, "352": true, "353": true, "354": true,
+	"355": true, "358": true, "359": true, "370": true, "371": true, "372": true, "380": true,
+	"381": true, "385": true, "386": true, "420": true, "421": true, "852": true, "853": true,
+	"855": true, "856": true, "880": true, "886": true, "960": true, "961": true, "962": true,
+	"963": true, "964": true, "965": true, "966": true, "967": true, "968": true, "971": true,
+	"972": true, "973": true, "974": true, "975": true, "976": true, "977": true, "992": true,
+	"993": true, "994": true, "995": true, "996": true, "998": true,
+}
+
+// formatPhone memformat nomor mentah (hanya digit, tanpa +) ala WhatsApp:
+// "+<CC> NNN-NNNN-NNNN". CC dipisah via longest-match ccSet; bila tak dikenal,
+// kembalikan "+<digit>" apa adanya (aman, tak salah-pisah). Indonesia (62) →
+// "+62 815-1934-6661".
+func formatPhone(user string) string {
+	if user == "" {
+		return ""
+	}
+	for _, r := range user {
+		if r < '0' || r > '9' {
+			return "+" + user // non-digit (tak terduga) → jangan format
+		}
+	}
+	cc := ""
+	for _, n := range []int{3, 2, 1} {
+		if len(user) > n && ccSet[user[:n]] {
+			cc = user[:n]
+			break
+		}
+	}
+	if cc == "" {
+		return "+" + user
+	}
+	return "+" + cc + " " + groupDigits(user[len(cc):])
+}
+
+// groupDigits mengelompokkan nomor nasional: 3 digit pertama lalu blok 4
+// (815-1934-6661). Sisa terakhir <=4 digit jadi satu blok.
+func groupDigits(s string) string {
+	if len(s) <= 4 {
+		return s
+	}
+	parts := []string{s[:3]}
+	s = s[3:]
+	for len(s) > 4 {
+		parts = append(parts, s[:4])
+		s = s[4:]
+	}
+	return strings.Join(append(parts, s), "-")
 }
 
 // SyncContacts menarik app-state buku alamat (nama tersimpan) + aksi chat

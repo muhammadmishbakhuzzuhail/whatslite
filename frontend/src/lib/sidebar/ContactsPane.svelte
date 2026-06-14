@@ -18,9 +18,11 @@
     contacts.slice(0, 100).forEach((c) => subscribePresence(c.jid));
   }
 
+  // Cari nomor membandingkan digit-saja (abaikan +, spasi, "-" dari format ala WA).
+  $: qDigits = q.replace(/\D/g, "");
   $: filtered = contacts.filter((c) =>
     (c.name || "").toLowerCase().includes(q.trim().toLowerCase()) ||
-    (c.phone || "").includes(q.trim())
+    (qDigits !== "" && (c.phone || "").replace(/\D/g, "").includes(qDigits))
   );
   // Kelompokkan per huruf awal (A–Z, selain itu "#").
   $: groups = (() => {

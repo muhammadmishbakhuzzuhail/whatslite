@@ -335,7 +335,6 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				})
 			}
 		})
-		a.Notify(name, "Panggilan masuk")
 		runtime.EventsEmit(a.ctx, "wa:call", map[string]interface{}{
 			"id": callID, "jid": jid, "name": name, "video": video, "group": group, "ts": ts.Unix(),
 		})

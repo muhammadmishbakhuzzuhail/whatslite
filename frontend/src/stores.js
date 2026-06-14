@@ -588,11 +588,14 @@ if (data.LIVE) {
   data.onEvent("wa:message", async (chat) => {
     await refreshChats();
     if (get(activeChatId) === chat) reloadActive(chat); // debounce → cegah badai 200-baris di chat ramai
-    // Notifikasi desktop: hanya bila chat tak aktif / window tak fokus, & tak dibisukan.
+    // Notifikasi desktop DIHAPUS total (tak pernah kirim ke desktop) — flood notify-send
+    // saat sinkronisasi backlog yang memicu crash. Suara saja, dan hanya untuk pesan LIVE
+    // (bukan backlog saat sinkronisasi), chat tak aktif/blur, & tak dibisukan.
+    if (get(syncing)) return;
     const focused = typeof document !== "undefined" && document.hasFocus();
     if (get(activeChatId) === chat && focused) return;
     const c = get(chats).find((x) => x.id === chat);
-    if (c && !c.muted && !inQuietHours()) { data.notify(c.name, c.preview || tr("new_message")); playNotifSound(); }
+    if (c && !c.muted && !inQuietHours()) playNotifSound();
   });
   data.onEvent("wa:sync", () => {
     syncing.set(false);

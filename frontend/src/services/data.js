@@ -476,11 +476,6 @@ export async function getLinkPreview(url) {
   return p;
 }
 
-// Notifikasi desktop native (Linux). No-op di browser/preview.
-export function notify(title, body) {
-  if (LIVE) A.Notify(title, body);
-}
-
 // Langganan event dari engine (Wails runtime global). Kembalikan fungsi
 // unsubscribe (panggil di onDestroy) agar listener tak menumpuk per-mount.
 export function onEvent(name, cb) {

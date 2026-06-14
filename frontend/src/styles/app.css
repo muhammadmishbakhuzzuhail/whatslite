@@ -632,14 +632,6 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor;
 .chip.plus { font-size: 17px; line-height: 1; padding: 4px 11px; }
 
 /* banner notifikasi nonaktif */
-.notif-banner { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px;
-  padding: 11px 14px; background: var(--head-bg); border-radius: 8px; }
-.notif-banner > svg { width: 22px; height: 22px; color: var(--text2); flex-shrink: 0; }
-.notif-banner .nb-text { flex: 1; font-size: 13.5px; color: var(--text2); }
-.notif-banner .nb-link { color: var(--accent); cursor: pointer; font-weight: 500; }
-.notif-banner .nb-close { background: 0; border: 0; cursor: pointer; color: var(--text2);
-  padding: 0; display: grid; align-items: center; justify-items: center; }
-.notif-banner .nb-close svg { width: 18px; height: 18px; }
 
 /* strip pesan tersemat */
 .pinned-strip { display: flex; align-items: center; gap: 12px; padding: 9px 18px;

@@ -262,10 +262,6 @@ export function MyQR(arg1) {
   return window['go']['app']['App']['MyQR'](arg1);
 }
 
-export function Notify(arg1, arg2) {
-  return window['go']['app']['App']['Notify'](arg1, arg2);
-}
-
 export function OpenChat(arg1) {
   return window['go']['app']['App']['OpenChat'](arg1);
 }

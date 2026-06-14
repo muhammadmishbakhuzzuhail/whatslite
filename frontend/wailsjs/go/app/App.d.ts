@@ -134,8 +134,6 @@ export function MuteChannel(arg1:string,arg2:boolean):Promise<void>;
 
 export function MyQR(arg1:boolean):Promise<string>;
 
-export function Notify(arg1:string,arg2:string):Promise<void>;
-
 export function OpenChat(arg1:string):Promise<void>;
 
 export function Pin(arg1:string,arg2:boolean):Promise<void>;

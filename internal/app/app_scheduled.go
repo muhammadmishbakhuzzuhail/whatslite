@@ -93,18 +93,10 @@ func (a *App) startScheduler() {
 			}
 			runtime.EventsEmit(a.ctx, "wa:scheduled", "")
 		}
-		// Pengingat jatuh tempo → notif + event + hapus.
+		// Pengingat jatuh tempo → event in-app (toast/suara di FE) + hapus.
+		// TANPA notif desktop (dihapus total).
 		if due, _ := a.store.DueReminders(a.ctx, now); len(due) > 0 {
 			for _, r := range due {
-				title := r.ChatName
-				if title == "" {
-					title = "Pengingat"
-				}
-				body := r.Note
-				if body == "" {
-					body = "Pengingat pesan"
-				}
-				a.Notify(title, body)
 				runtime.EventsEmit(a.ctx, "wa:reminder", map[string]interface{}{
 					"chatJid": r.ChatJID, "chatName": r.ChatName, "msgId": r.MsgID, "note": r.Note,
 				})

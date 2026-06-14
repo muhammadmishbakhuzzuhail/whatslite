@@ -4,7 +4,6 @@
   import ChatList from "./ChatList.svelte";
   import { t } from "../i18n.js";
   import { syncing, newChatOpen, railView, markAllRead, pushToast } from "../../stores.js";
-  let showNotif = true;
   let menuOpen = false;
   function go(v) { railView.set(v); menuOpen = false; }
   function allRead() { markAllRead(); menuOpen = false; pushToast($t("all_read_done"), "ok"); }
@@ -42,15 +41,5 @@
 
 <SearchBar />
 <Filters />
-
-{#if showNotif}
-  <div class="notif-banner">
-    <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M3 3l18 18"/></svg>
-    <div class="nb-text">{$t("notif_off")} <span class="nb-link">{$t("notif_turnon")}</span></div>
-    <button class="nb-close" title={$t("close")} on:click={() => (showNotif = false)}>
-      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>
-  </div>
-{/if}
 
 <ChatList />

@@ -1,120 +1,137 @@
 # WhatsApp Lite
 
-Klien WhatsApp desktop untuk Linux yang **ringan & efisien** — **tanpa membundel Chromium**. UI memakai
-**WebView sistem (WebKitGTK)**, bukan browser yang ikut dibundel seperti Electron/WhatsApp Web. Dibangun di
-atas [whatsmeow](https://github.com/tulir/whatsmeow) (protokol WhatsApp Web multi-device langsung via
-WebSocket). Target jejak RAM **setara app macOS native** dan **3–6× lebih hemat dari WhatsApp Web**.
+A **lightweight, efficient** desktop WhatsApp client for Linux — **without bundling Chromium**. The UI
+runs in the **system WebView (WebKitGTK)**, not a browser shipped alongside the app like
+Electron/WhatsApp Web. Built on [whatsmeow](https://github.com/tulir/whatsmeow) (the multi-device
+WhatsApp Web protocol, straight over WebSocket). Targets a RAM footprint **on par with a native macOS
+app** and **3–6× lighter than WhatsApp Web**.
 
-> Stack: **web (HTML/CSS/JS + Svelte) + Wails (shell Go) + WebKitGTK**. Engine whatsmeow + storage SQLite
-> (pure-Go, FTS5). Media disimpan sbg file (bukan base64 di DB), cache ter-evict, avatar lazy.
+> Stack: **web (HTML/CSS/JS + Svelte) + Wails (Go shell) + WebKitGTK**. whatsmeow engine + SQLite storage
+> (pure-Go, FTS5). Media is stored as files (not base64 in the DB), the cache is evicted, avatars load lazily.
 
-Lihat [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) untuk arah produk dan [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) untuk arsitektur.
+See [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) for product direction and
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for architecture.
 
-## ✅ Fitur
+## ✅ Features
 
-**Pesan**: teks, @mention, foto/video/dokumen, **voice note** (ogg/opus), **stiker** (statis & animasi), **GIF** (Tenor), **lokasi**, **kontak** (vCard), **polling**, **foto sekali-lihat (view-once)**, **pesan sementara (disappearing)**.
+**Messages**: text, @mention, photo/video/document, **voice notes** (ogg/opus), **stickers** (static &
+animated), **GIFs** (Tenor), **location**, **contacts** (vCard), **polls**, **view-once photos**,
+**disappearing messages**.
 
-**Aksi pesan**: balas/kutip, balas-pribadi (grup→japri), teruskan (satu & **massal**), reaksi emoji, edit, hapus (untuk-saya / untuk-semua), salin, **bintangi**, **sematkan di chat**, **info pesan** (centang terkirim/sampai/dibaca + daftar baca per-penerima), **terjemah** (auto-detect, 25 bahasa), **pilih banyak** (bulk).
+**Message actions**: reply/quote, private-reply (group → DM), forward (single & **bulk**), emoji
+reactions, edit, delete (for-me / for-everyone), copy, **star**, **pin in chat**, **message info** (sent/
+delivered/read ticks + per-recipient read list), **translate** (auto-detect, 25 languages), **multi-select**
+(bulk).
 
-**Chat**: sematkan, bisukan, **arsipkan** (+ panel arsip), tandai belum/sudah dibaca, hapus, **pencarian isi pesan (FTS5)**, **pesan berbintang** (panel).
+**Chats**: pin, mute, **archive** (+ archive panel), mark unread/read, delete, **full-text message search
+(FTS5)**, **starred messages** (panel).
 
-**Grup**: info + anggota, **admin** (ubah nama/foto, tambah/keluarkan anggota, promote/demote, **tautan undangan**), buat grup, keluar.
+**Groups**: info + members, **admin** (rename/change photo, add/remove members, promote/demote, **invite
+link**), create group, leave.
 
-**Lainnya**: **Status** (teks + foto/video, viewer tap-through), **Channels** (ikuti/feed/mute), **Komunitas** (sub-grup), **profil** (nama/info), **privasi** (last-seen/foto/status/grup, tanda-baca, **daftar blokir**), notifikasi **desktop + suara**, lightbox media, kunci-aplikasi (PIN), tema terang/gelap, **i18n (73 bahasa — ID/EN/ES dikurasi tangan, sisanya mesin)**.
+**Other**: **Status** (text + photo/video, tap-through viewer), **Channels** (follow/feed/mute),
+**Communities** (sub-groups), **profile** (name/about), **privacy** (last-seen/photo/status/groups, read
+receipts, **block list**), **sound alerts** (no desktop notifications — intentional, see below), media
+lightbox, app lock (PIN), light/dark theme, **i18n (73 languages — ID/EN/ES hand-curated, the rest
+machine-translated)**.
 
 ---
 
-## ⚠️ Disclaimer (baca dulu)
+## ⚠️ Disclaimer (read first)
 
-- Ini aplikasi **TIDAK RESMI** dan **TIDAK berafiliasi** dengan WhatsApp atau Meta.
-- Menggunakan protokol WhatsApp Web melalui whatsmeow — ini **melanggar Ketentuan Layanan
-  (ToS) WhatsApp**.
-- **Nomor yang kamu tautkan BERISIKO DIBANNED oleh Meta.** Gunakan dengan **risiko sendiri**.
-- Pertimbangkan memakai nomor cadangan, terutama saat pengembangan/pengujian.
-- Disediakan **tanpa jaminan apa pun** (no warranty).
+- This is an **UNOFFICIAL** app and is **NOT affiliated** with WhatsApp or Meta.
+- It uses the WhatsApp Web protocol via whatsmeow — this **violates WhatsApp's Terms of Service (ToS)**.
+- **The number you link MAY BE BANNED by Meta.** Use **at your own risk**.
+- Consider using a spare number, especially during development/testing.
+- Provided **with no warranty of any kind**.
+
+> **No desktop notifications by design.** The app never sends OS/desktop notifications (sound alerts only).
+> An earlier per-message `notify-send` implementation could spawn one OS process per incoming message and,
+> on a large offline backlog replayed at reconnect, exhaust system resources. It was removed deliberately.
 
 ---
 
 ## Stack
 
-| Lapisan | Pilihan |
+| Layer | Choice |
 |---|---|
 | **Engine (BE)** | Go + whatsmeow + SQLite (`modernc.org/sqlite`, pure-Go) |
-| **Shell** | Wails (Go ↔ WebView sistem) |
-| **Frontend (FE)** | HTML / CSS / JS (di-embed dalam binary) |
-| **Render** | WebKitGTK (WebView sistem, **bukan** Chromium dibundel) |
-| **Penyimpanan** | SQLite untuk sesi/kunci/pesan; media sebagai file (bukan di DB) |
+| **Shell** | Wails (Go ↔ system WebView) |
+| **Frontend (FE)** | HTML / CSS / JS + Svelte (embedded in the binary) |
+| **Render** | WebKitGTK (system WebView, **not** a bundled Chromium) |
+| **Storage** | SQLite for session/keys/messages; media as files (not in the DB) |
 
-- Data lokal: `~/.local/share/whatsapp-lite/` · cache media: `~/.cache/whatsapp-lite/` (XDG).
-- Pembeda utama = **arsitektur lean** (local-first, media-as-file bukan base64 di DB, cache ter-evict,
-  retensi pesan terbatas, no telemetry) untuk menutup overhead WebView. Detail di `PRODUCT-BRIEF.md` §12.3.
+- Local data: `~/.local/share/whatsapp-lite/` · media cache: `~/.cache/whatsapp-lite/` (XDG).
+- The key differentiator is the **lean architecture** (local-first, media-as-file instead of base64 in the
+  DB, evicted cache, bounded message retention, no telemetry) to offset the WebView overhead. Details in
+  `PRODUCT-BRIEF.md` §12.3.
 
-## Prasyarat build (Linux)
+## Build prerequisites (Linux)
 
-Butuh **Go**, **WebKitGTK + GTK3**, dan **Wails CLI**. Di Arch/CachyOS:
+Requires **Go**, **WebKitGTK + GTK3**, and the **Wails CLI**. On Arch/CachyOS:
 
 ```sh
 sudo pacman -S --needed go webkit2gtk gtk3 pkgconf
-go install github.com/wailsapp/wails/v2/cmd/wails@latest   # pastikan $(go env GOPATH)/bin di PATH
+go install github.com/wailsapp/wails/v2/cmd/wails@latest   # ensure $(go env GOPATH)/bin is on PATH
 ```
 
-(Di Debian/Ubuntu padanannya: `golang-go libwebkit2gtk-4.0-dev libgtk-3-dev pkg-config build-essential`.)
+(Debian/Ubuntu equivalent: `golang-go libwebkit2gtk-4.0-dev libgtk-3-dev pkg-config build-essential`.)
 
-Cek kesiapan toolchain:
+Check the toolchain:
 
 ```sh
 wails doctor
 ```
 
-## Build & jalankan
+## Build & run
 
-Tag build **wajib** di Arch/CachyOS:
-- `webkit2_41` → pakai WebKitGTK 4.1 (bukan 4.0).
-- `netgo` → resolver DNS murni-Go (hindari crash `free(): corrupted unsorted chunks`
-  akibat resolver CGo getaddrinfo bentrok dengan runtime C WebKitGTK).
+Build tags are **required** on Arch/CachyOS:
+- `webkit2_41` → use WebKitGTK 4.1 (not 4.0).
+- `netgo` → pure-Go DNS resolver (avoids the `free(): corrupted unsorted chunks` crash from the CGo
+  getaddrinfo resolver clashing with WebKitGTK's C runtime).
 
 ```sh
-# mode dev (hot-reload UI di WebView):
+# dev mode (UI hot-reload in the WebView):
 wails dev -tags "webkit2_41 netgo"
 
-# build rilis (binary tunggal):
-wails build -tags "webkit2_41 netgo"   # hasil di ./build/bin/whatsapp-lite
+# release build (single binary):
+wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatsapp-lite
 ./build/bin/whatsapp-lite
 
-# CLI debug (engine saja, tanpa UI; binary statis):
+# debug CLI (engine only, no UI; static binary):
 CGO_ENABLED=0 go build -o walite-cli ./cmd/walite-cli
 ./walite-cli
 ```
 
-Saat pertama dijalankan, **layar QR** muncul di jendela. Scan via:
-**WhatsApp di HP → Perangkat Tertaut → Tautkan perangkat.**
-Sesi & pesan tersimpan lokal, jadi run berikutnya tidak perlu scan ulang.
+On first launch a **QR screen** appears in the window. Scan it via:
+**WhatsApp on your phone → Linked Devices → Link a device.**
+The session and messages are stored locally, so subsequent runs don't require scanning again.
 
-Mode verbose (debug log): `WALITE_DEBUG=1 wails dev`
+Verbose mode (debug logs): `WALITE_DEBUG=1 wails dev`
 
-## Belum diimplementasikan
+## Limitations (not possible client-side)
 
-Bisa dikerjakan (belum): — (tak ada yang tersisa & realistis; lihat Keterbatasan)
+- **Per-recipient read list for old messages** — `Message info` is only populated for messages sent *after*
+  the feature was active (receipts are collected live). whatsmeow does not expose the companion↔primary
+  protocol to pull historical logs. Aggregate ticks (✓✓) for old messages *are* recovered via
+  `WebMessageInfo.Status` from history sync.
+- **Voice/video calls** — whatsmeow has no WebRTC.
+- **Changing your own profile photo** — no whatsmeow API (*group* photos work).
+- **Meta-curated sticker packs & AI stickers** — endpoints not exposed / require a generative model.
 
-> Catatan: **"Siapa melihat status-ku"** terisi dari tanda terima `status@broadcast`
-> secara live (sejak app jalan) — bisa kosong bila penonton melihat saat app mati.
+> Note: **"Who viewed my status"** is populated from `status@broadcast` receipts live (since the app
+> started) — it may be empty if viewers watched while the app was offline.
 
-## Keterbatasan (tidak bisa di sisi klien)
+## Contributing
 
-- **Daftar baca per-penerima untuk pesan lama** — `Info pesan` hanya terisi untuk pesan
-  yang dikirim *setelah* fitur aktif (receipt dikumpulkan live). whatsmeow tak mengekspos
-  protokol companion↔primary utk menarik log historis. Centang agregat (✓✓) pesan lama
-  *sudah* diperbaiki via `WebMessageInfo.Status` dari history sync.
-- **Panggilan suara/video** — whatsmeow tak punya WebRTC.
-- **Ganti foto profil sendiri** — tak ada API di whatsmeow (foto *grup* bisa).
-- **Paket stiker kurasi Meta & stiker AI** — endpoint tak diekspos / butuh model generatif.
+PRs and issues welcome. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) (including the **lean philosophy** and
+pre-PR checklist), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), and [`SECURITY.md`](./SECURITY.md) for
+reporting vulnerabilities privately. Change history in [`CHANGELOG.md`](./CHANGELOG.md).
 
-## Kontribusi
+## License
 
-PR & issue diterima. Baca [`CONTRIBUTING.md`](./CONTRIBUTING.md) (termasuk **filosofi lean** & checklist
-pra-PR), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), dan [`SECURITY.md`](./SECURITY.md) untuk lapor
-celah keamanan secara privat. Riwayat perubahan di [`CHANGELOG.md`](./CHANGELOG.md).
-
-## Lisensi
-
-GPL-3.0 (lihat berkas [`LICENSE`](./LICENSE)). whatsmeow (MIT) kompatibel dipakai di sini.
+GPL-3.0 — see [`LICENSE`](./LICENSE). This project links [whatsmeow](https://github.com/tulir/whatsmeow),
+which is **MPL-2.0**; MPL-2.0 §3.3 explicitly permits distributing the larger work under the GPL, so the
+combination is license-compatible. Third-party components and their licenses are listed in
+[`NOTICE.md`](./NOTICE.md).
+```

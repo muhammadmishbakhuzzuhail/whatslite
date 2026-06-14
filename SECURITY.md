@@ -1,30 +1,30 @@
-# Kebijakan Keamanan
+# Security Policy
 
-## Lingkup
+## Scope
 
-Project ini menyimpan **sesi WhatsApp dan kunci enkripsi end-to-end** secara lokal di
-`~/.local/share/whatsapp-lite/` (SQLite). Celah yang membocorkan/menyalahgunakan data ini serius.
+This project stores your **WhatsApp session and end-to-end encryption keys** locally in
+`~/.local/share/whatsapp-lite/` (SQLite). Vulnerabilities that leak or misuse this data are serious.
 
-Yang **dalam lingkup**:
+**In scope:**
 
-- Kebocoran sesi/kunci/pesan lokal (mis. permission file salah, path traversal saat simpan media).
-- Eksekusi kode dari konten pesan masuk (XSS di WebView dari pesan/notifikasi/link-preview).
-- Kebocoran rahasia ke log atau ke jaringan (telemetri tak diharapkan).
+- Leakage of local sessions/keys/messages (e.g. wrong file permissions, path traversal when saving media).
+- Code execution from incoming message content (XSS in the WebView via messages/notifications/link previews).
+- Leakage of secrets to logs or the network (unexpected telemetry).
 
-Yang **di luar lingkup**: risiko ban akun oleh Meta (itu konsekuensi ToS yang sudah didokumentasikan,
-bukan bug), dan kerentanan di whatsmeow/Wails upstream (laporkan ke proyek masing-masing).
+**Out of scope:** the risk of Meta banning your account (that's a documented ToS consequence, not a bug),
+and vulnerabilities in upstream whatsmeow/Wails (report those to the respective projects).
 
-## Cara melapor
+## How to report
 
-**Jangan buka issue publik untuk celah keamanan.** Sebaliknya:
+**Do not open a public issue for security vulnerabilities.** Instead:
 
-- Pakai **GitHub Security Advisories** (tab *Security → Report a vulnerability*) pada repo ini, atau
-- Kirim email privat ke maintainer.
+- Use **GitHub Security Advisories** (the *Security → Report a vulnerability* tab) on this repo, or
+- Send a private email to the maintainer.
 
-Sertakan: langkah reproduksi, versi/commit, dan dampak. Mohon beri waktu wajar untuk perbaikan
-sebelum publikasi (disclosure terkoordinasi).
+Include: reproduction steps, version/commit, and impact. Please allow a reasonable window for a fix
+before publishing (coordinated disclosure).
 
-## Tidak ada jaminan
+## No warranty
 
-Lihat [Disclaimer di README](./README.md#-disclaimer-baca-dulu). Software disediakan **tanpa jaminan apa pun**.
-Memakai protokol tak-resmi berisiko diban; gunakan dengan risiko sendiri.
+See the [disclaimer in the README](./README.md#-disclaimer-read-first). The software is provided **without any warranty**.
+Using an unofficial protocol carries a risk of being banned; use it at your own risk.

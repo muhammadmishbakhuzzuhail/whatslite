@@ -1,368 +1,371 @@
-# Product Brief — WhatsApp Lite (klien WhatsApp desktop Linux ringan)
+# Product Brief — WhatsApp Lite (lightweight WhatsApp desktop client for Linux)
 
-> Dokumen arah produk. Hasil sesi PROJECT OVERVIEW + BRAINSTORM + TARGET MARKET.
-> Status: **draft v2** · Tanggal: 2026-06-02 · **Stack diubah**: dari Gio (native custom-drawn) ke
-> **web (HTML/CSS/JS) di WebView sistem via Wails (Go)**. Alasan lengkap di Bagian 12.
+> Product-direction document. Output of the PROJECT OVERVIEW + BRAINSTORM + TARGET MARKET sessions.
+> Status: **draft v2** · Date: 2026-06-02 · **Stack changed**: from Gio (native custom-drawn) to
+> **web (HTML/CSS/JS) in the system WebView via Wails (Go)**. Full rationale in Section 12.
 
 ---
 
 ## 0. TL;DR
 
-Klien WhatsApp desktop untuk Linux yang **ringan & efisien**, dibangun di atas **whatsmeow** (protokol
-WhatsApp Web multi-device langsung via WebSocket). UI = **web (HTML/CSS/JS)** dirender di **WebView sistem
-(WebKitGTK), bukan Chromium yang dibundel** — jadi setara ringan dengan app macOS native, dan jauh di bawah
-WhatsApp Web/Windows. Mengisi kekosongan tidak adanya app WhatsApp resmi di Linux.
+A WhatsApp desktop client for Linux that's **lightweight & efficient**, built on **whatsmeow** (the WhatsApp
+Web multi-device protocol directly over WebSocket). The UI = **web (HTML/CSS/JS)** rendered in the **system
+WebView (WebKitGTK), not a bundled Chromium** — so it's as light as the native macOS app, and far lighter than
+WhatsApp Web/Windows. It fills the gap left by the absence of an official WhatsApp app on Linux.
 
-- **Bukan** produk komersial — proyek **open-source komunitas profil-rendah**.
-- **Bukan** parity penuh dengan app macOS — call & pembayaran **mustahil** (batas protokol).
-- **Tapi** meniru **fitur harian + UI/UX** WhatsApp macOS — kini **bisa pixel-identik** karena UI = web (CSS).
-- Target ke-ringan-an realistis: **~120–250 MB termuat** (setara macOS native, ~3–6× lebih ringan dari WhatsApp Web).
-- **Stack: Go (whatsmeow) + Wails + WebView sistem + HTML/CSS/JS** (lihat Bagian 12).
-- **Pembeda utama = arsitektur lean & teroptimasi** yang menutup selisih memori WebView (lihat Bagian 12.3).
+- **Not** a commercial product — a **low-profile community open-source project**.
+- **Not** full parity with the macOS app — calls & payments are **impossible** (protocol limits).
+- **But** it mirrors WhatsApp macOS's **everyday features + UI/UX** — and can now be **pixel-identical** because the UI = web (CSS).
+- Realistic lightness target: **~120–250 MB loaded** (on par with native macOS, ~3–6× lighter than WhatsApp Web).
+- **Stack: Go (whatsmeow) + Wails + system WebView + HTML/CSS/JS** (see Section 12).
+- **Main differentiator = a lean, optimized architecture** that closes the WebView memory gap (see Section 12.3).
 
 ---
 
 ## 1. Problem
 
-- **WhatsApp Web** (di browser) boros: ~300–500 MB idle, **1–2 GB** termuat — karena membawa mesin browser penuh.
-- **WhatsApp Windows app resmi (akhir 2025)** berubah jadi wrapper **WebView2/Chromium** → tetap berat
-  (~250–450 MB idle, ~0.8–1.5 GB termuat). Banyak pengguna kecewa.
-- **Linux tidak punya app WhatsApp desktop resmi sama sekali** → pengguna terpaksa pakai WhatsApp Web
-  (Chromium lagi) atau wrapper Electron pihak ketiga (berat lagi).
+- **WhatsApp Web** (in a browser) is wasteful: ~300–500 MB idle, **1–2 GB** loaded — because it carries a full browser engine.
+- **The official WhatsApp Windows app (late 2025)** turned into a **WebView2/Chromium** wrapper → still heavy
+  (~250–450 MB idle, ~0.8–1.5 GB loaded). Many users were disappointed.
+- **Linux has no official WhatsApp desktop app at all** → users are forced to use WhatsApp Web
+  (Chromium again) or a third-party Electron wrapper (heavy again).
 
-**Insight kunci:** beratnya WhatsApp desktop **bukan** dari fiturnya, melainkan dari **mesin browser yang
-DIBUNDEL** (Electron/WebView2 mengangkut Chromium + Node sendiri). Bukti: app **macOS native** ~3–4× lebih
-ringan dari versi Windows. **Pelajaran untuk kita:** kita boleh memakai UI web, **asal jangan membundel
-Chromium** — pakai **WebView yang sudah ada di sistem (WebKitGTK)**. Itu membuang ~70–80% beban Chromium
-sambil tetap memberi look identik & kemudahan web. Sisa beban (mesin WebKit sistem ~80–150 MB) kita tutup
-lewat **disiplin arsitektur** (Bagian 12.3).
+**Key insight:** the weight of WhatsApp desktop is **not** from its features, but from the **BUNDLED browser
+engine** (Electron/WebView2 each haul in their own Chromium + Node). Proof: the **native macOS** app is ~3–4×
+lighter than the Windows version. **The lesson for us:** we may use a web UI, **as long as we don't bundle
+Chromium** — use **the WebView already present on the system (WebKitGTK)**. That sheds ~70–80% of Chromium's
+weight while still giving an identical look and the convenience of the web. The remaining weight (the system
+WebKit engine, ~80–150 MB) we close through **architectural discipline** (Section 12.3).
 
 ---
 
-## 2. Solusi
+## 2. Solution
 
-Engine = whatsmeow (Go, lisensi MIT, sudah menangani media & enkripsi Signal, jejak RAM kecil). Frontend =
-**web (HTML/CSS/JS)** dirender di **WebView sistem (WebKitGTK)** lewat **Wails** (shell Go). Satu binary Go
-berisi engine + shell; UI web di-embed. TUI = bonus opsional belakangan.
+Engine = whatsmeow (Go, MPL-2.0 licensed, already handles media & Signal encryption, small RAM footprint).
+Frontend = **web (HTML/CSS/JS)** rendered in the **system WebView (WebKitGTK)** via **Wails** (a Go shell). A
+single Go binary holds the engine + shell; the web UI is embedded. A TUI is an optional bonus for later.
 
-**Kenapa pindah dari native (Gio) ke web?** Tiga alasan menentukan: (1) **look identik WhatsApp** hampir
-mustahil digambar tangan di Gio, tapi mudah di CSS — WhatsApp Web sendiri memang web; (2) UI = **skill web
-maintainer**, bukan immediate-mode level rendah; (3) ada **feedback loop** (buka di browser, lihat langsung).
-Ongkosnya: RAM lebih tinggi dari Gio — ditutup oleh arsitektur (Bagian 12.3).
+**Why move from native (Gio) to web?** Three deciding reasons: (1) an **identical WhatsApp look** is nearly
+impossible to hand-draw in Gio but easy in CSS — WhatsApp Web is itself web; (2) the UI matches the
+**maintainer's web skills**, not low-level immediate-mode rendering; (3) there's a **feedback loop** (open it in
+a browser, see it instantly). The cost: higher RAM than Gio — closed by the architecture (Section 12.3).
 
-### Dua sumber "ringan" vs "lengkap" (konsep inti yang harus dipahami)
+### Two separate axes: "lightweight" vs "complete" (a core concept to understand)
 
 ```
-RINGAN?   ← ditentukan oleh apakah mesin browser DIBUNDEL
-          → WebView sistem (bukan Chromium bundel) → setara macOS native,
-            jauh di bawah WhatsApp Web/Windows  ✅
+LIGHTWEIGHT? ← determined by whether the browser engine is BUNDLED
+             → system WebView (not a bundled Chromium) → on par with native macOS,
+               far below WhatsApp Web/Windows  ✅
 
-LENGKAP?  ← ditentukan oleh AKSES PROTOKOL (punya kode Meta vs tidak)
-          → KITA TIDAK BISA setara macOS (tak ada call dll)  ❌
+COMPLETE?    ← determined by PROTOCOL ACCESS (having Meta's code vs not)
+             → WE CANNOT match macOS (no calls, etc.)  ❌
 ```
 
-App macOS ringan **karena tak membundel browser** (bisa kita tiru via WebView sistem) **dan** lengkap **karena
-itu app Meta** (tak bisa kita tiru). Kita kebagian separuh keberuntungan itu — dan separuh itu (ringan + look
-mudah ditiru) **justru yang paling dibutuhkan pasar.**
+The macOS app is light **because it doesn't bundle a browser** (which we can mimic via the system WebView)
+**and** complete **because it's a Meta app** (which we can't mimic). We get half of that luck — and that half
+(lightweight + easy-to-mimic look) **is exactly what the market needs most.**
 
 ---
 
-## 3. Nilai jual (urut prioritas)
+## 3. Selling points (in priority order)
 
-1. **Ringan & efisien** — setara app macOS native, **~3–6× lebih hemat dari WhatsApp Web/Windows** (yang
-   membundel Chromium). Plus binary ~30–50 MB & **satu proses tambahan**, bukan 5–10 proses. Ini headline.
-2. **Linux-first** — mengisi kekosongan, bukan bersaing dengan app resmi.
-3. **Arsitektur lean & teroptimasi** — local-first, virtualized, no telemetry/background-service (Bagian 12.3).
-4. **Open-source & dapat diaudit** — penting untuk app yang memegang pesan pribadi.
-5. **Keyboard-first / scriptable** — relevan untuk persona terminal.
+1. **Lightweight & efficient** — on par with the native macOS app, **~3–6× leaner than WhatsApp Web/Windows**
+   (which bundle Chromium). Plus a ~30–50 MB binary & **one extra process**, not 5–10 processes. This is the headline.
+2. **Linux-first** — filling a gap, not competing with an official app.
+3. **Lean, optimized architecture** — local-first, virtualized, no telemetry/background service (Section 12.3).
+4. **Open-source & auditable** — important for an app that holds your private messages.
+5. **Keyboard-first / scriptable** — relevant to the terminal persona.
 
 ---
 
-## 4. Metrik target (perkiraan; WAJIB diukur ulang sebelum jadi klaim publik)
+## 4. Target metrics (estimates; MUST be re-measured before becoming public claims)
 
-| Metrik | Web/Chrome | Windows (WebView2) | macOS (Catalyst) | **Target Linux (kita)** |
+| Metric | Web/Chrome | Windows (WebView2) | macOS (Catalyst) | **Target Linux (us)** |
 |---|---|---|---|---|
-| RAM idle | ~300–500 MB | ~250–450 MB | ~120–250 MB | **~120–200 MB** |
-| RAM termuat penuh | ~1.0–2.0 GB | ~0.8–1.5 GB | ~300–600 MB | **~200–400 MB** |
-| Mesin browser **dibundel** | Ya | Ya | Tidak | **Tidak (pakai WebKitGTK sistem)** |
-| Jumlah proses | 5–10+ | 4–8 | 1–2 | **2 (Go + WebView)** |
-| Ukuran instalasi | (browser) | ~150–300 MB | ~150–250 MB | **~30–50 MB (1 binary, WebKit numpang sistem)** |
+| Idle RAM | ~300–500 MB | ~250–450 MB | ~120–250 MB | **~120–200 MB** |
+| Fully loaded RAM | ~1.0–2.0 GB | ~0.8–1.5 GB | ~300–600 MB | **~200–400 MB** |
+| Browser engine **bundled** | Yes | Yes | No | **No (uses the system WebKitGTK)** |
+| Process count | 5–10+ | 4–8 | 1–2 | **2 (Go + WebView)** |
+| Install size | (browser) | ~150–300 MB | ~150–250 MB | **~30–50 MB (1 binary, WebKit borrowed from the system)** |
 
-> ⚠️ Angka kolom Web/Windows/macOS adalah **perkiraan representatif**, sangat bervariasi per mesin/jumlah chat.
-> Target kita kini **setara macOS native** (bukan lagi "puluhan MB" seperti rencana Gio) — konsekuensi sadar
-> dari memilih UI web. Sebelum jadi materi publik, **ukur langsung** (PSS) dengan metodologi konsisten.
+> ⚠️ The Web/Windows/macOS columns are **representative estimates** and vary widely by machine/number of chats.
+> Our target is now **on par with native macOS** (no longer the "tens of MB" of the Gio plan) — a conscious
+> consequence of choosing a web UI. Before this becomes public material, **measure it directly** (PSS) with a
+> consistent methodology.
 
-### Anatomi berat (di mana RAM pergi & strategi kita)
+### Anatomy of the weight (where the RAM goes & our strategy)
 
-| Komponen | Chromium (Web/Win) | macOS native | **Kita (WebKit sistem)** |
+| Component | Chromium (Web/Win) | macOS native | **Us (system WebKit)** |
 |---|---|---|---|
-| Mesin render browser | 150–400 MB (Blink, **dibundel**) ⚠️ | 0 (numpang OS) | **~80–150 MB (WebKit, numpang sistem)** |
-| JS engine + heap | 100–300 MB (V8) ⚠️ | 0 | **kecil — JS lean, no framework berat** ✅ |
-| Runtime tambahan (Node) | 30–80 MB | 0 | **0 — engine = Go terkompilasi** ✅ |
-| Cache media (decoded) | 100–500 MB | kontrol | **kita kontrol** (file di disk, LRU) ✅ |
-| State pesan/chat | 20–80 MB | 10–40 MB | **10–40 MB** (local-first SQLite) ✅ |
-| Telemetry/background svc | ada | ada | **0** ✅ |
+| Browser render engine | 150–400 MB (Blink, **bundled**) ⚠️ | 0 (borrows from the OS) | **~80–150 MB (WebKit, borrowed from the system)** |
+| JS engine + heap | 100–300 MB (V8) ⚠️ | 0 | **small — lean JS, no heavy framework** ✅ |
+| Extra runtime (Node) | 30–80 MB | 0 | **0 — engine = compiled Go** ✅ |
+| Media cache (decoded) | 100–500 MB | controlled | **we control it** (files on disk, LRU) ✅ |
+| Message/chat state | 20–80 MB | 10–40 MB | **10–40 MB** (local-first SQLite) ✅ |
+| Telemetry/background svc | yes | yes | **0** ✅ |
 
-**Beda kita vs Chromium-based:** mesin render **numpang sistem** (bukan dibundel) + **tanpa Node** + **JS
-lean** → buang ~60–75% beban. **Beda kita vs macOS native:** hanya selisih mesin WebKit (~80–150 MB), yang
-kita perkecil lewat disiplin di baris 2–6 (Bagian 12.3). Risiko terbesar tetap **cache media**.
+**Our difference vs Chromium-based:** the render engine **borrows from the system** (not bundled) + **no Node** +
+**lean JS** → sheds ~60–75% of the weight. **Our difference vs native macOS:** only the WebKit-engine delta
+(~80–150 MB), which we shrink through the discipline in rows 2–6 (Section 12.3). The biggest risk is still the
+**media cache**.
 
 ---
 
-## 5. Analisa fitur (dukungan whatsmeow)
+## 5. Feature analysis (whatsmeow support)
 
-Legenda: ✅ didukung · 🟡 sebagian/perlu kerja · ❌ mustahil (batas protokol) · berat UI: 🟢 ringan / 🟡 sedang / 🔴 perlu disiplin
+Legend: ✅ supported · 🟡 partial/needs work · ❌ impossible (protocol limit) · UI weight: 🟢 light / 🟡 medium / 🔴 needs discipline
 
-| Fitur | whatsmeow | Berat | Catatan |
+| Feature | whatsmeow | Weight | Notes |
 |---|---|---|---|
-| **Pesan inti** |
-| Teks, emoji | ✅ | 🟢 | Inti |
-| Reply/quote, reaksi, edit, hapus/revoke, mention | ✅ | 🟢 | |
+| **Core messaging** |
+| Text, emoji | ✅ | 🟢 | Core |
+| Reply/quote, reactions, edit, delete/revoke, mentions | ✅ | 🟢 | |
 | Disappearing/ephemeral | ✅ | 🟢 | |
-| View-once | 🟡 | 🟢 | Hormati semantik |
-| Pesan terjadwal | ❌* | 🟢 | Bukan protokol; bisa diemulasi lokal |
+| View-once | 🟡 | 🟢 | Respect the semantics |
+| Scheduled messages | ❌* | 🟢 | Not in the protocol; can be emulated locally |
 | **Media** |
-| Gambar | ✅ | 🔴 | Decode = sumber RAM #1 |
-| Video | ✅ | 🔴 | Butuh pemutar (libmpv/ffmpeg) |
-| Dokumen | ✅ | 🟢 | |
-| Voice note (PTT), audio | ✅ | 🟡 | Opus |
-| Stiker statis | ✅ | 🟡 | WebP |
-| Stiker animasi | 🟡 | 🔴 | WebP animasi, render mahal |
+| Images | ✅ | 🔴 | Decoding = the #1 RAM source |
+| Video | ✅ | 🔴 | Needs a player (libmpv/ffmpeg) |
+| Documents | ✅ | 🟢 | |
+| Voice notes (PTT), audio | ✅ | 🟡 | Opus |
+| Static stickers | ✅ | 🟡 | WebP |
+| Animated stickers | 🟡 | 🔴 | Animated WebP, expensive to render |
 | GIF | 🟡 | 🔴 | MP4 |
-| Lokasi statis, kontak (vcard) | ✅ | 🟢 | |
+| Static location, contacts (vcard) | ✅ | 🟢 | |
 | Live location | 🟡 | 🟡 | |
-| Link preview | 🟡 | 🟡 | Kita generate sendiri |
-| **Grup & komunitas** |
-| Grup: baca/kirim/buat/keluar/invite link | ✅ | 🟢–🟡 | |
-| Grup: kelola anggota/admin | ✅ | 🟡 | |
-| Communities | 🟡 | 🔴 | Sebagian |
-| Channels (newsletter) | 🟡 | 🟡 | Baca |
-| **Sosial & organisasi** |
-| Lihat/post Status | ✅ | 🟡 | |
-| Polling (buat & vote) | ✅ | 🟢 | |
-| Daftar chat | ✅ | 🟢 | |
-| Riwayat (history sync) | 🟡 | 🟡 | **Hanya sebatas yang server kirim saat link**, bukan seluruh riwayat |
-| Pin/arsip/mute, tandai belum dibaca | ✅ | 🟢 | App-state sync |
-| Search pesan | 🟡 | 🟡 | **Lokal** — index sendiri (SQLite FTS) |
-| Read receipt, typing, presence | ✅ | 🟢 | |
-| Foto profil/info, blokir | ✅ | 🟢 | |
-| **Akun** |
-| Pairing QR/link device, multi-device | ✅ | 🟢 | |
-| Multi-akun | ✅ | 🟡 | |
-| Notifikasi desktop | ✅ | 🟢 | notify-send/dunst |
-| **MUSTAHIL (batas protokol)** |
-| Voice/video/group call | ❌ | — | Hanya bisa *deteksi* panggilan masuk, tak bisa lakukan |
+| Link preview | 🟡 | 🟡 | We generate it ourselves |
+| **Groups & communities** |
+| Groups: read/send/create/leave/invite link | ✅ | 🟢–🟡 | |
+| Groups: manage members/admins | ✅ | 🟡 | |
+| Communities | 🟡 | 🔴 | Partial |
+| Channels (newsletter) | 🟡 | 🟡 | Read |
+| **Social & organization** |
+| View/post Status | ✅ | 🟡 | |
+| Polls (create & vote) | ✅ | 🟢 | |
+| Chat list | ✅ | 🟢 | |
+| History (history sync) | 🟡 | 🟡 | **Only as much as the server sends at link time**, not the full history |
+| Pin/archive/mute, mark unread | ✅ | 🟢 | App-state sync |
+| Message search | 🟡 | 🟡 | **Local** — our own index (SQLite FTS) |
+| Read receipts, typing, presence | ✅ | 🟢 | |
+| Profile photo/info, block | ✅ | 🟢 | |
+| **Account** |
+| QR pairing/link device, multi-device | ✅ | 🟢 | |
+| Multi-account | ✅ | 🟡 | |
+| Alerts | ✅ | 🟢 | Sound alerts only (no desktop notifications, by design) |
+| **IMPOSSIBLE (protocol limits)** |
+| Voice/video/group call | ❌ | — | Can only *detect* an incoming call, can't make one |
 | Screen sharing | ❌ | — | |
-| Pembayaran / WhatsApp Pay | ❌ | — | |
+| Payments / WhatsApp Pay | ❌ | — | |
 
-\* bukan batas enkripsi, tapi tak ada di protokol WhatsApp Web.
+\* not an encryption limit, just absent from the WhatsApp Web protocol.
 
-**Ringkasan:** dari ~48 fitur, **~37 BISA**, **~5 MUSTAHIL** (semua = call/pay). **Fungsi harian ~85–90% bisa ditiru.**
+**Summary:** of ~48 features, **~37 ARE doable**, **~5 are IMPOSSIBLE** (all = call/pay). **~85–90% of everyday functionality can be mirrored.**
 
-### Bagian "berat" yang harus didisiplinkan (diurutkan)
+### The "heavy" parts that need discipline (in order)
 
-1. 🔴 **Cache gambar/video di RAM** — risiko #1. → decode on-demand, lepas saat keluar viewport, cache ke disk bukan RAM.
-2. 🔴 **Pemutaran video & GIF** — → delegasikan ke libmpv/ffmpeg / app sistem.
-3. 🔴 **Stiker animasi** — → batasi fps, statis dulu.
-4. 🟡 **History sync awal** — → simpan ke SQLite, jangan tahan di RAM.
-5. 🟡 **Search naif** — → index FTS di disk.
+1. 🔴 **Image/video cache in RAM** — the #1 risk. → decode on-demand, release on leaving the viewport, cache to disk not RAM.
+2. 🔴 **Video & GIF playback** — → delegate to libmpv/ffmpeg / a system app.
+3. 🔴 **Animated stickers** — → cap the fps, static first.
+4. 🟡 **Initial history sync** — → store it in SQLite, don't hold it in RAM.
+5. 🟡 **Naive search** — → an FTS index on disk.
 
-**Prinsip emas:** *Ringan bukan karena fitur sedikit, tapi karena disiplin soal media & memori.*
-
----
-
-## 6. Apakah hasilnya akan "sama persis" seperti macOS? (Ekspektasi)
-
-**Mirip secara fungsi & gaya — YA itu tujuannya. Identik 100% — tidak (dan tak perlu).**
-
-Keputusan produk: **menyalin fitur harian + gaya UI/UX WhatsApp macOS** sebagai **look tetap** (layout
-sidebar+chat, bubble rounded, spacing, alur UX). Ini sah & umum — Telegram/Discord/Spotify pun punya look
-*brand* tetap yang tidak ikut tema OS, dan Linux user memakainya tanpa masalah.
-
-- **Fungsi harian (teks, media, grup, status, dll): SETARA.** ~85–90% kebutuhan sehari-hari terpenuhi.
-- **Gaya UI/UX: BISA PIXEL-IDENTIK.** Karena UI = web (HTML/CSS), look WhatsApp (yang memang web) dapat ditiru
-  persis — bukan sekadar "mirip rasa" seperti rencana Gio dulu. Look tetap, light/dark bawaan.
-- **Ke-ringan-an: SETARA macOS native** (bukan lebih baik — itu konsekuensi WebView). Tapi **jauh di bawah**
-  WhatsApp Web/Windows, dan kita unggul di **footprint disk, jumlah proses, no-telemetry, arsitektur lean**.
-- **Yang TETAP berbeda / kurang:**
-  - Bukan aset resmi Meta — kita tulis ulang CSS/markup sendiri (boleh sangat mirip, bukan menyalin file Meta).
-  - Call/pay hilang (mustahil), history sync terbatas, beberapa fitur 🟡 parsial, tergantung perubahan protokol.
-
-> **Target:** *"fungsi harian + UI/UX WhatsApp macOS yang (nyaris) pixel-identik, ringan setara native, jauh di
-> bawah Chromium"*. Yang ditiru = layout, style, alur (kini murah via CSS). Yang TIDAK = call (mustahil).
+**The golden rule:** *Lightweight isn't about having few features — it's about discipline around media & memory.*
 
 ---
 
-## 7. Roadmap & estimasi (skala solo/komunitas)
+## 6. Will it be "exactly like" macOS? (Expectations)
 
-Arsitektur: **engine (whatsmeow + state + SQLite) terpisah dari frontend web.** Engine = package Go murni
-(siap jadi daemon/headless), frontend = HTML/CSS/JS di WebView, dijembatani Wails. Frontend = **GUI web sejak
-awal** (look ala WhatsApp macOS). TUI = bonus opsional, jauh di belakang.
+**Similar in function & style — YES, that's the goal. 100% identical — no (and it doesn't need to be).**
 
-| Fase | Cakupan | Effort | Target RAM |
+Product decision: **copy WhatsApp macOS's everyday features + UI/UX style** as a **fixed look** (sidebar+chat
+layout, rounded bubbles, spacing, UX flow). This is legitimate and common — Telegram/Discord/Spotify all keep a
+fixed *brand* look that doesn't follow the OS theme, and Linux users use them without issue.
+
+- **Everyday functionality (text, media, groups, status, etc.): ON PAR.** ~85–90% of daily needs are met.
+- **UI/UX style: CAN BE PIXEL-IDENTICAL.** Because the UI = web (HTML/CSS), the WhatsApp look (which is itself web)
+  can be mirrored exactly — not just "similar in feel" like the old Gio plan. Fixed look, built-in light/dark.
+- **Lightness: ON PAR with native macOS** (not better — that's a consequence of the WebView). But **far below**
+  WhatsApp Web/Windows, and we win on **disk footprint, process count, no-telemetry, lean architecture**.
+- **What STAYS different / lacking:**
+  - Not Meta's official assets — we rewrite the CSS/markup ourselves (can be very similar, but not copying Meta's files).
+  - Calls/pay are gone (impossible), history sync is limited, some 🟡 features are partial, and depend on protocol changes.
+
+> **Target:** *"WhatsApp macOS's everyday functionality + (nearly) pixel-identical UI/UX, as light as native, far
+> below Chromium"*. What we mirror = layout, style, flow (now cheap via CSS). What we DON'T = calls (impossible).
+
+---
+
+## 7. Roadmap & estimates (solo/community scale)
+
+Architecture: **the engine (whatsmeow + state + SQLite) is separate from the web frontend.** Engine = a pure Go
+package (ready to become a daemon/headless), frontend = HTML/CSS/JS in the WebView, bridged by Wails. The
+frontend is a **web GUI from the start** (WhatsApp macOS-style look). A TUI is an optional bonus, well behind.
+
+| Phase | Scope | Effort | Target RAM |
 |---|---|---|---|
-| **v0.1 — Daily-driver minimal** | Engine whatsmeow + UI web dasar; pairing QR, daftar chat, kirim/terima teks, terima media (klik→buka eksternal), reply, reaksi, read receipt, typing, notifikasi, riwayat dasar (SQLite); light/dark | beberapa minggu–2 bulan | ~120–180 MB |
-| **v0.2 — Media & grup** | Gambar inline + thumbnail, voice note, dokumen, grup penuh, mention, edit/hapus | ~1 bulan+ | ~150–250 MB |
-| **v0.3 — Sosial & organisasi** | Status, polling, pin/arsip/mute, search lokal (FTS), foto profil, blokir | beberapa minggu+ | ~180–300 MB |
-| **v0.4 — Lanjutan** | Stiker (statis→animasi), video inline (libmpv), GIF, multi-akun, link preview, Channels (baca) | ~1 bulan+ | ~200–400 MB |
-| **v0.x — Eksperimen** | Communities (sebagian), live location, daemon/headless, TUI, integrasi CLI | bertahap | — |
-| **❌ TIDAK PERNAH** | Voice/video call, screen share, payments | — | — |
+| **v0.1 — Minimal daily-driver** | whatsmeow engine + basic web UI; QR pairing, chat list, send/receive text, receive media (click→open externally), reply, reactions, read receipts, typing, alerts, basic history (SQLite); light/dark | a few weeks–2 months | ~120–180 MB |
+| **v0.2 — Media & groups** | inline images + thumbnails, voice notes, documents, full groups, mentions, edit/delete | ~1 month+ | ~150–250 MB |
+| **v0.3 — Social & organization** | Status, polls, pin/archive/mute, local search (FTS), profile photos, blocking | a few weeks+ | ~180–300 MB |
+| **v0.4 — Advanced** | stickers (static→animated), inline video (libmpv), GIF, multi-account, link preview, Channels (read) | ~1 month+ | ~200–400 MB |
+| **v0.x — Experimental** | Communities (partial), live location, daemon/headless, TUI, CLI integration | gradual | — |
+| **❌ NEVER** | Voice/video calls, screen share, payments | — | — |
 
-- Sampai **v0.4 (gaya + fitur harian macOS minus call):** ~6–12 bulan solo, lebih cepat dengan kontributor.
-- Bagian terlama & tersulit = **fondasi engine + GUI dasar v0.1**, bukan fitur belakangan.
+- Through **v0.4 (macOS-style + everyday features minus calls):** ~6–12 months solo, faster with contributors.
+- The longest & hardest part = the **engine foundation + basic GUI of v0.1**, not the later features.
 
 ---
 
 ## 8. Target market & positioning
 
-- **Tujuan = proyek FOSS komunitas profil-rendah, BUKAN komersial.** Terbukti dari batasan:
-  1. Melanggar ToS WhatsApp; nomor pengguna berisiko **banned** → tak bisa dijual secara sehat.
-  2. Protokol Meta berubah-ubah → beban maintenance abadi (wajar untuk komunitas, bunuh diri untuk produk ber-SLA).
-  3. Visibilitas tinggi = undangan banned → **profil rendah = strategi bertahan hidup.**
-- **"Market" = komunitas, bukan pelanggan.** Metrik sukses: GitHub stars, kontributor, paket AUR/Flathub/nixpkgs,
-  diskusi HN/r/linux — **bukan** MAU/revenue.
-- **Persona utama:** power user Linux/terminal (suka ringan, native, FOSS, keyboard-first, toleran rough edges).
-- **Linux-first sudah tepat.** Windows = **bonus distribusi** belakangan, **bukan** target kedua setara
-  (pengguna Windows umumnya tak toleran setup ribet/banned & tak menghargai FOSS — bukan persona kita).
+- **Goal = a low-profile community FOSS project, NOT commercial.** Evident from the constraints:
+  1. It violates WhatsApp's ToS; users' numbers are at risk of being **banned** → can't be sold soundly.
+  2. Meta's protocol shifts constantly → eternal maintenance burden (fine for a community, suicide for an SLA-bound product).
+  3. High visibility = an invitation to bans → **a low profile is a survival strategy.**
+- **The "market" = a community, not customers.** Success metrics: GitHub stars, contributors, AUR/Flathub/nixpkgs packages,
+  HN/r/linux discussion — **not** MAU/revenue.
+- **Primary persona:** Linux/terminal power users (who like lightweight, native, FOSS, keyboard-first, and tolerate rough edges).
+- **Linux-first is right.** Windows = a **distribution bonus** later, **not** an equal second target
+  (Windows users generally don't tolerate fiddly setup/bans and don't value FOSS — not our persona).
 
-**Positioning satu kalimat:**
-> *"Klien WhatsApp Linux yang ringan & efisien — tanpa membundel Chromium, seringan app macOS native —
-> untuk orang yang sayang RAM-nya. Open-source, dipakai dengan risiko sendiri."*
+**One-sentence positioning:**
+> *"A lightweight, efficient WhatsApp client for Linux — no bundled Chromium, as light as the native macOS app —
+> for people who care about their RAM. Open-source, used at your own risk."*
 
-Disclaimer ("risiko sendiri") = **bagian dari positioning**, bukan footnote. Sekaligus jujur & menyaring pengguna yang tepat.
+The disclaimer ("at your own risk") = **part of the positioning**, not a footnote. It's both honest and a filter for the right users.
 
 ---
 
-## 9. Risiko & batasan (jangan diabaikan)
+## 9. Risks & limitations (don't ignore these)
 
-| Risiko | Catatan / mitigasi |
+| Risk | Notes / mitigation |
 |---|---|
-| **Banned nomor oleh Meta** | Nyata. Disclaimer jelas di README. Pertimbangkan **nomor dev terpisah** untuk testing demi kelangsungan proyek (terpisah dari keberanian pakai nomor utama untuk pemakaian). |
-| **Perubahan protokol** | Bergantung pada laju update whatsmeow. Fitur 🟡 bisa bergeser. |
-| **History sync terbatas** | Tak dapat seluruh riwayat lama saat pertama link — set ekspektasi pengguna. |
-| **Takedown/DMCA** | Mungkin terjadi suatu saat. Konsekuensi dari sifat proyek. |
-| **Bus factor / solo maintainer** | Jika nomor maintainer banned → velocity mati. → nomor dev terpisah. |
+| **Number banned by Meta** | Real. A clear disclaimer in the README. Consider a **separate dev number** for testing to keep the project alive (separate from the courage to use a main number for actual usage). |
+| **Protocol changes** | Depends on whatsmeow's update pace. 🟡 features may shift. |
+| **Limited history sync** | Can't get the full old history on first link — set user expectations. |
+| **Takedown/DMCA** | Could happen someday. A consequence of the project's nature. |
+| **Bus factor / solo maintainer** | If the maintainer's number is banned → velocity dies. → a separate dev number. |
 
 ---
 
-## 10. Keputusan yang DIKUNCI
+## 10. LOCKED decisions
 
-- ✅ **Tanpa membundel Chromium** — pakai **WebView sistem (WebKitGTK)**. (Revisi dari "tanpa webview sama
-  sekali": UI web di WebView sistem dipilih demi look identik + skill web maintainer; lihat Bagian 12.)
-- ✅ Linux-first; Windows = bonus distribusi belakangan.
-- ✅ Proyek FOSS komunitas profil-rendah; "market" = komunitas.
-- ✅ Voice/video call & pembayaran = **non-goal permanen** (mustahil, batas protokol).
-- ✅ Bukan parity fitur penuh; jangkar = **"fungsi harian + UI/UX macOS (nyaris pixel-identik) + ringan setara native"**.
-- ✅ Arsitektur **engine + frontend terpisah** (engine = package Go murni, siap jadi daemon).
-- ✅ Frontend: **engine dulu → UI web (Wails) sebagai frontend utama → TUI bonus belakangan**.
-- ✅ Stack UI = **web (HTML/CSS/JS) + Wails (shell Go) + WebKitGTK**. Gio/Electron/Tauri/GTK/Qt **ditolak** (Bagian 12).
-- ✅ Style = **look ala WhatsApp macOS, tidak ada theming user**; light/dark bawaan saja.
-- ✅ **Pembeda = arsitektur lean & teroptimasi** (Bagian 12.3) untuk menutup overhead WebView.
-- ✅ Cakupan v0.1 = **minimal "chat teks harian"** (daftar di Bagian 7).
-- ✅ Strategi media v0.1 = **klik → buka di app eksternal** (inline ditunda ke v0.2).
-- ✅ Packaging = **AUR + Flatpak + AppImage** (portabel semua distro, X11 + Wayland).
+- ✅ **No bundled Chromium** — use the **system WebView (WebKitGTK)**. (Revised from "no webview at all":
+  a web UI in the system WebView was chosen for an identical look + the maintainer's web skills; see Section 12.)
+- ✅ Linux-first; Windows = a distribution bonus later.
+- ✅ A low-profile community FOSS project; the "market" = a community.
+- ✅ Voice/video calls & payments = a **permanent non-goal** (impossible, protocol limits).
+- ✅ Not full feature parity; the anchor = **"everyday functionality + (nearly pixel-identical) macOS UI/UX + as light as native"**.
+- ✅ A **separate engine + frontend** architecture (engine = a pure Go package, ready to become a daemon).
+- ✅ Frontend: **engine first → web UI (Wails) as the primary frontend → TUI as a later bonus**.
+- ✅ UI stack = **web (HTML/CSS/JS) + Wails (Go shell) + WebKitGTK**. Gio/Electron/Tauri/GTK/Qt are **rejected** (Section 12).
+- ✅ Style = **WhatsApp macOS-style look, no user theming**; built-in light/dark only.
+- ✅ **Differentiator = a lean, optimized architecture** (Section 12.3) to close the WebView overhead.
+- ✅ v0.1 scope = **a minimal "everyday text chat"** (listed in Section 7).
+- ✅ v0.1 media strategy = **click → open in an external app** (inline deferred to v0.2).
+- ✅ Packaging = **AUR + Flatpak + AppImage** (portable across all distros, X11 + Wayland).
 
-## 11. Yang masih perlu diputuskan (sisa untuk implementasi)
+## 11. Still to be decided (left for implementation)
 
-1. **Nama proyek final & lisensi:** MIT (ikut whatsmeow) vs GPL (proteksi komunitas).
-2. **Metodologi ukur RAM** untuk memvalidasi klaim di Bagian 4 sebelum jadi materi publik.
-3. **Sikap ToS/legal di README:** seberapa eksplisit disclaimer ban-risk.
-4. **Framework UI web:** vanilla JS vs framework ringan (Preact/Svelte yang ter-compile). Default: seminimal mungkin.
-5. **Strategi media berat (v0.2+):** libmpv vs ffmpeg vs app sistem untuk video/GIF.
-6. **Wails v2 vs v3 vs bare `webview_go`:** Wails untuk DX/binding; bare-webview kalau mau paling tipis.
+1. **Final project name & license:** the project ships as **GPL-3.0** (community protection). whatsmeow is
+   **MPL-2.0**, which is GPL-compatible — MPL-2.0 §3.3 permits distributing the larger work under the GPL.
+2. **RAM measurement methodology** to validate the claims in Section 4 before they become public material.
+3. **ToS/legal stance in the README:** how explicit to make the ban-risk disclaimer.
+4. **Web UI framework:** vanilla JS vs a lightweight compiled framework (Preact/Svelte). Default: as minimal as possible.
+5. **Heavy media strategy (v0.2+):** libmpv vs ffmpeg vs a system app for video/GIF.
+6. **Wails v2 vs v3 vs bare `webview_go`:** Wails for DX/bindings; bare-webview if we want the thinnest possible.
 
 ---
 
-## 12. Tech Stack (terkunci)
+## 12. Tech Stack (locked)
 
 ### 12.1 Stack
 
 ```
 Engine     : Go + whatsmeow + SQLite (modernc.org/sqlite, pure-Go)
-Arsitektur : engine = package Go murni (siap jadi daemon headless),
-             terpisah dari frontend → bisa dipakai ulang GUI/TUI/daemon
-Shell      : Wails (Go ↔ WebView sistem; binding Go↔JS, bundling, dev-server)
-Frontend   : web — HTML/CSS/JS (vanilla atau framework ringan ter-compile)
-             di-embed dalam binary; TUI = bonus opsional jauh di belakang
-Render     : WebView sistem — WebKitGTK (Linux). TIDAK membundel Chromium.
-Style      : look terinspirasi WhatsApp macOS (kini bisa nyaris pixel-identik
-             via CSS). Tidak ada theming user. Light/dark bawaan.
-Packaging  : AUR (Arch/CachyOS) + Flatpak (semua distro) + AppImage (opsional)
-Display    : X11 + Wayland (lewat GTK host Wails)
-Dependensi : webkit2gtk + gtk3 (ada di semua distro mainstream)
-Ditolak    : Electron (bundel Chromium+Node → berat, lawan tujuan)
-             Tauri (sama-sama WebView sistem, TAPI shell Rust + engine Go
-                    jadi sidecar = 2 toolchain + batas IPC, nol untung)
-             Gio (custom-drawn: look identik nyaris mustahil, no feedback loop,
-                  bukan skill web) — stack lama, ditinggalkan
-             GTK/Qt native (memaksa look DE; bukan skill web)
+Architecture : engine = a pure Go package (ready to become a headless daemon),
+             separate from the frontend → reusable by a GUI/TUI/daemon
+Shell      : Wails (Go ↔ system WebView; Go↔JS bindings, bundling, dev-server)
+Frontend   : web — HTML/CSS/JS (vanilla or a lightweight compiled framework)
+             embedded in the binary; TUI = an optional bonus well behind
+Render     : system WebView — WebKitGTK (Linux). Does NOT bundle Chromium.
+Style      : look inspired by WhatsApp macOS (can now be nearly pixel-identical
+             via CSS). No user theming. Built-in light/dark.
+Packaging  : AUR (Arch/CachyOS) + Flatpak (all distros) + AppImage (optional)
+Display    : X11 + Wayland (via Wails's GTK host)
+Dependencies : webkit2gtk + gtk3 (present on all mainstream distros)
+Rejected   : Electron (bundles Chromium+Node → heavy, against the goal)
+             Tauri (also a system WebView, BUT a Rust shell + the Go engine
+                    as a sidecar = 2 toolchains + an IPC boundary, zero gain)
+             Gio (custom-drawn: identical look nearly impossible, no feedback loop,
+                  not a web skill) — the old stack, abandoned
+             native GTK/Qt (forces the DE look; not a web skill)
 ```
 
-### 12.2 Kenapa Wails + web (bukan Gio, bukan Tauri, bukan Electron)
+### 12.2 Why Wails + web (not Gio, not Tauri, not Electron)
 
-| Alasan | Penjelasan |
+| Reason | Explanation |
 |---|---|
-| **Look identik WhatsApp** | UI = CSS; WhatsApp Web memang web → ditiru persis, bukan digambar tangan |
-| **Pakai skill web maintainer** | HTML/CSS/JS, bukan immediate-mode level rendah; bisa di-preview di browser |
-| **Satu bahasa untuk shell+engine** | Wails = shell Go → whatsmeow hidup di proses yang sama, tanpa sidecar/IPC (beda dari Tauri yang Rust) |
-| **Tak membundel browser** | Pakai WebKitGTK sistem → buang ~70–80% beban Chromium (beda dari Electron) |
-| **Tanpa runtime kedua** | Engine = Go terkompilasi, bukan Node → satu binary ~30–50 MB |
-| **Portabel** | webkit2gtk+gtk3 ada di semua distro mainstream; X11 & Wayland |
+| **Identical WhatsApp look** | UI = CSS; WhatsApp Web is itself web → mirrored exactly, not hand-drawn |
+| **Uses the maintainer's web skills** | HTML/CSS/JS, not low-level immediate-mode; previewable in a browser |
+| **One language for shell+engine** | Wails = a Go shell → whatsmeow lives in the same process, no sidecar/IPC (unlike Tauri's Rust) |
+| **No bundled browser** | Uses the system WebKitGTK → sheds ~70–80% of Chromium's weight (unlike Electron) |
+| **No second runtime** | Engine = compiled Go, not Node → one ~30–50 MB binary |
+| **Portable** | webkit2gtk+gtk3 are on all mainstream distros; X11 & Wayland |
 
-### 12.3 Keunggulan & optimasi arsitektur — PEMBEDA UTAMA ⭐
+### 12.3 Architectural advantages & optimizations — THE MAIN DIFFERENTIATOR ⭐
 
-WebView menaruh kita ~80–150 MB di atas Gio (mesin WebKit). **Kita tutup selisih itu — dan unggul atas app
-resmi — lewat arsitektur**, bukan dengan berharap toolkit lebih ringan. Inilah nilai jual teknis proyek.
+The WebView puts us ~80–150 MB above Gio (the WebKit engine). **We close that gap — and beat the official
+app — through architecture**, not by hoping for a lighter toolkit. This is the project's technical selling point.
 
-**A. Lebih ramping dari WhatsApp Web/Windows (Chromium-based):**
-- **WebView sistem, bukan Chromium dibundel** — render numpang OS; nol MB browser di binary kita.
-- **Tanpa Node/runtime JS server** — "backend" = Go terkompilasi, bukan proses Node 30–80 MB.
-- **JS frontend lean** — vanilla atau framework ter-compile (Preact/Svelte), **bukan** React + bundle gemuk.
-- **Nol telemetry / analytics / background service** — app resmi menjalankan layanan latar; kita tidak.
-- **Satu binary, ~2 proses** (Go + WebView) vs 5–10 proses Chromium.
+**A. Leaner than WhatsApp Web/Windows (Chromium-based):**
+- **System WebView, not a bundled Chromium** — rendering borrows from the OS; zero MB of browser in our binary.
+- **No Node/JS server runtime** — the "backend" = compiled Go, not a 30–80 MB Node process.
+- **Lean JS frontend** — vanilla or a compiled framework (Preact/Svelte), **not** React + a fat bundle.
+- **Zero telemetry / analytics / background service** — the official app runs background services; we don't.
+- **One binary, ~2 processes** (Go + WebView) vs Chromium's 5–10 processes.
 
-**B. Menutup selisih vs macOS native (disiplin di sisi data — bagian RAM yang dominan):**
-- **Virtualized message list** — hanya node DOM yang terlihat yang ada; ribuan pesan ≠ ribuan elemen.
-  Ini menjaga heap WebKit tetap kecil (DOM besar = pembunuh memori web #1).
-- **Local-first SQLite** — daftar chat & pesan dibaca dari DB lokal, **paginasi ~50** + lazy-load saat scroll;
-  tak pernah seluruh riwayat masuk RAM.
-- **Media = file di disk, DB simpan path** — **tidak** base64 di DOM (pembunuh memori #2); thumbnail lazy,
-  gambar penuh on-demand, dilepas saat keluar viewport; **cache LRU** berbatas.
-- **Video/GIF/stiker animasi → delegasi** ke libmpv / app sistem; codec tak ditarik ke WebView.
-- **Update event-driven (delta)** — pesan baru dikirim Go→JS sebagai satu event & disisipkan, **bukan** reload
-  seluruh view; minim alokasi & re-layout.
-- **Aset internal**: ikon SVG (kecil), wallpaper via CSS, **font sistem** (tak membundel megabyte font).
+**B. Closing the gap vs native macOS (discipline on the data side — the dominant RAM share):**
+- **Virtualized message list** — only visible DOM nodes exist; thousands of messages ≠ thousands of elements.
+  This keeps the WebKit heap small (a large DOM = the #1 web memory killer).
+- **Local-first SQLite** — the chat list & messages are read from the local DB, **paginated ~50** + lazy-loaded on scroll;
+  the full history never enters RAM.
+- **Media = files on disk, the DB stores the path** — **not** base64 in the DOM (memory killer #2); thumbnails are lazy,
+  full images on-demand, released on leaving the viewport; a **bounded LRU cache**.
+- **Video/GIF/animated stickers → delegated** to libmpv / a system app; codecs aren't pulled into the WebView.
+- **Event-driven (delta) updates** — a new message is sent Go→JS as a single event & inserted, **not** a reload
+  of the whole view; minimal allocation & re-layout.
+- **Internal assets**: SVG icons (small), wallpaper via CSS, **system fonts** (no bundled megabytes of fonts).
 
-**C. Hemat saat idle / tersembunyi:**
-- Saat window disembunyikan: hentikan render/animasi UI; yang hidup cukup **WebSocket Go** (engine murah).
-- Tak ada polling boros; UI hanya bangun saat ada event atau interaksi.
+**C. Frugal when idle / hidden:**
+- When the window is hidden: stop UI rendering/animation; only the **Go WebSocket** needs to be alive (a cheap engine).
+- No wasteful polling; the UI only wakes on an event or interaction.
 
-**Klaim jujur yang boleh dipasarkan:** *"seringan app macOS native, 3–6× lebih hemat dari WhatsApp Web,
-binary ~30–50 MB, dua proses, nol telemetry"* — **bukan** "puluhan MB" (itu mimpi Gio yang sudah kita lepas).
-Semua angka **wajib diukur (PSS)** sebelum jadi materi publik.
+**An honest, marketable claim:** *"as light as the native macOS app, 3–6× leaner than WhatsApp Web, a ~30–50 MB
+binary, two processes, zero telemetry"* — **not** "tens of MB" (that was the Gio dream we've let go). All numbers
+**must be measured (PSS)** before becoming public material.
 
-### 12.4 Penyimpanan (SQLite) — terkunci, dirancang ringan
+### 12.4 Storage (SQLite) — locked, designed to be light
 
-**Kenapa wajib:** WhatsApp = model **device-local + E2E**, server hanya **relay** — bukan cloud seperti
-Telegram. Server **tidak** menyajikan riwayat pesan lama on-demand. Maka sesi, kunci, dan riwayat **harus**
-hidup lokal, atau: scan QR ulang tiap buka + daftar chat selalu kosong. SQLite = opsi persistensi paling
-ringan (embedded, satu file, tanpa server).
+**Why it's required:** WhatsApp = a **device-local + E2E** model, the server is only a **relay** — not a cloud
+like Telegram. The server does **not** serve old message history on-demand. So sessions, keys, and history
+**must** live locally, or else: re-scan the QR every launch + an always-empty chat list. SQLite = the lightest
+persistence option (embedded, one file, no server).
 
-**Prinsip:** *DB kecil & ramping, media di file terpisah, RAM dijaga dengan paginasi.*
+**Principle:** *a small, lean DB, media in separate files, RAM kept in check by pagination.*
 
-| Data | Lokasi | Catatan |
+| Data | Location | Notes |
 |---|---|---|
-| Sesi + kunci enkripsi | SQLite (store bawaan whatsmeow) | Wajib; dikelola otomatis library |
-| Pesan + metadata chat | SQLite (`app.db`) | Teks ringan, di disk |
-| Search | FTS5 (fitur SQLite) | Tanpa dependensi tambahan |
-| **Media** | **File di folder cache; DB simpan *path* saja** | ⭐ DB tak pernah membengkak |
+| Session + encryption keys | SQLite (whatsmeow's built-in store) | Required; managed automatically by the library |
+| Messages + chat metadata | SQLite (`app.db`) | Lightweight text, on disk |
+| Search | FTS5 (a SQLite feature) | No extra dependency |
+| **Media** | **Files in a cache folder; the DB stores only the *path*** | ⭐ The DB never bloats |
 
-**Tiga keputusan kunci agar ringan:**
-1. **Media = file di disk, bukan blob di DB** (DB hanya simpan referensi).
-2. **Cache media dibatasi (LRU)** — file lama dibuang otomatis saat lewat batas ukuran.
-3. **Pesan dibaca bertahap (paginasi)** — muat ~50 pesan terakhir, lazy-load saat scroll; tak pernah seluruh riwayat ke RAM.
+**Three key decisions to keep it light:**
+1. **Media = files on disk, not blobs in the DB** (the DB only stores a reference).
+2. **The media cache is bounded (LRU)** — old files are dropped automatically when the size cap is exceeded.
+3. **Messages are read incrementally (pagination)** — load the ~50 most recent, lazy-load on scroll; the full history never goes to RAM.
 
-**Detail:**
-- **Lokasi (XDG):** data di `~/.local/share/<app>/`, cache media di `~/.cache/<app>/`.
-- **SQLite:** mode WAL + `cache_size` dibatasi → SQLite sendiri hemat RAM.
-- **Enkripsi at-rest:** v0.1 cukup **permission file (0600)**; SQLCipher = opsional nanti (hindari beban/kompleksitas dini).
+**Details:**
+- **Location (XDG):** data in `~/.local/share/<app>/`, media cache in `~/.cache/<app>/`.
+- **SQLite:** WAL mode + a bounded `cache_size` → SQLite itself stays RAM-frugal.
+- **Encryption at rest:** for v0.1, **file permissions (0600)** are enough; SQLCipher = optional later (avoid premature weight/complexity).

@@ -1,47 +1,48 @@
-# Frontend WhatsApp Lite (Svelte + Vite)
+# WhatsApp Lite frontend (Svelte + Vite)
 
-UI web yang dibungkus jadi app Linux native lewat **Wails** (WebView sistem / WebKitGTK).
-Saat dev, bisa juga dibuka di browser biasa dengan **data mock**.
+The web UI, packaged into a native Linux app via **Wails** (system WebView / WebKitGTK).
+During development it can also be opened in a regular browser with **mock data**.
 
-## Struktur
+## Structure
 
 ```
 src/
-  main.js                 bootstrap (mount App, import CSS global)
-  App.svelte              layout root: Rail + Sidebar + Conversation + InfoPanel
-  stores.js               state reaktif (chats, activeChatId, theme, dst)
+  main.js                 bootstrap (mount App, import global CSS)
+  App.svelte              root layout: Rail + Sidebar + Conversation + InfoPanel
+  stores.js               reactive state (chats, activeChatId, theme, etc.)
   services/
-    data.js               ⭐ SATU seam data: mock sekarang, engine Go nanti
+    data.js               ⭐ the SINGLE data seam: live Go engine, or mock as a fallback
   lib/
-    data/mock.js          ⭐ DATA PALSU — edit di sini untuk ubah isi mockup
+    data/mock.js          ⭐ MOCK DATA — edit here to change the mockup contents
     util.js
-    Rail.svelte           rail ikon kiri
+    Rail.svelte           left icon rail
     common/               Avatar, Ticks, ThemeToggle
     sidebar/              ChatsPane, ChatList, ChatRow, SearchBar, Filters,
                           SettingsPane, ProfilePane, PlaceholderPane
     chat/                 Conversation, ConvHeader, MessageList, Bubble, InfoPanel
-  styles/app.css          token warna + gaya global (light/dark)
+  styles/app.css          color tokens + global styles (light/dark)
 ```
 
-## Fleksibel: dua titik ubah
+## Two points of change
 
-1. **Ubah isi tampilan** → edit `src/lib/data/mock.js` (chats, messagesByChat, me, dst).
-   Bentuk objeknya sengaja dekat ke model engine nyata.
-2. **Ganti sumber data mock → engine nyata** → edit **hanya** `src/services/data.js`
-   (set `LIVE` + panggil `window.go.main.App.*`). Komponen TIDAK perlu diubah.
+1. **Change what's displayed** → edit `src/lib/data/mock.js` (chats, messagesByChat, me, etc.).
+   The object shapes are intentionally close to the real engine model.
+2. **Switch data source mock ↔ real engine** → edit **only** `src/services/data.js`. When the app runs
+   inside Wails, `window.go.main.App.*` is present and `LIVE` is on; in a plain browser it falls back to
+   mock data. Components don't need to change.
 
-## Menjalankan
+## Running
 
 ```sh
 npm install
 npm run dev       # dev server + hot reload  (http://localhost:5173)
-npm run build     # build statis ke dist/  (di-embed Wails)
-npm run preview   # serve hasil build       (http://localhost:4173)
+npm run build     # static build to dist/    (embedded by Wails)
+npm run preview   # serve the build           (http://localhost:4173)
 ```
 
-Pratinjau tema/tampilan via query: `?theme=dark`, `?view=settings`, `?info=1`.
+Preview theme/views via query params: `?theme=dark`, `?view=settings`, `?info=1`.
 
-## Screenshot (loop verifikasi)
+## Screenshot (verification loop)
 
 ```sh
 npm run preview &
@@ -49,4 +50,4 @@ firefox --headless --window-size=1200,760 \
   --screenshot /tmp/wa.png "http://localhost:4173/?theme=dark"
 ```
 
-App native penuh dibangun dari root proyek: `wails build -tags webkit2_41`.
+The full native app is built from the project root: `wails build -tags webkit2_41`.

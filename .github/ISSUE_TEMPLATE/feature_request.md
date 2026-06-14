@@ -1,20 +1,20 @@
 ---
-name: Usulan fitur
-about: Usulkan ide untuk project ini
-title: "[fitur] "
+name: Feature request
+about: Suggest an idea for this project
+title: "[feature] "
 labels: enhancement
 ---
 
-## Masalah yang ingin dipecahkan
-Apa kebutuhannya?
+## Problem to solve
+What's the need?
 
-## Usulan solusi
-Bagaimana idealnya bekerja?
+## Proposed solution
+How should it ideally work?
 
-## Pertimbangan "lean"
-Project ini mengutamakan ringan. Apakah fitur ini butuh dependensi baru / menambah berat
-RAM/disk/binary? Lihat filosofi di [CONTRIBUTING.md](../../CONTRIBUTING.md#filosofi-tetap-lean).
+## "Lean" considerations
+This project prioritizes being lightweight. Does this feature need a new dependency, or add weight in
+RAM/disk/binary size? See the philosophy in [CONTRIBUTING.md](../../CONTRIBUTING.md#philosophy-stay-lean).
 
-## Kelayakan whatsmeow
-Jika menyangkut protokol WhatsApp: apakah whatsmeow mengeksposnya? (Panggilan/WebRTC & ganti
-foto profil sendiri **tidak** didukung — lihat Keterbatasan di README.)
+## whatsmeow feasibility
+If it touches the WhatsApp protocol: does whatsmeow expose it? (Calls/WebRTC and changing your own
+profile photo are **not** supported — see Limitations in the README.)

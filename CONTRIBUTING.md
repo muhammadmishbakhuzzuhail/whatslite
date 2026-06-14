@@ -1,26 +1,26 @@
-# Berkontribusi
+# Contributing
 
-Terima kasih sudah tertarik berkontribusi! Project ini klien WhatsApp desktop Linux yang ringan
-(Go + whatsmeow + Wails + WebKitGTK). Baca dulu [README](./README.md), [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md),
-dan [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) untuk memahami arah & arsitektur.
+Thanks for your interest in contributing! This project is a lightweight WhatsApp desktop client for Linux
+(Go + whatsmeow + Wails + WebKitGTK). Start by reading the [README](./README.md), [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md),
+and [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) to understand the project's direction and architecture.
 
-> ⚠️ **Baca [Disclaimer ToS di README](./README.md#-disclaimer-baca-dulu) lebih dulu.** Project ini memakai
-> protokol WhatsApp Web tak-resmi. Nomor uji **berisiko diban**. Pakai nomor cadangan saat develop.
+> ⚠️ **Read the [ToS disclaimer in the README](./README.md#-disclaimer-read-first) first.** This project uses
+> WhatsApp's unofficial Web protocol. Test numbers are **at risk of being banned**. Use a spare number while developing.
 
-## Filosofi: tetap *lean*
+## Philosophy: stay *lean*
 
-Pembeda utama project ini adalah **ringan**. Sebelum menambah fitur/dependensi, tanyakan:
+This project's main differentiator is being **lightweight**. Before adding a feature or dependency, ask yourself:
 
-- Apakah bisa dilakukan tanpa dependensi baru? (binary saat ini ~25 MB — jaga tetap kecil)
-- Apakah menambah berat runtime (RAM/disk) yang signifikan?
-- Apakah memuat data besar ke frontend? (jangan kirim base64 media penuh ke WebView — pakai file/cache)
+- Can it be done without a new dependency? (the binary is currently ~25 MB — keep it small)
+- Does it add significant runtime weight (RAM/disk)?
+- Does it load large data into the frontend? (don't send full base64 media to the WebView — use files/cache)
 
-PR yang menambah dependensi berat (mis. ML/WASM besar, Electron-isme) kemungkinan ditolak kecuali
-nilainya sepadan. Lihat riwayat: ONNX background-removal pernah dibuang (binary 50→25 MB).
+PRs that add heavy dependencies (e.g. large ML/WASM, Electron-isms) will likely be rejected unless the
+payoff is worth it. For context: ONNX background removal was once dropped (binary went 50→25 MB).
 
-## Prasyarat & build
+## Prerequisites & build
 
-Lihat [README §Prasyarat build](./README.md#prasyarat-build-linux). Ringkasnya (Arch/CachyOS):
+See [README §Build prerequisites](./README.md#build-prerequisites-linux). In short (Arch/CachyOS):
 
 ```sh
 sudo pacman -S --needed go webkit2gtk gtk3 pkgconf
@@ -30,40 +30,40 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```sh
 # dev (hot-reload):
 wails dev -tags "webkit2_41 netgo"
-# build rilis:
+# release build:
 wails build -tags "webkit2_41 netgo"
 ```
 
-## Sebelum membuka PR
+## Before opening a PR
 
-Jalankan semua ini (sama dengan CI di `.github/workflows/build.yml`):
+Run all of these (the same as CI in `.github/workflows/build.yml`):
 
 ```sh
 go vet ./...
 go test ./...
 npm --prefix frontend ci
-npm --prefix frontend run lint:css   # stylelint — harus 0 error
-npm --prefix frontend run build      # harus 0 warning unused-CSS
-wails build -tags "webkit2_41 netgo" # harus sukses
+npm --prefix frontend run lint:css   # stylelint — must be 0 errors
+npm --prefix frontend run build      # must be 0 unused-CSS warnings
+wails build -tags "webkit2_41 netgo" # must succeed
 ```
 
-- **Tanpa dead code / CSS tak terpakai.** Build FE menandai unused-CSS — bersihkan.
-- **Jangan commit rahasia.** API key, `*.db`, binary, dan `real-data.json` sudah di-`.gitignore` — jaga tetap begitu.
-- **Hormati handler whatsmeow yang sinkron.** Kerja DB berat di event handler harus di-offload ke
-  antrian `a.bg()` — handler jalan di socket loop, blocking = websocket drop.
+- **No dead code / unused CSS.** The FE build flags unused CSS — clean it up.
+- **Don't commit secrets.** API keys, `*.db`, binaries, and `real-data.json` are already in `.gitignore` — keep it that way.
+- **Respect whatsmeow's synchronous handlers.** Heavy DB work in an event handler must be offloaded to the
+  `a.bg()` queue — handlers run on the socket loop, so blocking means the websocket drops.
 
-## Gaya kode
+## Code style
 
-- **Go**: ikuti `gofmt`/`go vet`. Komentar Indonesia konsisten dengan kode sekitar.
-- **Svelte/CSS**: cocokkan idiom & kerapatan komentar file sekitarnya. WebKitGTK tidak punya
-  `window.confirm()/prompt()` — pakai store `askConfirm`/`askPrompt` (ConfirmDialog/PromptDialog).
-- **Commit**: Conventional Commits (`feat:`, `fix:`, `perf:`, `chore:`, `refactor:`, `docs:`).
+- **Go**: follow `gofmt`/`go vet`. Keep comments consistent with the surrounding code.
+- **Svelte/CSS**: match the idioms and comment density of nearby files. WebKitGTK has no
+  `window.confirm()/prompt()` — use the `askConfirm`/`askPrompt` stores (ConfirmDialog/PromptDialog).
+- **Commits**: Conventional Commits (`feat:`, `fix:`, `perf:`, `chore:`, `refactor:`, `docs:`).
 
-## Lapor bug / minta fitur
+## Reporting bugs / requesting features
 
-Pakai [issue templates](./.github/ISSUE_TEMPLATE/). Untuk celah keamanan, **jangan** buka issue publik —
-lihat [`SECURITY.md`](./SECURITY.md).
+Use the [issue templates](./.github/ISSUE_TEMPLATE/). For security vulnerabilities, **do not** open a public issue —
+see [`SECURITY.md`](./SECURITY.md).
 
-## Lisensi
+## License
 
-Dengan berkontribusi, kamu setuju kontribusimu dilisensikan di bawah **GPL-3.0** (lihat [`LICENSE`](./LICENSE)).
+By contributing, you agree that your contributions are licensed under **GPL-3.0** (see [`LICENSE`](./LICENSE)).

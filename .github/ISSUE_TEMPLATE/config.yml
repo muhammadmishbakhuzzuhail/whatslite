@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Celah keamanan
+  - name: Security vulnerability
     url: https://github.com/muhammadmishbakhuzzuhail/whatsapp-lite/security/advisories/new
-    about: Jangan buka issue publik untuk masalah keamanan — laporkan privat di sini.
+    about: Don't open a public issue for security problems — report it privately here.

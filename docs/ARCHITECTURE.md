@@ -1,146 +1,146 @@
-# WhatsApp Lite — Arsitektur Target (proper, ringan, Linux-optimized)
+# WhatsApp Lite — Target Architecture (proper, lightweight, Linux-optimized)
 
-Tujuan: mirip ~100% WhatsApp (Web/macOS) **dan lebih optimal di Linux**. Lean:
-engine Go/whatsmeow, UI web (Svelte) di WebKitGTK via Wails. Dokumen ini =
-acuan kebenaran arsitektur + roadmap berfase.
-
----
-
-## 0. Prinsip
-- **DB simpan teks/metadata kecil; media = FILE di disk** (path di DB). Tak ada
-  bytes besar / base64 di DB.
-- **Lazy + cache + eviction** di setiap jalur berat (media, foto profil, render).
-- **Event-driven**: engine emit → store persist → UI react. Idempoten.
-- **Linux-native** di titik yang penting (notifikasi D-Bus, single-instance, XDG).
+Goal: ~100% similar to WhatsApp (Web/macOS) **and more optimal on Linux**. Lean:
+a Go/whatsmeow engine, a web UI (Svelte) in WebKitGTK via Wails. This document is
+the source of truth for the architecture + a phased roadmap.
 
 ---
 
-## 1. Lapisan
+## 0. Principles
+- **The DB stores small text/metadata; media = FILES on disk** (path in the DB). No
+  large bytes / base64 in the DB.
+- **Lazy + cache + eviction** on every heavy path (media, profile photos, rendering).
+- **Event-driven**: engine emits → store persists → UI reacts. Idempotent.
+- **Linux-native** where it matters (single-instance, XDG, sound alerts only — no desktop notifications, by design).
+
+---
+
+## 1. Layers
 
 ```
-┌─ Frontend (Svelte di WebKitGTK) ── virtualized list, lazy media, state tipis
+┌─ Frontend (Svelte in WebKitGTK) ── virtualized list, lazy media, thin state
 │
-├─ App/Service (Go, Wails bindings) ── orkestrasi engine↔store↔UI,
-│                                       media-server, notifikasi, dedup
-├─ Engine (Go, whatsmeow)           ── protokol WA, koneksi, stream event
+├─ App/Service (Go, Wails bindings) ── orchestrate engine↔store↔UI,
+│                                       media-server, alerts, dedup
+├─ Engine (Go, whatsmeow)           ── WA protocol, connection, event stream
 │
-└─ Store (SQLite, modernc)          ── skema ternormalisasi, FTS5, WAL, file-refs
+└─ Store (SQLite, modernc)          ── normalized schema, FTS5, WAL, file-refs
 ```
 
-Aturan: tipe whatsmeow tak bocor keluar engine; UI tak tahu SQL; media tak
-pernah jadi base64 di DB.
+Rules: whatsmeow types don't leak outside the engine; the UI doesn't know SQL; media never
+becomes base64 in the DB.
 
 ---
 
-## 2. Store (SQLite) — skema v2
+## 2. Store (SQLite) — schema v2
 
-Tabel:
+Tables:
 - `chats(jid PK, name, last_text, last_ts, last_sender, last_from_me, unread,
   pinned, muted, archived)`
 - `messages(chat_jid, id, sender, push_name, text, kind, ts, from_me,
   quoted_id, quoted_sender, quoted_text,
   media_path, media_mime, media_w, media_h, thumb_path, PRIMARY KEY(chat_jid,id))`
-  - **media_path/thumb_path = FILE relatif** (bukan blob). `media` proto base64
-    TETAP disimpan HANYA sampai diunduh (lalu boleh dikosongkan), atau di tabel
-    terpisah `media_blob(chat_jid,id,proto)` agar tabel messages tetap ramping.
-- `messages_fts` (FTS5 virtual, content=messages) → **search isi pesan cepat**
-  (ganti LIKE-scan O(n)).
-- Index: `(chat_jid, ts)` (ada), `(ts)` utk global.
+  - **media_path/thumb_path = relative FILE** (not a blob). The base64 `media` proto
+    is kept ONLY until it's downloaded (then it may be cleared), or moved to a
+    separate `media_blob(chat_jid,id,proto)` table to keep the messages table lean.
+- `messages_fts` (FTS5 virtual, content=messages) → **fast message-content search**
+  (replaces the O(n) LIKE scan).
+- Indexes: `(chat_jid, ts)` (exists), `(ts)` for global.
 
-Optimasi:
-- **WAL + busy_timeout** (ada). Pertimbangkan koneksi baca terpisah (read pool)
-  agar baca tak terblok tulis — modernc 1 writer; baca bisa paralel via DB
-  kedua handle read-only.
-- **RecomputeSummaries jangan tiap GetChats** (sekarang O(chats) tiap refresh).
-  Pindah ke: update incremental saat SaveMessage (sudah upsert last_*), +
-  recompute sekali saat startup migrasi. Hilangkan dari GetChats.
-
----
-
-## 3. Pipeline Media (inti "ringan")
-
-- **Terima**: simpan thumbnail JPEG (kecil) → **file** `media/th/<id>.jpg`,
-  simpan `thumb_path`. Simpan proto media (utk unduh nanti) di `media_blob`.
-- **Tampil**: UI render `thumb_path` dulu (instan, blur-up). Saat mendekati
-  viewport (IntersectionObserver) → minta `/media/<chat>/<id>` →
-  asset-server cache-first (sudah) → simpan `media/full/<id>.<ext>` →
-  set `media_path`. Swap thumb→full mulus.
-- **Eviction**: sweeper periodik — hapus file `full/` tertua bila total >
-  cap (mis. 512MB) berdasar atime/akses. thumb kecil boleh tetap.
-- **Foto profil**: sama — **file-cache** `avatars/<jid>.jpg` + path di tabel
-  `contacts_local(jid, name, avatar_path, avatar_fetched_ts)`. Lazy (chat
-  terlihat), refresh TTL (mis. 24 jam). Hentikan eager `RequestPhotos` semua →
-  ganti lazy per-baris terlihat (kurangi ratusan request saat start).
-
-Hasil: DB ramping, memori rendah (URL file bukan data-URI), re-open tak
-re-download, disk terjaga (eviction).
+Optimizations:
+- **WAL + busy_timeout** (exists). Consider a separate read connection (read pool)
+  so reads aren't blocked by writes — modernc allows 1 writer; reads can run in parallel
+  via a second read-only handle.
+- **Don't RecomputeSummaries on every GetChats** (currently O(chats) per refresh).
+  Move to: incremental updates on SaveMessage (last_* is already upserted), +
+  a one-time recompute at startup migration. Remove it from GetChats.
 
 ---
 
-## 4. Sinkronisasi pesan
+## 3. Media pipeline (the core of "lightweight")
 
-- **Awal**: history blob whatsmeow → store (ada).
-- **Live**: event → store (ada).
-- **Lama (on-demand)**: scroll atas habis lokal + online →
-  `BuildHistorySyncRequest(oldestMsgInfo, N)` ke device sendiri → balasan
-  masuk via `OnHistorySync` → store → UI reload. (belum; Fase 3)
-- **Idempoten**: semua upsert by (chat,id). Revoke → MarkDeleted (ada).
-- **Pagination lokal**: ada (`ListMessagesBefore`).
+- **Receive**: save a (small) JPEG thumbnail → **file** `media/th/<id>.jpg`,
+  store `thumb_path`. Save the media proto (for later download) in `media_blob`.
+- **Display**: the UI renders `thumb_path` first (instant, blur-up). As it nears
+  the viewport (IntersectionObserver) → request `/media/<chat>/<id>` →
+  asset-server, cache-first (exists) → save `media/full/<id>.<ext>` →
+  set `media_path`. Swap thumb→full smoothly.
+- **Eviction**: a periodic sweeper — delete the oldest `full/` files when the total
+  exceeds the cap (e.g. 512MB), based on atime/access. Small thumbnails may stay.
+- **Profile photos**: same — **file cache** `avatars/<jid>.jpg` + path in the
+  `contacts_local(jid, name, avatar_path, avatar_fetched_ts)` table. Lazy (visible
+  chats), refreshed on a TTL (e.g. 24h). Stop eagerly `RequestPhotos`-ing everything →
+  switch to lazy per-visible-row (cuts hundreds of requests at startup).
 
----
-
-## 5. Performa Frontend (Linux/WebKitGTK)
-
-- **Virtualisasi list**: render hanya pesan terlihat (windowing). Chat ribuan
-  pesan tetap ringan. (belum)
-- **Unload**: simpan di `allMessages` hanya chat aktif + beberapa terakhir;
-  buang yang lama dari memori JS. (belum)
-- **Lazy media** via IntersectionObserver — JANGAN auto-load semua (berat).
-  Load saat dekat viewport. (sekarang auto semua → ubah)
-- **CSS**: hindari properti Blink-only (sudah pakai clip-path utk ekor).
-- **WebKitGTK flags**: compositing/DMABUF sudah ditangani; `file://` media via
-  asset-server (sudah).
+Result: a lean DB, low memory (file URLs not data URIs), no re-download on re-open,
+disk kept in check (eviction).
 
 ---
 
-## 6. Integrasi Linux-native ("lebih kompleks/optimal")
+## 4. Message sync
 
-- **Notifikasi**: **D-Bus `org.freedesktop.Notifications`** dari Go (bukan web
-  Notification API yg tak andal di WebKitGTK). Klik notif → fokus app + buka
-  chat. (belum)
-- **Single-instance**: lock file / D-Bus name → relaunch fokus jendela lama.
-- **Tray** (opsional): libappindicator / StatusNotifierItem — minimize-to-tray,
-  badge unread.
-- **.desktop entry** + ikon → integrasi menu app, autostart opsional.
-- **XDG dirs** (sudah: ~/.local/share). Cache di ~/.cache/whatsapp-lite (media
-  evictable) — pisahkan dari data.
-- **Wayland/X11**: jalan di keduanya (Wayland native + Xwayland fallback).
+- **Initial**: whatsmeow history blob → store (exists).
+- **Live**: event → store (exists).
+- **Old (on-demand)**: scroll past the top of local history while online →
+  `BuildHistorySyncRequest(oldestMsgInfo, N)` to your own device → reply
+  arrives via `OnHistorySync` → store → UI reload. (not yet; Phase 3)
+- **Idempotent**: all upserts by (chat,id). Revoke → MarkDeleted (exists).
+- **Local pagination**: exists (`ListMessagesBefore`).
 
 ---
 
-## 7. Fitur — gap & perbaikan
+## 5. Frontend performance (Linux/WebKitGTK)
 
-Ada-BE-UI-belum: voice record, buat grup, info grup, edit profil, blokir,
-**search results panel**, **@mention** (warna+klik→profil+autocomplete
-@→list+Semua+Meta AI).
-Belum-sama-sekali: notifikasi desktop, strip pinned-message, video/doc auto.
-Perbaiki: reaksi (toggle ✓ sudah), media size (✓), deleted placeholder (✓).
-Di luar scope lean: calls, status/stories, channels/communities penuh.
+- **List virtualization**: render only visible messages (windowing). A chat with
+  thousands of messages stays light. (not yet)
+- **Unload**: keep only the active chat (plus a few recent ones) in `allMessages`;
+  drop old ones from JS memory. (not yet)
+- **Lazy media** via IntersectionObserver — DON'T auto-load everything (heavy).
+  Load it near the viewport. (currently auto-loads everything → change this)
+- **CSS**: avoid Blink-only properties (already using clip-path for tails).
+- **WebKitGTK flags**: compositing/DMABUF already handled; `file://` media via the
+  asset-server (done).
 
 ---
 
-## 8. Roadmap berfase
+## 6. Linux-native integration ("more complex/optimal")
 
-- **Fase 1 — Fondasi Store/Media** (ringan & benar):
-  skema v2 (file refs + FTS5 + media_blob terpisah), thumbnail→file,
-  foto profil→file+lazy, **eviction cache**, hapus RecomputeSummaries dari
-  GetChats. → DB ramping, memori turun, search cepat.
-- **Fase 2 — Performa FE**: virtualisasi list, lazy media (IntersectionObserver),
-  unload memori. → ringan di chat besar.
-- **Fase 3 — Sinkronisasi**: on-demand history dari HP, reconnect/backoff.
-- **Fase 4 — Linux-native**: notifikasi D-Bus, single-instance, .desktop, (tray).
-- **Fase 5 — Fitur**: @mention, voice record, group create/info, profil edit,
-  blokir, search UI.
-- **Fase 6 — Poles visual 100%**: verifikasi native tiap layar vs WhatsApp.
+- **Alerts**: **sound alerts only (no desktop notifications, by design)** — a per-message
+  notify-send implementation could exhaust resources on large offline backlogs, so it was
+  intentionally removed.
+- **Single-instance**: lock file / D-Bus name → relaunch focuses the existing window.
+- **Tray** (optional): libappindicator / StatusNotifierItem — minimize-to-tray,
+  unread badge.
+- **.desktop entry** + icon → app-menu integration, optional autostart.
+- **XDG dirs** (done: ~/.local/share). Cache in ~/.cache/whatsapp-lite (media
+  evictable) — kept separate from data.
+- **Wayland/X11**: runs on both (Wayland native + Xwayland fallback).
 
-Tiap fase: build + verifikasi (snap utk visual; native utk perilaku) sebelum lanjut.
+---
+
+## 7. Features — gaps & fixes
+
+Backend-done-UI-pending: voice recording, group creation, group info, profile editing, blocking,
+**search results panel**, **@mention** (color + click→profile + @-autocomplete
+→list + Everyone + Meta AI).
+Not started at all: pinned-message strip, video/doc auto-handling.
+Fixed: reactions (toggle ✓ done), media size (✓), deleted placeholder (✓).
+Out of lean scope: calls, status/stories, full channels/communities.
+
+---
+
+## 8. Phased roadmap
+
+- **Phase 1 — Store/Media foundation** (lightweight & correct):
+  schema v2 (file refs + FTS5 + separate media_blob), thumbnail→file,
+  profile photo→file+lazy, **cache eviction**, remove RecomputeSummaries from
+  GetChats. → lean DB, lower memory, fast search.
+- **Phase 2 — FE performance**: list virtualization, lazy media (IntersectionObserver),
+  memory unload. → light on big chats.
+- **Phase 3 — Sync**: on-demand history from the phone, reconnect/backoff.
+- **Phase 4 — Linux-native**: single-instance, .desktop, (tray).
+- **Phase 5 — Features**: @mention, voice recording, group create/info, profile edit,
+  blocking, search UI.
+- **Phase 6 — 100% visual polish**: verify each screen natively against WhatsApp.
+
+Each phase: build + verify (snap for visuals; native for behavior) before moving on.

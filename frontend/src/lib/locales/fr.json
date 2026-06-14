@@ -396,5 +396,6 @@
  "virt_list": "Liste de messages virtuelle",
  "virt_list_d": "Expérimental : afficher uniquement les messages visibles (plus légers sur les discussions volumineuses)",
  "stream_replaced": "Session ouverte sur un autre appareil — reconnectez-vous ici pour reprendre",
- "temp_banned": "Temporairement bloqué par WhatsApp"
+ "temp_banned": "Temporairement bloqué par WhatsApp",
+ "waiting_msg": "En attendant ce message…"
 }

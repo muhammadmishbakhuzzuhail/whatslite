@@ -396,5 +396,6 @@
  "virt_list": "Virtuaalinen viestilista",
  "virt_list_d": "Kokeellinen – näytä vain näkyvät viestit (kevyempi suurissa keskusteluissa)",
  "stream_replaced": "Istunto avattu toisella laitteella – yhdistä uudelleen tähän jatkaaksesi",
- "temp_banned": "WhatsApp esti tilapäisesti"
+ "temp_banned": "WhatsApp esti tilapäisesti",
+ "waiting_msg": "Tätä viestiä odotellessa…"
 }

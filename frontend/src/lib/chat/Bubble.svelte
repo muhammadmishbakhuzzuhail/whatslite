@@ -20,11 +20,13 @@
   // saat toggle "lihat pesan dihapus" OFF.
   $: revokedShown = !!msg.revoked && $showDeleted;
   $: deletedView = msg.type === "deleted" || (!!msg.revoked && !$showDeleted);
+  // pending = gagal didekripsi, sedang diminta ulang; placeholder "menunggu…".
+  $: pendingView = msg.type === "pending";
   $: stickerBubble = msg.type === "sticker" || msg.type === "gif";
-  $: isMedia = !deletedView && (msg.type === "image" || msg.type === "video" || msg.type === "sticker" || msg.type === "gif");
+  $: isMedia = !deletedView && !pendingView && (msg.type === "image" || msg.type === "video" || msg.type === "sticker" || msg.type === "gif");
   // Stiker & GIF → bubble TRANSPARAN (tanpa kartu putih, hanya nama yg ber-pill).
   // Foto/video → KARTU (bg + padding tipis), rasio natural (min/max), caption di bawah.
-  $: bubbleClass = deletedView ? "txt"
+  $: bubbleClass = deletedView || pendingView ? "txt"
     : msg.type === "sticker"
     ? "media sticker-bubble"
     : msg.type === "gif"
@@ -356,7 +358,7 @@
       </div>
     {/if}
 
-    {#if showSender || deletedView || revokedShown || msg.forwarded || msg.quote}
+    {#if showSender || deletedView || pendingView || revokedShown || msg.forwarded || msg.quote}
       <div class="head" class:sticker-head={stickerBubble}>
         {#if showSender}
           <span class="sender" style="color:{senderCol}" role="button" tabindex="0"
@@ -369,6 +371,11 @@
           <span class="text deleted-text">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
             {msg.dir === "out" ? $t("deleted_out") : $t("deleted_in")}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span>
+          </span>
+        {:else if pendingView}
+          <span class="text deleted-text">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            {$t("waiting_msg")}<span class="t-spacer" class:out={msg.dir === 'out'} aria-hidden="true">{msg.time}</span>
           </span>
         {:else if revokedShown}
           <!-- anti-delete: banner kecil di atas isi asli yg tetap ditampilkan -->
@@ -386,7 +393,7 @@
       </div>
     {/if}
 
-    {#if deletedView}
+    {#if deletedView || pendingView}
       <!-- isi disembunyikan; placeholder ada di head -->
     {:else if msg.type === "text"}
       {#if linkPrev}

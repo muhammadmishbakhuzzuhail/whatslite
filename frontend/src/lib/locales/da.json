@@ -396,5 +396,6 @@
  "virt_list": "Virtuel beskedliste",
  "virt_list_d": "Eksperimentel - gengiv kun synlige beskeder (lettere ved store chats)",
  "stream_replaced": "Session åbnet på en anden enhed – tilslut igen her for at genoptage",
- "temp_banned": "Midlertidigt blokeret af WhatsApp"
+ "temp_banned": "Midlertidigt blokeret af WhatsApp",
+ "waiting_msg": "Venter på denne besked..."
 }

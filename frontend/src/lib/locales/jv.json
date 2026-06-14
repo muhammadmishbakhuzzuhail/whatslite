@@ -396,5 +396,6 @@
  "virt_list": "Daftar pesen virtual",
  "virt_list_d": "Eksperimental - mung menehi pesen sing katon (luwih entheng ing obrolan gedhe)",
  "stream_replaced": "Sesi dibukak ing piranti liyane - sambungake maneh ing kene kanggo nerusake",
- "temp_banned": "Diblokir sementara dening WhatsApp"
+ "temp_banned": "Diblokir sementara dening WhatsApp",
+ "waiting_msg": "Nunggu pesen iki…"
 }

@@ -396,5 +396,6 @@
  "virt_list": "Virtualni seznam sporočil",
  "virt_list_d": "Eksperimentalno — upodobi samo vidna sporočila (svetlejša pri velikih klepetih)",
  "stream_replaced": "Seja je bila odprta v drugi napravi — za nadaljevanje se znova povežite tukaj",
- "temp_banned": "Začasno blokiral WhatsApp"
+ "temp_banned": "Začasno blokiral WhatsApp",
+ "waiting_msg": "Čakanje na to sporočilo ..."
 }

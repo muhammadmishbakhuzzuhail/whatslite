@@ -396,5 +396,6 @@
  "virt_list": "Virtuális üzenetlista",
  "virt_list_d": "Kísérleti – csak a látható üzeneteket jelenítse meg (világosabb a hatalmas csevegéseknél)",
  "stream_replaced": "A munkamenet megnyitva egy másik eszközön – a folytatáshoz csatlakozzon újra",
- "temp_banned": "A WhatsApp ideiglenesen letiltotta"
+ "temp_banned": "A WhatsApp ideiglenesen letiltotta",
+ "waiting_msg": "Várjuk ezt az üzenetet…"
 }

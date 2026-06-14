@@ -396,5 +396,6 @@
  "virt_list": "虛擬訊息列表",
  "virt_list_d": "實驗性的－僅渲染可見訊息（在大型聊天中更輕）",
  "stream_replaced": "會話已在另一台裝置上開啟 - 在此處重新連接以恢復",
- "temp_banned": "暫時被 WhatsApp 封鎖"
+ "temp_banned": "暫時被 WhatsApp 封鎖",
+ "waiting_msg": "正在等待此訊息..."
 }

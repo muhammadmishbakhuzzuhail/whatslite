@@ -396,5 +396,6 @@
  "virt_list": "Virtualus pranešimų sąrašas",
  "virt_list_d": "Eksperimentinis – pateikti tik matomus pranešimus (šviesiau dideliuose pokalbiuose)",
  "stream_replaced": "Sesija atidaryta kitame įrenginyje – iš naujo prisijunkite čia, kad tęstumėte",
- "temp_banned": "Laikinai užblokavo WhatsApp"
+ "temp_banned": "Laikinai užblokavo WhatsApp",
+ "waiting_msg": "Laukiame šio pranešimo…"
 }

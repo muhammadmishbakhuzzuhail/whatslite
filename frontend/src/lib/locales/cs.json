@@ -396,5 +396,6 @@
  "virt_list": "Seznam virtuálních zpráv",
  "virt_list_d": "Experimentální – vykresluje pouze viditelné zprávy (lehčí na velkých chatech)",
  "stream_replaced": "Relace otevřena na jiném zařízení – znovu se zde připojte a pokračujte",
- "temp_banned": "Dočasně zablokováno aplikací WhatsApp"
+ "temp_banned": "Dočasně zablokováno aplikací WhatsApp",
+ "waiting_msg": "Čekání na tuto zprávu…"
 }

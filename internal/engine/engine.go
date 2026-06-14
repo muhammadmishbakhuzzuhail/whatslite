@@ -99,6 +99,27 @@ func New(ctx context.Context, dbPath string, debug bool) (*Engine, error) {
 	return &Engine{Client: client, container: container, groupNames: map[string]string{}}, nil
 }
 
+// maxGroupNameCache membatasi cache nama grup agar tak tumbuh tanpa batas pada
+// akun dgn sangat banyak grup. Saat penuh, buang satu entri (akan di-resolve
+// ulang bila diperlukan lagi).
+const maxGroupNameCache = 5000
+
+// cacheGroupName menyimpan nama grup ke cache dgn batas ukuran (thread-safe).
+func (e *Engine) cacheGroupName(jid, name string) {
+	if name == "" {
+		return
+	}
+	e.mu.Lock()
+	if len(e.groupNames) >= maxGroupNameCache {
+		for k := range e.groupNames {
+			delete(e.groupNames, k)
+			break
+		}
+	}
+	e.groupNames[jid] = name
+	e.mu.Unlock()
+}
+
 // NeedsLogin melaporkan apakah pairing (scan QR) masih diperlukan.
 func (e *Engine) NeedsLogin() bool {
 	return e.Client.Store.ID == nil

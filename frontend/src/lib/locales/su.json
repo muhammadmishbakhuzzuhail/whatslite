@@ -396,5 +396,6 @@
  "virt_list": "Daptar pesen virtual",
  "virt_list_d": "Ékspérimén — ngan ukur pesen anu katingali (leuwih hampang dina obrolan anu ageung)",
  "stream_replaced": "Sesi dibuka dina alat sejen - sambungkeun deui ka dieu pikeun neruskeun",
- "temp_banned": "Samentawis diblokir ku WhatsApp"
+ "temp_banned": "Samentawis diblokir ku WhatsApp",
+ "waiting_msg": "Ngantosan pesen ieu…"
 }

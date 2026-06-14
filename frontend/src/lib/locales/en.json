@@ -140,6 +140,7 @@
  "copied": "Copied",
  "deleted_out": "You deleted this message",
  "deleted_in": "This message was deleted",
+ "waiting_msg": "Waiting for this message…",
  "t_text": "Text",
  "t_photo": "Photo",
  "t_video": "Video",

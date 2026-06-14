@@ -396,5 +396,6 @@
  "virt_list": "Virtual xabarlar ro'yxati",
  "virt_list_d": "Eksperimental - faqat ko'rinadigan xabarlarni ko'rsatish (katta chatlarda engilroq)",
  "stream_replaced": "Seans boshqa qurilmada ochildi — davom ettirish uchun shu yerda qayta ulaning",
- "temp_banned": "WhatsApp tomonidan vaqtincha bloklangan"
+ "temp_banned": "WhatsApp tomonidan vaqtincha bloklangan",
+ "waiting_msg": "Bu xabar kutilmoqda…"
 }

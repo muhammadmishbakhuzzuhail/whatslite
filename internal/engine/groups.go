@@ -26,9 +26,7 @@ func (e *Engine) JoinedGroups(ctx context.Context) ([]GroupSummary, error) {
 	out := make([]GroupSummary, 0, len(gs))
 	for _, g := range gs {
 		jid := g.JID.String()
-		e.mu.Lock()
-		e.groupNames[jid] = g.Name
-		e.mu.Unlock()
+		e.cacheGroupName(jid, g.Name)
 		out = append(out, GroupSummary{JID: jid, Name: g.Name})
 	}
 	return out, nil

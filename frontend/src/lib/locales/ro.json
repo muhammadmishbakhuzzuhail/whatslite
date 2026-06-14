@@ -396,5 +396,6 @@
  "virt_list": "Lista de mesaje virtuale",
  "virt_list_d": "Experimental - redați numai mesajele vizibile (mai ușor pe chaturile uriașe)",
  "stream_replaced": "Sesiune deschisă pe alt dispozitiv — reconectați-vă aici pentru a relua",
- "temp_banned": "Blocat temporar de WhatsApp"
+ "temp_banned": "Blocat temporar de WhatsApp",
+ "waiting_msg": "Astept acest mesaj..."
 }

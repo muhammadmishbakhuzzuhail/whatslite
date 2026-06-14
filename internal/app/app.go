@@ -276,20 +276,26 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
 		go eng.SyncContacts()
 		// Umumkan online → server mulai kirim presence balik. SubscribePresence
-		// HANYA utk online/last-seen 1:1; indikator "mengetik" (chatstate) di-push
-		// server tanpa subscribe utk grup MAUPUN 1:1 (whatsmeow handleChatState
-		// tak punya gate subscribe) → typing grup tampil di sidebar otomatis.
+		// HANYA utk online/last-seen; "mengetik" (chatstate) di-push tanpa subscribe.
+		// Riset whatsmeow: JANGAN bulk-subscribe ratusan chat (boros IQ/wakeup/
+		// baterai, ekosistem warn ratelimit). Cukup ~30 chat 1:1 TERBARU; sisanya
+		// di-subscribe saat dibuka (OpenChat) & panel Kontak self-subscribe.
 		go func() {
 			eng.SendAvailable()
-			jids, err := store.ListChatJIDs(a.ctx)
+			jids, err := store.ListRecentChatJIDs(a.ctx, 80)
 			if err != nil {
 				return
 			}
+			subscribed := 0
 			for _, j := range jids {
+				if subscribed >= 30 {
+					break
+				}
 				if isGroupJID(j) || strings.HasSuffix(j, "@newsletter") {
 					continue // grup/saluran: tak ada online/last-seen utk dilanggan
 				}
 				eng.SubscribePresence(j)
+				subscribed++
 				time.Sleep(40 * time.Millisecond) // hindari banjir IQ
 			}
 		}()
@@ -348,6 +354,28 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	// Blokir sementara → tampilkan alasan + sisa menit (0 = tak diketahui).
 	eng.OnTemporaryBan(func(reason string, expire time.Duration) {
 		runtime.EventsEmit(a.ctx, "wa:tempban", map[string]interface{}{"reason": reason, "mins": int(expire.Minutes())})
+	})
+	// Pesan gagal-dekripsi → placeholder "menunggu pesan…"; isi asli menyusul
+	// (whatsmeow minta kirim ulang + rerequest ke HP). Off-loop lewat antrian.
+	eng.OnUndecryptable(func(id, chat, sender string, ts time.Time, fromMe bool) {
+		chat = eng.CanonicalJID(chat)
+		a.bg(func() {
+			if a.store.SavePlaceholder(a.ctx, id, chat, sender, ts, fromMe) == nil {
+				runtime.EventsEmit(a.ctx, "wa:message", chat)
+			}
+		})
+	})
+	// Keepalive gagal beruntun → reconnect lebih cepat dari batas 3 menit
+	// whatsmeow (akun ramai bisa drop lebih awal). Single-flight + ambang.
+	var kaReconnecting atomic.Bool
+	eng.OnKeepAliveTimeout(func(errCount int) {
+		if errCount < 3 {
+			return // beri kesempatan pulih sendiri dulu
+		}
+		if !kaReconnecting.CompareAndSwap(false, true) {
+			return
+		}
+		go func() { defer kaReconnecting.Store(false); eng.ForceReconnect() }()
 	})
 
 	// Panggilan masuk: whatsmeow hanya signaling (tanpa media) → catat + notif +

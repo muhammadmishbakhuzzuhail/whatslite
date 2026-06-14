@@ -396,5 +396,6 @@
  "virt_list": "Virtualni popis poruka",
  "virt_list_d": "Eksperimentalno — prikaz samo vidljivih poruka (svjetlije na velikim chatovima)",
  "stream_replaced": "Sesija je otvorena na drugom uređaju — ponovno se povežite ovdje za nastavak",
- "temp_banned": "Privremeno blokirao WhatsApp"
+ "temp_banned": "Privremeno blokirao WhatsApp",
+ "waiting_msg": "Čekam ovu poruku…"
 }

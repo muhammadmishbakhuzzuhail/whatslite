@@ -396,5 +396,6 @@
  "virt_list": "Senarai mesej maya",
  "virt_list_d": "Percubaan — memaparkan hanya mesej yang boleh dilihat (lebih ringan pada sembang besar)",
  "stream_replaced": "Sesi dibuka pada peranti lain — sambung semula di sini untuk menyambung semula",
- "temp_banned": "Disekat buat sementara waktu oleh WhatsApp"
+ "temp_banned": "Disekat buat sementara waktu oleh WhatsApp",
+ "waiting_msg": "Menunggu mesej ini…"
 }

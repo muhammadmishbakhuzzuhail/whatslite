@@ -396,5 +396,6 @@
  "virt_list": "가상 메시지 목록",
  "virt_list_d": "실험적 — 보이는 메시지만 렌더링(대규모 채팅에서는 더 가벼움)",
  "stream_replaced": "다른 장치에서 세션이 열렸습니다. 재개하려면 여기에 다시 연결하세요.",
- "temp_banned": "WhatsApp에 의해 일시적으로 차단되었습니다."
+ "temp_banned": "WhatsApp에 의해 일시적으로 차단되었습니다.",
+ "waiting_msg": "이 메시지를 기다리는 중…"
 }

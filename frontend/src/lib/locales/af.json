@@ -396,5 +396,6 @@
  "virt_list": "Virtuele boodskap lys",
  "virt_list_d": "Eksperimenteel - lewer slegs sigbare boodskappe (ligter op groot geselsies)",
  "stream_replaced": "Sessie is op 'n ander toestel oopgemaak — koppel weer hier om te hervat",
- "temp_banned": "Tydelik geblokkeer deur WhatsApp"
+ "temp_banned": "Tydelik geblokkeer deur WhatsApp",
+ "waiting_msg": "Wag tans vir hierdie boodskap …"
 }

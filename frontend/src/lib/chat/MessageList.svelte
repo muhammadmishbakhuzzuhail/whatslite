@@ -173,7 +173,7 @@
 
   // Buang pesan teks kosong (tak ada isi & bukan media) → tak ada bubble kosong.
   function empty(m) {
-    if (m.type === "deleted") return false; // pesan dihapus → tetap tampil (placeholder)
+    if (m.type === "deleted" || m.type === "pending") return false; // dihapus / menunggu dekripsi → tetap tampil
     const media = m.type === "image" || m.type === "video" || m.type === "sticker" || m.type === "voice";
     return !media && m.type !== "day" && m.type !== "system" && m.type !== "unread" && !(m.text && m.text.trim()) && !m.thumb;
   }

@@ -396,5 +396,6 @@
  "virt_list": "Orodha ya ujumbe pepe",
  "virt_list_d": "Jaribio - toa ujumbe unaoonekana pekee (nyepesi kwenye gumzo kubwa)",
  "stream_replaced": "Kipindi kilifunguliwa kwenye kifaa kingine - unganisha tena hapa ili uendelee",
- "temp_banned": "Imezuiwa kwa muda na WhatsApp"
+ "temp_banned": "Imezuiwa kwa muda na WhatsApp",
+ "waiting_msg": "Inasubiri ujumbe huu..."
 }

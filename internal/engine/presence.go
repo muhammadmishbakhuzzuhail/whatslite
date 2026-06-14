@@ -29,6 +29,37 @@ func (e *Engine) OnLoggedOut(fn func()) {
 	})
 }
 
+// OnUndecryptable: pesan masuk gagal didekripsi. whatsmeow otomatis minta
+// kirim ulang (+ rerequest ke HP bila AutomaticMessageRerequestFromPhone). Kita
+// tampilkan placeholder "menunggu pesan…"; isi asli menyusul sbg Message biasa.
+func (e *Engine) OnUndecryptable(fn func(id, chat, sender string, ts time.Time, fromMe bool)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		if u, ok := evt.(*events.UndecryptableMessage); ok {
+			fn(u.Info.ID, u.Info.Chat.String(), u.Info.Sender.String(), u.Info.Timestamp, u.Info.IsFromMe)
+		}
+	})
+}
+
+// OnKeepAliveTimeout: ping keepalive gagal. errCount = kegagalan beruntun.
+func (e *Engine) OnKeepAliveTimeout(fn func(errCount int)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		if k, ok := evt.(*events.KeepAliveTimeout); ok {
+			fn(k.ErrorCount)
+		}
+	})
+}
+
+// ForceReconnect putus lalu sambung ulang. Disconnect men-set expectDisconnect
+// (auto-reconnect mati) → Connect manual. Utk akun ramai yg keepalive-nya gagal
+// sebelum batas 3 menit whatsmeow.
+func (e *Engine) ForceReconnect() {
+	if e == nil || e.Client == nil {
+		return
+	}
+	e.Client.Disconnect()
+	_ = e.Client.Connect()
+}
+
 // OnStreamReplaced: sesi diambil alih klien lain dgn kunci sama (mis. proses
 // kembar). whatsmeow berhenti — JANGAN reconnect (akan saling rebut). Beritahu
 // pengguna saja.

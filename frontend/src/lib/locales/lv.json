@@ -396,5 +396,6 @@
  "virt_list": "Virtuālais ziņojumu saraksts",
  "virt_list_d": "Eksperimentāls — atveidojiet tikai redzamus ziņojumus (vieglāk milzīgās tērzēšanas sarunās)",
  "stream_replaced": "Sesija ir atvērta citā ierīcē — atkārtoti izveidojiet savienojumu šeit, lai atsāktu",
- "temp_banned": "Īslaicīgi bloķēja WhatsApp"
+ "temp_banned": "Īslaicīgi bloķēja WhatsApp",
+ "waiting_msg": "Gaida šo ziņojumu…"
 }

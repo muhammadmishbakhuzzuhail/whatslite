@@ -282,6 +282,26 @@ func (s *Store) ListChatJIDs(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
+// ListRecentChatJIDs mengembalikan jid chat TERBARU (urut last_ts turun, batas
+// limit). Dipakai utk subscribe presence hanya chat yg relevan — bukan ratusan
+// (hemat IQ/baterai; riset whatsmeow: jangan bulk-subscribe).
+func (s *Store) ListRecentChatJIDs(ctx context.Context, limit int) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT jid FROM chats ORDER BY last_ts DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var j string
+		if err := rows.Scan(&j); err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, rows.Err()
+}
+
 // ClearMessages menghapus SEMUA pesan satu chat tapi MEMPERTAHANKAN baris chat
 // (chat tetap di sidebar, hanya isinya kosong). Ringkasan direset.
 func (s *Store) ClearMessages(ctx context.Context, jid string) error {

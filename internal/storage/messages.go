@@ -13,6 +13,22 @@ import (
 	"unicode"
 )
 
+// SavePlaceholder menyisipkan baris pesan "pending" (gagal didekripsi, sedang
+// diminta ulang dari HP). INSERT-OR-IGNORE: bila pesan asli sudah/akan tiba,
+// SaveMessage meng-UPSERT menimpa kind/text. Tak menyentuh ringkasan chat
+// (sidebar tak terganggu). Hilang sendiri saat isi asli tiba.
+func (s *Store) SavePlaceholder(ctx context.Context, id, chatJID, sender string, ts time.Time, fromMe bool) error {
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, quoted_id, quoted_sender, quoted_text, status, expire_at)
+VALUES (?, ?, ?, '', '', 'pending', '', '', ?, ?, '', '', '', 'sent', 0)
+ON CONFLICT(chat_jid, id) DO NOTHING`,
+		id, chatJID, sender, ts.Unix(), b2i(fromMe))
+	if err != nil {
+		return fmt.Errorf("save placeholder: %w", err)
+	}
+	return nil
+}
+
 // SaveMessage menyimpan pesan dan memperbarui ringkasan chat.
 func (s *Store) SaveMessage(ctx context.Context, m Message) error {
 	st := m.Status

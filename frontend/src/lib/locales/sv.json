@@ -396,5 +396,6 @@
  "virt_list": "Virtuell meddelandelista",
  "virt_list_d": "Experimentell – återge endast synliga meddelanden (lättare vid stora chattar)",
  "stream_replaced": "Session öppnad på en annan enhet – anslut här igen för att återuppta",
- "temp_banned": "Tillfälligt blockerad av WhatsApp"
+ "temp_banned": "Tillfälligt blockerad av WhatsApp",
+ "waiting_msg": "Väntar på det här meddelandet..."
 }

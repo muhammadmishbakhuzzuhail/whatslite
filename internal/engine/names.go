@@ -49,9 +49,7 @@ func (e *Engine) ResolveName(jid string) (string, bool) {
 		}
 		if e.Client.IsConnected() {
 			if info, err := e.Client.GetGroupInfo(context.Background(), j); err == nil && info.Name != "" {
-				e.mu.Lock()
-				e.groupNames[jid] = info.Name
-				e.mu.Unlock()
+				e.cacheGroupName(jid, info.Name)
 				return info.Name, true
 			}
 		}

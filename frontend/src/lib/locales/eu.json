@@ -396,5 +396,6 @@
  "virt_list": "Mezuen zerrenda birtualak",
  "virt_list_d": "Esperimentala — errendatu ikusgai mezuak soilik (arinago txat handietan)",
  "stream_replaced": "Saioa beste gailu batean ireki da — berriro konektatu hemen berrekiteko",
- "temp_banned": "WhatsApp-ek aldi baterako blokeatuta"
+ "temp_banned": "WhatsApp-ek aldi baterako blokeatuta",
+ "waiting_msg": "Mezu honen zain..."
 }

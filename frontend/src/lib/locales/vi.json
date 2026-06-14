@@ -396,5 +396,6 @@
  "virt_list": "Danh sách tin nhắn ảo",
  "virt_list_d": "Thử nghiệm - chỉ hiển thị các tin nhắn hiển thị (nhẹ hơn trong các cuộc trò chuyện lớn)",
  "stream_replaced": "Phiên đã mở trên một thiết bị khác — hãy kết nối lại tại đây để tiếp tục",
- "temp_banned": "Tạm thời bị chặn bởi WhatsApp"
+ "temp_banned": "Tạm thời bị chặn bởi WhatsApp",
+ "waiting_msg": "Đang chờ tin nhắn này…"
 }

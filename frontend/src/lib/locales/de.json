@@ -396,5 +396,6 @@
  "virt_list": "Virtuelle Nachrichtenliste",
  "virt_list_d": "Experimentell – Nur sichtbare Nachrichten rendern (leichter bei großen Chats)",
  "stream_replaced": "Sitzung auf einem anderen Gerät geöffnet – stellen Sie hier erneut eine Verbindung her, um fortzufahren",
- "temp_banned": "Vorübergehend von WhatsApp blockiert"
+ "temp_banned": "Vorübergehend von WhatsApp blockiert",
+ "waiting_msg": "Ich warte auf diese Nachricht…"
 }

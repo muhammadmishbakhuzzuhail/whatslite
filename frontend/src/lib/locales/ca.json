@@ -396,5 +396,6 @@
  "virt_list": "Llista de missatges virtuals",
  "virt_list_d": "Experimental: mostra només els missatges visibles (més lleuger en xats grans)",
  "stream_replaced": "La sessió s'ha obert en un altre dispositiu; torneu a connectar aquí per reprendre",
- "temp_banned": "Bloquejat temporalment per WhatsApp"
+ "temp_banned": "Bloquejat temporalment per WhatsApp",
+ "waiting_msg": "Esperant aquest missatge..."
 }

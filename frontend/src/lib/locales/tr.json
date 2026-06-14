@@ -396,5 +396,6 @@
  "virt_list": "Sanal mesaj listesi",
  "virt_list_d": "Deneysel — yalnızca görünür mesajları işleyin (büyük sohbetlerde daha hafif)",
  "stream_replaced": "Oturum başka bir cihazda açıldı; devam etmek için buraya yeniden bağlanın",
- "temp_banned": "WhatsApp tarafından geçici olarak engellendi"
+ "temp_banned": "WhatsApp tarafından geçici olarak engellendi",
+ "waiting_msg": "Bu mesajı bekliyorum…"
 }

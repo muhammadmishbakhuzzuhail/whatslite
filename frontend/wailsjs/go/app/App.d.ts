@@ -234,6 +234,8 @@ export function SetRetention(arg1:number):Promise<void>;
 
 export function SetUnreadBadge(arg1:number):Promise<void>;
 
+export function SetVersion(arg1:string):Promise<void>;
+
 export function StarMessage(arg1:string,arg2:string,arg3:string,arg4:boolean,arg5:boolean):Promise<void>;
 
 export function SubscribePresence(arg1:string):Promise<void>;
@@ -246,6 +248,6 @@ export function UpdateGroupParticipants(arg1:string,arg2:Array<string>,arg3:stri
 
 export function UpdateGroupRequest(arg1:string,arg2:Array<string>,arg3:boolean):Promise<void>;
 
-export function VotePoll(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;
-
 export function Version():Promise<string>;
+
+export function VotePoll(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;

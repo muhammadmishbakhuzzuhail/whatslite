@@ -462,6 +462,10 @@ export function SetUnreadBadge(arg1) {
   return window['go']['app']['App']['SetUnreadBadge'](arg1);
 }
 
+export function SetVersion(arg1) {
+  return window['go']['app']['App']['SetVersion'](arg1);
+}
+
 export function StarMessage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['StarMessage'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -486,10 +490,10 @@ export function UpdateGroupRequest(arg1, arg2, arg3) {
   return window['go']['app']['App']['UpdateGroupRequest'](arg1, arg2, arg3);
 }
 
-export function VotePoll(arg1, arg2, arg3, arg4) {
-  return window['go']['app']['App']['VotePoll'](arg1, arg2, arg3, arg4);
-}
-
 export function Version() {
   return window['go']['app']['App']['Version']();
+}
+
+export function VotePoll(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['VotePoll'](arg1, arg2, arg3, arg4);
 }

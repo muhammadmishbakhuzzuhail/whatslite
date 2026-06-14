@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.muhammadmishbakhuzzuhail.WhatsLite</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>WhatsLite</name>
+  <summary>Lightweight messaging client for the WhatsApp Web protocol</summary>
+  <description>
+    <p>
+      WhatsLite is an UNOFFICIAL, third-party desktop client for Linux. It is not affiliated with,
+      endorsed by, or connected to WhatsApp or Meta. It uses the WhatsApp Web protocol, which violates
+      WhatsApp's Terms of Service; the linked phone number may be banned. Use at your own risk.
+    </p>
+    <p>
+      It is lightweight by design: the UI runs in the system WebView (WebKitGTK) instead of a bundled
+      Chromium, the engine is Go/whatsmeow, and data is stored locally in SQLite. There is no telemetry.
+    </p>
+    <p>Features include text and media messages, voice notes, stickers, groups, status, and more.</p>
+  </description>
+  <launchable type="desktop-id">io.github.muhammadmishbakhuzzuhail.WhatsLite.desktop</launchable>
+  <url type="homepage">https://github.com/muhammadmishbakhuzzuhail/whatslite</url>
+  <url type="bugtracker">https://github.com/muhammadmishbakhuzzuhail/whatslite/issues</url>
+  <url type="vcs-browser">https://github.com/muhammadmishbakhuzzuhail/whatslite</url>
+  <developer id="io.github.muhammadmishbakhuzzuhail">
+    <name>muhammadmishbakhuzzuhail</name>
+  </developer>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+  </categories>
+  <releases>
+    <release version="0.1.0" date="2026-06-14"/>
+  </releases>
+</component>

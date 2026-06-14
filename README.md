@@ -87,9 +87,22 @@ makepkg -si                     # pulls deps, builds, installs
 
 `pacman -R whatslite` (or `whatslite-git`) uninstalls it. The two conflict — install one.
 
+### Any distro (Flatpak)
+
+A Flatpak bundles its own WebKitGTK + glibc, so it runs anywhere — including older distros the prebuilt
+binary can't reach. Build/install it from [`packaging/flatpak/`](./packaging/flatpak/) (experimental,
+self-hosted for now):
+
+```sh
+flatpak-builder --user --install --force-clean build-flatpak \
+  packaging/flatpak/io.github.muhammadmishbakhuzzuhail.WhatsLite.yml
+```
+
 ### Other distros
 
-No native package yet — build from source (below). An AppImage may be provided via GitHub Releases later.
+Build from source (below), or use the prebuilt binary from
+[Releases](https://github.com/muhammadmishbakhuzzuhail/whatslite/releases) if your distro meets the
+[compatibility](#compatibility) requirements.
 
 ## Build prerequisites (Linux)
 
@@ -155,10 +168,11 @@ The app links **WebKitGTK 4.1** (`libwebkit2gtk-4.1.so.0`) + GTK3 and is **not s
 
 **Building from source works on any distro** that packages `webkit2gtk` (4.0 *or* 4.1) + GTK3 + Go — pick
 the matching Wails tag (`webkit2_41` for 4.1; omit it for 4.0). For **older / EL distros or "just works
-anywhere"**, a **Flatpak** (bundles its own WebKitGTK + glibc via the GNOME runtime) is the right path —
-not yet provided. **ARM64 (aarch64)** is supported but needs a separate native build (no binary shipped yet).
+anywhere"**, a **Flatpak** (bundles its own WebKitGTK + glibc via the GNOME runtime) is the universal path —
+a manifest is in [`packaging/flatpak/`](./packaging/flatpak/) (build it locally / self-host; experimental).
+**ARM64 (aarch64)** is supported but needs a separate native build (no binary shipped yet).
 
-> The released `.AppImage` route is unreliable for WebKitGTK apps and is not currently published.
+> The `.AppImage` route is unreliable for WebKitGTK apps and is not published — use Flatpak for portability.
 
 ## Limitations (not possible client-side)
 

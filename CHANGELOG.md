@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Build version stamped into the binary via `-ldflags -X main.version` (logged at startup, shown in
   Settings, exposed to the UI via `App.Version()`); defaults to `dev` for un-stamped local builds.
 - Versioned AUR package `whatslite` (tracks tagged releases) alongside `whatslite-git`.
+- Flatpak manifest + AppStream metainfo (`packaging/flatpak/`) for universal cross-distro install
+  (GNOME runtime bundles WebKitGTK 4.1 + glibc).
+- Release CI workflow (build + publish binary on version tag), pinned to ubuntu-22.04 for a wide
+  glibc floor. Compatibility matrix documented in the README.
 
 ## [0.1.0] - 2026-06-14
 

@@ -382,5 +382,11 @@
  "no_favorites": "Belum ada favorit — klik-kanan utk tambah",
  "fav_add_hint": "Klik-kanan untuk favoritkan",
  "fav_remove_hint": "Klik-kanan untuk hapus",
- "sct_voice": "Suara"
+ "sct_voice": "Suara",
+ "crop": "Pangkas",
+ "rotate": "Putar",
+ "apply": "Terapkan",
+ "file_name": "Nama file",
+ "rename": "Ganti nama",
+ "no_contacts": "Tak ada kontak tersimpan"
 }

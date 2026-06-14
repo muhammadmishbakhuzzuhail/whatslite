@@ -382,5 +382,11 @@
  "no_favorites": "Sin favoritos — clic derecho para añadir",
  "fav_add_hint": "Clic derecho para favorito",
  "fav_remove_hint": "Clic derecho para quitar",
- "sct_voice": "Voz"
+ "sct_voice": "Voz",
+ "crop": "Recortar",
+ "rotate": "Girar",
+ "apply": "Aplicar",
+ "file_name": "Nombre de archivo",
+ "rename": "Renombrar",
+ "no_contacts": "Sin contactos guardados"
 }

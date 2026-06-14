@@ -76,7 +76,7 @@
         <video class="mp-media" src={cur.dataURI} controls></video>
       {:else if cur.kind === "document"}
         <div class="mp-doc">
-          <input class="mp-doc-name mp-doc-rename" bind:value={names[idx]} placeholder={$t("file_name") || "Nama file"} title={$t("rename") || "Ganti nama"} />
+          <input class="mp-doc-name mp-doc-rename" bind:value={names[idx]} placeholder={$t("file_name")} title={$t("rename")} />
           {#if /\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(cur.name)}
             <div class="mp-doc-ico"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
             <audio class="mp-doc-audio" src={cur.dataURI} controls></audio>
@@ -98,16 +98,16 @@
     {#if cur.kind === "image"}
       <div class="mp-edit">
         {#if cropping}
-          <button class="mp-eb" on:click={() => { cropping = false; cropBox = null; }}>{$t("cancel") || "Batal"}</button>
-          <button class="mp-eb on" on:click={applyCrop}>{$t("apply") || "Terapkan"}</button>
+          <button class="mp-eb" on:click={() => { cropping = false; cropBox = null; }}>{$t("cancel")}</button>
+          <button class="mp-eb on" on:click={applyCrop}>{$t("apply")}</button>
         {:else}
-          <button class="mp-eb" title={$t("rotate") || "Putar"} on:click={() => rotate(-1)}>
+          <button class="mp-eb" title={$t("rotate")} on:click={() => rotate(-1)}>
             <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
-          <button class="mp-eb" title={$t("rotate") || "Putar"} on:click={() => rotate(1)}>
+          <button class="mp-eb" title={$t("rotate")} on:click={() => rotate(1)}>
             <svg viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
-          <button class="mp-eb" title={$t("crop") || "Pangkas"} on:click={() => { cropping = true; cropBox = null; }}>
+          <button class="mp-eb" title={$t("crop")} on:click={() => { cropping = true; cropBox = null; }}>
             <svg viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/></svg>
           </button>
         {/if}

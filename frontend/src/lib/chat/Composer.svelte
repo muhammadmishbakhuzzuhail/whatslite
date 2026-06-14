@@ -467,7 +467,7 @@
             {c.name}
           </button>
         {/each}
-        {#if contactList.length === 0}<div style="text-align:center;color:var(--text2);padding:18px;font-size:13.5px">{$t("no_contacts") || "Tak ada kontak tersimpan"}</div>{/if}
+        {#if contactList.length === 0}<div style="text-align:center;color:var(--text2);padding:18px;font-size:13.5px">{$t("no_contacts")}</div>{/if}
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:12px">
         <button class="btn-ghost" on:click={() => (contactOpen = false)}>{$t("cancel")}</button>

@@ -389,5 +389,7 @@
  "apply": "Použiť",
  "file_name": "Názov súboru",
  "rename": "Premenovať",
- "no_contacts": "Žiadne uložené kontakty"
+ "no_contacts": "Žiadne uložené kontakty",
+ "keep_deleted": "Ponechajte odstránené správy",
+ "keep_deleted_d": "Uložiť obsah správ, ktoré ostatní odstránia (anti-delete). Vypnuté = správať sa ako WhatsApp."
 }

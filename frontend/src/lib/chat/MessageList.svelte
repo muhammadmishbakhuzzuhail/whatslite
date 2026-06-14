@@ -17,7 +17,10 @@
   let floatDate = "";        // tanggal mengambang saat scroll
   let floatVisible = false;
   let _floatTimer;
-  $: chatId, (noMore = false, newCount = 0, _scrolledUnread = null); // reset saat ganti chat
+  let _lastMsgLen = 0;
+  $: chatId, (noMore = false, newCount = 0, _scrolledUnread = null, _lastMsgLen = 0); // reset saat ganti chat
+  // Pesan bertambah (mis. history on-demand tiba) → buka lagi kemungkinan load-older.
+  $: if (messages && messages.length > _lastMsgLen) { noMore = false; _lastMsgLen = messages.length; }
 
   // Gulir ke pembatas "belum dibaca" begitu ia muncul (dihitung sedikit setelah
   // pesan termuat) — sekali per chat.

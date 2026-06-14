@@ -389,5 +389,7 @@
  "apply": "Postuler",
  "file_name": "Nom du fichier",
  "rename": "Renommer",
- "no_contacts": "Aucun contact enregistré"
+ "no_contacts": "Aucun contact enregistré",
+ "keep_deleted": "Conserver les messages supprimés",
+ "keep_deleted_d": "Enregistrez le contenu des messages que d'autres suppriment (anti-suppression). Désactivé = se comporter comme WhatsApp."
 }

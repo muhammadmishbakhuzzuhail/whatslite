@@ -389,5 +389,7 @@
  "apply": "Pieteikties",
  "file_name": "Faila nosaukums",
  "rename": "Pārdēvēt",
- "no_contacts": "Nav saglabātu kontaktu"
+ "no_contacts": "Nav saglabātu kontaktu",
+ "keep_deleted": "Saglabājiet izdzēstās ziņas",
+ "keep_deleted_d": "Saglabājiet citu dzēsto ziņojumu saturu (pret dzēšanu). Izslēgts = uzvedies kā WhatsApp."
 }

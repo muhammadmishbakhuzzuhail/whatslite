@@ -389,5 +389,7 @@
  "apply": "Ansøg",
  "file_name": "Filnavn",
  "rename": "Omdøb",
- "no_contacts": "Ingen gemte kontakter"
+ "no_contacts": "Ingen gemte kontakter",
+ "keep_deleted": "Behold slettede beskeder",
+ "keep_deleted_d": "Gem indholdet af beskeder, som andre sletter (anti-sletning). Off = opfør dig som WhatsApp."
 }

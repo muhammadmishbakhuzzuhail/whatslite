@@ -389,5 +389,7 @@
  "apply": "Aiwatar",
  "file_name": "Sunan fayil",
  "rename": "Sake suna",
- "no_contacts": "Babu ajiyayyu lambobin sadarwa"
+ "no_contacts": "Babu ajiyayyu lambobin sadarwa",
+ "keep_deleted": "Ci gaba da share saƙonnin",
+ "keep_deleted_d": "Ajiye abinda ke cikin saƙon da wasu ke gogewa (an sharewa). Kashe = zama kamar WhatsApp."
 }

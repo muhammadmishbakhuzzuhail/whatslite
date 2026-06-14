@@ -14,7 +14,9 @@ import (
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/proto/waHistorySync"
 	"go.mau.fi/whatsmeow/proto/waWeb"
+	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
 )
@@ -211,7 +213,7 @@ type HistoryConversation struct {
 // OnHistorySync mendaftarkan callback saat blob history sync tiba dari HP.
 // Ini yang mengisi daftar chat & riwayat lengkap saat pertama login. Callback
 // juga menerima peta pushname (jid → nama kontak) untuk menamai chat 1:1.
-func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string)) {
+func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string, bool)) {
 	e.Client.AddEventHandler(func(evt interface{}) {
 		hs, ok := evt.(*events.HistorySync)
 		if !ok || hs.Data == nil {
@@ -273,8 +275,30 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string)
 				names[p.GetID()] = p.GetPushname()
 			}
 		}
-		fn(out, names)
+		onDemand := hs.Data.GetSyncType() == waHistorySync.HistorySync_ON_DEMAND
+		fn(out, names, onDemand)
 	})
+}
+
+// RequestOlderHistory minta `count` pesan SEBELUM pesan tertua yang kita punya
+// untuk sebuah chat (history on-demand WhatsApp). Respons tiba sbg events.History
+// Sync tipe ON_DEMAND → diproses OnHistorySync. Rekomendasi count = 50.
+func (e *Engine) RequestOlderHistory(chatJID, oldestID string, oldestFromMe bool, oldestTsUnix int64, count int) error {
+	if e == nil || e.Client == nil {
+		return fmt.Errorf("engine nil")
+	}
+	j, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	info := &types.MessageInfo{
+		MessageSource: types.MessageSource{Chat: j, IsFromMe: oldestFromMe},
+		ID:            oldestID,
+		Timestamp:     time.Unix(oldestTsUnix, 0),
+	}
+	msg := e.Client.BuildHistorySyncRequest(info, count)
+	_, err = e.Client.SendPeerMessage(context.Background(), msg)
+	return err
 }
 
 // describeMessage mengklasifikasi pesan → (kind, text, thumb, media).

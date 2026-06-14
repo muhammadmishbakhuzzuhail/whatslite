@@ -389,5 +389,7 @@
  "apply": "Alkalmazni",
  "file_name": "Fájlnév",
  "rename": "Átnevezés",
- "no_contacts": "Nincsenek mentett névjegyek"
+ "no_contacts": "Nincsenek mentett névjegyek",
+ "keep_deleted": "A törölt üzenetek megtartása",
+ "keep_deleted_d": "A mások által törölt üzenetek tartalmának mentése (törlés-ellenes). Ki = úgy viselkedik, mint a WhatsApp."
 }

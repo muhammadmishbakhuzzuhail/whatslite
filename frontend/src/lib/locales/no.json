@@ -389,5 +389,7 @@
  "apply": "Søk",
  "file_name": "Filnavn",
  "rename": "Gi nytt navn",
- "no_contacts": "Ingen lagrede kontakter"
+ "no_contacts": "Ingen lagrede kontakter",
+ "keep_deleted": "Behold slettede meldinger",
+ "keep_deleted_d": "Lagre innholdet i meldinger andre sletter (anti-sletting). Av = oppfør deg som WhatsApp."
 }

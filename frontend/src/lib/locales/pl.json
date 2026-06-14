@@ -389,5 +389,7 @@
  "apply": "Zastosuj",
  "file_name": "Nazwa pliku",
  "rename": "Zmień nazwę",
- "no_contacts": "Brak zapisanych kontaktów"
+ "no_contacts": "Brak zapisanych kontaktów",
+ "keep_deleted": "Zachowaj usunięte wiadomości",
+ "keep_deleted_d": "Zapisz treść wiadomości usuniętych przez innych (zabezpieczenie przed usunięciem). Wyłączone = zachowuj się jak WhatsApp."
 }

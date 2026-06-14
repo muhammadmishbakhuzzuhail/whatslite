@@ -388,5 +388,7 @@
  "apply": "Aplicar",
  "file_name": "Nombre de archivo",
  "rename": "Renombrar",
- "no_contacts": "Sin contactos guardados"
+ "no_contacts": "Sin contactos guardados",
+ "keep_deleted": "Conservar mensajes eliminados",
+ "keep_deleted_d": "Guarda el contenido de los mensajes que otros eliminan (anti-eliminación). Apagado = como WhatsApp."
 }

@@ -74,6 +74,8 @@ export function GetGroupInfo(arg1:string):Promise<app.GroupInfoDTO>;
 
 export function GetGroupRequests(arg1:string):Promise<Array<app.GroupRequestDTO>>;
 
+export function GetKeepDeleted():Promise<boolean>;
+
 export function GetLinkPreview(arg1:string):Promise<app.LinkPreviewDTO>;
 
 export function GetMessageInfo(arg1:string,arg2:string):Promise<app.MsgInfoDTO>;
@@ -121,6 +123,8 @@ export function LeaveCommunity(arg1:string):Promise<void>;
 export function LeaveGroup(arg1:string):Promise<void>;
 
 export function LinkWithPhone(arg1:string):Promise<string>;
+
+export function LoadOlderHistory(arg1:string):Promise<void>;
 
 export function Logout():Promise<void>;
 
@@ -213,6 +217,8 @@ export function SetGroupLocked(arg1:string,arg2:boolean):Promise<void>;
 export function SetGroupPhoto(arg1:string,arg2:string):Promise<void>;
 
 export function SetGroupSubject(arg1:string,arg2:string):Promise<void>;
+
+export function SetKeepDeleted(arg1:boolean):Promise<void>;
 
 export function SetMyAbout(arg1:string):Promise<void>;
 

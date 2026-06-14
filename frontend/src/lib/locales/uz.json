@@ -389,5 +389,7 @@
  "apply": "Murojaat qiling",
  "file_name": "Fayl nomi",
  "rename": "Nomini o'zgartirish",
- "no_contacts": "Saqlangan kontaktlar yo'q"
+ "no_contacts": "Saqlangan kontaktlar yo'q",
+ "keep_deleted": "O'chirilgan xabarlarni saqlang",
+ "keep_deleted_d": "Boshqalar oʻchirib tashlagan xabarlar mazmunini saqlang (oʻchirishga qarshi). O'chirilgan = o'zingizni WhatsApp kabi tuting."
 }

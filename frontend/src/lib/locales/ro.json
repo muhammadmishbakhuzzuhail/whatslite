@@ -389,5 +389,7 @@
  "apply": "Aplicați",
  "file_name": "Nume fișier",
  "rename": "Redenumiți",
- "no_contacts": "Nicio persoană de contact salvată"
+ "no_contacts": "Nicio persoană de contact salvată",
+ "keep_deleted": "Păstrați mesajele șterse",
+ "keep_deleted_d": "Salvați conținutul mesajelor pe care alții le șterg (anti-ștergere). Off = se comportă ca WhatsApp."
 }

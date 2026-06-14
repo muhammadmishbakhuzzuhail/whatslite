@@ -389,5 +389,7 @@
  "apply": "Omba",
  "file_name": "Jina la faili",
  "rename": "Badilisha jina",
- "no_contacts": "Hakuna anwani zilizohifadhiwa"
+ "no_contacts": "Hakuna anwani zilizohifadhiwa",
+ "keep_deleted": "Weka ujumbe uliofutwa",
+ "keep_deleted_d": "Hifadhi maudhui ya ujumbe ambao wengine hufuta (kuzuia kufuta). Zima = fanya kama WhatsApp."
 }

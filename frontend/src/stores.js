@@ -213,6 +213,7 @@ export function editMessage(chatId, msgId, text) {
   });
 }
 export const syncing = writable(false); // sedang tarik history dari HP
+export const syncCount = writable(0);    // jumlah chat ter-sinkron (indikator progress)
 
 // Toast (notifikasi in-app: error kirim/koneksi). Auto-hilang.
 export const toasts = writable([]);
@@ -359,14 +360,24 @@ export async function loadMessages(id) {
 }
 
 // Muat pesan lebih LAMA (scroll ke atas) → prepend. Kembalikan jumlah yg dimuat.
+let _histReqAt = {}; // throttle permintaan history on-demand per chat
 export async function loadOlder(id) {
   if (id == null || !data.LIVE) return 0;
   const cur = get(allMessages)[id] || [];
   if (!cur.length || !cur[0].ts) return 0;
   const older = await data.getMessagesBefore(id, cur[0].ts);
-  if (!older.length) return 0;
-  allMessages.update((x) => ({ ...x, [id]: [...older, ...(x[id] || [])] }));
-  return older.length;
+  if (older.length) {
+    allMessages.update((x) => ({ ...x, [id]: [...older, ...(x[id] || [])] }));
+    return older.length;
+  }
+  // DB lokal habis → tarik pesan lebih lama dari HP (history on-demand), maks 1×/4s
+  // per chat. Hasil tiba via wa:message → reloadActive → bisa di-scroll lagi.
+  const t = Date.now();
+  if (!_histReqAt[id] || t - _histReqAt[id] > 4000) {
+    _histReqAt[id] = t;
+    data.loadOlderHistory(id);
+  }
+  return 0;
 }
 
 export async function sendMessage(id, text, quote, mentions) {
@@ -597,6 +608,7 @@ if (data.LIVE) {
     const c = get(chats).find((x) => x.id === chat);
     if (c && !c.muted && !inQuietHours()) playNotifSound();
   });
+  data.onEvent("wa:syncprogress", (n) => { if (typeof n === "number" && n > 0) syncCount.set(n); });
   data.onEvent("wa:sync", () => {
     syncing.set(false);
     scheduleChatRefresh();         // debounce → burst wa:sync saat connect (dedup+grup+kontak) jadi 1

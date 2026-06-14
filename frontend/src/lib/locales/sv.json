@@ -389,5 +389,7 @@
  "apply": "Ansök",
  "file_name": "Filnamn",
  "rename": "Byt namn",
- "no_contacts": "Inga sparade kontakter"
+ "no_contacts": "Inga sparade kontakter",
+ "keep_deleted": "Behåll raderade meddelanden",
+ "keep_deleted_d": "Spara innehållet i meddelanden som andra tar bort (anti-delete). Av = bete dig som WhatsApp."
 }

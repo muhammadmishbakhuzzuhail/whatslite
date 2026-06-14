@@ -389,5 +389,7 @@
  "apply": "Uygula",
  "file_name": "Dosya adı",
  "rename": "Yeniden adlandır",
- "no_contacts": "Kayıtlı kişi yok"
+ "no_contacts": "Kayıtlı kişi yok",
+ "keep_deleted": "Silinen mesajları sakla",
+ "keep_deleted_d": "Başkalarının sildiği mesajların içeriğini kaydedin (silme önleme). Kapalı = WhatsApp gibi davran."
 }

@@ -389,5 +389,7 @@
  "apply": "Faka isicelo",
  "file_name": "Igama lefayela",
  "rename": "Qamba kabusha",
- "no_contacts": "Abekho oxhumana nabo abalondoloziwe"
+ "no_contacts": "Abekho oxhumana nabo abalondoloziwe",
+ "keep_deleted": "Gcina imilayezo esusiwe",
+ "keep_deleted_d": "Londoloza okuqukethwe kwemilayezo abanye abayisusayo (anti-delete). Vala = ziphathise okweWhatsApp."
 }

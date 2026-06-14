@@ -389,5 +389,7 @@
  "apply": "Toepassen",
  "file_name": "Bestandsnaam",
  "rename": "Hernoemen",
- "no_contacts": "Geen opgeslagen contacten"
+ "no_contacts": "Geen opgeslagen contacten",
+ "keep_deleted": "Bewaar verwijderde berichten",
+ "keep_deleted_d": "Bewaar de inhoud van berichten die anderen verwijderen (anti-verwijderen). Uit = gedragen als WhatsApp."
 }

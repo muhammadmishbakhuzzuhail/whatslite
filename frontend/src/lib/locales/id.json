@@ -388,5 +388,7 @@
  "apply": "Terapkan",
  "file_name": "Nama file",
  "rename": "Ganti nama",
- "no_contacts": "Tak ada kontak tersimpan"
+ "no_contacts": "Tak ada kontak tersimpan",
+ "keep_deleted": "Simpan pesan terhapus",
+ "keep_deleted_d": "Simpan isi pesan yang dihapus orang lain (anti-delete). Mati = seperti WhatsApp asli."
 }

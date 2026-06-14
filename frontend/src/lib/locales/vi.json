@@ -389,5 +389,7 @@
  "apply": "Áp dụng",
  "file_name": "Tên tập tin",
  "rename": "Đổi tên",
- "no_contacts": "Không có liên hệ nào được lưu"
+ "no_contacts": "Không có liên hệ nào được lưu",
+ "keep_deleted": "Giữ tin nhắn đã xóa",
+ "keep_deleted_d": "Lưu lại nội dung tin nhắn người khác xóa (chống xóa). Tắt = cư xử như WhatsApp."
 }

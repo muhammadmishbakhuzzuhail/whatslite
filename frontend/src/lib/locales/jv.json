@@ -389,5 +389,7 @@
  "apply": "nglamar",
  "file_name": "Jeneng berkas",
  "rename": "Ganti jeneng",
- "no_contacts": "Ora ana kontak sing disimpen"
+ "no_contacts": "Ora ana kontak sing disimpen",
+ "keep_deleted": "Tansah pesen sing wis dibusak",
+ "keep_deleted_d": "Simpen isi pesen sing dibusak wong liya (anti-delete). Off = tumindak kaya WhatsApp."
 }

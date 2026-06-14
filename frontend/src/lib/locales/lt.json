@@ -389,5 +389,7 @@
  "apply": "Taikyti",
  "file_name": "Failo pavadinimas",
  "rename": "Pervardyti",
- "no_contacts": "Nėra išsaugotų kontaktų"
+ "no_contacts": "Nėra išsaugotų kontaktų",
+ "keep_deleted": "Išsaugoti ištrintus pranešimus",
+ "keep_deleted_d": "Išsaugokite kitų ištrintų pranešimų turinį (anti-Delete). Išjungta = elkitės kaip „WhatsApp“."
 }

@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -38,6 +39,8 @@ type App struct {
 	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB
 
 	retentionDays int // 0 = simpan selamanya; >0 = prune pesan lebih tua (kec. berbintang/disematkan)
+
+	keepDeleted atomic.Bool // anti-delete: simpan isi pesan yang ditarik (default on)
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
 }
@@ -130,6 +133,7 @@ func (a *App) Startup(ctx context.Context) {
 	}
 
 	a.retentionDays = atoiDef(store.GetMeta(ctx, "retention_days", "90"), 90)
+	a.keepDeleted.Store(store.GetMeta(ctx, "keep_deleted", "1") == "1") // anti-delete default ON
 	a.bg(func() {
 		if cut := a.retentionCutoff(); cut > 0 {
 			if n, _ := a.store.PruneMessages(a.ctx, cut); n > 0 {
@@ -205,11 +209,15 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	// History sync → simpan semua percakapan & riwayat dalam SATU transaksi
 	// (ribuan baris → 1 fsync). Off-socket-loop lewat antrian writer.
-	eng.OnHistorySync(func(convs []engine.HistoryConversation, pushnames map[string]string) {
+	eng.OnHistorySync(func(convs []engine.HistoryConversation, pushnames map[string]string, onDemand bool) {
 		a.bg(func() {
 			// Retensi saat ingest: jangan simpan pesan lebih tua dari cutoff →
-			// app.db tak pernah bengkak dari history-sync besar.
+			// app.db tak pernah bengkak dari history-sync besar. KECUALI on-demand
+			// (user sengaja scroll minta pesan lama) → jangan dipotong retensi.
 			cutoff := a.retentionCutoff()
+			if onDemand {
+				cutoff = 0
+			}
 			// FASE 1 — METADATA chat dulu (nama/ts/unread), SATU tulis ringan →
 			// sidebar + jumlah unread + urutan muncul SEGERA, tak menunggu ribuan
 			// baris isi pesan. (Pinned/arsip TIDAK dari sini — itu app-state.)
@@ -221,8 +229,9 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				})
 			}
 			_ = store.SaveHistory(a.ctx, meta, nil, nil)
-			a.syncChatSettings()                     // pin/arsip/bisukan dari HP (app-state)
-			runtime.EventsEmit(a.ctx, "wa:sync", "") // sidebar tampil cepat (unread!)
+			a.syncChatSettings()                                       // pin/arsip/bisukan dari HP (app-state)
+			runtime.EventsEmit(a.ctx, "wa:syncprogress", len(meta))    // indikator: jumlah chat
+			runtime.EventsEmit(a.ctx, "wa:sync", "")                   // sidebar tampil cepat (unread!)
 
 			// FASE 2 — ISI PESAN (lambat) streaming berkelompok (~2000/tx). TANPA
 			// kirim ulang metadata chat → tak menimpa apa pun.
@@ -308,7 +317,11 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	eng.OnRevoke(func(chat, msgID, sender string) {
 		chat = eng.CanonicalJID(chat) // samakan dgn OnMessage (row tersimpan di JID kanonik)
 		a.bg(func() {
-			_ = store.MarkDeleted(a.ctx, chat, msgID)
+			if a.keepDeleted.Load() {
+				_ = store.MarkDeleted(a.ctx, chat, msgID) // anti-delete: simpan isi
+			} else {
+				_ = store.MarkDeletedHard(a.ctx, chat, msgID) // WA asli: kosongkan isi
+			}
 			runtime.EventsEmit(a.ctx, "wa:message", chat)
 		})
 	})
@@ -473,6 +486,34 @@ func (a *App) syncChatSettings() {
 	if changed {
 		runtime.EventsEmit(a.ctx, "wa:sync", "")
 	}
+}
+
+// GetKeepDeleted / SetKeepDeleted — toggle anti-delete (simpan isi pesan yang
+// ditarik). ON = isi tetap terlihat; OFF = perilaku WhatsApp asli (kosong).
+func (a *App) GetKeepDeleted() bool { return a.keepDeleted.Load() }
+func (a *App) SetKeepDeleted(v bool) {
+	a.keepDeleted.Store(v)
+	if a.store != nil {
+		val := "0"
+		if v {
+			val = "1"
+		}
+		_ = a.store.SetMeta(a.ctx, "keep_deleted", val)
+	}
+}
+
+// LoadOlderHistory minta ~50 pesan lebih lama dari yang tertua tersimpan untuk
+// chat ini (history on-demand). Respons tiba via OnHistorySync (ON_DEMAND) →
+// tersimpan → wa:message → UI reload. Dipanggil FE saat scroll mentok ke atas.
+func (a *App) LoadOlderHistory(chatJID string) {
+	if a.eng == nil || a.store == nil || chatJID == "" {
+		return
+	}
+	id, fromMe, ts, ok := a.store.OldestMessage(a.ctx, chatJID)
+	if !ok {
+		return
+	}
+	_ = a.eng.RequestOlderHistory(chatJID, id, fromMe, ts, 50)
 }
 
 func (a *App) dedupChats(eng *engine.Engine, store *storage.Store) {

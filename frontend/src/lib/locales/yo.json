@@ -389,5 +389,7 @@
  "apply": "Waye",
  "file_name": "Orukọ faili",
  "rename": "Fun lorukọ mii",
- "no_contacts": "Ko si awọn olubasọrọ ti o fipamọ"
+ "no_contacts": "Ko si awọn olubasọrọ ti o fipamọ",
+ "keep_deleted": "Jeki awọn ifiranṣẹ paarẹ",
+ "keep_deleted_d": "Ṣafipamọ akoonu ti awọn ifiranṣẹ awọn miiran paarẹ (egboogi-parẹ). Paa = huwa bi WhatsApp."
 }

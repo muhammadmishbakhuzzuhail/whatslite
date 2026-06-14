@@ -389,5 +389,7 @@
  "apply": "Prijavite se",
  "file_name": "Ime datoteke",
  "rename": "Preimenuj",
- "no_contacts": "Ni shranjenih stikov"
+ "no_contacts": "Ni shranjenih stikov",
+ "keep_deleted": "Hranite izbrisana sporočila",
+ "keep_deleted_d": "Shranite vsebino sporočil, ki jih drugi izbrišejo (proti brisanju). Izklopljen = obnašaj se kot WhatsApp."
 }

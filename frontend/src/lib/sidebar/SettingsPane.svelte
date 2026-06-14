@@ -1,6 +1,6 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted, accent } from "../../stores.js";
-  import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp } from "../../services/data.js";
+  import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp, getKeepDeleted, setKeepDeleted } from "../../services/data.js";
   import { uiScale, quickReactions, setQuickReaction, askPrompt, dnd } from "../../stores.js";
   function editQR(i) { askPrompt($t("quick_react_edit"), $quickReactions[i], (v) => setQuickReaction(i, [...v][0] || $quickReactions[i])); }
   import { TRANSLATE_LANGS } from "../langs.js";
@@ -12,9 +12,10 @@
   const THEME_MODES = ["light", "dark", "system"];
   const RETENTIONS = [30, 90, 180, 0]; // 0 = selamanya
   let retDays = 90;
-  let proxyVal = "", proxySaved = "", bgClose = false;
-  onMount(async () => { retDays = await getRetention(); proxyVal = proxySaved = await getProxy(); bgClose = await getBackgroundClose(); });
+  let proxyVal = "", proxySaved = "", bgClose = false, keepDel = true;
+  onMount(async () => { retDays = await getRetention(); proxyVal = proxySaved = await getProxy(); bgClose = await getBackgroundClose(); keepDel = await getKeepDeleted(); });
   function toggleBg() { bgClose = !bgClose; setBackgroundClose(bgClose); }
+  function toggleKeepDel() { keepDel = !keepDel; setKeepDeleted(keepDel); }
   function saveProxy() { if (proxyVal !== proxySaved) { setProxy(proxyVal.trim()); proxySaved = proxyVal.trim(); } }
   function pickRetention(d) { retDays = d; setRetention(d); }
   const DISAPPEAR = [[0, "disappearing_off"], [86400, "disappearing_24h"], [604800, "disappearing_7d"], [7776000, "disappearing_90d"]];
@@ -103,11 +104,18 @@
     </div>
 
     <!-- Anti-delete: lihat pesan yang ditarik pengirim -->
+    <div class="settings-item" role="button" tabindex="0" on:click={toggleKeepDel} on:keydown={(e) => e.key === "Enter" && toggleKeepDel()}>
+      <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg>
+      <div class="grow"><div class="si-name">{$t("keep_deleted")}</div><div class="si-desc">{$t("keep_deleted_d")}</div></div>
+      <span class="switch {keepDel ? '' : 'off'}"></span>
+    </div>
+    {#if keepDel}
     <div class="settings-item" role="button" tabindex="0" on:click={() => showDeleted.update((v) => !v)} on:keydown={(e) => e.key === "Enter" && showDeleted.update((v) => !v)}>
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
       <div class="grow"><div class="si-name">{$t("show_deleted")}</div><div class="si-desc">{$t("show_deleted_d")}</div></div>
       <span class="switch {$showDeleted ? '' : 'off'}"></span>
     </div>
+    {/if}
 
     <!-- Retensi pesan (jaga DB ramping) -->
     <div class="settings-item" style="align-items:flex-start">

@@ -389,5 +389,7 @@
  "apply": "primijeniti",
  "file_name": "Naziv datoteke",
  "rename": "Preimenuj",
- "no_contacts": "Nema spremljenih kontakata"
+ "no_contacts": "Nema spremljenih kontakata",
+ "keep_deleted": "Zadrži izbrisane poruke",
+ "keep_deleted_d": "Spremite sadržaj poruka koje drugi brišu (protiv brisanja). Isključeno = ponašaj se kao WhatsApp."
 }

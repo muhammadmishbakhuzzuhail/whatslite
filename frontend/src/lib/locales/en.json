@@ -388,5 +388,7 @@
  "apply": "Apply",
  "file_name": "File name",
  "rename": "Rename",
- "no_contacts": "No saved contacts"
+ "no_contacts": "No saved contacts",
+ "keep_deleted": "Keep deleted messages",
+ "keep_deleted_d": "Save the content of messages others delete (anti-delete). Off = behave like WhatsApp."
 }

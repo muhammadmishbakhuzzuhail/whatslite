@@ -389,5 +389,7 @@
  "apply": "Käytä",
  "file_name": "Tiedoston nimi",
  "rename": "Nimeä uudelleen",
- "no_contacts": "Ei tallennettuja yhteystietoja"
+ "no_contacts": "Ei tallennettuja yhteystietoja",
+ "keep_deleted": "Säilytä poistetut viestit",
+ "keep_deleted_d": "Tallenna muiden poistamien viestien sisältö (poiston esto). Pois päältä = käyttäydy kuten WhatsApp."
 }

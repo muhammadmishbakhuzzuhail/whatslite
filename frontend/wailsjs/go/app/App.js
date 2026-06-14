@@ -142,6 +142,10 @@ export function GetGroupRequests(arg1) {
   return window['go']['app']['App']['GetGroupRequests'](arg1);
 }
 
+export function GetKeepDeleted() {
+  return window['go']['app']['App']['GetKeepDeleted']();
+}
+
 export function GetLinkPreview(arg1) {
   return window['go']['app']['App']['GetLinkPreview'](arg1);
 }
@@ -236,6 +240,10 @@ export function LeaveGroup(arg1) {
 
 export function LinkWithPhone(arg1) {
   return window['go']['app']['App']['LinkWithPhone'](arg1);
+}
+
+export function LoadOlderHistory(arg1) {
+  return window['go']['app']['App']['LoadOlderHistory'](arg1);
 }
 
 export function Logout() {
@@ -420,6 +428,10 @@ export function SetGroupPhoto(arg1, arg2) {
 
 export function SetGroupSubject(arg1, arg2) {
   return window['go']['app']['App']['SetGroupSubject'](arg1, arg2);
+}
+
+export function SetKeepDeleted(arg1) {
+  return window['go']['app']['App']['SetKeepDeleted'](arg1);
 }
 
 export function SetMyAbout(arg1) {

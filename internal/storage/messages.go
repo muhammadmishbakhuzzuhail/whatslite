@@ -490,6 +490,23 @@ func (s *Store) MarkDeleted(ctx context.Context, chatJID, id string) error {
 	return err
 }
 
+// MarkDeletedHard = perilaku WhatsApp asli (anti-delete OFF): tandai ditarik DAN
+// kosongkan isi (teks/thumb/media) → tampil "pesan dihapus" tanpa konten.
+func (s *Store) MarkDeletedHard(ctx context.Context, chatJID, id string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE messages SET revoked = 1, text = '', thumb = '', media = '' WHERE chat_jid = ? AND id = ?`, chatJID, id)
+	return err
+}
+
+// OldestMessage mengembalikan pesan TERTUA tersimpan utk chat (utk minta history
+// lebih lama on-demand: server kirim pesan SEBELUM ini).
+func (s *Store) OldestMessage(ctx context.Context, chatJID string) (id string, fromMe bool, ts int64, ok bool) {
+	var fm int
+	if err := s.db.QueryRowContext(ctx, `SELECT id, from_me, ts FROM messages WHERE chat_jid = ? ORDER BY ts ASC LIMIT 1`, chatJID).Scan(&id, &fm, &ts); err != nil {
+		return "", false, 0, false
+	}
+	return id, fm != 0, ts, true
+}
+
 // SearchMessages mencari isi pesan via FTS5 (cepat), lintas chat. Query
 // disanitasi → prefix-match per token (mis. "es cend" → es* cend*).
 func (s *Store) SearchMessages(ctx context.Context, query string, limit int) ([]Message, error) {

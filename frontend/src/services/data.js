@@ -458,6 +458,11 @@ export async function linkWithPhone(phone) { if (LIVE) return await A.LinkWithPh
 export function setDefaultDisappearing(seconds) { if (LIVE) A.SetDefaultDisappearing(seconds); }
 // QR kontak sendiri (PNG data-URI; revoke=buat ulang).
 export async function myQR(revoke = false) { if (LIVE) return await A.MyQR(revoke); return ""; }
+// History on-demand: minta pesan lebih lama dari HP utk chat (saat DB lokal habis).
+export function loadOlderHistory(jid) { if (LIVE) A.LoadOlderHistory(jid); }
+// Anti-delete (simpan isi pesan ditarik) on/off.
+export async function getKeepDeleted() { if (LIVE) return await A.GetKeepDeleted(); return true; }
+export function setKeepDeleted(v) { if (LIVE) A.SetKeepDeleted(v); }
 
 // Unduh media dari URL web (sisi Go → tanpa CORS) → data-URI. "" bila gagal.
 export async function fetchRemoteMedia(url) {

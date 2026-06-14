@@ -65,8 +65,13 @@ type Store struct {
 
 // New membuka app.db di path dan menjalankan migrasi skema.
 func New(ctx context.Context, path string) (*Store, error) {
+	// synchronous(NORMAL) aman dgn WAL (tahan crash app; hanya power-loss OS yg
+	// berisiko, dpt diterima) + jauh lebih cepat dari FULL saat history-sync deras.
+	// cache 16MB, temp di RAM, mmap 256MB → baca chat besar lebih ngebut.
 	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+		"file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"+
+			"&_pragma=synchronous(NORMAL)&_pragma=cache_size(-16000)&_pragma=temp_store(MEMORY)"+
+			"&_pragma=mmap_size(268435456)",
 		path,
 	)
 	db, err := sql.Open("sqlite", dsn)

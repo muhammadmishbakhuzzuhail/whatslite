@@ -124,6 +124,17 @@
     requestAnimationFrame(check);
     return { update: check };
   }
+  // GIF autoplay HANYA saat tampak di layar → jeda saat keluar (hemat CPU/baterai;
+  // chat panjang dgn banyak GIF tak decode frame terus-menerus). Fail-safe: bila
+  // IntersectionObserver tak ada, langsung play (perilaku lama).
+  function autoplayVisible(node) {
+    if (typeof IntersectionObserver === "undefined") { node.play?.().catch(() => {}); return; }
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) e.isIntersecting ? node.play?.().catch(() => {}) : node.pause?.();
+    }, { threshold: 0.1 });
+    io.observe(node);
+    return { destroy() { io.disconnect(); } };
+  }
   $: canTranslate = msg.type === "text" || ((msg.type === "image" || msg.type === "video") && caption);
 
   // URL media disajikan asset-server (cache FILE, bukan data-URI memori). Native
@@ -380,7 +391,7 @@
     {:else if msg.type === "text"}
       {#if linkPrev}
         <a class="link-prev" href={linkPrev.url} target="_blank" rel="noreferrer">
-          {#if linkPrev.image}<img class="lp-img" src={linkPrev.image} alt="" on:error={(e) => (e.target.style.display = 'none')} />{/if}
+          {#if linkPrev.image}<img class="lp-img" src={linkPrev.image} alt="" loading="lazy" decoding="async" on:error={(e) => (e.target.style.display = 'none')} />{/if}
           <span class="lp-body">
             {#if linkPrev.title}<span class="lp-title">{linkPrev.title}</span>{/if}
             {#if linkPrev.desc}<span class="lp-desc">{linkPrev.desc}</span>{/if}
@@ -394,11 +405,11 @@
         role="button" tabindex="0" on:click={openMedia}
         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openMedia())}>
         {#if msg.type === "gif"}
-          <video class="media-img" src={mediaUrl} autoplay loop muted playsinline on:error={() => { if (!mediaErr) mediaErr = true; }}></video>
+          <video class="media-img" src={mediaUrl} use:autoplayVisible loop muted playsinline on:error={() => { if (!mediaErr) mediaErr = true; }}></video>
         {:else if msg.type === "video" && videoPlaying}
           <video class="media-img" src={mediaUrl} controls autoplay></video>
         {:else if imgSrc && !imgDead}
-          <img class="media-img" src={imgSrc} alt="" loading="lazy" on:error={() => { if (!mediaErr) mediaErr = true; else imgDead = true; }} />
+          <img class="media-img" src={imgSrc} alt="" loading="lazy" decoding="async" on:error={() => { if (!mediaErr) mediaErr = true; else imgDead = true; }} />
         {:else}
           <div class="img-ph">
             <span class="ph-dl"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg></span>
@@ -429,7 +440,7 @@
       {#if playing || vProgress > 0}<button class="vrate" on:click={cycleRate}>{vRate}×</button>{/if}
     {:else if msg.type === "location"}
       <button class="loc-card" on:click={openMap}>
-        <img class="loc-map" src={mapUrl} alt="" on:error={(e) => (e.target.style.display = 'none')} />
+        <img class="loc-map" src={mapUrl} alt="" loading="lazy" decoding="async" on:error={(e) => (e.target.style.display = 'none')} />
         <span class="loc-lbl"><svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{msg.text || "📍 Lokasi"}</span>
       </button>
     {:else if msg.type === "document"}

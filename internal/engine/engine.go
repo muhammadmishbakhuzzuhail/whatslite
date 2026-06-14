@@ -57,8 +57,11 @@ func New(ctx context.Context, dbPath string, debug bool) (*Engine, error) {
 	dbLog := waLog.Stdout("DB", level, true)
 
 	// foreign_keys + WAL + busy_timeout = aman & ringan untuk akses lokal.
+	// synchronous(NORMAL) aman dgn WAL + jauh lebih cepat saat history-sync
+	// menulis ribuan record; temp di RAM; mmap 256MB.
 	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+		"file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"+
+			"&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
 		dbPath,
 	)
 	db, err := sql.Open("sqlite", dsn)

@@ -41,7 +41,15 @@
   }
   function pin() { if (box) box.scrollTop = box.scrollHeight; }
 
+  // Scroll bisa fire 100+×/dtk; nearBottom + updateFloatDate (querySelectorAll +
+  // getBoundingClientRect per bubble = reflow paksa) mahal di chat panjang.
+  // Coalesce ke 1×/frame via rAF → perilaku sama, jank hilang.
+  let _scrollRAF = 0;
   function onScroll() {
+    if (_scrollRAF) return;
+    _scrollRAF = requestAnimationFrame(() => { _scrollRAF = 0; handleScroll(); });
+  }
+  function handleScroll() {
     if (!box) return;
     follow = nearBottom();            // user di bawah → ikut; scroll-up → lepas
     atBottom = follow;

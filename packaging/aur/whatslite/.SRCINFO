@@ -1,0 +1,20 @@
+pkgbase = whatslite
+	pkgdesc = Lightweight desktop WhatsApp client for Linux (no Chromium; WebKitGTK + whatsmeow)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/muhammadmishbakhuzzuhail/whatslite
+	arch = x86_64
+	license = GPL-3.0-or-later
+	makedepends = go
+	makedepends = nodejs
+	makedepends = npm
+	makedepends = git
+	makedepends = pkgconf
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	provides = whatslite
+	conflicts = whatslite-git
+	source = whatslite-0.1.0.tar.gz::https://github.com/muhammadmishbakhuzzuhail/whatslite/archive/v0.1.0.tar.gz
+	sha256sums = 34f76e64bd3c74f34ed95eb73db89d3b3aaa4796ca792339a322feca63ffdfa7
+
+pkgname = whatslite

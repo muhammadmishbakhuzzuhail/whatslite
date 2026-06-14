@@ -33,5 +33,5 @@ export APPIMAGE_EXTRACT_AND_RUN=1
   -d "$ROOT/build/linux/whatslite.desktop" \
   -i "$ROOT/build/linux/whatslite.svg"
 
-ARCH="$ARCH" "$TOOLS/appimagetool" "$APPDIR" "$ROOT/build/bin/WhatsApp-Lite-${ARCH}.AppImage"
-echo "Selesai: build/bin/WhatsApp-Lite-${ARCH}.AppImage"
+ARCH="$ARCH" "$TOOLS/appimagetool" "$APPDIR" "$ROOT/build/bin/WhatsLite-${ARCH}.AppImage"
+echo "Selesai: build/bin/WhatsLite-${ARCH}.AppImage"

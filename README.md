@@ -74,18 +74,18 @@ Once published to the AUR, an AUR helper installs everything (dependencies, buil
 icon) in one command:
 
 ```sh
-yay -S whatslite-git        # or: paru -S whatslite-git
+yay -S whatslite            # stable (latest tagged release)
+yay -S whatslite-git        # bleeding edge (latest commit)
 ```
 
-Or build the AUR package locally without a helper:
+Or build locally without a helper (each package lives in its own directory):
 
 ```sh
-cd packaging/aur
-makepkg -si                 # pulls deps, builds, installs
+cd packaging/aur/whatslite      # or packaging/aur/whatslite-git
+makepkg -si                     # pulls deps, builds, installs
 ```
 
-`whatslite-git` builds the latest commit from source. `pacman -R whatslite-git` uninstalls it.
-(A versioned `whatslite` package will follow once tagged releases exist.)
+`pacman -R whatslite` (or `whatslite-git`) uninstalls it. The two conflict — install one.
 
 ### Other distros
 

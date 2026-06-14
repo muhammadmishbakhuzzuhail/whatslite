@@ -40,6 +40,10 @@ func singleInstance() bool {
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// version di-stamp saat build: `wails build -ldflags "-X main.version=v0.1.0"`.
+// Default "dev" untuk build lokal tanpa stamp.
+var version = "dev"
+
 // ensureRuntimeEnv memperbaiki crash Go+WebKitGTK di Linux dengan re-exec sekali
 // memakai env yang aman:
 //   - GODEBUG=asyncpreemptoff=1 : matikan sinyal preemption Go yang dapat merusak
@@ -92,7 +96,10 @@ func main() {
 	// Resolver DNS murni-Go (hindari jalur CGo getaddrinfo yang rawan crash).
 	net.DefaultResolver.PreferGo = true
 
+	println("WhatsLite", version)
+
 	application := app.NewApp()
+	application.SetVersion(version)
 
 	err := wails.Run(&options.App{
 		Title:     "WhatsLite",

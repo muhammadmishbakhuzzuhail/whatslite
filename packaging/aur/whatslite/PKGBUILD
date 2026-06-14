@@ -1,10 +1,9 @@
 # Maintainer: muhammadmishbakhuzzuhail <m.ilhamnadhif121@gmail.com>
-# whatslite-git — builds the latest commit from source.
-# Install:  yay -S whatslite-git   (or makepkg -si in this directory)
+# whatslite — builds a tagged release from source.
+# Install:  yay -S whatslite   (or makepkg -si in this directory)
 
-pkgname=whatslite-git
-_pkgname=whatslite
-pkgver=r1
+pkgname=whatslite
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="Lightweight desktop WhatsApp client for Linux (no Chromium; WebKitGTK + whatsmeow)"
 arch=('x86_64')
@@ -13,17 +12,12 @@ license=('GPL-3.0-or-later')
 depends=('webkit2gtk-4.1' 'gtk3')
 makedepends=('go' 'nodejs' 'npm' 'git' 'pkgconf')
 provides=('whatslite')
-conflicts=('whatslite')
-source=("${_pkgname}::git+https://github.com/muhammadmishbakhuzzuhail/whatslite.git")
-sha256sums=('SKIP')
-
-pkgver() {
-	cd "${_pkgname}"
-	printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
-}
+conflicts=('whatslite-git')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/muhammadmishbakhuzzuhail/whatslite/archive/v${pkgver}.tar.gz")
+sha256sums=('34f76e64bd3c74f34ed95eb73db89d3b3aaa4796ca792339a322feca63ffdfa7')
 
 build() {
-	cd "${_pkgname}"
+	cd "${pkgname}-${pkgver}"
 	# Build the Wails CLI into a local GOBIN (no global install needed).
 	export GOPATH="${srcdir}/gopath"
 	export GOBIN="${srcdir}/gobin"
@@ -31,11 +25,11 @@ build() {
 	go install github.com/wailsapp/wails/v2/cmd/wails@latest
 	# webkit2_41 → WebKitGTK 4.1; netgo → pure-Go DNS (avoids the WebKitGTK
 	# CGo-resolver crash). Wails runs `npm install` + `npm run build` itself.
-	wails build -tags "webkit2_41 netgo" -clean
+	wails build -tags "webkit2_41 netgo" -clean -ldflags "-X main.version=v${pkgver}"
 }
 
 package() {
-	cd "${_pkgname}"
+	cd "${pkgname}-${pkgver}"
 	install -Dm755 "build/bin/whatslite" "${pkgdir}/usr/bin/whatslite"
 	install -Dm644 "build/linux/whatslite.desktop" "${pkgdir}/usr/share/applications/whatslite.desktop"
 	install -Dm644 "build/linux/whatslite.svg" "${pkgdir}/usr/share/icons/hicolor/scalable/apps/whatslite.svg"

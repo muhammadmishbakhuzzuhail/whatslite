@@ -1,42 +1,51 @@
 # AUR packaging
 
-`PKGBUILD` here builds **whatslite-git** (latest commit from source). It installs the binary, the
-`.desktop` entry, and the icon, and declares its dependencies so an AUR helper resolves them
-automatically.
+Two PKGBUILDs (each is its own AUR package — one directory each):
 
-## Try it locally (no AUR account needed)
+- **`whatslite/`** — `whatslite`: builds a **tagged release** from source (stable). Tracks releases.
+- **`whatslite-git/`** — `whatslite-git`: builds the **latest commit** from source. Tracks `main`.
+
+They declare each other in `conflicts`, so only one can be installed at a time. Both build natively
+(Wails uses cgo + WebKitGTK and cannot cross-compile) and stamp the version into `main.version` via
+`-ldflags`.
+
+## Try locally (no AUR account needed)
 
 ```sh
-cd packaging/aur
+cd packaging/aur/whatslite      # or whatslite-git
 makepkg -si
 ```
 
-This pulls `webkit2gtk-4.1` + `gtk3` (runtime) and `go`/`nodejs`/`npm`/`git` (build), compiles, and
-installs `whatslite` to `/usr/bin`. Launch from your app menu or run `whatslite`.
+Pulls `webkit2gtk-4.1` + `gtk3` (runtime) and `go`/`nodejs`/`npm`/`git` (build), compiles, installs
+`whatslite` to `/usr/bin`, plus the `.desktop` entry and icon.
 
-## Publish to the AUR (so `yay -S whatslite-git` works for everyone)
+## Publish to the AUR
 
-You need an AUR account with an SSH key added (https://aur.archlinux.org → My Account → SSH keys).
+You need an AUR account with an SSH key (https://aur.archlinux.org → My Account → SSH keys). Publish each
+package from its own directory:
 
 ```sh
-# 1. Generate .SRCINFO (required by the AUR)
-cd packaging/aur
-makepkg --printsrcinfo > .SRCINFO
-
-# 2. Clone the (empty) AUR repo for the package name
-git clone ssh://aur@aur.archlinux.org/whatslite-git.git /tmp/aur-whatslite
+cd packaging/aur/whatslite               # (repeat for whatslite-git)
+makepkg --printsrcinfo > .SRCINFO        # required by the AUR
+git clone ssh://aur@aur.archlinux.org/whatslite.git /tmp/aur-whatslite
 cp PKGBUILD .SRCINFO /tmp/aur-whatslite/
-
-# 3. Push
-cd /tmp/aur-whatslite
-git add PKGBUILD .SRCINFO
-git commit -m "Initial import: whatslite-git"
-git push
+cd /tmp/aur-whatslite && git add PKGBUILD .SRCINFO && git commit -m "Initial import" && git push
 ```
 
-After that, users install with `yay -S whatslite-git` (or `paru -S whatslite-git`).
+After that: `yay -S whatslite` (stable) or `yay -S whatslite-git` (latest).
 
-## A versioned package later
+## Cutting a new release (updating the stable package)
 
-Once you cut tagged GitHub releases (e.g. `v0.1.0`), add a second package `whatslite` whose `source=()`
-points at the release tarball and pins `pkgver`. `-git` tracks `main`; the versioned one tracks releases.
+1. Tag + GitHub release upstream (see repo CHANGELOG workflow).
+2. In `whatslite/PKGBUILD`: bump `pkgver` to the new version, reset `pkgrel=1`.
+3. Refresh the source checksum:
+   ```sh
+   cd packaging/aur/whatslite
+   updpkgsums                            # rewrites sha256sums from the new tarball
+   makepkg --printsrcinfo > .SRCINFO
+   ```
+4. Commit + push to the AUR repo.
+
+> Note: `sha256sums` here is the hash of GitHub's auto-generated
+> `archive/vX.Y.Z.tar.gz`. These bytes are stable in practice but have rarely changed; if `makepkg`
+> reports a checksum mismatch, rerun `updpkgsums`.

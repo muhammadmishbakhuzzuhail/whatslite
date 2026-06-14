@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Build version stamped into the binary via `-ldflags -X main.version` (logged at startup, shown in
+  Settings, exposed to the UI via `App.Version()`); defaults to `dev` for un-stamped local builds.
+- Versioned AUR package `whatslite` (tracks tagged releases) alongside `whatslite-git`.
+
 ## [0.1.0] - 2026-06-14
 
 First public release as **WhatsLite** — a lightweight WhatsApp desktop client for Linux

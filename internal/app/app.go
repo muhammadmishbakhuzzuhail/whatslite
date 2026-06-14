@@ -42,7 +42,24 @@ type App struct {
 
 	keepDeleted atomic.Bool // anti-delete: simpan isi pesan yang ditarik (default on)
 
+	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
+
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
+}
+
+// SetVersion menyetel versi build (dipanggil dari main sebelum wails.Run).
+func (a *App) SetVersion(v string) {
+	if v != "" {
+		a.version = v
+	}
+}
+
+// Version mengembalikan versi build (di-bind ke FE untuk layar "Tentang").
+func (a *App) Version() string {
+	if a.version == "" {
+		return "dev"
+	}
+	return a.version
 }
 
 // retentionCutoff = batas unix; pesan lebih tua di-prune. 0 bila retensi mati.

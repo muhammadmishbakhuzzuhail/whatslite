@@ -1,6 +1,6 @@
 <script>
   import { railView, theme, pinSet, beginSetPin, removePin, lockNow, logout, translateLang, soundOn, showDeleted, accent, virtList } from "../../stores.js";
-  import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp, getKeepDeleted, setKeepDeleted } from "../../services/data.js";
+  import { getProfile, getRetention, setRetention, setDefaultDisappearing, getProxy, setProxy, getBackgroundClose, setBackgroundClose, quitApp, getKeepDeleted, setKeepDeleted, appVersion } from "../../services/data.js";
   import { uiScale, quickReactions, setQuickReaction, askPrompt, dnd } from "../../stores.js";
   function editQR(i) { askPrompt($t("quick_react_edit"), $quickReactions[i], (v) => setQuickReaction(i, [...v][0] || $quickReactions[i])); }
   import { TRANSLATE_LANGS } from "../langs.js";
@@ -12,8 +12,8 @@
   const THEME_MODES = ["light", "dark", "system"];
   const RETENTIONS = [30, 90, 180, 0]; // 0 = selamanya
   let retDays = 90;
-  let proxyVal = "", proxySaved = "", bgClose = false, keepDel = true;
-  onMount(async () => { retDays = await getRetention(); proxyVal = proxySaved = await getProxy(); bgClose = await getBackgroundClose(); keepDel = await getKeepDeleted(); });
+  let proxyVal = "", proxySaved = "", bgClose = false, keepDel = true, appVer = "dev";
+  onMount(async () => { retDays = await getRetention(); proxyVal = proxySaved = await getProxy(); bgClose = await getBackgroundClose(); keepDel = await getKeepDeleted(); appVer = await appVersion(); });
   function toggleBg() { bgClose = !bgClose; setBackgroundClose(bgClose); }
   function toggleKeepDel() { keepDel = !keepDel; setKeepDeleted(keepDel); }
   function saveProxy() { if (proxyVal !== proxySaved) { setProxy(proxyVal.trim()); proxySaved = proxyVal.trim(); } }
@@ -253,5 +253,11 @@
       {@html icons.logout}
       <div class="grow"><div class="si-name">{$t("logout")}</div></div>
     </div>
+
+    <div class="settings-foot">WhatsLite {appVer}</div>
   </div>
 </div>
+
+<style>
+  .settings-foot { text-align: center; padding: 18px 0 8px; font-size: 12px; opacity: 0.45; }
+</style>

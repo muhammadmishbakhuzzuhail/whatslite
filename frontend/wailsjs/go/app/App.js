@@ -489,3 +489,7 @@ export function UpdateGroupRequest(arg1, arg2, arg3) {
 export function VotePoll(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['VotePoll'](arg1, arg2, arg3, arg4);
 }
+
+export function Version() {
+  return window['go']['app']['App']['Version']();
+}

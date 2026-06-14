@@ -96,11 +96,12 @@ No native package yet — build from source (below). An AppImage may be provided
 Requires **Go**, **WebKitGTK + GTK3**, and the **Wails CLI**. On Arch/CachyOS:
 
 ```sh
-sudo pacman -S --needed go webkit2gtk gtk3 pkgconf
+sudo pacman -S --needed go webkit2gtk-4.1 gtk3 pkgconf
 go install github.com/wailsapp/wails/v2/cmd/wails@latest   # ensure $(go env GOPATH)/bin is on PATH
 ```
 
-(Debian/Ubuntu equivalent: `golang-go libwebkit2gtk-4.0-dev libgtk-3-dev pkg-config build-essential`.)
+(Debian/Ubuntu equivalent: `golang-go libwebkit2gtk-4.1-dev libgtk-3-dev pkg-config build-essential`.)
+WebKitGTK **4.1** is required (the build uses `-tags webkit2_41`). See [Compatibility](#compatibility).
 
 Check the toolchain:
 
@@ -133,6 +134,31 @@ On first launch a **QR screen** appears in the window. Scan it via:
 The session and messages are stored locally, so subsequent runs don't require scanning again.
 
 Verbose mode (debug logs): `WALITE_DEBUG=1 wails dev`
+
+## Compatibility
+
+The app links **WebKitGTK 4.1** (`libwebkit2gtk-4.1.so.0`) + GTK3 and is **not statically linkable**
+(Wails uses cgo). So there are two independent requirements to run a **prebuilt binary**:
+
+1. **WebKitGTK 4.1** present (not the older 4.0), and
+2. **glibc ≥ 2.34** (the released x86_64 binary is built on an older toolchain to keep this floor low).
+
+| Distro | Prebuilt 4.1 binary | Build from source |
+|---|---|---|
+| Arch / CachyOS, Manjaro | ✅ | ✅ |
+| Ubuntu 22.04 / 24.04, Mint 21+, Pop!_OS 22.04+ | ✅ | ✅ |
+| Debian 12 (bookworm) / 13 (trixie) | ✅ | ✅ |
+| Fedora 40+ | ✅ | ✅ |
+| openSUSE Leap 15.6 / Tumbleweed | ✅ | ✅ |
+| Ubuntu 20.04, Debian 11 | ❌ (no 4.1, glibc too old) | ❌ |
+| RHEL / Rocky / Alma 8 & 9 | ❌ (WebKitGTK is 4.0-only) | ❌ as 4.1 |
+
+**Building from source works on any distro** that packages `webkit2gtk` (4.0 *or* 4.1) + GTK3 + Go — pick
+the matching Wails tag (`webkit2_41` for 4.1; omit it for 4.0). For **older / EL distros or "just works
+anywhere"**, a **Flatpak** (bundles its own WebKitGTK + glibc via the GNOME runtime) is the right path —
+not yet provided. **ARM64 (aarch64)** is supported but needs a separate native build (no binary shipped yet).
+
+> The released `.AppImage` route is unreliable for WebKitGTK apps and is not currently published.
 
 ## Limitations (not possible client-side)
 

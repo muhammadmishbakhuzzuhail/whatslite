@@ -15,7 +15,10 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # Build on the OLDEST supported toolchain so the cgo binary's glibc floor
+    # stays low (22.04 → glibc 2.35). ubuntu-latest (24.04, glibc 2.39) would
+    # exclude 22.04 users. See README "Compatibility".
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 

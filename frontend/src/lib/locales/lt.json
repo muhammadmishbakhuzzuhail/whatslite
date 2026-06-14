@@ -391,5 +391,6 @@
  "rename": "Pervardyti",
  "no_contacts": "Nėra išsaugotų kontaktų",
  "keep_deleted": "Išsaugoti ištrintus pranešimus",
- "keep_deleted_d": "Išsaugokite kitų ištrintų pranešimų turinį (anti-Delete). Išjungta = elkitės kaip „WhatsApp“."
+ "keep_deleted_d": "Išsaugokite kitų ištrintų pranešimų turinį (anti-Delete). Išjungta = elkitės kaip „WhatsApp“.",
+ "rec_voice": "įrašyti garsą…"
 }

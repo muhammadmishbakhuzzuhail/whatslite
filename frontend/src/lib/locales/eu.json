@@ -391,5 +391,6 @@
  "rename": "Aldatu izena",
  "no_contacts": "Ez dago gordetako kontakturik",
  "keep_deleted": "Mantendu ezabatutako mezuak",
- "keep_deleted_d": "Gorde besteek ezabatzen dituzten mezuen edukia (ezabatzearen aurkakoa). Desaktibatuta = WhatsApp bezala jokatu."
+ "keep_deleted_d": "Gorde besteek ezabatzen dituzten mezuen edukia (ezabatzearen aurkakoa). Desaktibatuta = WhatsApp bezala jokatu.",
+ "rec_voice": "audioa grabatzen…"
 }

@@ -391,5 +391,6 @@
  "rename": "Cambiar o nome",
  "no_contacts": "Non hai contactos gardados",
  "keep_deleted": "Mantén as mensaxes eliminadas",
- "keep_deleted_d": "Garda o contido das mensaxes que outros eliminan (anti-borrado). Desactivado = comportarse como WhatsApp."
+ "keep_deleted_d": "Garda o contido das mensaxes que outros eliminan (anti-borrado). Desactivado = comportarse como WhatsApp.",
+ "rec_voice": "gravando audio..."
 }

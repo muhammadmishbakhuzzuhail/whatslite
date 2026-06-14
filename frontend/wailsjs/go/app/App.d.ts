@@ -194,7 +194,7 @@ export function SendText(arg1:string,arg2:string):Promise<string>;
 
 export function SendTextMentioned(arg1:string,arg2:string,arg3:Array<string>):Promise<string>;
 
-export function SendTyping(arg1:string,arg2:boolean):Promise<void>;
+export function SendTyping(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;
 
 export function ServeHTTP(arg1:http.ResponseWriter,arg2:http.Request):Promise<void>;
 

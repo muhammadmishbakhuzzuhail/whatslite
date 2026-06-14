@@ -391,5 +391,6 @@
  "rename": "이름 바꾸기",
  "no_contacts": "저장된 연락처 없음",
  "keep_deleted": "삭제된 메시지 보관",
- "keep_deleted_d": "다른 사람이 삭제한 메시지 내용을 저장합니다(삭제 방지). 끄기 = WhatsApp처럼 작동합니다."
+ "keep_deleted_d": "다른 사람이 삭제한 메시지 내용을 저장합니다(삭제 방지). 끄기 = WhatsApp처럼 작동합니다.",
+ "rec_voice": "오디오 녹음 중…"
 }

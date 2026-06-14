@@ -42,16 +42,21 @@ func (e *Engine) SubscribePresence(jid string) {
 }
 
 // SendTyping mengirim indikator "sedang mengetik" (composing) / berhenti (paused).
-func (e *Engine) SendTyping(jid string, composing bool) {
+// recording=true → media audio → lawan bicara lihat "merekam suara…".
+func (e *Engine) SendTyping(jid string, composing, recording bool) {
 	j, err := types.ParseJID(jid)
 	if err != nil {
 		return
 	}
 	state := types.ChatPresencePaused
+	media := types.ChatPresenceMediaText
 	if composing {
 		state = types.ChatPresenceComposing
+		if recording {
+			media = types.ChatPresenceMediaAudio
+		}
 	}
-	_ = e.Client.SendChatPresence(context.Background(), j, state, types.ChatPresenceMediaText)
+	_ = e.Client.SendChatPresence(context.Background(), j, state, media)
 }
 
 // OnPresence: kontak online / terakhir dilihat.
@@ -65,10 +70,13 @@ func (e *Engine) OnPresence(fn func(jid string, online bool, lastSeen time.Time)
 
 // OnChatPresence: lawan bicara sedang mengetik (composing) / berhenti.
 // sender = pengirim presence (utk grup → tampilkan siapa yg mengetik).
-func (e *Engine) OnChatPresence(fn func(chat, sender string, composing bool)) {
+// recording = sedang merekam suara (media="audio") → "merekam suara…".
+func (e *Engine) OnChatPresence(fn func(chat, sender string, composing, recording bool)) {
 	e.Client.AddEventHandler(func(evt interface{}) {
 		if cp, ok := evt.(*events.ChatPresence); ok {
-			fn(cp.MessageSource.Chat.String(), cp.MessageSource.Sender.String(), cp.State == types.ChatPresenceComposing)
+			composing := cp.State == types.ChatPresenceComposing
+			recording := composing && cp.Media == types.ChatPresenceMediaAudio
+			fn(cp.MessageSource.Chat.String(), cp.MessageSource.Sender.String(), composing, recording)
 		}
 	})
 }

@@ -497,9 +497,9 @@ func (a *App) MarkRead(chat, sender, msgID string) {
 }
 
 // SendTyping mengirim indikator mengetik (composing) / berhenti (paused).
-func (a *App) SendTyping(jid string, composing bool) {
+func (a *App) SendTyping(jid string, composing, recording bool) {
 	if a.eng != nil {
-		a.eng.SendTyping(jid, composing)
+		a.eng.SendTyping(jid, composing, recording)
 	}
 }
 

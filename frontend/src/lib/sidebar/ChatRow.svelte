@@ -38,7 +38,7 @@
     <div class="row-bottom">
       <span class="row-preview">
         {#if typing}
-          <span class="typing">{typeof typing === "string" ? `${typing} ${$t("typing")}` : $t("typing")}</span>
+          <span class="typing">{`${typing.name ? typing.name + " " : ""}${$t(typing.rec ? "rec_voice" : "typing")}`}</span>
         {:else if draft}
           <span class="draft">{$t("draft")}:</span> <span>{draft}</span>
         {:else}

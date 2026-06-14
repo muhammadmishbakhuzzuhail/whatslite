@@ -391,5 +391,6 @@
  "rename": "Rinominare",
  "no_contacts": "Nessun contatto salvato",
  "keep_deleted": "Conserva i messaggi eliminati",
- "keep_deleted_d": "Salva il contenuto dei messaggi eliminati da altri (anti-eliminazione). Spento = comportati come WhatsApp."
+ "keep_deleted_d": "Salva il contenuto dei messaggi eliminati da altri (anti-eliminazione). Spento = comportati come WhatsApp.",
+ "rec_voice": "registrazione dell'audio..."
 }

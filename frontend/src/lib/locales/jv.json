@@ -391,5 +391,6 @@
  "rename": "Ganti jeneng",
  "no_contacts": "Ora ana kontak sing disimpen",
  "keep_deleted": "Tansah pesen sing wis dibusak",
- "keep_deleted_d": "Simpen isi pesen sing dibusak wong liya (anti-delete). Off = tumindak kaya WhatsApp."
+ "keep_deleted_d": "Simpen isi pesen sing dibusak wong liya (anti-delete). Off = tumindak kaya WhatsApp.",
+ "rec_voice": "ngrekam audio…"
 }

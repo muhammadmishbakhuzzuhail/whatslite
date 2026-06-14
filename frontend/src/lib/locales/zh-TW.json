@@ -391,5 +391,6 @@
  "rename": "重新命名",
  "no_contacts": "沒有保存的聯絡人",
  "keep_deleted": "保留已刪除的訊息",
- "keep_deleted_d": "儲存別人刪除（反刪除）的訊息內容。關閉 = 行為類似於 WhatsApp。"
+ "keep_deleted_d": "儲存別人刪除（反刪除）的訊息內容。關閉 = 行為類似於 WhatsApp。",
+ "rec_voice": "錄製音訊..."
 }

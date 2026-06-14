@@ -1,7 +1,7 @@
 <script>
   import { tick, onDestroy } from "svelte";
   import { get } from "svelte/store";
-  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, mediaDraft, theme, setDraft, getDraft } from "../../stores.js";
+  import { sendMessage, sendMediaMessage, replyDraft, pushToast, editDraft, editMessage, mediaDraft, theme, setDraft, getDraft, setTyping } from "../../stores.js";
   import { getGroupInfo, sendLocation, sendPoll, sendContact, sendGif, sendSticker, fetchRemoteMedia, scheduleMessage, getContacts } from "../../services/data.js";
   import GifPicker from "./GifPicker.svelte";
   import StickerPicker from "./StickerPicker.svelte";
@@ -282,6 +282,7 @@
     sendMessage(chatId, finalText, $replyDraft, jids);
     value = ""; picked = []; mOpen = false;
     setDraft(chatId, ""); // teks terkirim → buang draf
+    setTyping(chatId, false); // berhenti "mengetik…" begitu terkirim
     replyDraft.set(null);
   }
   // Bungkus teks terpilih dgn penanda format WhatsApp (Ctrl+B/I/dll).
@@ -348,6 +349,7 @@
       mediaRec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         recording = false; stopRecTimer();
+        setTyping(chatId, false); // berhenti "merekam suara…"
         if (recCancel) return;                                 // dibatalkan → tak kirim
         const blob = new Blob(chunks, { type: mediaRec.mimeType || mime || "audio/ogg" });
         if (blob.size < 800) return;                           // terlalu pendek
@@ -357,6 +359,7 @@
       };
       mediaRec.start();
       recording = true; recElapsed = 0;
+      setTyping(chatId, true, true); // umumkan "merekam suara…" ke lawan bicara
       _recTimer = setInterval(() => (recElapsed += 1), 1000);
     } catch (e) {
       pushToast($t("mic_denied"));
@@ -558,7 +561,7 @@
   {:else}
     <div class="input">
       <textarea rows="1" placeholder={$t("composer_placeholder")} aria-label={$t("composer_placeholder")}
-        bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); saveDraft(); }} on:click={detectMention}></textarea>
+        bind:this={inputEl} bind:value on:keydown={onKey} on:input={(e) => { detectMention(); detectShortcode(); autoGrow(e.target); saveDraft(); setTyping(chatId, !!e.target.value.trim()); }} on:click={detectMention}></textarea>
     </div>
   {/if}
   {#if typing && !$editDraft}

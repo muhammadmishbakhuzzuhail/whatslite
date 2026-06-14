@@ -391,5 +391,6 @@
  "rename": "Nimeta ümber",
  "no_contacts": "Salvestatud kontakte pole",
  "keep_deleted": "Kustutatud kirjad alles jätta",
- "keep_deleted_d": "Salvestage teiste kustutatud sõnumite sisu (kustutamisvastane). Väljas = käitu nagu WhatsApp."
+ "keep_deleted_d": "Salvestage teiste kustutatud sõnumite sisu (kustutamisvastane). Väljas = käitu nagu WhatsApp.",
+ "rec_voice": "heli salvestamine…"
 }

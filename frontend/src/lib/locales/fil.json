@@ -391,5 +391,6 @@
  "rename": "Palitan ang pangalan",
  "no_contacts": "Walang naka-save na contact",
  "keep_deleted": "Panatilihin ang mga tinanggal na mensahe",
- "keep_deleted_d": "I-save ang nilalaman ng mga mensaheng tinanggal ng iba (anti-delete). Naka-off = kumilos tulad ng WhatsApp."
+ "keep_deleted_d": "I-save ang nilalaman ng mga mensaheng tinanggal ng iba (anti-delete). Naka-off = kumilos tulad ng WhatsApp.",
+ "rec_voice": "nagre-record ng audio…"
 }

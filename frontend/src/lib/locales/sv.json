@@ -391,5 +391,6 @@
  "rename": "Byt namn",
  "no_contacts": "Inga sparade kontakter",
  "keep_deleted": "Behåll raderade meddelanden",
- "keep_deleted_d": "Spara innehållet i meddelanden som andra tar bort (anti-delete). Av = bete dig som WhatsApp."
+ "keep_deleted_d": "Spara innehållet i meddelanden som andra tar bort (anti-delete). Av = bete dig som WhatsApp.",
+ "rec_voice": "spelar in ljud..."
 }

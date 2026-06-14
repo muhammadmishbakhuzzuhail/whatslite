@@ -391,5 +391,6 @@
  "rename": "Preimenuj",
  "no_contacts": "Nema spremljenih kontakata",
  "keep_deleted": "Zadrži izbrisane poruke",
- "keep_deleted_d": "Spremite sadržaj poruka koje drugi brišu (protiv brisanja). Isključeno = ponašaj se kao WhatsApp."
+ "keep_deleted_d": "Spremite sadržaj poruka koje drugi brišu (protiv brisanja). Isključeno = ponašaj se kao WhatsApp.",
+ "rec_voice": "snimanje zvuka…"
 }

@@ -391,5 +391,6 @@
  "rename": "Ganti ngaran",
  "no_contacts": "Taya kontak nu disimpen",
  "keep_deleted": "Tetep pesen dihapus",
- "keep_deleted_d": "Simpen eusi pesen anu dihapus ku batur (anti-hapus). Pareum = kalakuanana kawas WhatsApp."
+ "keep_deleted_d": "Simpen eusi pesen anu dihapus ku batur (anti-hapus). Pareum = kalakuanana kawas WhatsApp.",
+ "rec_voice": "ngarékam audio…"
 }

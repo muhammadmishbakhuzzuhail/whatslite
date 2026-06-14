@@ -512,14 +512,20 @@ export function markChatRead(id) {
   chats.update((cs) => cs.map((c) => (c.id === id ? { ...c, badge: 0, unread: false } : c)));
 }
 
-// Indikator mengetik keluar (dipanggil composer saat user mengetik).
-let _typingTimer = null;
-export function setTyping(id, on) {
+// Indikator mengetik/merekam keluar. on:input memanggil tiap ketukan → JANGAN
+// kirim 1 IQ presence per ketukan (banjir socket). Kirim composing SEKALI saat
+// mulai, paused sekali saat berhenti/idle. Teks: auto-paused 4s setelah ketukan
+// terakhir. Rekam suara: tanpa auto-paused (rekaman bisa lama tanpa input) —
+// berhenti hanya saat stop eksplisit.
+let _typingTimer = null, _typingSent = false, _typingId = null;
+export function setTyping(id, on, recording = false) {
   if (id == null) return;
-  data.sendTyping(id, on);
+  clearTimeout(_typingTimer);
   if (on) {
-    clearTimeout(_typingTimer);
-    _typingTimer = setTimeout(() => data.sendTyping(id, false), 4000);
+    if (!_typingSent || _typingId !== id) { data.sendTyping(id, true, recording); _typingSent = true; _typingId = id; }
+    if (!recording) _typingTimer = setTimeout(() => { data.sendTyping(id, false, false); _typingSent = false; }, 4000);
+  } else if (_typingSent) {
+    data.sendTyping(id, false, false); _typingSent = false;
   }
 }
 
@@ -623,8 +629,8 @@ if (data.LIVE) {
   });
   data.onEvent("wa:typing", (e) => {
     if (!e || !e.chat) return;
-    // value: nama (grup) | true (1:1) saat mengetik; false saat berhenti.
-    const v = e.on ? (e.who || true) : false;
+    // value: {name, rec} saat aktif (name=pengirim grup, rec=merekam suara); false saat berhenti.
+    const v = e.on ? { name: e.who || "", rec: !!e.rec } : false;
     typingChats.update((m) => ({ ...m, [e.chat]: v }));
     if (e.on) setTimeout(() => typingChats.update((m) => ({ ...m, [e.chat]: false })), 6000);
   });

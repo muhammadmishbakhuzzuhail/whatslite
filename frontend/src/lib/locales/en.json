@@ -10,6 +10,7 @@
  "pinned": "Pinned",
  "all_chats": "All chats",
  "typing": "typing…",
+ "rec_voice": "recording audio…",
  "composer_placeholder": "Type a message",
  "empty_conv": "Select a chat to start messaging",
  "no_match": "No chats found.",

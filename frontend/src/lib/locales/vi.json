@@ -391,5 +391,6 @@
  "rename": "Đổi tên",
  "no_contacts": "Không có liên hệ nào được lưu",
  "keep_deleted": "Giữ tin nhắn đã xóa",
- "keep_deleted_d": "Lưu lại nội dung tin nhắn người khác xóa (chống xóa). Tắt = cư xử như WhatsApp."
+ "keep_deleted_d": "Lưu lại nội dung tin nhắn người khác xóa (chống xóa). Tắt = cư xử như WhatsApp.",
+ "rec_voice": "ghi âm…"
 }

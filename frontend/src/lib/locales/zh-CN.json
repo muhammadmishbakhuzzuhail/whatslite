@@ -391,5 +391,6 @@
  "rename": "重命名",
  "no_contacts": "没有保存的联系人",
  "keep_deleted": "保留已删除的消息",
- "keep_deleted_d": "保存别人删除（反删除）的消息内容。关闭 = 行为类似于 WhatsApp。"
+ "keep_deleted_d": "保存别人删除（反删除）的消息内容。关闭 = 行为类似于 WhatsApp。",
+ "rec_voice": "录制音频..."
 }

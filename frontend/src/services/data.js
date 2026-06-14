@@ -194,8 +194,8 @@ export async function getMessageInfo(chat, msgID) {
   if (LIVE) return A.GetMessageInfo(chat, msgID);
   return null;
 }
-export function sendTyping(jid, composing) {
-  if (LIVE) A.SendTyping(jid, composing);
+export function sendTyping(jid, composing, recording = false) {
+  if (LIVE) A.SendTyping(jid, composing, recording);
 }
 export async function sendLocation(jid, lat, lng, name) {
   if (LIVE) return A.SendLocation(jid, lat, lng, name);

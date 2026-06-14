@@ -391,5 +391,6 @@
  "rename": "Umbenennen",
  "no_contacts": "Keine gespeicherten Kontakte",
  "keep_deleted": "Gelöschte Nachrichten behalten",
- "keep_deleted_d": "Speichern Sie den Inhalt von Nachrichten, die andere löschen (Anti-Löschen). Aus = Verhalten wie WhatsApp."
+ "keep_deleted_d": "Speichern Sie den Inhalt von Nachrichten, die andere löschen (Anti-Löschen). Aus = Verhalten wie WhatsApp.",
+ "rec_voice": "Audio aufnehmen…"
 }

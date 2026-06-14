@@ -275,8 +275,10 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		runtime.EventsEmit(a.ctx, "wa:ready", eng.SelfJID())
 		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
 		go eng.SyncContacts()
-		// Umumkan online + langganan presence semua chat → indikator "mengetik"
-		// muncul di sidebar (bukan hanya chat yg terbuka). Throttle ringan.
+		// Umumkan online → server mulai kirim presence balik. SubscribePresence
+		// HANYA utk online/last-seen 1:1; indikator "mengetik" (chatstate) di-push
+		// server tanpa subscribe utk grup MAUPUN 1:1 (whatsmeow handleChatState
+		// tak punya gate subscribe) → typing grup tampil di sidebar otomatis.
 		go func() {
 			eng.SendAvailable()
 			jids, err := store.ListChatJIDs(a.ctx)
@@ -285,7 +287,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			}
 			for _, j := range jids {
 				if isGroupJID(j) || strings.HasSuffix(j, "@newsletter") {
-					continue // grup kirim presence tanpa subscribe; saluran tak relevan
+					continue // grup/saluran: tak ada online/last-seen utk dilanggan
 				}
 				eng.SubscribePresence(j)
 				time.Sleep(40 * time.Millisecond) // hindari banjir IQ
@@ -374,13 +376,13 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		}
 		runtime.EventsEmit(a.ctx, "wa:presence", map[string]string{"jid": jid, "text": txt})
 	})
-	eng.OnChatPresence(func(chat, sender string, composing bool) {
+	eng.OnChatPresence(func(chat, sender string, composing, recording bool) {
 		chat = eng.CanonicalJID(chat) // samakan dgn id chat di UI (cegah @lid mismatch)
 		who := ""
 		if composing && isGroupJID(chat) && sender != "" {
 			who = a.displayName(sender) // grup → "Budi sedang mengetik…"
 		}
-		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who})
+		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who, "rec": recording})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {
 		chat = eng.CanonicalJID(chat)

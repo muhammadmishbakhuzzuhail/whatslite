@@ -391,5 +391,6 @@
  "rename": "Gi nytt navn",
  "no_contacts": "Ingen lagrede kontakter",
  "keep_deleted": "Behold slettede meldinger",
- "keep_deleted_d": "Lagre innholdet i meldinger andre sletter (anti-sletting). Av = oppfør deg som WhatsApp."
+ "keep_deleted_d": "Lagre innholdet i meldinger andre sletter (anti-sletting). Av = oppfør deg som WhatsApp.",
+ "rec_voice": "tar opp lyd..."
 }

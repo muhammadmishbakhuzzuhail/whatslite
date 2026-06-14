@@ -391,5 +391,6 @@
  "rename": "Přejmenovat",
  "no_contacts": "Žádné uložené kontakty",
  "keep_deleted": "Ponechat smazané zprávy",
- "keep_deleted_d": "Uložit obsah zpráv, které ostatní smažou (anti-delete). Vypnuto = chovat se jako WhatsApp."
+ "keep_deleted_d": "Uložit obsah zpráv, které ostatní smažou (anti-delete). Vypnuto = chovat se jako WhatsApp.",
+ "rec_voice": "nahrávání zvuku…"
 }

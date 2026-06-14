@@ -391,5 +391,6 @@
  "rename": "Renomear",
  "no_contacts": "Nenhum contato salvo",
  "keep_deleted": "Manter mensagens excluídas",
- "keep_deleted_d": "Salve o conteúdo das mensagens que outras pessoas excluem (anti-exclusão). Desligado = comportar-se como o WhatsApp."
+ "keep_deleted_d": "Salve o conteúdo das mensagens que outras pessoas excluem (anti-exclusão). Desligado = comportar-se como o WhatsApp.",
+ "rec_voice": "gravando áudio…"
 }

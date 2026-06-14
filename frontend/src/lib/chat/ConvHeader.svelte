@@ -7,8 +7,8 @@
   const openInfo = () => infoOpen.set(true);
   $: typing = $typingChats[chat.id];
   $: live = $chatStatus[chat.id];
-  // typing string (grup) → "Budi mengetik…"; true (1:1) → "mengetik…".
-  $: typeLabel = typeof typing === "string" ? `${typing} ${$t("typing")}` : $t("typing");
+  // typing {name,rec}: grup→"Budi mengetik…"; rec→"merekam suara…"; 1:1→"mengetik…".
+  $: typeLabel = typing ? `${typing.name ? typing.name + " " : ""}${$t(typing.rec ? "rec_voice" : "typing")}` : "";
   $: subtitle = typing ? typeLabel : live || (chat.group ? chat.members || chat.status : chat.status) || "";
 
   // Menu konteks header (dulu tombol mati).

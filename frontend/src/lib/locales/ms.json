@@ -391,5 +391,6 @@
  "rename": "Namakan semula",
  "no_contacts": "Tiada kenalan yang disimpan",
  "keep_deleted": "Simpan mesej yang dipadamkan",
- "keep_deleted_d": "Simpan kandungan mesej yang dipadamkan oleh orang lain (anti-padam). Mati = berkelakuan seperti WhatsApp."
+ "keep_deleted_d": "Simpan kandungan mesej yang dipadamkan oleh orang lain (anti-padam). Mati = berkelakuan seperti WhatsApp.",
+ "rec_voice": "merakam audio…"
 }

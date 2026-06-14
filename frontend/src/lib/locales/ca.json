@@ -391,5 +391,6 @@
  "rename": "Canvia el nom",
  "no_contacts": "No hi ha contactes desats",
  "keep_deleted": "Conserveu els missatges suprimits",
- "keep_deleted_d": "Desa el contingut dels missatges que altres eliminen (antisupressió). Apagat = comportar-se com WhatsApp."
+ "keep_deleted_d": "Desa el contingut dels missatges que altres eliminen (antisupressió). Apagat = comportar-se com WhatsApp.",
+ "rec_voice": "enregistrament d'àudio..."
 }

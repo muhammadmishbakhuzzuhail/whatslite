@@ -34,6 +34,14 @@ bridge are new. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for design details an
 | Privacy & lock | Privacy settings, app lock (PIN) |
 | Media | Full-screen media viewer (lightbox) |
 
+## Languages
+
+The UI defaults to **English** and can be switched at runtime (Settings →
+Language). Translations are plain JSON dictionaries under `i18n/<code>.json`
+(key → string), with English (`en`) as the source and fallback. **English**,
+**Indonesian** (`id`), and **Spanish** (`es`) are bundled; add another language
+by dropping a `<code>.json` file that uses the same keys.
+
 ## Architecture
 
 ```

@@ -43,6 +43,25 @@ ApplicationWindow {
         readonly property color hover: dark ? "#161d24" : "#f2f4f8"
     }
 
+    // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
+    // i18n/<code>.json (en/id ditulis tangan; bahasa lain tinggal tambah file).
+    // Kunci hilang → fallback en → fallback kunci. Pola sama dgn FE Svelte. ---
+    QtObject {
+        id: i18n
+        property string lang: "en"
+        property var en: ({})
+        property var dict: ({})
+        function t(k) { return dict[k] || en[k] || k }
+        function setLang(code) {
+            lang = code
+            dict = (code === "en") ? en : app.readJson(srcDir + "/i18n/" + code + ".json")
+        }
+        Component.onCompleted: {
+            en = app.readJson(srcDir + "/i18n/en.json"); dict = en
+            if (typeof startLang !== "undefined" && startLang !== "" && startLang !== "en") setLang(startLang)
+        }
+    }
+
     // --- Helper format document (pakai metadata docSize/docMime/docPages) ---
     function fmtSize(b) {
         if (!b || b <= 0) return ""
@@ -169,7 +188,7 @@ ApplicationWindow {
                         visible: searchInput.text === ""
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 14
-                        text: "Cari pesan"; color: theme.text2; font.pixelSize: 14
+                        text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
                     }
                 }
                 // Daftar (swap per activeView): chats / calls / starred
@@ -412,7 +431,7 @@ ApplicationWindow {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 16
-                    text: win.selectedChat.name || "Pilih percakapan"; font.pixelSize: 16; font.bold: true; color: theme.text
+                    text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -447,7 +466,7 @@ ApplicationWindow {
                     header: Item {
                         width: timeline.width; height: 40
                         Button {
-                            anchors.centerIn: parent; flat: true; text: "↑ Muat pesan lebih lama"
+                            anchors.centerIn: parent; flat: true; text: "↑ " + i18n.t("load_older")
                             visible: timeline.count > 0
                             onClicked: app.loadOlder()
                         }
@@ -531,7 +550,7 @@ ApplicationWindow {
                     Rectangle { width: 3; Layout.preferredHeight: 28; color: theme.accent }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 0
-                        Text { text: "Membalas"; color: theme.accent; font.pixelSize: 11 }
+                        Text { text: i18n.t("replying"); color: theme.accent; font.pixelSize: 11 }
                         Text { Layout.fillWidth: true; elide: Text.ElideRight
                             text: (win.replyTo ? (win.replyTo.text || "[media]") : ""); color: theme.text2; font.pixelSize: 12 }
                     }
@@ -596,7 +615,7 @@ ApplicationWindow {
                             visible: composerInput.text === ""
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left; anchors.leftMargin: 14
-                            text: "Ketik pesan"; color: theme.text2; font.pixelSize: 14
+                            text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 14
                         }
                     }
                     Rectangle {
@@ -691,44 +710,44 @@ ApplicationWindow {
     // === Menu aksi pesan (klik-kanan bubble) ===
     Menu {
         id: msgMenu
-        MenuItem { text: "👍  Suka"; onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
-        MenuItem { text: "↩️  Balas"; onTriggered: win.replyTo = win.ctxMsg }
+        MenuItem { text: "👍  " + i18n.t("m_like"); onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
+        MenuItem { text: "↩️  " + i18n.t("m_reply"); onTriggered: win.replyTo = win.ctxMsg }
         MenuItem {
-            text: "✏️  Edit"; visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
+            text: "✏️  " + i18n.t("m_edit"); visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
             onTriggered: { editInput.text = win.ctxMsg.text || ""; editPopup.open() }
         }
-        MenuItem { text: "📌  Sematkan"; onTriggered: app.pinMessage(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
-        MenuItem { text: "⭐  Bintangi"; onTriggered: app.star(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        MenuItem { text: "📌  " + i18n.t("m_pin"); onTriggered: app.pinMessage(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        MenuItem { text: "⭐  " + i18n.t("m_star"); onTriggered: app.star(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
         MenuItem {
-            text: "💾  Simpan stiker"; visible: win.ctxMsg.type === "sticker"; height: visible ? implicitHeight : 0
+            text: "💾  " + i18n.t("m_save_sticker"); visible: win.ctxMsg.type === "sticker"; height: visible ? implicitHeight : 0
             onTriggered: app.saveStickerFromMsg(win.ctxMsg.id)
         }
         MenuItem {
-            text: "🎬  Simpan GIF"; visible: win.ctxMsg.type === "gif"; height: visible ? implicitHeight : 0
+            text: "🎬  " + i18n.t("m_save_gif"); visible: win.ctxMsg.type === "gif"; height: visible ? implicitHeight : 0
             onTriggered: app.saveGifFromMsg(win.ctxMsg.id)
         }
-        MenuItem { text: "↪️  Teruskan"; onTriggered: forwardPopup.open() }
+        MenuItem { text: "↪️  " + i18n.t("m_forward"); onTriggered: forwardPopup.open() }
         MenuItem {
-            text: "😀  Lihat reaksi"
+            text: "😀  " + i18n.t("m_reactions")
             visible: win.ctxMsg.reactions !== undefined && win.ctxMsg.reactions.length > 0
             height: visible ? implicitHeight : 0
             onTriggered: reactionPopup.open()
         }
         MenuItem {
-            text: "ℹ️  Info pesan"
+            text: "ℹ️  " + i18n.t("m_info")
             onTriggered: { app.loadDetailA("GetMessageInfo", [win.selectedChat.id || "", win.ctxMsg.id]); msgInfoPopup.open() }
         }
-        MenuItem { text: "🗑️  Hapus utk semua"; onTriggered: app.deleteMsg(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        MenuItem { text: "🗑️  " + i18n.t("m_delete_all"); onTriggered: app.deleteMsg(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
     }
 
     // === Menu kelola chat (klik-kanan baris) ===
     Menu {
         id: chatMenu
-        MenuItem { text: "✓  Tandai dibaca"; onTriggered: app.markRead(win.ctxChat.id) }
-        MenuItem { text: win.ctxChat.pinned ? "📌  Lepas sematan" : "📌  Sematkan"; onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
-        MenuItem { text: win.ctxChat.muted ? "🔔  Bunyikan" : "🔇  Bisukan"; onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
-        MenuItem { text: "🗄️  Arsipkan"; onTriggered: app.archiveChat(win.ctxChat.id, true) }
-        MenuItem { text: "🗑️  Hapus chat"; onTriggered: app.deleteChat(win.ctxChat.id) }
+        MenuItem { text: "✓  " + i18n.t("c_mark_read"); onTriggered: app.markRead(win.ctxChat.id) }
+        MenuItem { text: "📌  " + (win.ctxChat.pinned ? i18n.t("c_unpin") : i18n.t("c_pin")); onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
+        MenuItem { text: (win.ctxChat.muted ? "🔔  " + i18n.t("c_unmute") : "🔇  " + i18n.t("c_mute")); onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
+        MenuItem { text: "🗄️  " + i18n.t("c_archive"); onTriggered: app.archiveChat(win.ctxChat.id, true) }
+        MenuItem { text: "🗑️  " + i18n.t("c_delete"); onTriggered: app.deleteChat(win.ctxChat.id) }
     }
 
     // === Edit pesan ===
@@ -738,7 +757,7 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 12
-            Text { text: "Edit pesan"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("edit_message"); color: theme.text; font.pixelSize: 16; font.bold: true }
             Rectangle {
                 Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
                 TextInput { id: editInput; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
@@ -746,8 +765,8 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: "Batal"; onClicked: editPopup.close() }
-                Button { text: "Simpan"; onClicked: { app.editMessage(win.ctxMsg.id, editInput.text); editPopup.close() } }
+                Button { text: i18n.t("cancel"); onClicked: editPopup.close() }
+                Button { text: i18n.t("save"); onClicked: { app.editMessage(win.ctxMsg.id, editInput.text); editPopup.close() } }
             }
         }
     }
@@ -762,13 +781,31 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 14
-            Text { text: "Setelan"; font.pixelSize: 18; font.bold: true; color: theme.text }
+            Text { text: i18n.t("settings"); font.pixelSize: 18; font.bold: true; color: theme.text }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: i18n.t("language"); color: theme.text; font.pixelSize: 14 }
+                ComboBox {
+                    implicitWidth: 150
+                    textRole: "label"; valueRole: "code"
+                    model: [
+                        { code: "en", label: "English" },
+                        { code: "id", label: "Indonesia" },
+                        { code: "es", label: "Español" },
+                        { code: "ar", label: "العربية" },
+                        { code: "ja", label: "日本語" },
+                        { code: "zh-CN", label: "中文" }
+                    ]
+                    currentIndex: { var c = i18n.lang; return c === "id" ? 1 : c === "es" ? 2 : c === "ar" ? 3 : c === "ja" ? 4 : c === "zh-CN" ? 5 : 0 }
+                    onActivated: i18n.setLang(currentValue)
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 2
-                    Text { text: "Simpan pesan dihapus (anti-delete)"; color: theme.text; font.pixelSize: 14 }
-                    Text { text: "Pesan yang ditarik tetap tampil dengan tanda"; color: theme.text2; font.pixelSize: 11 }
+                    Text { text: i18n.t("keep_deleted"); color: theme.text; font.pixelSize: 14 }
+                    Text { text: i18n.t("keep_deleted_sub"); color: theme.text2; font.pixelSize: 11 }
                 }
                 Switch { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
             }
@@ -777,32 +814,32 @@ ApplicationWindow {
                 Text { Layout.fillWidth: true; text: "Proxy"; color: theme.text; font.pixelSize: 14 }
                 Rectangle { width: 150; height: 34; radius: 8; color: theme.searchBg; border.color: theme.line
                     TextInput { id: proxyInput; anchors.fill: parent; anchors.margins: 8; color: theme.text; font.pixelSize: 13; clip: true } }
-                Button { text: "Set"; onClicked: app.act("SetProxy", [proxyInput.text]) }
+                Button { text: i18n.t("set"); onClicked: app.act("SetProxy", [proxyInput.text]) }
             }
             RowLayout {
                 Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: "Retensi (hari)"; color: theme.text; font.pixelSize: 14 }
+                Text { Layout.fillWidth: true; text: i18n.t("retention"); color: theme.text; font.pixelSize: 14 }
                 SpinBox { id: retSpin; from: 0; to: 3650; value: 90; editable: true }
-                Button { text: "Set"; onClicked: app.act("SetRetention", [retSpin.value]) }
+                Button { text: i18n.t("set"); onClicked: app.act("SetRetention", [retSpin.value]) }
             }
             RowLayout {
                 Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: "Tutup ke latar"; color: theme.text; font.pixelSize: 14 }
+                Text { Layout.fillWidth: true; text: i18n.t("bg_close"); color: theme.text; font.pixelSize: 14 }
                 Switch { onToggled: app.act("SetBackgroundClose", [checked]) }
             }
-            Button { Layout.fillWidth: true; text: "Pesan sementara default: 7 hari"; onClicked: app.act("SetDefaultDisappearing", [604800]) }
-            Button { Layout.fillWidth: true; text: "Penyimpanan…"; onClicked: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() } }
-            Button { Layout.fillWidth: true; text: "Terjemahkan (contoh)"; onClicked: app.fetchStr("Translate", ["Hello world", "id"]) }
+            Button { Layout.fillWidth: true; text: i18n.t("disappearing_7d"); onClicked: app.act("SetDefaultDisappearing", [604800]) }
+            Button { Layout.fillWidth: true; text: i18n.t("storage"); onClicked: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() } }
+            Button { Layout.fillWidth: true; text: i18n.t("translate_example"); onClicked: app.fetchStr("Translate", ["Hello world", "id"]) }
             Button {
-                Layout.fillWidth: true; text: "Privasi…"
+                Layout.fillWidth: true; text: i18n.t("privacy")
                 onClicked: { app.loadDetail("GetPrivacy", ""); settingsPopup.close(); privacyPopup.open() }
             }
             Button {
-                Layout.fillWidth: true; text: "Keluar (Logout)"
+                Layout.fillWidth: true; text: i18n.t("logout")
                 onClicked: { app.logout(); settingsPopup.close() }
             }
             Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: "Tutup"; onClicked: settingsPopup.close() }
+            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: settingsPopup.close() }
         }
     }
 
@@ -867,7 +904,7 @@ ApplicationWindow {
                 Button { text: "Setujui"; onClicked: app.act("UpdateGroupRequest", [win.selectedChat.id, [], true]) }
                 Button { text: "Keluar"; onClicked: { app.act("LeaveGroup", [win.selectedChat.id]); detailPopup.close() } }
             }
-            Button { Layout.alignment: Qt.AlignRight; Layout.margins: 12; text: "Tutup"; onClicked: detailPopup.close() }
+            Button { Layout.alignment: Qt.AlignRight; Layout.margins: 12; text: i18n.t("close"); onClicked: detailPopup.close() }
         }
     }
 
@@ -879,7 +916,7 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 8
-            Text { text: "Teruskan ke…"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("forward_to"); color: theme.text; font.pixelSize: 16; font.bold: true }
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: chatsModel
                 delegate: ItemDelegate {
@@ -914,7 +951,7 @@ ApplicationWindow {
         ColumnLayout {
             anchors.centerIn: parent; spacing: 16; width: 260
             Text { Layout.alignment: Qt.AlignHCenter; text: "🔒"; font.pixelSize: 44 }
-            Text { Layout.alignment: Qt.AlignHCenter; text: "Masukkan PIN"; color: theme.text; font.pixelSize: 16 }
+            Text { Layout.alignment: Qt.AlignHCenter; text: i18n.t("enter_pin"); color: theme.text; font.pixelSize: 16 }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter; width: 160; height: 46; radius: 10
                 color: theme.searchBg; border.color: theme.line
@@ -936,7 +973,7 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 8
-            Text { text: "Reaksi"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("reactions"); color: theme.text; font.pixelSize: 16; font.bold: true }
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 model: win.ctxMsg.reactions || []
@@ -957,8 +994,8 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 6
-            Text { text: "Info pesan"; color: theme.text; font.pixelSize: 16; font.bold: true }
-            Text { text: "Dibaca ✓✓"; color: theme.accent; font.pixelSize: 13; font.bold: true }
+            Text { text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("read") + " ✓✓"; color: theme.accent; font.pixelSize: 13; font.bold: true }
             Repeater {
                 model: app.detail.readBy || []
                 delegate: RowLayout {
@@ -967,7 +1004,7 @@ ApplicationWindow {
                     Text { text: modelData.time || ""; color: theme.text2; font.pixelSize: 12 }
                 }
             }
-            Text { text: "Terkirim ✓"; color: theme.text2; font.pixelSize: 13; font.bold: true }
+            Text { text: i18n.t("delivered") + " ✓"; color: theme.text2; font.pixelSize: 13; font.bold: true }
             Repeater {
                 model: app.detail.deliveredTo || []
                 delegate: RowLayout {
@@ -977,7 +1014,7 @@ ApplicationWindow {
                 }
             }
             Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: "Tutup"; onClicked: msgInfoPopup.close() }
+            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: msgInfoPopup.close() }
         }
     }
 
@@ -988,7 +1025,7 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 10
-            Text { text: "Privasi"; color: theme.text; font.pixelSize: 18; font.bold: true }
+            Text { text: i18n.t("privacy_title"); color: theme.text; font.pixelSize: 18; font.bold: true }
             Repeater {
                 model: [
                     { key: "lastseen", label: "Terakhir dilihat" },
@@ -1010,7 +1047,7 @@ ApplicationWindow {
                 }
             }
             Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: "Tutup"; onClicked: privacyPopup.close() }
+            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: privacyPopup.close() }
         }
     }
 
@@ -1027,8 +1064,8 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 12
-            Text { text: "Kirim dokumen"; color: theme.text; font.pixelSize: 16; font.bold: true }
-            Text { text: "Ganti nama (opsional):"; color: theme.text2; font.pixelSize: 12 }
+            Text { text: i18n.t("send_document"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("rename_optional"); color: theme.text2; font.pixelSize: 12 }
             Rectangle {
                 Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
                 TextInput { id: docName; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
@@ -1036,7 +1073,7 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: "Batal"; onClicked: docPopup.close() }
+                Button { text: i18n.t("cancel"); onClicked: docPopup.close() }
                 Button {
                     text: "Kirim"
                     onClicked: { app.sendDocument(docDialog.picked, docName.text); docPopup.close() }
@@ -1064,13 +1101,13 @@ ApplicationWindow {
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 12
-            Text { text: "Buat status"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Text { text: i18n.t("create_status"); color: theme.text; font.pixelSize: 16; font.bold: true }
             Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; radius: 8; color: theme.searchBg; border.color: theme.line
                 TextInput { id: statusInput; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; wrapMode: TextInput.Wrap; clip: true } }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: "Foto/Video"; onClicked: { app.act("PostMediaStatus", ["image", statusInput.text, ""]); statusPostPopup.close() } }
-                Button { text: "Kirim teks"; onClicked: { app.act("PostTextStatus", [statusInput.text, 0, 0]); statusInput.text = ""; statusPostPopup.close() } }
+                Button { text: i18n.t("photo_video"); onClicked: { app.act("PostMediaStatus", ["image", statusInput.text, ""]); statusPostPopup.close() } }
+                Button { text: i18n.t("send_text"); onClicked: { app.act("PostTextStatus", [statusInput.text, 0, 0]); statusInput.text = ""; statusPostPopup.close() } }
             }
         }
     }
@@ -1158,7 +1195,7 @@ ApplicationWindow {
             Text { Layout.alignment: Qt.AlignHCenter; text: "WhatsLite"; font.pixelSize: 28; font.bold: true; color: theme.accent }
             Text {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                text: "Pindai QR via WhatsApp → Perangkat Tertaut → Tautkan perangkat"
+                text: i18n.t("link_hint")
                 color: theme.text2; font.pixelSize: 13
             }
             Rectangle {
@@ -1170,9 +1207,9 @@ ApplicationWindow {
                 }
                 Text { anchors.centerIn: parent; visible: app.qr === ""; text: app.state || "menghubungkan…"; color: "#555" }
             }
-            Button { Layout.alignment: Qt.AlignHCenter; text: "Hubungkan"; onClicked: app.doConnect() }
-            Button { Layout.alignment: Qt.AlignHCenter; text: "Tautkan via kode"; onClicked: app.fetchStr("AddViaQR", [""]) }
-            Button { Layout.alignment: Qt.AlignHCenter; text: "Tautkan via nomor telepon"; onClicked: app.fetchStr("LinkWithPhone", ["6281234567890"]) }
+            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("connect"); onClicked: app.doConnect() }
+            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("link_code"); onClicked: app.fetchStr("AddViaQR", [""]) }
+            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("link_phone"); onClicked: app.fetchStr("LinkWithPhone", ["6281234567890"]) }
 }
     }
 

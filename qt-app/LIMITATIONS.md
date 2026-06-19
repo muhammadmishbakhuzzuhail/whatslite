@@ -37,6 +37,14 @@ itself is wired and functional.
 | Packaging | Flatpak / AUR packaging for the headless engine and the Qt binary is pending. |
 | Pixel-level animation polish | Transitions and micro-interactions are functional; finer animation tuning is ongoing. |
 
+## Localization
+
+The UI defaults to English with runtime language switching (see the README).
+Core and primary surfaces are localized via `i18n/<code>.json`; a few secondary
+menu labels are still being moved into the dictionaries. Adding a new language
+is a matter of providing a `<code>.json` file with the same keys — missing keys
+fall back to English.
+
 ## Requirements
 
 - **Qt 6.9 or newer** is required for color emoji (COLRv1). Older Qt 6 releases

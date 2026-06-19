@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QMimeDatabase>
 #include <QObject>
 #include <QUrl>
@@ -319,6 +320,16 @@ public:
         m_c->call(method, QJsonArray::fromVariantList(args), [this](const QJsonValue &r, const QString &e) {
             if (e.isEmpty()) { m_lastResult = r.toString(); emit lastResultChanged(); }
         });
+    }
+
+    // readJson membaca file JSON (mis. kamus i18n) → QVariantMap untuk QML.
+    Q_INVOKABLE QVariantMap readJson(const QString &path) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly))
+            return {};
+        const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+        f.close();
+        return doc.object().toVariantMap();
     }
 
     QString mediaBase() const { return m_mediaBase; }

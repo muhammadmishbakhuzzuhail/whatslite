@@ -11,11 +11,14 @@ Image {
     property string svg: ""        // isi <svg> (mis. '<path d="…"/><circle …/>')
     property color color: "#000000"
     property int box: 24
+    property string vbox: "0 0 " + box + " " + box  // viewBox custom (mis. ticks "0 0 18 14")
+    property string fill: "none"   // "currentColor" untuk ikon solid (avatar grup)
     sourceSize.width: width
     sourceSize.height: height
     fillMode: Image.PreserveAspectFit
     source: "data:image/svg+xml;utf8," + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + box + ' ' + box +
-        '" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vbox +
+        '" fill="' + (fill === "currentColor" ? color : fill) + '" stroke="' + (fill === "none" ? color : "none") +
+        '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
         svg + '</svg>')
 }

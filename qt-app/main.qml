@@ -44,7 +44,9 @@ ApplicationWindow {
         "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
         "newchat": '<path d="M12 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-5"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L13 15l-4 1 1-4 8.5-8.5z"/>',
         "pin": '<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>',
-        "mute": '<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>'
+        "mute": '<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>',
+        "check": '<path d="M3 7.5l3.5 3.5L14 4"/>',
+        "checks": '<path d="M1 7.5l3.2 3.2L10 4"/><path d="M7 10.7L12.8 4"/>'
     })
     // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
     readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
@@ -318,6 +320,7 @@ ApplicationWindow {
                                 Avatar {
                                     Layout.preferredWidth: 49; Layout.preferredHeight: 49; Layout.alignment: Qt.AlignVCenter
                                     name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
+                                    group: model.m.group === true
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
@@ -337,7 +340,14 @@ ApplicationWindow {
                                     }
                                     // Baris 2: preview (kiri) + badge unread (kanan)
                                     RowLayout {
-                                        Layout.fillWidth: true; spacing: 6
+                                        Layout.fillWidth: true; spacing: 4
+                                        // Ticks preview (pesan terakhir keluar).
+                                        Icon {
+                                            visible: model.m.sent === true
+                                            Layout.preferredWidth: 16; Layout.preferredHeight: 12; Layout.alignment: Qt.AlignVCenter
+                                            vbox: "0 0 18 14"; svg: win.ico["checks"]
+                                            color: model.m.status === "read" ? theme.tick : theme.text2
+                                        }
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                             text: model.m.preview || ""; font.pixelSize: 14; color: theme.text2
@@ -568,6 +578,7 @@ ApplicationWindow {
                         Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
                         name: win.selectedChat.name || ""; jid: win.selectedChat.id || ""
                         base: app.mediaBase; accent: win.avatarColor(win.selectedChat.name || "?")
+                        group: win.selectedChat.group === true
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 0
@@ -670,6 +681,22 @@ ApplicationWindow {
                                     text: content.pmsg.sender || ""
                                     color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.Medium
                                 }
+                                // Blok kutipan balasan (bar warna + nama + teks).
+                                Rectangle {
+                                    visible: (content.pmsg.quoteId || "") !== ""
+                                    Layout.fillWidth: true; radius: 4
+                                    color: theme.dark ? "#ffffff14" : "#0000000a"
+                                    implicitHeight: qcol.implicitHeight + 10
+                                    Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 3; radius: 2; color: theme.accent }
+                                    ColumnLayout {
+                                        id: qcol
+                                        anchors.left: parent.left; anchors.leftMargin: 10; anchors.right: parent.right; anchors.rightMargin: 8
+                                        anchors.verticalCenter: parent.verticalCenter; spacing: 1
+                                        Text { text: content.pmsg.quoteName || ""; color: theme.accent; font.pixelSize: 12; font.weight: Font.Medium }
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: content.pmsg.quoteText || ""; color: theme.text2; font.pixelSize: 13 }
+                                    }
+                                }
                                 // Document → ikon + nama + (PDF · ukuran · halaman)
                                 RowLayout {
                                     visible: model.m.type === "document"
@@ -731,10 +758,16 @@ ApplicationWindow {
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     Layout.maximumWidth: timeline.width * 0.66
                                 }
-                                Text {
-                                    Layout.alignment: Qt.AlignRight
-                                    text: model.m.time || ""
-                                    color: theme.text2; font.pixelSize: 11
+                                // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).
+                                RowLayout {
+                                    Layout.alignment: Qt.AlignRight; spacing: 4
+                                    Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 11 }
+                                    Icon {
+                                        visible: content.pmsg.dir === "out"
+                                        vbox: "0 0 18 14"; width: 16; height: 12
+                                        svg: win.ico["checks"]
+                                        color: content.pmsg.status === "read" ? theme.tick : theme.text2
+                                    }
                                 }
                                 // Chip reaksi (emoji + jumlah)
                                 Flow {

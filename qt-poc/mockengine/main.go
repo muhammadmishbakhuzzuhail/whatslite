@@ -52,7 +52,7 @@ func main() {
 			}
 			base := []map[string]any{
 				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Apa kabar?", "time": "09:00", "ts": 100, "sender": "Budi"},
-				{"id": "m2", "dir": "out", "type": "text", "text": "Baik dong, kamu gimana?", "time": "09:01"},
+				{"id": "m2", "dir": "out", "type": "text", "text": "Baik dong, kamu gimana?", "time": "09:01", "status": "read"},
 				{"id": "m3", "dir": "in", "type": "text", "text": "Sehat. Nanti jadi ketemu jam 3 ya", "time": "09:02", "sender": "Citra",
 					"reactions": []map[string]any{{"emoji": "👍", "count": 2, "who": []string{"Alice", "Bob"}}, {"emoji": "❤️", "count": 1, "who": []string{"Citra"}}}},
 				{"id": "m4", "dir": "out", "type": "sticker", "text": "", "time": "09:03"},
@@ -62,7 +62,9 @@ func main() {
 					"thumb": `["Nasi", "Mie", "Roti"]`, "time": "09:06"},
 				{"id": "m7", "dir": "in", "type": "image", "text": "Foto liburan",
 					"thumb": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "time": "09:07"},
-				{"id": "m8", "dir": "out", "type": "voice", "text": "0:12", "time": "09:08"},
+				{"id": "m8", "dir": "out", "type": "voice", "text": "0:12", "time": "09:08", "status": "delivered"},
+				{"id": "m9", "dir": "out", "type": "text", "text": "Setuju, jam 3 di kantor ya", "time": "09:09", "status": "read",
+					"quoteId": "m3", "quoteName": "Citra", "quoteText": "Sehat. Nanti jadi ketemu jam 3 ya"},
 			}
 			mu.Lock()
 			base = append(base, sent[chatID]...)

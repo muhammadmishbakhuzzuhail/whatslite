@@ -608,12 +608,20 @@ ApplicationWindow {
                     model: msgsModel
                     reuseItems: true
                     spacing: 6
-                    header: Item {
-                        width: timeline.width; height: 40
+                    header: ColumnLayout {
+                        width: timeline.width; spacing: 6
                         Button {
-                            anchors.centerIn: parent; flat: true; text: "↑ " + i18n.t("load_older")
+                            Layout.alignment: Qt.AlignHCenter; flat: true; text: "↑ " + i18n.t("load_older")
                             visible: timeline.count > 0
                             onClicked: app.loadOlder()
+                        }
+                        // Separator tanggal (ala WhatsApp) — pill terpusat.
+                        Rectangle {
+                            Layout.alignment: Qt.AlignHCenter; Layout.bottomMargin: 6
+                            visible: timeline.count > 0
+                            radius: 8; color: theme.dark ? "#182229" : "#ffffff"
+                            implicitWidth: dlbl.implicitWidth + 22; implicitHeight: 26
+                            Text { id: dlbl; anchors.centerIn: parent; text: "HARI INI"; color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium }
                         }
                     }
                     delegate: Item {
@@ -625,7 +633,11 @@ ApplicationWindow {
                             x: parent.out ? parent.width - width - 4 : 4
                             width: content.implicitWidth + 16
                             implicitHeight: content.implicitHeight + 16
-                            radius: theme.r; color: parent.out ? theme.outBg : theme.inBg
+                            // Tail ala WhatsApp (app.css): sudut atas dekat pengirim 6px, lainnya r.
+                            radius: theme.r
+                            topLeftRadius: parent.out ? theme.r : 6
+                            topRightRadius: parent.out ? 6 : theme.r
+                            color: parent.out ? theme.outBg : theme.inBg
                             border.color: theme.line
                             ColumnLayout {
                                 id: content

@@ -530,12 +530,23 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 60
                 color: theme.headBg; border.color: theme.line
-                ColumnLayout {
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left; anchors.leftMargin: 16
-                    spacing: 0
-                    Text { text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text }
-                    Text { visible: app.typing; text: i18n.t("typing"); color: theme.accent; font.pixelSize: 12 }
+                RowLayout {
+                    anchors.left: parent.left; anchors.leftMargin: 16; anchors.right: parent.right; anchors.rightMargin: 54
+                    anchors.verticalCenter: parent.verticalCenter; spacing: 12
+                    Avatar {
+                        visible: win.selectedChat.id !== undefined
+                        Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
+                        name: win.selectedChat.name || ""; jid: win.selectedChat.id || ""
+                        base: app.mediaBase; accent: win.avatarColor(win.selectedChat.name || "?")
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 0
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight
+                            text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text }
+                        Text { visible: win.selectedChat.id !== undefined
+                            text: app.typing ? i18n.t("typing") : (win.selectedChat.status || (win.selectedChat.group ? "klik utk info grup" : "online"))
+                            color: app.typing ? theme.accent : theme.text2; font.pixelSize: 12 }
+                    }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -1336,6 +1347,14 @@ ApplicationWindow {
     Connections {
         target: app
         function onLastResultChanged() { if (app.lastResult !== "") resultPopup.open() }
+    }
+    // Auto-pilih chat pertama saat daftar termuat → header conv terisi.
+    Connections {
+        target: chatsModel
+        function onModelReset() {
+            var c = chatsModel.get(0)
+            if (c && c.id && (!win.selectedChat || !win.selectedChat.id)) win.selectedChat = c
+        }
     }
 
     // === Posting status ===

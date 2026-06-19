@@ -9,6 +9,7 @@
 #include <QAbstractListModel>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QVariantMap>
 
 class JsonListModel : public QAbstractListModel {
     Q_OBJECT
@@ -23,6 +24,10 @@ public:
     }
     QJsonObject itemAt(int i) const {
         return (i >= 0 && i < m_items.size()) ? m_items.at(i).toObject() : QJsonObject();
+    }
+    // get: untuk QML (mis. auto-pilih chat pertama → isi header).
+    Q_INVOKABLE QVariantMap get(int i) const {
+        return (i >= 0 && i < m_items.size()) ? m_items.at(i).toObject().toVariantMap() : QVariantMap();
     }
     // prepend menyisipkan item di depan (pagination: pesan lebih lama).
     void prepend(const QJsonArray &a) {

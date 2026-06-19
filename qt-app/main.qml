@@ -27,13 +27,18 @@ ApplicationWindow {
     QtObject {
         id: theme
         property bool dark: (typeof startDark !== "undefined") ? startDark : false
+        // Token DISALIN PERSIS dari frontend/src/styles/app.css (desain app
+        // existing) — sumber valid in-repo, bukan tebakan eksternal.
         readonly property color railBg: dark ? "#11161d" : "#f4f6fa"
         readonly property color railIco: dark ? "#8a97a3" : "#6b7785"
         readonly property color accent: dark ? "#06c98c" : "#06b67f"
+        readonly property color accentDeep: dark ? "#06b67f" : "#048a60"
         readonly property color sidebarBg: dark ? "#0e1318" : "#ffffff"
         readonly property color bg: dark ? "#1a232a" : "#ffffff"
         readonly property color bg2: dark ? "#222e35" : "#f0f2f5"
+        readonly property color headBg: dark ? "#11171e" : "#ffffff"
         readonly property color line: dark ? "#2a3942" : "#e4e8ee"
+        readonly property color divider: dark ? "#1c252d" : "#eceff3"
         readonly property color searchBg: dark ? "#1b232b" : "#eef1f6"
         readonly property color wallpaper: dark ? "#0a0f14" : "#eef1f6"
         readonly property color inBg: dark ? "#1d262e" : "#ffffff"
@@ -41,6 +46,12 @@ ApplicationWindow {
         readonly property color text: dark ? "#e7ecf0" : "#0f1722"
         readonly property color text2: dark ? "#8a97a3" : "#6b7785"
         readonly property color hover: dark ? "#161d24" : "#f2f4f8"
+        readonly property color tick: "#2eaadc"
+        readonly property color selected: dark ? "#12302a" : "#e7f6ef"
+        // Radii (app.css): r-sm 10, r 14, r-lg 18, pill 999.
+        readonly property real rSm: 10
+        readonly property real r: 14
+        readonly property real rLg: 18
     }
 
     // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
@@ -138,7 +149,7 @@ ApplicationWindow {
                     delegate: Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         width: 44; height: 44; radius: 22
-                        color: (activeView === modelData.view) ? Qt.rgba(0.02, 0.71, 0.5, 0.14) : "transparent"
+                        color: (activeView === modelData.view) ? theme.selected : "transparent"
                         Text { anchors.centerIn: parent; text: modelData.icon; font.pixelSize: 20 }
                         MouseArea {
                             anchors.fill: parent
@@ -178,13 +189,13 @@ ApplicationWindow {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 16
-                        text: "WhatsLite"; font.pixelSize: 22; font.bold: true; color: theme.text
+                        text: "WhatsLite"; font.pixelSize: 23; font.bold: true; color: theme.text
                     }
                 }
                 // Search (FTS pesan)
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 44
-                    Layout.margins: 8; radius: 10; color: theme.searchBg
+                    Layout.margins: 8; radius: 22; color: theme.searchBg
                     TextInput {
                         id: searchInput
                         anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
@@ -209,24 +220,24 @@ ApplicationWindow {
                         visible: activeView === "chats" && searchInput.text === ""
                         clip: true; model: chatsModel; reuseItems: true
                         delegate: ItemDelegate {
-                            width: chatList.width; height: 68
+                            width: chatList.width; height: 68; clip: true
                             onClicked: { win.selectedChat = model.m; app.openChat(model.m.id) }
-                            background: Rectangle { color: hovered ? theme.hover : "transparent" }
+                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
                                 Avatar {
-                                    width: 49; height: 49
+                                    Layout.preferredWidth: 49; Layout.preferredHeight: 49; Layout.alignment: Qt.AlignVCenter
                                     name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 2
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
                                     Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                         text: model.m.name || model.m.id || ""
                                         font.pixelSize: 16; font.weight: Font.Medium; color: theme.text
                                     }
                                     Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                         text: model.m.preview || ""; font.pixelSize: 13; color: theme.text2
                                     }
                                 }
@@ -245,13 +256,13 @@ ApplicationWindow {
                         visible: activeView === "calls" && searchInput.text === ""
                         clip: true; model: callsModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: model.m.video ? "📹" : "📞"; font.pixelSize: 20 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text {
                                         text: (model.m.status === "missed" ? "Tak terjawab" : "Ditolak") + " · " + (model.m.time || "")
                                         color: model.m.status === "missed" ? "#e0533d" : theme.text2; font.pixelSize: 12
@@ -266,7 +277,7 @@ ApplicationWindow {
                         visible: activeView === "starred" && searchInput.text === ""
                         clip: true; model: starredModel
                         delegate: Item {
-                            width: ListView.view.width; height: 62
+                            width: ListView.view.width; height: 62; clip: true
                             ColumnLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12
                                 anchors.topMargin: 8; anchors.bottomMargin: 8; spacing: 2
@@ -284,24 +295,23 @@ ApplicationWindow {
                         visible: activeView === "status" && searchInput.text === ""
                         clip: true; model: statusModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Rectangle {
                                     width: 46; height: 46; radius: 23
                                     color: "transparent"; border.width: 2
                                     border.color: model.m.seen ? theme.text2 : theme.accent
-                                    Rectangle {
-                                        anchors.centerIn: parent; width: 40; height: 40; radius: 20; color: theme.accent
-                                        Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                            text: (model.m.name || "?").charAt(0).toUpperCase() }
+                                    Avatar {
+                                        anchors.centerIn: parent; width: 40; height: 40; fontSize: 16
+                                        name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                     }
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { text: (model.m.count || 0) + " pembaruan · " + (model.m.time || "")
-                                        color: theme.text2; font.pixelSize: 12 }
+                                        color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                         }
@@ -312,20 +322,20 @@ ApplicationWindow {
                         visible: activeView === "contacts" && searchInput.text === ""
                         clip: true; model: contactsModel
                         delegate: ItemDelegate {
-                            width: ListView.view.width; height: 60
+                            width: ListView.view.width; height: 60; clip: true
                             onClicked: { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
-                                Rectangle {
-                                    width: 42; height: 42; radius: 21; color: theme.accent
-                                    Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase() }
+                                Avatar {
+                                    Layout.preferredWidth: 42; Layout.preferredHeight: 42; fontSize: 16
+                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                        text: model.m.about || ""; color: theme.text2; font.pixelSize: 12 }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.about || ""; color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                             MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
@@ -337,13 +347,13 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "channels" && searchInput.text === ""
                         clip: true; model: channelsModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: "📢"; font.pixelSize: 22 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
@@ -355,14 +365,14 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "communities" && searchInput.text === ""
                         clip: true; model: communitiesModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Rectangle { width: 42; height: 42; radius: 10; color: theme.accent
                                     Text { anchors.centerIn: parent; text: "👥"; font.pixelSize: 18 } }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { text: model.m.subtitle || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
@@ -372,16 +382,16 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "archived" && searchInput.text === ""
                         clip: true; model: archivedModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
-                                Rectangle { width: 42; height: 42; radius: 21; color: theme.text2
-                                    Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase() } }
+                                Avatar { Layout.preferredWidth: 42; Layout.preferredHeight: 42; fontSize: 16
+                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.text2 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 12 }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                         }
@@ -390,7 +400,7 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "scheduled" && searchInput.text === ""
                         clip: true; model: scheduledModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: "⏰"; font.pixelSize: 20 }
@@ -410,7 +420,7 @@ ApplicationWindow {
                         visible: searchInput.text !== ""
                         clip: true; model: searchModel
                         delegate: Item {
-                            width: ListView.view.width; height: 62
+                            width: ListView.view.width; height: 62; clip: true
                             ColumnLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12
                                 anchors.topMargin: 8; anchors.bottomMargin: 8; spacing: 2
@@ -432,7 +442,7 @@ ApplicationWindow {
             // Header conv
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 60
-                color: theme.bg; border.color: theme.line
+                color: theme.headBg; border.color: theme.line
                 ColumnLayout {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 16
@@ -487,8 +497,7 @@ ApplicationWindow {
                             x: parent.out ? parent.width - width - 4 : 4
                             width: content.implicitWidth + 16
                             implicitHeight: content.implicitHeight + 16
-                            radius: 8
-                            color: parent.out ? theme.outBg : theme.inBg
+                            radius: theme.r; color: parent.out ? theme.outBg : theme.inBg
                             border.color: theme.line
                             ColumnLayout {
                                 id: content
@@ -644,7 +653,7 @@ ApplicationWindow {
                     }
                     Rectangle {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        radius: 18; color: theme.bg; border.color: theme.line
+                        radius: 18; color: theme.headBg; border.color: theme.line
                         function send() {
                             if (composerInput.text.trim() === "") return
                             if (win.replyTo && win.replyTo.id)
@@ -929,7 +938,7 @@ ApplicationWindow {
                 visible: app.detail.members !== undefined
                 model: app.detail.members || []
                 delegate: RowLayout {
-                    width: ListView.view.width; height: 44; spacing: 10
+                    width: ListView.view.width; height: 44; clip: true; spacing: 10
                     Rectangle {
                         Layout.leftMargin: 8; width: 32; height: 32; radius: 16; color: theme.accent
                         Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 13; font.bold: true
@@ -972,7 +981,7 @@ ApplicationWindow {
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: chatsModel
                 delegate: ItemDelegate {
-                    width: ListView.view.width; height: 56
+                    width: ListView.view.width; height: 56; clip: true
                     onClicked: { app.forwardMsg(win.ctxMsg.id, model.m.id); forwardPopup.close() }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 8; spacing: 10
@@ -1030,7 +1039,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 model: win.ctxMsg.reactions || []
                 delegate: RowLayout {
-                    width: ListView.view.width; height: 40; spacing: 10
+                    width: ListView.view.width; height: 40; clip: true; spacing: 10
                     Text { text: modelData.emoji; font.pixelSize: 20 }
                     Text { Layout.fillWidth: true; text: (modelData.who || []).join(", "); color: theme.text; font.pixelSize: 14 }
                     Text { text: modelData.count; color: theme.text2; font.pixelSize: 13 }

@@ -259,15 +259,34 @@ ApplicationWindow {
                                     name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                                    Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                                        text: model.m.name || model.m.id || ""
-                                        font.pixelSize: 16; font.weight: Font.Medium; color: theme.text
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
+                                    // Baris 1: nama (kiri) + waktu (kanan)
+                                    RowLayout {
+                                        Layout.fillWidth: true; spacing: 6
+                                        Text {
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                            text: model.m.name || model.m.id || ""
+                                            font.pixelSize: 16; font.weight: Font.Medium; color: theme.text
+                                        }
+                                        Text {
+                                            text: model.m.time || ""
+                                            color: (model.m.badge > 0) ? theme.accent : theme.text2; font.pixelSize: 12
+                                        }
                                     }
-                                    Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                                        text: model.m.preview || ""; font.pixelSize: 13; color: theme.text2
+                                    // Baris 2: preview (kiri) + badge unread (kanan)
+                                    RowLayout {
+                                        Layout.fillWidth: true; spacing: 6
+                                        Text {
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                            text: model.m.preview || ""; font.pixelSize: 14; color: theme.text2
+                                        }
+                                        Rectangle {
+                                            visible: model.m.badge > 0
+                                            radius: 10; color: theme.accent
+                                            implicitWidth: Math.max(20, bdg.implicitWidth + 12); implicitHeight: 20
+                                            Text { id: bdg; anchors.centerIn: parent; color: "white"; font.pixelSize: 12; font.bold: true
+                                                text: model.m.badge > 99 ? "99+" : (model.m.badge || 0) }
+                                        }
                                     }
                                 }
                             }
@@ -501,6 +520,16 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 color: theme.wallpaper
+                // Doodle wallpaper WhatsApp (di-tile) + wash di atasnya (app.css).
+                Image {
+                    anchors.fill: parent; fillMode: Image.Tile; opacity: 0.5
+                    source: srcDir + "/assets/doodle-" + (theme.dark ? "dark" : "light") + ".png"
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    color: theme.wallpaper
+                    opacity: theme.dark ? 0.84 : 0.5   // doodle-wash app.css
+                }
                 ListView {
                     id: timeline
                     anchors.fill: parent

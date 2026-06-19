@@ -38,13 +38,12 @@ func main() {
 		switch method {
 		case "GetChats":
 			return []map[string]any{
-				{"id": "a@s.whatsapp.net", "name": "Alice", "preview": "hi"},
-				{"id": "b@s.whatsapp.net", "name": "Bob", "preview": "yo, ketemu nanti?"},
-				{"id": "c@s.whatsapp.net", "name": "Grup Kerja", "preview": "Budi: oke siap"},
-				// data stress: nama panjang, grup-JID tanpa nama, preview sangat panjang
-				{"id": "120363218333204381@g.us", "name": "120363218333204381", "preview": "🚨 WE'RE GOING TO GRAND FINALS 🚨 ONIC ID berhasil mengamankan slot ke GRAND FINAL setelah pertandingan sengit"},
-				{"id": "d@g.us", "name": "PANITIA ISC 2025 — Pagelaran Wayang Orang Nusantara", "preview": "Karya mahasiswa Pendidikan Seni UNNES yang melegenda, jangan sampai ketinggalan catat tanggalnya ya"},
-				{"id": "e@g.us", "name": "IMAKU UNNES 2023", "preview": "Minggu, 14 Juni 2026 · 18.00 WIB · Gedung Auditorium Prof. Wuryanto"},
+				{"id": "a@s.whatsapp.net", "name": "Alice", "preview": "hi", "time": "09.12", "badge": 0, "sent": true, "status": "read"},
+				{"id": "b@s.whatsapp.net", "name": "Bob", "preview": "yo, ketemu nanti?", "time": "Kemarin", "badge": 2},
+				{"id": "c@s.whatsapp.net", "name": "Grup Kerja", "preview": "Budi: oke siap", "time": "11/06", "badge": 5},
+				{"id": "120363218333204381@g.us", "name": "120363218333204381", "preview": "🚨 WE'RE GOING TO GRAND FINALS 🚨 ONIC ID berhasil mengamankan slot ke GRAND FINAL", "time": "18.40", "badge": 99},
+				{"id": "d@g.us", "name": "PANITIA ISC 2025 — Pagelaran Wayang Orang Nusantara", "preview": "Karya mahasiswa Pendidikan Seni UNNES yang melegenda, jangan sampai ketinggalan", "time": "Senin", "badge": 0},
+				{"id": "e@g.us", "name": "IMAKU UNNES 2023", "preview": "Minggu, 14 Juni 2026 · 18.00 WIB · Gedung Auditorium", "time": "13/06", "badge": 0},
 			}, nil
 		case "GetMessages":
 			var chatID string

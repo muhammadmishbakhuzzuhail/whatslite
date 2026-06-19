@@ -493,6 +493,7 @@ ApplicationWindow {
                             border.color: theme.line
                             ColumnLayout {
                                 id: content
+                                property var pmsg: model.m // tangkap pesan (hindari shadowing Repeater)
                                 anchors.left: parent.left
                                 anchors.top: parent.top
                                 anchors.margins: 8
@@ -520,9 +521,25 @@ ApplicationWindow {
                                     text: model.m.type === "sticker" ? "🏷️  Stiker" : "🎬  GIF"
                                     color: theme.text2; font.pixelSize: 14
                                 }
+                                // Polling: pertanyaan + opsi (klik = vote → VotePoll)
+                                ColumnLayout {
+                                    visible: model.m.type === "poll"
+                                    spacing: 4
+                                    Text {
+                                        text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 15; font.bold: true
+                                        wrapMode: Text.WordWrap; Layout.maximumWidth: timeline.width * 0.6
+                                    }
+                                    Repeater {
+                                        model: { try { return JSON.parse(content.pmsg.thumb || "[]") } catch (e) { return [] } }
+                                        delegate: Button {
+                                            text: "🗳️ " + modelData
+                                            onClicked: app.act("VotePoll", [win.selectedChat.id, content.pmsg.senderId || "", content.pmsg.id, [modelData]])
+                                        }
+                                    }
+                                }
                                 // Teks biasa
                                 Text {
-                                    visible: model.m.type !== "document" && model.m.type !== "sticker" && model.m.type !== "gif"
+                                    visible: ["document", "sticker", "gif", "poll"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     Layout.maximumWidth: timeline.width * 0.66
@@ -531,6 +548,19 @@ ApplicationWindow {
                                     Layout.alignment: Qt.AlignRight
                                     text: model.m.time || ""
                                     color: theme.text2; font.pixelSize: 11
+                                }
+                                // Chip reaksi (emoji + jumlah)
+                                Flow {
+                                    visible: content.pmsg.reactions !== undefined && content.pmsg.reactions.length > 0
+                                    Layout.fillWidth: true; spacing: 4
+                                    Repeater {
+                                        model: content.pmsg.reactions || []
+                                        delegate: Rectangle {
+                                            radius: 10; color: theme.bg2; border.color: theme.line
+                                            implicitWidth: rc.implicitWidth + 12; implicitHeight: 22
+                                            Text { id: rc; anchors.centerIn: parent; text: modelData.emoji + " " + modelData.count; font.pixelSize: 12; color: theme.text }
+                                        }
+                                    }
                                 }
                             }
                             // Klik-kanan → menu aksi; klik-kiri media → lightbox.

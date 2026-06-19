@@ -55,6 +55,8 @@ func main() {
 				{"id": "m4", "dir": "out", "type": "sticker", "text": "", "time": "09:03"},
 				{"id": "m5", "dir": "in", "type": "document", "text": "Proposal-Kerja.pdf",
 					"time": "09:05", "docSize": 1887436, "docMime": "application/pdf", "docPages": 12},
+				{"id": "m6", "dir": "in", "type": "poll", "text": "Makan siang apa?",
+					"thumb": `["Nasi", "Mie", "Roti"]`, "time": "09:06"},
 			}
 			mu.Lock()
 			base = append(base, sent[chatID]...)

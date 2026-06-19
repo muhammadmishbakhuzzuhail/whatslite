@@ -574,7 +574,7 @@ ApplicationWindow {
                                 }
                                 // Chip reaksi (emoji + jumlah)
                                 Flow {
-                                    visible: content.pmsg.reactions !== undefined && content.pmsg.reactions.length > 0
+                                    visible: content.pmsg.reactions && content.pmsg.reactions.length > 0
                                     Layout.fillWidth: true; spacing: 4
                                     Repeater {
                                         model: content.pmsg.reactions || []
@@ -790,7 +790,7 @@ ApplicationWindow {
         MenuItem { text: "↪️  " + i18n.t("m_forward"); onTriggered: forwardPopup.open() }
         MenuItem {
             text: "😀  " + i18n.t("m_reactions")
-            visible: win.ctxMsg.reactions !== undefined && win.ctxMsg.reactions.length > 0
+            visible: win.ctxMsg.reactions && win.ctxMsg.reactions.length > 0
             height: visible ? implicitHeight : 0
             onTriggered: reactionPopup.open()
         }
@@ -929,13 +929,13 @@ ApplicationWindow {
                 text: app.detail.desc || app.detail.about || app.detail.phone || ""
             }
             Text {
-                visible: app.detail.members !== undefined
+                visible: !!app.detail.members
                 Layout.leftMargin: 16; text: (app.detail.count || 0) + " " + i18n.t("members")
                 color: theme.text; font.pixelSize: 13; font.bold: true
             }
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.margins: 8; clip: true
-                visible: app.detail.members !== undefined
+                visible: !!app.detail.members
                 model: app.detail.members || []
                 delegate: RowLayout {
                     width: ListView.view.width; height: 44; clip: true; spacing: 10
@@ -950,7 +950,7 @@ ApplicationWindow {
             }
             // Admin grup (tampil saat detail grup)
             Flow {
-                visible: app.detail.members !== undefined
+                visible: !!app.detail.members
                 Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; spacing: 6
                 Button { text: i18n.t("g_rename"); onClicked: win.prompt(i18n.t("g_rename"), win.selectedChat.name || "", function(v){ app.act("SetGroupSubject", [win.selectedChat.id, v]) }) }
                 Button { text: i18n.t("g_desc"); onClicked: win.prompt(i18n.t("g_desc"), app.detail.desc || "", function(v){ app.act("SetGroupDescription", [win.selectedChat.id, v]) }) }

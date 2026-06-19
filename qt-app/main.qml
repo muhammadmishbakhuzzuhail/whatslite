@@ -56,6 +56,16 @@ ApplicationWindow {
         for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
         return avPalette[h % avPalette.length]
     }
+    // Hitung chat ber-field true (chip-n WhatsApp: Unread/Groups bawa jumlah).
+    // dep = chatList.count → bindings recompute saat daftar berubah.
+    function chatCount(field, dep) {
+        var n = 0
+        for (var i = 0; i < dep; i++) {
+            var m = chatsModel.get(i)
+            if (m && m[field] === true) n++
+        }
+        return n
+    }
 
     // --- Token tema (light + dark) — cocok dgn app.css [data-theme] ---
     QtObject {
@@ -82,6 +92,9 @@ ApplicationWindow {
         readonly property color hover: dark ? "#161d24" : "#f2f4f8"
         readonly property color tick: "#2eaadc"
         readonly property color selected: dark ? "#12302a" : "#e7f6ef"
+        // Kutipan balasan (app.css --quote-bar/--quote-bg).
+        readonly property color quoteBar: dark ? "#06c98c" : "#06b67f"
+        readonly property color quoteBg: dark ? Qt.rgba(6/255, 201/255, 140/255, 0.12) : Qt.rgba(6/255, 182/255, 127/255, 0.09)
         // Radii (app.css): r-sm 10, r 14, r-lg 18, pill 999.
         readonly property real rSm: 10
         readonly property real r: 14
@@ -266,20 +279,37 @@ ApplicationWindow {
                         text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
                     }
                 }
-                // Filter chips (Semua / Belum dibaca / Favorit / Grup) — ala WhatsApp.
+                // Filter chips (Semua / Belum dibaca N / Favorit / Grup N / +) — ala WhatsApp.
                 Flow {
                     Layout.fillWidth: true; Layout.leftMargin: 14; Layout.rightMargin: 14; Layout.bottomMargin: 6; spacing: 8
                     visible: activeView === "chats" && searchInput.text === ""
                     Repeater {
-                        model: ["Semua", "Belum dibaca", "Favorit", "Grup"]
+                        // f = field pencacah (chip-n WhatsApp: Unread/Groups bawa jumlah).
+                        model: [{ label: i18n.t("filter_all"), v: "Semua", f: "" },
+                                { label: i18n.t("filter_unread"), v: "Belum dibaca", f: "unread" },
+                                { label: i18n.t("filter_favorites"), v: "Favorit", f: "" },
+                                { label: i18n.t("filter_groups"), v: "Grup", f: "group" }]
                         delegate: Rectangle {
-                            radius: 15; height: 30; implicitWidth: ct.implicitWidth + 26
-                            color: (win.chatFilter === modelData) ? theme.selected : theme.searchBg
-                            border.width: (win.chatFilter === modelData) ? 1 : 0; border.color: theme.accent
-                            Text { id: ct; anchors.centerIn: parent; text: modelData; font.pixelSize: 13
-                                color: (win.chatFilter === modelData) ? theme.accentDeep : theme.text2 }
-                            MouseArea { anchors.fill: parent; onClicked: win.chatFilter = modelData }
+                            property bool on: win.chatFilter === modelData.v
+                            property int n: modelData.f ? win.chatCount(modelData.f, chatList.count) : 0
+                            radius: 16; height: 30; implicitWidth: crow.implicitWidth + 26
+                            // app.css: aktif = bg accent + teks putih (solid), bukan outline.
+                            color: on ? theme.accent : theme.searchBg
+                            Row {
+                                id: crow; anchors.centerIn: parent; spacing: 5
+                                Text { text: modelData.label; font.pixelSize: 13; color: on ? "#ffffff" : theme.text2 }
+                                Text { visible: n > 0; text: n; font.pixelSize: 13; font.weight: Font.DemiBold
+                                    opacity: 0.7; color: on ? "#ffffff" : theme.text2 }
+                            }
+                            MouseArea { anchors.fill: parent; onClicked: win.chatFilter = modelData.v }
                         }
+                    }
+                    // Chip "+" (buat folder) — app.css .chip.plus.
+                    Rectangle {
+                        radius: 16; height: 30; width: 34; color: theme.searchBg
+                        Text { anchors.centerIn: parent; text: "+"; font.pixelSize: 17; color: theme.text2 }
+                        MouseArea { anchors.fill: parent
+                            onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) app.act("AddFolder", [v]) }) }
                     }
                 }
                 // Daftar (swap per activeView): chats / calls / starred
@@ -313,10 +343,12 @@ ApplicationWindow {
                         }
                         delegate: ItemDelegate {
                             width: chatList.width; height: 68; clip: true
+                            property bool isActive: (win.selectedChat.id !== undefined) && win.selectedChat.id === model.m.id
                             onClicked: { win.selectedChat = model.m; app.openChat(model.m.id) }
-                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
+                            background: Rectangle { anchors.margins: 3; radius: theme.r
+                                color: isActive ? theme.selected : (hovered ? theme.hover : "transparent") }
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
+                                anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 13
                                 Avatar {
                                     Layout.preferredWidth: 49; Layout.preferredHeight: 49; Layout.alignment: Qt.AlignVCenter
                                     name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
@@ -350,7 +382,10 @@ ApplicationWindow {
                                         }
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                                            text: model.m.preview || ""; font.pixelSize: 14; color: theme.text2
+                                            text: model.m.preview || ""; font.pixelSize: 14
+                                            // Unread → preview lebih terang + medium (app.css .chat-row.unread .row-preview).
+                                            color: model.m.unread ? theme.text : theme.text2
+                                            font.weight: model.m.unread ? Font.Medium : Font.Normal
                                         }
                                         Rectangle {
                                             visible: (model.m.badge || 0) > 0
@@ -364,7 +399,7 @@ ApplicationWindow {
                                             visible: !((model.m.badge || 0) > 0) && (model.m.pinned === true || model.m.muted === true)
                                             spacing: 4
                                             Icon { visible: model.m.muted === true; width: 16; height: 16; svg: win.ico["mute"]; color: theme.text2 }
-                                            Icon { visible: model.m.pinned === true; width: 15; height: 15; svg: win.ico["pin"]; color: theme.text2 }
+                                            Icon { visible: model.m.pinned === true; width: 15; height: 15; rotation: 45; svg: win.ico["pin"]; color: theme.text2 }
                                         }
                                     }
                                 }
@@ -598,8 +633,20 @@ ApplicationWindow {
                         detailPopup.open()
                     }
                 }
+                // Cari dalam chat (ala WhatsApp ConvHeader) — kiri overflow.
+                Rectangle {
+                    id: convSearchBtn
+                    anchors.right: convOverflow.left; anchors.rightMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 36; height: 36; radius: 18; color: searchHov.hovered ? theme.hover : "transparent"
+                    visible: win.selectedChat.id !== undefined
+                    Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["search"]; color: theme.railIco }
+                    HoverHandler { id: searchHov }
+                    MouseArea { anchors.fill: parent; onClicked: { activeView = "chats"; searchInput.forceActiveFocus() } }
+                }
                 // Overflow ⋮ — utilitas (media/pin/poll/profil/grup/status/dll).
                 Rectangle {
+                    id: convOverflow
                     anchors.right: parent.right; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
                     width: 36; height: 36; radius: 18; color: "transparent"
@@ -679,20 +726,22 @@ ApplicationWindow {
                                 Text {
                                     visible: win.selectedChat.group === true && content.pmsg.dir === "in" && (content.pmsg.sender || "") !== ""
                                     text: content.pmsg.sender || ""
-                                    color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.Medium
+                                    color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.DemiBold
                                 }
                                 // Blok kutipan balasan (bar warna + nama + teks).
+                                // .quote: bar 4px --quote-bar, bg --quote-bg, radius 4, padding 5/9, mb 5.
                                 Rectangle {
                                     visible: (content.pmsg.quoteId || "") !== ""
-                                    Layout.fillWidth: true; radius: 4
-                                    color: theme.dark ? "#ffffff14" : "#0000000a"
+                                    Layout.fillWidth: true; Layout.bottomMargin: 5; radius: 4
+                                    color: theme.quoteBg
                                     implicitHeight: qcol.implicitHeight + 10
-                                    Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 3; radius: 2; color: theme.accent }
+                                    Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 4; color: theme.quoteBar }
                                     ColumnLayout {
                                         id: qcol
-                                        anchors.left: parent.left; anchors.leftMargin: 10; anchors.right: parent.right; anchors.rightMargin: 8
+                                        anchors.left: parent.left; anchors.leftMargin: 13; anchors.right: parent.right; anchors.rightMargin: 9
                                         anchors.verticalCenter: parent.verticalCenter; spacing: 1
-                                        Text { text: content.pmsg.quoteName || ""; color: theme.accent; font.pixelSize: 12; font.weight: Font.Medium }
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: content.pmsg.quoteName || ""; color: theme.quoteBar; font.pixelSize: 13; font.weight: Font.DemiBold }
                                         Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
                                             text: content.pmsg.quoteText || ""; color: theme.text2; font.pixelSize: 13 }
                                     }

@@ -40,6 +40,7 @@ ApplicationWindow {
         "send": '<path d="M3 11l18-8-8 18-2-7-8-3z"/>',
         "emoji": '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/>',
         "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+        "pollq": '<path d="M5 5h14M5 12h9M5 19h5"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
@@ -771,21 +772,38 @@ ApplicationWindow {
                                     text: model.m.type === "sticker" ? "🏷️  Stiker" : "🎬  GIF"
                                     color: theme.text2; font.pixelSize: 14
                                 }
-                                // Polling: pertanyaan + opsi (klik = vote → VotePoll)
+                                // Polling: pertanyaan + opsi (klik = vote → VotePoll). app.css .poll-card.
                                 ColumnLayout {
                                     visible: model.m.type === "poll"
-                                    spacing: 4
-                                    Text {
-                                        text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 15; font.bold: true
-                                        wrapMode: Text.WordWrap; Layout.maximumWidth: timeline.width * 0.6
+                                    spacing: 6
+                                    // .poll-q: ikon-list (stroke accent) + pertanyaan (600).
+                                    RowLayout {
+                                        spacing: 7
+                                        Icon { Layout.preferredWidth: 17; Layout.preferredHeight: 17; Layout.alignment: Qt.AlignTop
+                                            svg: win.ico["pollq"]; color: theme.accent }
+                                        Text { text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap; Layout.fillWidth: true; Layout.maximumWidth: timeline.width * 0.5 }
                                     }
+                                    // .poll-opt: kotak border + radio bulat + teks + jumlah.
                                     Repeater {
                                         model: { try { return JSON.parse(content.pmsg.thumb || "[]") } catch (e) { return [] } }
-                                        delegate: Button {
-                                            text: "🗳️ " + modelData
-                                            onClicked: app.act("VotePoll", [win.selectedChat.id, content.pmsg.senderId || "", content.pmsg.id, [modelData]])
+                                        delegate: Rectangle {
+                                            Layout.fillWidth: true; Layout.minimumWidth: 214; implicitHeight: 38
+                                            radius: 10; color: theme.bg; border.width: 1; border.color: pollHov.hovered ? theme.accent : theme.line
+                                            RowLayout {
+                                                anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 9
+                                                Rectangle { Layout.preferredWidth: 16; Layout.preferredHeight: 16; radius: 8
+                                                    color: "transparent"; border.width: 2; border.color: theme.text2 }
+                                                Text { Layout.fillWidth: true; text: modelData; color: theme.text; font.pixelSize: 14; elide: Text.ElideRight }
+                                                Text { text: "0"; color: theme.text2; font.pixelSize: 12; font.weight: Font.DemiBold }
+                                            }
+                                            HoverHandler { id: pollHov }
+                                            MouseArea { anchors.fill: parent
+                                                onClicked: app.act("VotePoll", [win.selectedChat.id, content.pmsg.senderId || "", content.pmsg.id, [modelData]]) }
                                         }
                                     }
+                                    // .poll-note: total suara.
+                                    Text { text: "0 " + i18n.t("poll_votes_n"); color: theme.text2; font.pixelSize: 12 }
                                 }
                                 // Thumbnail gambar/video (data-URI di thumb)
                                 Image {

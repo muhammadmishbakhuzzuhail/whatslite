@@ -379,12 +379,24 @@ func describeMessage(msg *waE2E.Message) (kind, text, thumb, media string) {
 	case msg.GetAudioMessage() != nil:
 		return "voice", fmtDur(msg.GetAudioMessage().GetSeconds()), "", ser()
 	case msg.GetDocumentMessage() != nil:
-		name := msg.GetDocumentMessage().GetFileName()
+		dm := msg.GetDocumentMessage()
+		name := dm.GetFileName()
+		if name == "" {
+			name = dm.GetTitle()
+		}
 		if name == "" {
 			name = "Dokumen"
 		}
-		// kind "document": text=nama, media=proto (utk unduh via /media).
-		return "document", name, "", ser()
+		// kind "document": text=nama (tampil+cari), media=proto (unduh via /media),
+		// thumb=JSON metadata preview (ukuran/halaman/mime + thumbnail PDF bila
+		// ada) — sama pola poll/location yg membawa metadata di `thumb`.
+		j, _ := json.Marshal(map[string]any{
+			"size":  dm.GetFileLength(),
+			"pages": dm.GetPageCount(),
+			"mime":  dm.GetMimetype(),
+			"img":   jpeg(dm.GetJPEGThumbnail()),
+		})
+		return "document", name, string(j), ser()
 	case msg.GetLocationMessage() != nil:
 		lm := msg.GetLocationMessage()
 		name := lm.GetName()

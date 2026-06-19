@@ -7,11 +7,10 @@ package app
 // frontend, plus DTO JSON-nya. Penamaan & urutan di-resolve di sini.
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
@@ -98,7 +97,7 @@ func (a *App) GetChats() (out []ChatDTO) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = []ChatDTO{}
-			runtime.LogError(a.ctx, fmt.Sprintf("GetChats recover: %v", r))
+			a.logErr(fmt.Sprintf("GetChats recover: %v", r))
 		}
 	}()
 	if a.store == nil {
@@ -238,6 +237,10 @@ type MessageDTO struct {
 	QuoteText   string        `json:"quoteText"` // balasan: preview teks dikutip
 	Mentions    []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
 	Reactions   []ReactionDTO `json:"reactions"` // reaksi emoji teragregasi
+
+	DocSize  int64  `json:"docSize"`  // document: ukuran byte (0 bila bukan/tak diketahui)
+	DocPages int    `json:"docPages"` // document: jumlah halaman (PDF; 0 bila tak ada)
+	DocMime  string `json:"docMime"`  // document: mime (utk ikon/ekstensi)
 }
 
 // ReactionDTO = satu emoji teragregasi pada pesan.
@@ -301,7 +304,7 @@ func (a *App) GetMessages(jid string) (out []MessageDTO) {
 	defer func() {
 		if r := recover(); r != nil {
 			out = []MessageDTO{}
-			runtime.LogError(a.ctx, fmt.Sprintf("GetMessages recover: %v", r))
+			a.logErr(fmt.Sprintf("GetMessages recover: %v", r))
 		}
 	}()
 	if a.store == nil {
@@ -432,6 +435,23 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 		if kind == "sticker" || kind == "gif" {
 			thumb = ""
 		}
+		// Document: thumb berisi JSON metadata (size/pages/mime + img preview).
+		// Bongkar → field DTO terstruktur; thumb jadi data-URI preview (PDF) saja.
+		var docSize int64
+		var docPages int
+		var docMime string
+		if kind == "document" && strings.HasPrefix(m.Thumb, "{") {
+			var dm struct {
+				Size  int64  `json:"size"`
+				Pages int    `json:"pages"`
+				Mime  string `json:"mime"`
+				Img   string `json:"img"`
+			}
+			if json.Unmarshal([]byte(m.Thumb), &dm) == nil {
+				docSize, docPages, docMime = dm.Size, dm.Pages, dm.Mime
+				thumb = dm.Img // data-URI preview (PDF) atau ""
+			}
+		}
 		out = append(out, MessageDTO{
 			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: thumb,
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender,
@@ -439,6 +459,7 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 			Pinned: m.Pinned, Edited: m.Edited, Revoked: m.Revoked,
 			QuoteID: m.QuotedID, QuoteName: quoteName, QuoteText: a.resolveMentions(m.QuotedText),
 			Mentions: a.buildMentions(m.Text),
+			DocSize:  docSize, DocPages: docPages, DocMime: docMime,
 		})
 	}
 	return out

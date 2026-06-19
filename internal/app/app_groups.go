@@ -8,8 +8,6 @@ package app
 
 import (
 	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // inviteCode mengekstrak kode dari tautan undangan grup penuh atau kode mentah.
@@ -40,10 +38,10 @@ func (a *App) JoinGroupLink(link string) string {
 	}
 	jid, err := a.eng.JoinGroupViaLink(a.ctx, inviteCode(link))
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 	return jid
 }
 
@@ -115,7 +113,7 @@ func (a *App) GroupInviteLink(jid string, reset bool) string {
 	}
 	link, err := a.eng.GroupInviteLink(a.ctx, jid, reset)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	return link
@@ -128,14 +126,14 @@ func (a *App) SetGroupPhoto(jid, dataURI string) {
 	}
 	_, data, err := decodeDataURI(dataURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if err := a.eng.SetGroupPhoto(a.ctx, jid, data); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // CreateGroup membuat grup baru; kembalikan JID grup (atau "").
@@ -145,10 +143,10 @@ func (a *App) CreateGroup(name string, participants []string) string {
 	}
 	jid, err := a.eng.CreateGroup(a.ctx, name, participants)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 	return jid
 }
 
@@ -158,13 +156,13 @@ func (a *App) LeaveGroup(jid string) {
 		return
 	}
 	if err := a.eng.LeaveGroup(a.ctx, jid); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
 		_ = a.store.SetArchived(a.ctx, jid, true)
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // SetGroupSubject mengubah subjek (nama) grup.
@@ -173,13 +171,13 @@ func (a *App) SetGroupSubject(jid, name string) {
 		return
 	}
 	if err := a.eng.SetGroupSubject(a.ctx, jid, name); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
 		_ = a.store.SetChatName(a.ctx, jid, name)
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // SetGroupDescription mengubah deskripsi grup.
@@ -188,10 +186,10 @@ func (a *App) SetGroupDescription(jid, topic string) {
 		return
 	}
 	if err := a.eng.SetGroupDescription(a.ctx, jid, topic); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // UpdateGroupParticipants menambah/menghapus/mempromosikan/menurunkan anggota.
@@ -201,14 +199,14 @@ func (a *App) UpdateGroupParticipants(jid string, members []string, action strin
 		return
 	}
 	if err := a.eng.UpdateParticipants(a.ctx, jid, members, action); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
 // --- Setelan admin grup ---
 func (a *App) emitErr(err error) bool {
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return true
 	}
 	return false
@@ -217,28 +215,28 @@ func (a *App) emitErr(err error) bool {
 // SetGroupAnnounce: true = hanya admin boleh kirim.
 func (a *App) SetGroupAnnounce(jid string, on bool) {
 	if a.eng != nil && !a.emitErr(a.eng.SetGroupAnnounce(a.ctx, jid, on)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
 // SetGroupLocked: true = hanya admin boleh ubah info.
 func (a *App) SetGroupLocked(jid string, on bool) {
 	if a.eng != nil && !a.emitErr(a.eng.SetGroupLocked(a.ctx, jid, on)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
 // SetGroupJoinApproval: true = anggota baru butuh persetujuan.
 func (a *App) SetGroupJoinApproval(jid string, on bool) {
 	if a.eng != nil && !a.emitErr(a.eng.SetGroupJoinApproval(a.ctx, jid, on)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
 // SetGroupAddMode: adminOnly=true → hanya admin tambah anggota.
 func (a *App) SetGroupAddMode(jid string, adminOnly bool) {
 	if a.eng != nil && !a.emitErr(a.eng.SetGroupAddMode(a.ctx, jid, adminOnly)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
@@ -261,6 +259,6 @@ func (a *App) GetGroupRequests(jid string) []GroupRequestDTO {
 // UpdateGroupRequest menyetujui/menolak permintaan bergabung.
 func (a *App) UpdateGroupRequest(jid string, members []string, approve bool) {
 	if a.eng != nil && !a.emitErr(a.eng.UpdateGroupRequest(a.ctx, jid, members, approve)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }

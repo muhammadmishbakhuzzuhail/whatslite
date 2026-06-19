@@ -7,8 +7,6 @@ package app
 // punya media call, jadi tak ada menjawab/menelepon.
 
 import (
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
@@ -30,11 +28,11 @@ func (a *App) RejectCall(jid, callID string) {
 		return
 	}
 	if err := a.eng.RejectCall(a.ctx, a.canon(jid), callID); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
 		_ = a.store.SetCallStatus(a.ctx, callID, "rejected")
 	}
-	runtime.EventsEmit(a.ctx, "wa:callupdate", "")
+	a.emit("wa:callupdate", "")
 }

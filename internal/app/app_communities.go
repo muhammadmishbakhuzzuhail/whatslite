@@ -5,9 +5,7 @@ package app
 
 // app_communities.go — WhatsApp Communities: daftar komunitas + sub-grup.
 
-import (
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-)
+import ()
 
 // CommunitySubDTO = sub-grup di dalam komunitas.
 type CommunitySubDTO struct {
@@ -32,7 +30,7 @@ func (a *App) GetCommunities() (out []CommunityDTO) {
 	}
 	cs, err := a.eng.ListCommunities(a.ctx)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	for _, c := range cs {
@@ -51,6 +49,6 @@ func (a *App) LeaveCommunity(jid string) {
 		return
 	}
 	if err := a.eng.LeaveCommunity(a.ctx, jid); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }

@@ -8,8 +8,6 @@ package app
 import (
 	"sort"
 	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ProfileDTO = profil akun sendiri untuk UI.
@@ -35,7 +33,7 @@ func (a *App) IsOnWhatsApp(phones []string) []WACheckDTO {
 	}
 	res, err := a.eng.IsOnWhatsApp(a.ctx, phones)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return out
 	}
 	for _, r := range res {
@@ -68,7 +66,7 @@ func (a *App) SetMyPhoto(fullURI, previewURI string) {
 	}
 	_, full, err := decodeDataURI(fullURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	var preview []byte
@@ -76,10 +74,10 @@ func (a *App) SetMyPhoto(fullURI, previewURI string) {
 		_, preview, _ = decodeDataURI(previewURI)
 	}
 	if err := a.eng.SetOwnPhoto(a.ctx, full, preview); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // SubscribePresence berlangganan presence (online/last seen) satu kontak —
@@ -119,7 +117,7 @@ func (a *App) AddViaQR(code string) string {
 	}
 	jid, _, err := a.eng.ResolveQR(a.ctx, code)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	return jid
@@ -139,7 +137,7 @@ func (a *App) Block(jid string, block bool) {
 		return
 	}
 	if err := a.eng.Block(a.ctx, jid, block); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -201,7 +199,7 @@ func (a *App) GetBlockedContacts() (out []ContactRowDTO) {
 	}
 	jids, err := a.eng.Blocklist(a.ctx)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	for _, j := range jids {
@@ -231,7 +229,7 @@ func (a *App) SetPrivacy(name, value string) {
 		return
 	}
 	if err := a.eng.SetPrivacy(a.ctx, name, value); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -241,7 +239,7 @@ func (a *App) SetMyName(name string) {
 		return
 	}
 	if err := a.eng.SetMyName(a.ctx, name); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -251,6 +249,6 @@ func (a *App) SetMyAbout(text string) {
 		return
 	}
 	if err := a.eng.SetAbout(a.ctx, text); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }

@@ -244,6 +244,31 @@ var schemaMigrations = []struct {
 	{7, []string{
 		`CREATE INDEX IF NOT EXISTS idx_messages_kind_ts ON messages(kind, ts)`,
 	}},
+	// v8: koleksi stiker tersimpan (CRUD stiker dari teman). De-dup by hash isi
+	// (sha1 byte webp) → simpan sekali walau dikirim banyak orang. Byte stiker
+	// disimpan sebagai FILE di {dataDir}/stickers/<hash>.webp (TAK kena LRU media,
+	// jadi koleksi permanen); DB hanya simpan metadata + referensi hash.
+	{8, []string{
+		`CREATE TABLE IF NOT EXISTS saved_stickers (
+			hash     TEXT PRIMARY KEY,
+			mime     TEXT NOT NULL DEFAULT 'image/webp',
+			animated INTEGER NOT NULL DEFAULT 0,
+			source   TEXT NOT NULL DEFAULT '',
+			added    INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE INDEX IF NOT EXISTS idx_saved_stickers_added ON saved_stickers(added)`,
+	}},
+	// v9: koleksi GIF tersimpan (CRUD GIF dari teman). Pola sama dgn stiker:
+	// de-dup by hash isi, byte sebagai FILE di {dataDir}/gifs/<hash>.<ext>
+	// (di luar LRU media → permanen). GIF WhatsApp = video mp4 (GifPlayback),
+	// jadi simpan mime utk kirim ulang dgn benar.
+	{9, []string{
+		`CREATE TABLE IF NOT EXISTS saved_gifs (
+			hash   TEXT PRIMARY KEY,
+			mime   TEXT NOT NULL DEFAULT 'video/mp4',
+			source TEXT NOT NULL DEFAULT '',
+			added  INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE INDEX IF NOT EXISTS idx_saved_gifs_added ON saved_gifs(added)`,
+	}},
 }
 
 // runMigrations menjalankan langkah dgn versi > user_version saat ini, urut,

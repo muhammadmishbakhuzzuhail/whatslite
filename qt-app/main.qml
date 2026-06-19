@@ -775,11 +775,20 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                // Stiker / GIF placeholder
-                                Text {
-                                    visible: model.m.type === "sticker" || model.m.type === "gif"
-                                    text: model.m.type === "sticker" ? "🏷️  Stiker" : "🎬  GIF"
-                                    color: theme.text2; font.pixelSize: 14
+                                // Stiker: kotak 160 (.media-box.sticker) — gambar /media/<id> atau placeholder.
+                                Item {
+                                    visible: model.m.type === "sticker"
+                                    Layout.preferredWidth: 160; Layout.preferredHeight: 160
+                                    property bool ok: stk.status === Image.Ready && stk.sourceSize.width > 2
+                                    Image {
+                                        id: stk; anchors.fill: parent; fillMode: Image.PreserveAspectFit; visible: parent.ok
+                                        source: app.mediaBase ? (app.mediaBase + "/media/" + (content.pmsg.id || "")) : ""
+                                    }
+                                    ColumnLayout {
+                                        anchors.centerIn: parent; spacing: 8; visible: !parent.ok
+                                        Icon { Layout.alignment: Qt.AlignHCenter; width: 46; height: 46; svg: win.ico["sticker"]; color: theme.text2 }
+                                        Text { Layout.alignment: Qt.AlignHCenter; text: i18n.t("t_sticker"); color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium }
+                                    }
                                 }
                                 // Polling: pertanyaan + opsi (klik = vote → VotePoll). app.css .poll-card.
                                 ColumnLayout {
@@ -814,16 +823,24 @@ ApplicationWindow {
                                     // .poll-note: total suara.
                                     Text { text: "0 " + i18n.t("poll_votes_n"); color: theme.text2; font.pixelSize: 12 }
                                 }
-                                // Gambar/video: thumbnail bila ada, else placeholder (.img-ph).
+                                // Gambar/video/GIF: thumbnail bila ada, else placeholder (.img-ph).
                                 Rectangle {
-                                    visible: model.m.type === "image" || model.m.type === "video"
+                                    visible: model.m.type === "image" || model.m.type === "video" || model.m.type === "gif"
                                     Layout.preferredWidth: 220; Layout.preferredHeight: 160
                                     radius: 14; clip: true; color: theme.bg2
                                     property bool hasMedia: imgM.status === Image.Ready && imgM.sourceSize.width > 2
                                     Image {
                                         id: imgM; anchors.fill: parent; fillMode: Image.PreserveAspectCrop
-                                        source: (content.pmsg.thumb || "").indexOf("data:") === 0 ? content.pmsg.thumb : ""
+                                        source: (content.pmsg.thumb || "").indexOf("data:") === 0 ? content.pmsg.thumb
+                                                : (model.m.type === "gif" && app.mediaBase ? app.mediaBase + "/media/" + (content.pmsg.id || "") : "")
                                         visible: parent.hasMedia
+                                    }
+                                    // Badge "GIF" pojok kiri-bawah (ala WhatsApp).
+                                    Rectangle {
+                                        visible: model.m.type === "gif"
+                                        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 7
+                                        width: gifLbl.implicitWidth + 10; height: 18; radius: 4; color: "#00000077"
+                                        Text { id: gifLbl; anchors.centerIn: parent; text: "GIF"; color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
                                     }
                                     // Placeholder media belum diunduh: lingkaran download + label.
                                     ColumnLayout {
@@ -835,7 +852,7 @@ ApplicationWindow {
                                         }
                                         Text {
                                             Layout.alignment: Qt.AlignHCenter; color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium
-                                            text: model.m.type === "video" ? i18n.t("t_video") : i18n.t("t_photo")
+                                            text: model.m.type === "video" ? i18n.t("t_video") : (model.m.type === "gif" ? "GIF" : i18n.t("t_photo"))
                                         }
                                     }
                                     // Play badge video (saat ada thumbnail).

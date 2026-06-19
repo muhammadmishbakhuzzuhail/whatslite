@@ -214,12 +214,9 @@ ApplicationWindow {
                             background: Rectangle { color: hovered ? theme.hover : "transparent" }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
-                                Rectangle {
-                                    width: 49; height: 49; radius: 24.5; color: theme.accent
-                                    Text {
-                                        anchors.centerIn: parent; color: "white"; font.pixelSize: 18; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase()
-                                    }
+                                Avatar {
+                                    width: 49; height: 49
+                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2

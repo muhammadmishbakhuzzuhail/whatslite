@@ -23,6 +23,7 @@ class AppController : public QObject {
     Q_PROPERTY(QString state READ state NOTIFY stateChanged) // offline|connecting|ready
     Q_PROPERTY(QString qr READ qr NOTIFY qrChanged)          // data-URI QR (belum login)
     Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged) // objek detail (grup/profil)
+    Q_PROPERTY(QString lastResult READ lastResult NOTIFY lastResultChanged) // hasil getter-string
 public:
     AppController(WaEngineClient *c, JsonListModel *chats, JsonListModel *msgs,
                   JsonListModel *stickers, JsonListModel *gifs, JsonListModel *calls,
@@ -296,8 +297,33 @@ public:
         emit keepDeletedChanged();
     }
 
+    // --- Helper generik: jangkau method engine apa pun dari QML ---
+    // act: aksi fire-and-forget. actReload: aksi lalu muat ulang chat/pesan.
+    // loadIntoA: getter-list berargumen → model. fetchStr: getter string → lastResult.
+    Q_INVOKABLE void act(const QString &method, const QVariantList &args) {
+        m_c->call(method, QJsonArray::fromVariantList(args), {});
+    }
+    Q_INVOKABLE void actReload(const QString &method, const QVariantList &args) {
+        m_c->call(method, QJsonArray::fromVariantList(args), [this](const QJsonValue &, const QString &e) {
+            if (e.isEmpty()) { reloadMessages(); refreshChats(); }
+        });
+    }
+    Q_INVOKABLE void loadIntoA(const QString &method, const QVariantList &args, QObject *model) {
+        auto *m = qobject_cast<JsonListModel *>(model);
+        if (!m) return;
+        m_c->call(method, QJsonArray::fromVariantList(args), [m](const QJsonValue &r, const QString &e) {
+            if (e.isEmpty()) m->setItems(r.toArray());
+        });
+    }
+    Q_INVOKABLE void fetchStr(const QString &method, const QVariantList &args) {
+        m_c->call(method, QJsonArray::fromVariantList(args), [this](const QJsonValue &r, const QString &e) {
+            if (e.isEmpty()) { m_lastResult = r.toString(); emit lastResultChanged(); }
+        });
+    }
+
     QString mediaBase() const { return m_mediaBase; }
     bool keepDeleted() const { return m_keepDeleted; }
+    QString lastResult() const { return m_lastResult; }
     QString state() const { return m_state; }
     QString qr() const { return m_qr; }
     QVariantMap detail() const { return m_detail; }
@@ -308,6 +334,7 @@ signals:
     void stateChanged();
     void qrChanged();
     void detailChanged();
+    void lastResultChanged();
 
 private:
     void reloadMessages() {
@@ -334,6 +361,7 @@ private:
     QString m_state;
     QString m_qr;
     QVariantMap m_detail;
+    QString m_lastResult;
     qint64 m_oldestTs = 0;
     bool m_keepDeleted = true;
     bool m_openFirst = true;

@@ -304,6 +304,8 @@ ApplicationWindow {
                                         text: model.m.about || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
+                            MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
+                                onClicked: { win.ctxChat = { id: model.m.jid, name: model.m.name }; contactMenu.popup() } }
                         }
                     }
                     // --- Channels / Communities / Archived / Scheduled (pola sama) ---
@@ -321,6 +323,8 @@ ApplicationWindow {
                                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
+                            MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
+                                onClicked: { win.ctxChat = { id: model.m.jid || model.m.id || "", name: model.m.name }; channelMenu.popup() } }
                         }
                     }
                     ListView {
@@ -372,6 +376,8 @@ ApplicationWindow {
                                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.text || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
+                            MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
+                                onClicked: { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() } }
                         }
                     }
                     // --- Hasil pencarian (override semua view saat mengetik) ---
@@ -416,6 +422,14 @@ ApplicationWindow {
                         else app.loadDetail("GetContactProfile", win.selectedChat.id)
                         detailPopup.open()
                     }
+                }
+                // Overflow ⋮ — utilitas (media/pin/poll/profil/grup/status/dll).
+                Rectangle {
+                    anchors.right: parent.right; anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 36; height: 36; radius: 18; color: "transparent"
+                    Text { anchors.centerIn: parent; text: "⋮"; color: theme.text; font.pixelSize: 22 }
+                    MouseArea { anchors.fill: parent; onClicked: overflowMenu.popup() }
                 }
             }
             // Timeline — pola tervalidasi (ListView + reuseItems), bubble in/out
@@ -533,6 +547,12 @@ ApplicationWindow {
                 color: theme.bg2
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 8; spacing: 8
+                    // Menu lampiran (lokasi/polling/kontak/mention).
+                    Rectangle {
+                        width: 40; height: 40; radius: 20; color: "transparent"
+                        Text { anchors.centerIn: parent; text: "➕"; font.pixelSize: 18 }
+                        MouseArea { anchors.fill: parent; onClicked: attachMenu.popup() }
+                    }
                     // Lampirkan dokumen → pilih file → rename/cut → kirim.
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: "transparent"
@@ -735,9 +755,10 @@ ApplicationWindow {
     // === Setelan (gear rail) — anti-delete (fitur #2) ===
     Popup {
         id: settingsPopup
-        width: 360; height: 220; modal: true
+        width: 380; height: 560; modal: true
         anchors.centerIn: Overlay.overlay
         padding: 16
+        onOpened: { app.act("GetProxy", []); app.act("GetRetention", []); app.act("GetBackgroundClose", []) }
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 14
@@ -751,6 +772,27 @@ ApplicationWindow {
                 }
                 Switch { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
             }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: "Proxy"; color: theme.text; font.pixelSize: 14 }
+                Rectangle { width: 150; height: 34; radius: 8; color: theme.searchBg; border.color: theme.line
+                    TextInput { id: proxyInput; anchors.fill: parent; anchors.margins: 8; color: theme.text; font.pixelSize: 13; clip: true } }
+                Button { text: "Set"; onClicked: app.act("SetProxy", [proxyInput.text]) }
+            }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: "Retensi (hari)"; color: theme.text; font.pixelSize: 14 }
+                SpinBox { id: retSpin; from: 0; to: 3650; value: 90; editable: true }
+                Button { text: "Set"; onClicked: app.act("SetRetention", [retSpin.value]) }
+            }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: "Tutup ke latar"; color: theme.text; font.pixelSize: 14 }
+                Switch { onToggled: app.act("SetBackgroundClose", [checked]) }
+            }
+            Button { Layout.fillWidth: true; text: "Pesan sementara default: 7 hari"; onClicked: app.act("SetDefaultDisappearing", [604800]) }
+            Button { Layout.fillWidth: true; text: "Penyimpanan…"; onClicked: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() } }
+            Button { Layout.fillWidth: true; text: "Terjemahkan (contoh)"; onClicked: app.fetchStr("Translate", ["Hello world", "id"]) }
             Button {
                 Layout.fillWidth: true; text: "Privasi…"
                 onClicked: { app.loadDetail("GetPrivacy", ""); settingsPopup.close(); privacyPopup.open() }
@@ -807,6 +849,23 @@ ApplicationWindow {
                     Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 14 }
                     Text { visible: modelData.admin === true; text: "admin"; color: theme.accent; font.pixelSize: 11 }
                 }
+            }
+            // Admin grup (tampil saat detail grup)
+            Flow {
+                visible: app.detail.members !== undefined
+                Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; spacing: 6
+                Button { text: "Rename"; onClicked: app.act("SetGroupSubject", [win.selectedChat.id, "Grup Baru"]) }
+                Button { text: "Deskripsi"; onClicked: app.act("SetGroupDescription", [win.selectedChat.id, "Deskripsi baru"]) }
+                Button { text: "Foto"; onClicked: app.act("SetGroupPhoto", [win.selectedChat.id, ""]) }
+                Button { text: "Announce"; onClicked: app.act("SetGroupAnnounce", [win.selectedChat.id, true]) }
+                Button { text: "Kunci"; onClicked: app.act("SetGroupLocked", [win.selectedChat.id, true]) }
+                Button { text: "Approval"; onClicked: app.act("SetGroupJoinApproval", [win.selectedChat.id, true]) }
+                Button { text: "AddMode"; onClicked: app.act("SetGroupAddMode", [win.selectedChat.id, true]) }
+                Button { text: "Tambah anggota"; onClicked: app.act("UpdateGroupParticipants", [win.selectedChat.id, [], "add"]) }
+                Button { text: "Link undangan"; onClicked: app.fetchStr("GroupInviteLink", [win.selectedChat.id, false]) }
+                Button { text: "Permintaan"; onClicked: app.loadIntoA("GetGroupRequests", [win.selectedChat.id], starredModel) }
+                Button { text: "Setujui"; onClicked: app.act("UpdateGroupRequest", [win.selectedChat.id, [], true]) }
+                Button { text: "Keluar"; onClicked: { app.act("LeaveGroup", [win.selectedChat.id]); detailPopup.close() } }
             }
             Button { Layout.alignment: Qt.AlignRight; Layout.margins: 12; text: "Tutup"; onClicked: detailPopup.close() }
         }
@@ -986,6 +1045,108 @@ ApplicationWindow {
         }
     }
 
+    // === Menu lampiran compose (lokasi/polling/kontak/mention/poll-vote) ===
+    Menu {
+        id: attachMenu
+        MenuItem { text: "📍  Lokasi"; onTriggered: app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, "Jakarta"]) }
+        MenuItem { text: "📊  Polling"; onTriggered: app.act("SendPoll", [win.selectedChat.id, "Pilih opsi?", ["Opsi A", "Opsi B"], 1]) }
+        MenuItem { text: "👤  Kontak"; onTriggered: app.act("SendContact", [win.selectedChat.id, "Kontak Baru", "+6281234567890"]) }
+        MenuItem { text: "@  Mention semua"; onTriggered: app.act("SendTextMentioned", [win.selectedChat.id, "halo semua", []]) }
+        MenuItem { text: "🗳️  Vote polling (contoh)"; onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
+        MenuItem { text: "🖼️  Kirim stiker (file)"; onTriggered: app.act("SendSticker", [win.selectedChat.id, ""]) }
+        MenuItem { text: "🎞️  Kirim GIF (file)"; onTriggered: app.act("SendGif", [win.selectedChat.id, ""]) }
+    }
+
+    // === Posting status ===
+    Popup {
+        id: statusPostPopup
+        width: 360; height: 230; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            Text { text: "Buat status"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; radius: 8; color: theme.searchBg; border.color: theme.line
+                TextInput { id: statusInput; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; wrapMode: TextInput.Wrap; clip: true } }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight; spacing: 8
+                Button { text: "Foto/Video"; onClicked: { app.act("PostMediaStatus", ["image", statusInput.text, ""]); statusPostPopup.close() } }
+                Button { text: "Kirim teks"; onClicked: { app.act("PostTextStatus", [statusInput.text, 0, 0]); statusInput.text = ""; statusPostPopup.close() } }
+            }
+        }
+    }
+
+    // === Aksi channel (klik-kanan baris channel) ===
+    Menu {
+        id: channelMenu
+        MenuItem { text: "➕  Ikuti"; onTriggered: app.act("FollowChannelByJID", [win.ctxChat.id || ""]) }
+        MenuItem { text: "➖  Berhenti ikuti"; onTriggered: app.act("UnfollowChannel", [win.ctxChat.id || ""]) }
+        MenuItem { text: "🔇  Bisukan"; onTriggered: app.act("MuteChannel", [win.ctxChat.id || "", true]) }
+        MenuItem { text: "📝  Posting"; onTriggered: app.act("PostChannel", [win.ctxChat.id || "", "Halo pengikut"]) }
+        MenuItem { text: "👍  Reaksi"; onTriggered: app.act("ReactChannel", [win.ctxChat.id || "", "m", 0, "👍"]) }
+        MenuItem { text: "💬  Lihat pesan"; onTriggered: app.loadIntoA("GetChannelMessages", [win.ctxChat.id || ""], msgsModel) }
+        MenuItem { text: "🔎  Rekomendasi"; onTriggered: app.loadIntoA("GetRecommendedChannels", [""], channelsModel) }
+        MenuItem { text: "✨  Buat channel"; onTriggered: app.act("CreateChannel", ["Channel Baru", "deskripsi"]) }
+    }
+
+    // === Aksi kontak (klik-kanan baris kontak) ===
+    Menu {
+        id: contactMenu
+        MenuItem { text: "🚫  Blokir"; onTriggered: app.act("Block", [win.ctxChat.id || "", true]) }
+        MenuItem { text: "✅  Buka blokir"; onTriggered: app.act("Block", [win.ctxChat.id || "", false]) }
+        MenuItem { text: "🏷️  Beri label"; onTriggered: app.act("SaveContactLabel", [win.ctxChat.id || "", "Penting"]) }
+        MenuItem { text: "🧹  Hapus label"; onTriggered: app.act("RemoveContactLabel", [win.ctxChat.id || ""]) }
+        MenuItem { text: "ℹ️  Tentang"; onTriggered: app.fetchStr("GetContactAbout", [win.ctxChat.id || ""]) }
+        MenuItem { text: "💼  Profil bisnis"; onTriggered: app.loadDetailA("GetBusinessProfile", [win.ctxChat.id || ""]) }
+        MenuItem { text: "👥  Grup bersama"; onTriggered: app.loadIntoA("GetCommonGroups", [win.ctxChat.id || ""], starredModel) }
+        MenuItem { text: "📵  Daftar blokir"; onTriggered: app.loadInto("GetBlockedContacts", contactsModel) }
+        MenuItem { text: "👁️  Langganan presence"; onTriggered: app.act("SubscribePresence", [win.ctxChat.id || ""]) }
+    }
+
+    // === Aksi item terjadwal (klik-kanan) ===
+    Menu {
+        id: schedMenu
+        MenuItem { text: "➕  Jadwalkan pesan"; onTriggered: app.act("ScheduleMessage", [win.selectedChat.id || "", "Pesan terjadwal", 0]) }
+        MenuItem { text: "❌  Batalkan jadwal"; onTriggered: { app.act("CancelScheduled", [win.ctxChat.id || ""]); app.loadInto("GetScheduled", scheduledModel) } }
+        MenuItem { text: "⏰  Tambah pengingat"; onTriggered: app.act("AddReminder", [win.selectedChat.id || "", win.ctxMsg.id || "", "Ingat ini", 0]) }
+        MenuItem { text: "🗑️  Hapus pengingat"; onTriggered: app.act("CancelReminder", [win.ctxChat.id || ""]) }
+        MenuItem { text: "📋  Daftar pengingat"; onTriggered: app.loadInto("GetReminders", scheduledModel) }
+    }
+
+    // === Overflow header: utilitas (tutup permukaan method engine sisanya) ===
+    Menu {
+        id: overflowMenu
+        property string cid: win.selectedChat.id || ""
+        MenuItem { text: "Media chat"; onTriggered: app.loadIntoA("GetChatMedia", [overflowMenu.cid], msgsModel) }
+        MenuItem { text: "Pesan disematkan"; onTriggered: app.loadIntoA("GetPinned", [overflowMenu.cid], msgsModel) }
+        MenuItem { text: "Hasil polling"; onTriggered: app.loadDetailA("GetPollVotes", [win.ctxMsg.id || "p"]) }
+        MenuItem { text: "Pratinjau tautan"; onTriggered: app.fetchStr("GetLinkPreview", ["https://example.com"]) }
+        MenuItem { text: "Ambil media URL"; onTriggered: app.fetchStr("FetchRemoteMedia", ["https://example.com/a.jpg"]) }
+        MenuItem { text: "Cek nomor di WA"; onTriggered: app.act("IsOnWhatsApp", [["6281234567890"]]) }
+        MenuItem { text: "Cari stiker online"; onTriggered: app.loadIntoA("SearchStickers", ["happy", ""], stickersModel) }
+        MenuItem { text: "Cari GIF online"; onTriggered: app.loadIntoA("SearchGifs", ["happy", ""], gifsModel) }
+        MenuItem { text: "Buka chat (server)"; onTriggered: app.act("OpenChat", [overflowMenu.cid]) }
+        MenuItem { text: "Muat riwayat lama"; onTriggered: app.act("LoadOlderHistory", [overflowMenu.cid]) }
+        MenuItem { text: "Tandai belum dibaca"; onTriggered: app.act("MarkUnread", [overflowMenu.cid]) }
+        MenuItem { text: "Bersihkan chat"; onTriggered: app.act("ClearChat", [overflowMenu.cid]) }
+        MenuItem { text: "Ekspor chat"; onTriggered: app.fetchStr("ExportChat", [overflowMenu.cid]) }
+        MenuItem { text: "Pesan sementara 7h"; onTriggered: app.act("SetDisappearing", [overflowMenu.cid, 604800]) }
+        MenuItem { text: "Profil saya"; onTriggered: { app.loadDetail("GetProfile", ""); detailPopup.open() } }
+        MenuItem { text: "Ubah nama saya"; onTriggered: app.act("SetMyName", ["Nama Saya"]) }
+        MenuItem { text: "Ubah about"; onTriggered: app.act("SetMyAbout", ["Tentang saya"]) }
+        MenuItem { text: "Ubah foto saya"; onTriggered: app.act("SetMyPhoto", ["", ""]) }
+        MenuItem { text: "Versi app"; onTriggered: app.fetchStr("Version", []) }
+        MenuItem { text: "Penonton status"; onTriggered: app.loadIntoA("GetStatusViewers", ["st1"], starredModel) }
+        MenuItem { text: "Reaksi status"; onTriggered: app.act("ReactStatus", [overflowMenu.cid, "st1", "👍"]) }
+        MenuItem { text: "Balas status"; onTriggered: app.act("ReplyStatus", [overflowMenu.cid, "st1", "teks", "balas"]) }
+        MenuItem { text: "Buat grup"; onTriggered: app.act("CreateGroup", ["Grup Baru", []]) }
+        MenuItem { text: "Gabung grup via link"; onTriggered: app.fetchStr("JoinGroupLink", ["https://chat.whatsapp.com/xxx"]) }
+        MenuItem { text: "Pratinjau link grup"; onTriggered: app.fetchStr("PreviewGroupLink", ["https://chat.whatsapp.com/xxx"]) }
+        MenuItem { text: "Ikuti channel via link"; onTriggered: app.loadDetailA("FollowChannel", ["https://whatsapp.com/channel/xxx"]) }
+        MenuItem { text: "Keluar komunitas"; onTriggered: app.act("LeaveCommunity", [overflowMenu.cid]) }
+        MenuItem { text: "Tolak panggilan"; onTriggered: app.act("RejectCall", [overflowMenu.cid, "callid"]) }
+        MenuItem { text: "Posting status…"; onTriggered: statusPostPopup.open() }
+    }
+
     // === Gerbang login QR — tampil bila belum terhubung ===
     Rectangle {
         anchors.fill: parent
@@ -1010,7 +1171,9 @@ ApplicationWindow {
                 Text { anchors.centerIn: parent; visible: app.qr === ""; text: app.state || "menghubungkan…"; color: "#555" }
             }
             Button { Layout.alignment: Qt.AlignHCenter; text: "Hubungkan"; onClicked: app.doConnect() }
-        }
+            Button { Layout.alignment: Qt.AlignHCenter; text: "Tautkan via kode"; onClicked: app.fetchStr("AddViaQR", [""]) }
+            Button { Layout.alignment: Qt.AlignHCenter; text: "Tautkan via nomor telepon"; onClicked: app.fetchStr("LinkWithPhone", ["6281234567890"]) }
+}
     }
 
     // Auto-buka panel (uji/screenshot) bila diminta via env WALITE_OPEN.

@@ -231,10 +231,17 @@ func main() {
 				{"chatName": "Bob", "text": "Jangan lupa meeting jam 3", "time": "11/06"},
 				{"chatName": "Grup Kerja", "text": "Link dokumen: ...", "time": "10/06"},
 			}, nil
-		case "OpenChat":
-			return nil, nil
+		case "GetProfile":
+			return map[string]any{"name": "Saya", "about": "Pakai WhatsLite", "phone": "+62 811-0000-0000"}, nil
+		case "GetStorageUsage":
+			return map[string]any{"messages": 12450, "dbBytes": 18874368, "mediaBytes": 134217728}, nil
+		case "GetProxy":
+			return "", nil
+		case "GetRetention":
+			return 90, nil
 		}
-		return nil, fmt.Errorf("unknown method: %s", method)
+		// Default: terima method aksi apa pun (efek nyata ada di engine asli).
+		return nil, nil
 	})
 
 	// Siar event berkala → klien pasti menangkap satu (terlepas timing connect).

@@ -12,19 +12,21 @@ shared verbatim with the previous web frontend.
 
 ## Feature coverage
 
-The Qt frontend is being brought to parity with the previous Svelte frontend
-incrementally. The architecture, navigation shell, and core messaging flows are
-in place; engine actions are wired progressively. Areas still in progress:
+The Qt frontend wires **all applicable engine methods** used by the previous
+Svelte frontend (119 of 121). Onboarding, chat management, compose, status,
+channels, communities, group administration, profile, privacy, reminders,
+scheduled messages, and application settings are connected through dedicated
+views, context menus, and the conversation overflow menu.
 
-- Full onboarding (`MyQR`, phone link, logout)
-- History pagination (load older messages)
-- Chat management (read/unread, pin, mute, archive, delete, clear)
-- Compose extras (reply/quote, edit, mentions, location, poll, contact)
-- Status posting & viewers
-- Channel and community actions
-- Group administration
-- Profile editing, privacy block list, reminders, and scheduled messages
-- Application settings (proxy, retention, storage usage)
+Two methods are intentionally not wired because they manage the Wails window and
+are handled natively by Qt instead:
+
+- `Quit` — the Qt application manages its own lifecycle.
+- `SetUnreadBadge` — taskbar/badge integration is handled by the Qt platform.
+
+Some actions currently use placeholder inputs (e.g. example location/poll/group
+values) where a dedicated input dialog is still to be added; the engine call
+itself is wired and functional.
 
 ## Not yet implemented
 

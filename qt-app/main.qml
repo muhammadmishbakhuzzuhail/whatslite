@@ -42,6 +42,7 @@ ApplicationWindow {
         "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
         "pollq": '<path d="M5 5h14M5 12h9M5 19h5"/>',
         "play": '<path d="M8 5v14l11-7z"/>',
+        "locpin": '<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
@@ -845,9 +846,46 @@ ApplicationWindow {
                                     }
                                     Text { text: content.pmsg.text || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
+                                // Kartu kontak (.ctc-card): avatar + nama + nomor + Salin.
+                                RowLayout {
+                                    visible: model.m.type === "contact"; spacing: 11; Layout.minimumWidth: 200
+                                    Rectangle {
+                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: theme.accent
+                                        Text { anchors.centerIn: parent; color: "#ffffff"; font.pixelSize: 18; font.weight: Font.DemiBold
+                                            text: (content.pmsg.text || "?").replace(/^👤\s*/, "").charAt(0).toUpperCase() }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 0
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold
+                                            text: (content.pmsg.text || "").replace(/^👤\s*/, "") }
+                                        Text { visible: (content.pmsg.thumb || "") !== ""; text: content.pmsg.thumb || ""; color: theme.text2; font.pixelSize: 12 }
+                                    }
+                                    Text {
+                                        visible: (content.pmsg.thumb || "") !== ""; text: i18n.t("copy"); color: theme.accent
+                                        font.pixelSize: 13; font.weight: Font.DemiBold; padding: 4
+                                    }
+                                }
+                                // Kartu lokasi (.loc-card): peta (placeholder bg2) + label pin.
+                                Rectangle {
+                                    visible: model.m.type === "location"
+                                    Layout.preferredWidth: 240; radius: 12; clip: true; color: theme.bg2
+                                    implicitHeight: locCol.implicitHeight
+                                    ColumnLayout {
+                                        id: locCol; anchors.fill: parent; spacing: 0
+                                        Rectangle {
+                                            Layout.fillWidth: true; Layout.preferredHeight: 130; color: theme.wallpaper
+                                            Icon { anchors.centerIn: parent; width: 32; height: 32; svg: win.ico["locpin"]; color: theme.accent }
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true; Layout.margins: 9; spacing: 6
+                                            Icon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; svg: win.ico["locpin"]; color: theme.accent }
+                                            Text { Layout.fillWidth: true; elide: Text.ElideRight; text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 14 }
+                                        }
+                                    }
+                                }
                                 // Teks biasa
                                 Text {
-                                    visible: ["document", "sticker", "gif", "poll", "voice"].indexOf(model.m.type) < 0
+                                    visible: ["document", "sticker", "gif", "poll", "voice", "contact", "location"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     Layout.maximumWidth: timeline.width * 0.66

@@ -1093,13 +1093,99 @@ ApplicationWindow {
     // === Menu lampiran compose (lokasi/polling/kontak/mention/poll-vote) ===
     Menu {
         id: attachMenu
+        MenuItem { text: "🖼️  " + i18n.t("a_image"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
+        MenuItem { text: "🎬  " + i18n.t("a_video"); onTriggered: { mediaDialog.kind = "video"; mediaDialog.open() } }
+        MenuItem { text: "🎵  " + i18n.t("a_audio"); onTriggered: { mediaDialog.kind = "audio"; mediaDialog.open() } }
         MenuItem { text: "📍  " + i18n.t("a_location"); onTriggered: win.prompt(i18n.t("a_location"), "Jakarta", function(v){ app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, v]) }) }
-        MenuItem { text: "📊  " + i18n.t("a_poll"); onTriggered: app.act("SendPoll", [win.selectedChat.id, "Pilih opsi?", ["Opsi A", "Opsi B"], 1]) }
-        MenuItem { text: "👤  " + i18n.t("a_contact"); onTriggered: app.act("SendContact", [win.selectedChat.id, "Kontak Baru", "+6281234567890"]) }
-        MenuItem { text: "@  " + i18n.t("a_mention"); onTriggered: app.act("SendTextMentioned", [win.selectedChat.id, "halo semua", []]) }
+        MenuItem { text: "📊  " + i18n.t("a_poll"); onTriggered: pollDialog.open() }
+        MenuItem { text: "👤  " + i18n.t("a_contact"); onTriggered: contactDialog.open() }
+        MenuItem { text: "@  " + i18n.t("a_mention"); onTriggered: win.prompt(i18n.t("a_mention"), "", function(v){ app.act("SendTextMentioned", [win.selectedChat.id, v, []]) }) }
+        MenuItem { text: "🏷️  " + i18n.t("a_send_sticker"); onTriggered: { mediaDialog.kind = "sticker"; mediaDialog.open() } }
+        MenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: { mediaDialog.kind = "gif"; mediaDialog.open() } }
         MenuItem { text: "🗳️  " + i18n.t("a_vote"); onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
-        MenuItem { text: "🖼️  " + i18n.t("a_send_sticker"); onTriggered: app.act("SendSticker", [win.selectedChat.id, ""]) }
-        MenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: app.act("SendGif", [win.selectedChat.id, ""]) }
+    }
+
+    // FileDialog media (gambar/video/audio/sticker/gif) → kirim file nyata.
+    FileDialog {
+        id: mediaDialog
+        property string kind: "image"
+        onAccepted: app.sendMediaFile(kind, selectedFile)
+    }
+
+    // Dialog polling (pertanyaan + opsi).
+    Popup {
+        id: pollDialog
+        width: 380; height: 330; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 10
+            Text { text: i18n.t("send_poll"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            Repeater {
+                id: pollFields
+                model: [i18n.t("poll_question"), i18n.t("poll_option") + " 1", i18n.t("poll_option") + " 2", i18n.t("poll_option") + " 3"]
+                delegate: Rectangle {
+                    Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
+                    property alias value: pf.text
+                    TextInput { id: pf; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
+                    Text { visible: pf.text === ""; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 10; text: modelData; color: theme.text2; font.pixelSize: 13 }
+                }
+            }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight; spacing: 8
+                Button { text: i18n.t("cancel"); onClicked: pollDialog.close() }
+                Button {
+                    text: i18n.t("send")
+                    onClicked: {
+                        var q = pollFields.itemAt(0).value
+                        var opts = []
+                        for (var i = 1; i < 4; i++) { var v = pollFields.itemAt(i).value; if (v && v.trim() !== "") opts.push(v) }
+                        if (q.trim() !== "" && opts.length >= 2) app.act("SendPoll", [win.selectedChat.id, q, opts, 1])
+                        pollDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialog kirim kontak (nama + telepon).
+    Popup {
+        id: contactDialog
+        width: 360; height: 220; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 10
+            Text { text: i18n.t("send_contact"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            Rectangle { Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
+                TextInput { id: ctName; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
+                Text { visible: ctName.text === ""; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 10; text: i18n.t("contact_name"); color: theme.text2; font.pixelSize: 13 } }
+            Rectangle { Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
+                TextInput { id: ctPhone; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
+                Text { visible: ctPhone.text === ""; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 10; text: i18n.t("contact_phone"); color: theme.text2; font.pixelSize: 13 } }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight; spacing: 8
+                Button { text: i18n.t("cancel"); onClicked: contactDialog.close() }
+                Button { text: i18n.t("send"); onClicked: { if (ctName.text !== "" && ctPhone.text !== "") app.act("SendContact", [win.selectedChat.id, ctName.text, ctPhone.text]); contactDialog.close() } }
+            }
+        }
+    }
+
+    // Popup hasil (invite link / translate / link preview → app.lastResult).
+    Popup {
+        id: resultPopup
+        width: 420; height: 170; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            Text { text: i18n.t("result"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            TextEdit { Layout.fillWidth: true; Layout.fillHeight: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: theme.text; font.pixelSize: 13; text: app.lastResult }
+            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: resultPopup.close() }
+        }
+    }
+    Connections {
+        target: app
+        function onLastResultChanged() { if (app.lastResult !== "") resultPopup.open() }
     }
 
     // === Posting status ===
@@ -1262,6 +1348,8 @@ ApplicationWindow {
             else if (openPanel === "privacy") { app.loadDetail("GetPrivacy", ""); privacyPopup.open() }
             else if (openPanel === "msginfo") { app.loadDetailA("GetMessageInfo", ["c", "m1"]); msgInfoPopup.open() }
             else if (openPanel === "reaction") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionPopup.open() }
+            else if (openPanel === "poll") pollDialog.open()
+            else if (openPanel === "contact") contactDialog.open()
             else { activeView = openPanel; win.loadView(openPanel) } // calls/starred/status/contacts/channels/communities/archived/scheduled
         }
     }

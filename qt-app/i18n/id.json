@@ -79,5 +79,9 @@
   "o_react_status": "Reaksi status", "o_reply_status": "Balas status", "o_create_group": "Buat grup",
   "o_join_link": "Gabung grup via link", "o_preview_link": "Pratinjau link grup",
   "o_follow_channel": "Ikuti channel via link", "o_leave_community": "Keluar komunitas",
-  "o_reject_call": "Tolak panggilan", "o_post_status": "Posting status…"
+  "o_reject_call": "Tolak panggilan", "o_post_status": "Posting status…",
+  "a_image": "Gambar", "a_video": "Video", "a_audio": "Audio",
+  "send_poll": "Buat polling", "poll_question": "Pertanyaan", "poll_option": "Opsi",
+  "send_contact": "Kirim kontak", "contact_name": "Nama", "contact_phone": "Telepon",
+  "result": "Hasil"
 }

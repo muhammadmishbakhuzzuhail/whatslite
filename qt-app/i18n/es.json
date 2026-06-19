@@ -79,5 +79,9 @@
   "o_react_status": "Reaccionar al estado", "o_reply_status": "Responder al estado", "o_create_group": "Crear grupo",
   "o_join_link": "Unirse por enlace", "o_preview_link": "Vista previa del enlace",
   "o_follow_channel": "Seguir canal por enlace", "o_leave_community": "Salir de comunidad",
-  "o_reject_call": "Rechazar llamada", "o_post_status": "Publicar estado…"
+  "o_reject_call": "Rechazar llamada", "o_post_status": "Publicar estado…",
+  "a_image": "Imagen", "a_video": "Video", "a_audio": "Audio",
+  "send_poll": "Crear encuesta", "poll_question": "Pregunta", "poll_option": "Opción",
+  "send_contact": "Enviar contacto", "contact_name": "Nombre", "contact_phone": "Teléfono",
+  "result": "Resultado"
 }

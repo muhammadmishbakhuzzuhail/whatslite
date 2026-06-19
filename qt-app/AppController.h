@@ -242,6 +242,28 @@ public:
                   [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) reloadMessages(); });
     }
 
+    // sendMediaFile membaca file (gambar/video/audio) → data-URI → SendMedia.
+    Q_INVOKABLE void sendMediaFile(const QString &kind, const QUrl &fileUrl) {
+        if (m_cur.isEmpty())
+            return;
+        const QString path = fileUrl.toLocalFile();
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly))
+            return;
+        const QByteArray bytes = f.readAll();
+        f.close();
+        const QString mime = QMimeDatabase().mimeTypeForFile(path).name();
+        const QString dataUri = QStringLiteral("data:") + mime + QStringLiteral(";base64,") + QString::fromLatin1(bytes.toBase64());
+        const QString name = QFileInfo(path).fileName();
+        auto cb = [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) reloadMessages(); };
+        if (kind == QLatin1String("sticker"))
+            m_c->call(QStringLiteral("SendSticker"), QJsonArray{m_cur, dataUri}, cb);
+        else if (kind == QLatin1String("gif"))
+            m_c->call(QStringLiteral("SendGif"), QJsonArray{m_cur, dataUri}, cb);
+        else
+            m_c->call(QStringLiteral("SendMedia"), QJsonArray{m_cur, kind, "", name, dataUri, false, 0}, cb);
+    }
+
     // --- Teruskan pesan (context-menu → pilih chat) ---
     Q_INVOKABLE void forwardMsg(const QString &msgId, const QString &toJid) {
         if (m_cur.isEmpty() || msgId.isEmpty() || toJid.isEmpty())

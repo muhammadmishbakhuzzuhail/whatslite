@@ -22,6 +22,26 @@ ApplicationWindow {
     property bool locked: (typeof startLock !== "undefined") && startLock // app-lock PIN
     property var replyTo: null        // pesan yang sedang dibalas (banner composer)
     property var ctxChat: ({})        // chat target context-menu baris
+    // Ikon SVG disalin dari komponen Svelte (Rail/SearchBar/Composer) — faithful.
+    readonly property var ico: ({
+        "chats": '<path d="M12 3C6.5 3 2 6.8 2 11.5c0 2.3 1.1 4.4 2.9 5.9-.1 1.2-.6 2.6-1.4 3.6 1.6-.2 3.2-.8 4.4-1.6 1.2.4 2.6.6 4.1.6 5.5 0 10-3.8 10-8.5S17.5 3 12 3z"/>',
+        "calls": '<path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+        "status": '<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>',
+        "channels": '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/>',
+        "communities": '<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="2.2"/><path d="M3 19c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"/><path d="M14 19c0-1.8.9-3.3 2.3-3.9"/>',
+        "contacts": '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>',
+        "starred": '<path d="M12 3l2.6 5.6 6 .7-4.4 4.1 1.2 6L12 16.6 6.6 19.4l1.2-6L3.4 9.3l6-.7z"/>',
+        "archived": '<rect x="3" y="6" width="18" height="4" rx="1"/><path d="M5 10h14v9H5zM10 14h4"/>',
+        "scheduled": '<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M9 3h6"/>',
+        "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+        "search": '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+        "plus": '<path d="M12 5v14M5 12h14"/>',
+        "send": '<path d="M3 11l18-8-8 18-2-7-8-3z"/>',
+        "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
+        "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
+        "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+        "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>'
+    })
 
     // --- Token tema (light + dark) — cocok dgn app.css [data-theme] ---
     QtObject {
@@ -150,7 +170,11 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         width: 44; height: 44; radius: 22
                         color: (activeView === modelData.view) ? theme.selected : "transparent"
-                        Text { anchors.centerIn: parent; text: modelData.icon; font.pixelSize: 20 }
+                        Icon {
+                            anchors.centerIn: parent; width: 24; height: 24
+                            svg: win.ico[modelData.view] || ""
+                            color: (activeView === modelData.view) ? theme.accent : theme.railIco
+                        }
                         MouseArea {
                             anchors.fill: parent
                             onClicked: {
@@ -196,9 +220,14 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 44
                     Layout.margins: 8; radius: 22; color: theme.searchBg
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left; anchors.leftMargin: 14
+                        width: 18; height: 18; svg: win.ico["search"]; color: theme.text2
+                    }
                     TextInput {
                         id: searchInput
-                        anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
+                        anchors.fill: parent; anchors.leftMargin: 44; anchors.rightMargin: 14
                         verticalAlignment: TextInput.AlignVCenter
                         color: theme.text; font.pixelSize: 14; clip: true
                         onTextChanged: app.search(text, searchModel)
@@ -206,7 +235,7 @@ ApplicationWindow {
                     Text {
                         visible: searchInput.text === ""
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.left: parent.left; anchors.leftMargin: 44
                         text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
                     }
                 }
@@ -464,7 +493,7 @@ ApplicationWindow {
                     anchors.right: parent.right; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
                     width: 36; height: 36; radius: 18; color: "transparent"
-                    Text { anchors.centerIn: parent; text: "⋮"; color: theme.text; font.pixelSize: 22 }
+                    Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["overflow"]; color: theme.railIco }
                     MouseArea { anchors.fill: parent; onClicked: overflowMenu.popup() }
                 }
             }
@@ -630,25 +659,25 @@ ApplicationWindow {
                     // Menu lampiran (lokasi/polling/kontak/mention).
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: "transparent"
-                        Text { anchors.centerIn: parent; text: "➕"; font.pixelSize: 18 }
+                        Icon { anchors.centerIn: parent; width: 26; height: 26; svg: win.ico["plus"]; color: theme.railIco }
                         MouseArea { anchors.fill: parent; onClicked: attachMenu.popup() }
                     }
                     // Lampirkan dokumen → pilih file → rename/cut → kirim.
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: "transparent"
-                        Text { anchors.centerIn: parent; text: "📎"; font.pixelSize: 19 }
+                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["document"]; color: theme.railIco }
                         MouseArea { anchors.fill: parent; onClicked: docDialog.open() }
                     }
                     // Tombol stiker → picker koleksi (fitur #1).
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: "transparent"
-                        Text { anchors.centerIn: parent; text: "🏷️"; font.pixelSize: 20 }
+                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["sticker"]; color: theme.railIco }
                         MouseArea { anchors.fill: parent; onClicked: { app.loadStickers(); stickerPopup.open() } }
                     }
                     // Tombol GIF → picker koleksi (fitur #3).
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: "transparent"
-                        Text { anchors.centerIn: parent; text: "🎬"; font.pixelSize: 18 }
+                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["gifb"]; color: theme.railIco }
                         MouseArea { anchors.fill: parent; onClicked: { app.loadGifs(); gifPopup.open() } }
                     }
                     Rectangle {
@@ -682,7 +711,7 @@ ApplicationWindow {
                     Rectangle {
                         id: sendBtn
                         width: 40; height: 40; radius: 20; color: theme.accent
-                        Text { anchors.centerIn: parent; text: "➤"; color: "white"; font.pixelSize: 16 }
+                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["send"]; color: "white" }
                         MouseArea { anchors.fill: parent; onClicked: composerInput.parent.send() }
                     }
                 }

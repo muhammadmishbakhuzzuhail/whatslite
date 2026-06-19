@@ -287,6 +287,26 @@ ApplicationWindow {
                         anchors.fill: parent
                         visible: activeView === "chats" && searchInput.text === ""
                         clip: true; model: chatsModel; reuseItems: true
+                        section.property: "sec"
+                        section.criteria: ViewSection.FullString
+                        section.delegate: Rectangle {
+                            width: chatList.width; height: 28; color: theme.sidebarBg
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
+                                text: section === "pin" ? "DISEMATKAN" : "SEMUA CHAT"
+                                color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium
+                            }
+                        }
+                        header: ItemDelegate {
+                            width: chatList.width; height: 54
+                            onClicked: { activeView = "archived"; app.loadInto("GetArchivedChats", archivedModel) }
+                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 22; anchors.rightMargin: 16; spacing: 16
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["archived"]; color: theme.accent }
+                                Text { Layout.fillWidth: true; text: "Diarsipkan"; color: theme.text; font.pixelSize: 15 }
+                            }
+                        }
                         delegate: ItemDelegate {
                             width: chatList.width; height: 68; clip: true
                             onClicked: { win.selectedChat = model.m; app.openChat(model.m.id) }

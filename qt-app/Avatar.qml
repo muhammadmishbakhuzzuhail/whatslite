@@ -12,7 +12,7 @@ Rectangle {
     property string jid: ""
     property string base: ""   // mediaBase engine
     property color accent: "#06b67f"
-    property real fontSize: 18
+    property real fontSize: 19
 
     implicitWidth: 44
     implicitHeight: 44

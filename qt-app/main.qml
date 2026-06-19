@@ -42,7 +42,9 @@ ApplicationWindow {
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
         "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
-        "newchat": '<path d="M12 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-5"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L13 15l-4 1 1-4 8.5-8.5z"/>'
+        "newchat": '<path d="M12 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-5"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L13 15l-4 1 1-4 8.5-8.5z"/>',
+        "pin": '<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>',
+        "mute": '<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>'
     })
     // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
     readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
@@ -325,7 +327,8 @@ ApplicationWindow {
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                             text: model.m.name || model.m.id || ""
-                                            font.pixelSize: 16; font.weight: Font.Medium; color: theme.text
+                                            font.pixelSize: 16; color: theme.text
+                                            font.weight: (model.m.unread || (model.m.badge || 0) > 0) ? Font.Bold : Font.Medium
                                         }
                                         Text {
                                             text: model.m.time || ""
@@ -340,11 +343,18 @@ ApplicationWindow {
                                             text: model.m.preview || ""; font.pixelSize: 14; color: theme.text2
                                         }
                                         Rectangle {
-                                            visible: model.m.badge > 0
+                                            visible: (model.m.badge || 0) > 0
                                             radius: 10; color: theme.accent
                                             implicitWidth: Math.max(20, bdg.implicitWidth + 12); implicitHeight: 20
                                             Text { id: bdg; anchors.centerIn: parent; color: "white"; font.pixelSize: 12; font.bold: true
                                                 text: model.m.badge > 99 ? "99+" : (model.m.badge || 0) }
+                                        }
+                                        // Pin/mute (saat tak ada badge) — ala WhatsApp.
+                                        Row {
+                                            visible: !((model.m.badge || 0) > 0) && (model.m.pinned === true || model.m.muted === true)
+                                            spacing: 4
+                                            Icon { visible: model.m.muted === true; width: 16; height: 16; svg: win.ico["mute"]; color: theme.text2 }
+                                            Icon { visible: model.m.pinned === true; width: 15; height: 15; svg: win.ico["pin"]; color: theme.text2 }
                                         }
                                     }
                                 }
@@ -617,11 +627,19 @@ ApplicationWindow {
                         }
                         // Separator tanggal (ala WhatsApp) — pill terpusat.
                         Rectangle {
-                            Layout.alignment: Qt.AlignHCenter; Layout.bottomMargin: 6
+                            Layout.alignment: Qt.AlignHCenter
                             visible: timeline.count > 0
                             radius: 8; color: theme.dark ? "#182229" : "#ffffff"
                             implicitWidth: dlbl.implicitWidth + 22; implicitHeight: 26
                             Text { id: dlbl; anchors.centerIn: parent; text: "HARI INI"; color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium }
+                        }
+                        // Pembatas "belum dibaca" (ala WhatsApp).
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.bottomMargin: 6
+                            visible: (win.selectedChat.badge || 0) > 0
+                            color: theme.dark ? "#182229" : "#ffffff"; implicitHeight: 28
+                            Text { anchors.centerIn: parent; color: theme.accent; font.pixelSize: 12; font.weight: Font.Medium
+                                text: (win.selectedChat.badge || 0) + " PESAN BELUM DIBACA" }
                         }
                     }
                     delegate: Item {
@@ -646,6 +664,12 @@ ApplicationWindow {
                                 anchors.top: parent.top
                                 anchors.margins: 8
                                 spacing: 3
+                                // Nama pengirim (grup, pesan masuk) — warna per-pengirim.
+                                Text {
+                                    visible: win.selectedChat.group === true && content.pmsg.dir === "in" && (content.pmsg.sender || "") !== ""
+                                    text: content.pmsg.sender || ""
+                                    color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.Medium
+                                }
                                 // Document → ikon + nama + (PDF · ukuran · halaman)
                                 RowLayout {
                                     visible: model.m.type === "document"

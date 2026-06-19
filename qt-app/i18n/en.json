@@ -79,5 +79,9 @@
   "o_react_status": "React to status", "o_reply_status": "Reply to status", "o_create_group": "Create group",
   "o_join_link": "Join group via link", "o_preview_link": "Preview group link",
   "o_follow_channel": "Follow channel via link", "o_leave_community": "Leave community",
-  "o_reject_call": "Reject call", "o_post_status": "Post status…"
+  "o_reject_call": "Reject call", "o_post_status": "Post status…",
+  "a_image": "Image", "a_video": "Video", "a_audio": "Audio",
+  "send_poll": "Create poll", "poll_question": "Question", "poll_option": "Option",
+  "send_contact": "Send contact", "contact_name": "Name", "contact_phone": "Phone",
+  "result": "Result"
 }

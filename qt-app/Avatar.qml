@@ -13,6 +13,7 @@ Rectangle {
     property string base: ""   // mediaBase engine
     property color accent: "#06b67f"
     property real fontSize: 19
+    property bool group: false // grup → siluet orang-banyak (bukan inisial)
 
     implicitWidth: 44
     implicitHeight: 44
@@ -21,9 +22,16 @@ Rectangle {
 
     Text {
         anchors.centerIn: parent
-        visible: img.status !== Image.Ready
+        visible: img.status !== Image.Ready && !root.group
         color: "white"; font.pixelSize: root.fontSize; font.bold: true
         text: (root.name || "?").charAt(0).toUpperCase()
+    }
+    // Siluet grup (default WhatsApp) bila grup tanpa foto.
+    Image {
+        anchors.centerIn: parent; visible: img.status !== Image.Ready && root.group
+        width: parent.width * 0.6; height: parent.height * 0.6
+        source: "data:image/svg+xml;utf8," + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V18h14v-1.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.99 1.97 3.45V18h6v-1.5c0-2.33-4.67-3.5-7-3.5z"/></svg>')
     }
     Image {
         id: img

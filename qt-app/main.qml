@@ -20,6 +20,8 @@ ApplicationWindow {
     property string activeView: "chats" // chats | calls | starred
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
     property bool locked: (typeof startLock !== "undefined") && startLock // app-lock PIN
+    property var replyTo: null        // pesan yang sedang dibalas (banner composer)
+    property var ctxChat: ({})        // chat target context-menu baris
 
     // --- Token tema (light + dark) — cocok dgn app.css [data-theme] ---
     QtObject {
@@ -204,6 +206,12 @@ ApplicationWindow {
                                         text: model.m.preview || ""; font.pixelSize: 13; color: theme.text2
                                     }
                                 }
+                            }
+                            // Klik-kanan baris chat → menu kelola chat.
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                onClicked: { win.ctxChat = model.m; chatMenu.popup() }
                             }
                         }
                     }
@@ -422,6 +430,14 @@ ApplicationWindow {
                     model: msgsModel
                     reuseItems: true
                     spacing: 6
+                    header: Item {
+                        width: timeline.width; height: 40
+                        Button {
+                            anchors.centerIn: parent; flat: true; text: "↑ Muat pesan lebih lama"
+                            visible: timeline.count > 0
+                            onClicked: app.loadOlder()
+                        }
+                    }
                     delegate: Item {
                         width: timeline.width
                         implicitHeight: bubble.implicitHeight + 4
@@ -490,6 +506,27 @@ ApplicationWindow {
                     }
                 }
             }
+            // Banner balas (muncul saat membalas pesan)
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: (win.replyTo !== null && win.replyTo !== undefined) ? 44 : 0
+                visible: win.replyTo !== null && win.replyTo !== undefined
+                color: theme.bg2
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 10
+                    Rectangle { width: 3; Layout.preferredHeight: 28; color: theme.accent }
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 0
+                        Text { text: "Membalas"; color: theme.accent; font.pixelSize: 11 }
+                        Text { Layout.fillWidth: true; elide: Text.ElideRight
+                            text: (win.replyTo ? (win.replyTo.text || "[media]") : ""); color: theme.text2; font.pixelSize: 12 }
+                    }
+                    Text {
+                        text: "✕"; color: theme.text2; font.pixelSize: 16
+                        MouseArea { anchors.fill: parent; onClicked: win.replyTo = null }
+                    }
+                }
+            }
             // Composer
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 56
@@ -519,14 +556,19 @@ ApplicationWindow {
                         radius: 18; color: theme.bg; border.color: theme.line
                         function send() {
                             if (composerInput.text.trim() === "") return
-                            app.sendText(composerInput.text)
+                            if (win.replyTo && win.replyTo.id)
+                                app.replyText(win.replyTo.id, win.replyTo.senderId || "", win.replyTo.text || "", composerInput.text)
+                            else
+                                app.sendText(composerInput.text)
                             composerInput.text = ""
+                            win.replyTo = null
                         }
                         TextInput {
                             id: composerInput
                             anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
                             verticalAlignment: TextInput.AlignVCenter
                             color: theme.text; font.pixelSize: 14; clip: true
+                            onTextChanged: app.sendTyping(text.length > 0)
                             Keys.onReturnPressed: parent.send()
                             Keys.onEnterPressed: parent.send()
                         }
@@ -630,6 +672,12 @@ ApplicationWindow {
     Menu {
         id: msgMenu
         MenuItem { text: "👍  Suka"; onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
+        MenuItem { text: "↩️  Balas"; onTriggered: win.replyTo = win.ctxMsg }
+        MenuItem {
+            text: "✏️  Edit"; visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
+            onTriggered: { editInput.text = win.ctxMsg.text || ""; editPopup.open() }
+        }
+        MenuItem { text: "📌  Sematkan"; onTriggered: app.pinMessage(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
         MenuItem { text: "⭐  Bintangi"; onTriggered: app.star(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
         MenuItem {
             text: "💾  Simpan stiker"; visible: win.ctxMsg.type === "sticker"; height: visible ? implicitHeight : 0
@@ -651,6 +699,37 @@ ApplicationWindow {
             onTriggered: { app.loadDetailA("GetMessageInfo", [win.selectedChat.id || "", win.ctxMsg.id]); msgInfoPopup.open() }
         }
         MenuItem { text: "🗑️  Hapus utk semua"; onTriggered: app.deleteMsg(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+    }
+
+    // === Menu kelola chat (klik-kanan baris) ===
+    Menu {
+        id: chatMenu
+        MenuItem { text: "✓  Tandai dibaca"; onTriggered: app.markRead(win.ctxChat.id) }
+        MenuItem { text: win.ctxChat.pinned ? "📌  Lepas sematan" : "📌  Sematkan"; onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
+        MenuItem { text: win.ctxChat.muted ? "🔔  Bunyikan" : "🔇  Bisukan"; onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
+        MenuItem { text: "🗄️  Arsipkan"; onTriggered: app.archiveChat(win.ctxChat.id, true) }
+        MenuItem { text: "🗑️  Hapus chat"; onTriggered: app.deleteChat(win.ctxChat.id) }
+    }
+
+    // === Edit pesan ===
+    Popup {
+        id: editPopup
+        width: 360; height: 180; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            Text { text: "Edit pesan"; color: theme.text; font.pixelSize: 16; font.bold: true }
+            Rectangle {
+                Layout.fillWidth: true; height: 40; radius: 8; color: theme.searchBg; border.color: theme.line
+                TextInput { id: editInput; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; clip: true }
+            }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight; spacing: 8
+                Button { text: "Batal"; onClicked: editPopup.close() }
+                Button { text: "Simpan"; onClicked: { app.editMessage(win.ctxMsg.id, editInput.text); editPopup.close() } }
+            }
+        }
     }
 
     // === Setelan (gear rail) — anti-delete (fitur #2) ===
@@ -675,6 +754,10 @@ ApplicationWindow {
             Button {
                 Layout.fillWidth: true; text: "Privasi…"
                 onClicked: { app.loadDetail("GetPrivacy", ""); settingsPopup.close(); privacyPopup.open() }
+            }
+            Button {
+                Layout.fillWidth: true; text: "Keluar (Logout)"
+                onClicked: { app.logout(); settingsPopup.close() }
             }
             Item { Layout.fillHeight: true }
             Button { Layout.alignment: Qt.AlignRight; text: "Tutup"; onClicked: settingsPopup.close() }

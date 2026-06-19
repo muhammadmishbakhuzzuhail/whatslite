@@ -24,6 +24,17 @@ public:
     QJsonObject itemAt(int i) const {
         return (i >= 0 && i < m_items.size()) ? m_items.at(i).toObject() : QJsonObject();
     }
+    // prepend menyisipkan item di depan (pagination: pesan lebih lama).
+    void prepend(const QJsonArray &a) {
+        if (a.isEmpty())
+            return;
+        beginInsertRows(QModelIndex(), 0, a.size() - 1);
+        QJsonArray merged = a;
+        for (const auto &v : m_items)
+            merged.append(v);
+        m_items = merged;
+        endInsertRows();
+    }
 
     int rowCount(const QModelIndex & = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &idx, int role) const override {

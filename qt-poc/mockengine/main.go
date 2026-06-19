@@ -48,7 +48,7 @@ func main() {
 				_ = json.Unmarshal(args[0], &chatID)
 			}
 			base := []map[string]any{
-				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Apa kabar?", "time": "09:00"},
+				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Apa kabar?", "time": "09:00", "ts": 100},
 				{"id": "m2", "dir": "out", "type": "text", "text": "Baik dong, kamu gimana?", "time": "09:01"},
 				{"id": "m3", "dir": "in", "type": "text", "text": "Sehat. Nanti jadi ketemu jam 3 ya", "time": "09:02",
 					"reactions": []map[string]any{{"emoji": "👍", "count": 2, "who": []string{"Alice", "Bob"}}, {"emoji": "❤️", "count": 1, "who": []string{"Citra"}}}},
@@ -110,8 +110,29 @@ func main() {
 			})
 			mu.Unlock()
 			return "gif-id", nil
-		case "React", "StarMessage", "DeleteMessage", "SaveSticker", "SaveGif", "SetKeepDeleted", "Connect", "Forward", "LeaveGroup":
+		case "React", "StarMessage", "DeleteMessage", "SaveSticker", "SaveGif", "SetKeepDeleted", "Connect", "Forward", "LeaveGroup",
+			"MarkRead", "MarkUnread", "Pin", "Mute", "Archive", "DeleteChat", "PinMessage", "EditMessage", "SendTyping", "Logout":
 			return nil, nil // terima (efek nyata di engine asli)
+		case "MyQR":
+			return "", nil
+		case "Reply":
+			var chatID, text string
+			if len(args) > 0 {
+				_ = json.Unmarshal(args[0], &chatID)
+			}
+			if len(args) > 1 {
+				_ = json.Unmarshal(args[1], &text)
+			}
+			mu.Lock()
+			sent[chatID] = append(sent[chatID], map[string]any{
+				"id": fmt.Sprintf("s%d", len(sent[chatID])+1), "dir": "out", "type": "text", "text": text, "time": "now"})
+			mu.Unlock()
+			return "reply-id", nil
+		case "GetMessagesBefore":
+			return []map[string]any{
+				{"id": "old1", "dir": "in", "type": "text", "text": "(pesan lebih lama 1)", "time": "08:50", "ts": 1},
+				{"id": "old2", "dir": "out", "type": "text", "text": "(pesan lebih lama 2)", "time": "08:51", "ts": 2},
+			}, nil
 		case "GetGroupInfo":
 			return map[string]any{
 				"name": "Grup Kerja", "desc": "Koordinasi tim proyek WhatsLite", "count": 4,

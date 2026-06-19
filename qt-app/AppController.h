@@ -247,8 +247,47 @@ public:
         m_c->call(QStringLiteral("Forward"), QJsonArray{m_cur, msgId, toJid}, {});
     }
 
-    // --- Koneksi / login QR ---
+    // --- Koneksi / login / logout ---
     Q_INVOKABLE void doConnect() { m_c->call(QStringLiteral("Connect"), {}, {}); }
+    Q_INVOKABLE void refreshQr() { m_c->call(QStringLiteral("MyQR"), {}, [this](const QJsonValue &r, const QString &e) {
+        if (e.isEmpty()) { m_qr = r.toString(); emit qrChanged(); } }); }
+    Q_INVOKABLE void logout() { m_c->call(QStringLiteral("Logout"), {}, {}); }
+
+    // --- Kelola chat (target = chat aktif kecuali diberi jid) ---
+    Q_INVOKABLE void markRead(const QString &jid) { m_c->call(QStringLiteral("MarkRead"), QJsonArray{jid}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) refreshChats(); }); }
+    Q_INVOKABLE void pinChat(const QString &jid, bool on) { m_c->call(QStringLiteral("Pin"), QJsonArray{jid, on}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) refreshChats(); }); }
+    Q_INVOKABLE void muteChat(const QString &jid, bool on) { m_c->call(QStringLiteral("Mute"), QJsonArray{jid, on}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) refreshChats(); }); }
+    Q_INVOKABLE void archiveChat(const QString &jid, bool on) { m_c->call(QStringLiteral("Archive"), QJsonArray{jid, on}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) refreshChats(); }); }
+    Q_INVOKABLE void deleteChat(const QString &jid) { m_c->call(QStringLiteral("DeleteChat"), QJsonArray{jid}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) refreshChats(); }); }
+
+    // --- Aksi pesan tambahan ---
+    Q_INVOKABLE void replyText(const QString &quotedId, const QString &quotedSender, const QString &quotedText, const QString &text) {
+        if (m_cur.isEmpty() || text.trimmed().isEmpty()) return;
+        m_c->call(QStringLiteral("Reply"), QJsonArray{m_cur, text, quotedId, quotedSender, quotedText}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) reloadMessages(); });
+    }
+    Q_INVOKABLE void editMessage(const QString &msgId, const QString &newText) {
+        m_c->call(QStringLiteral("EditMessage"), QJsonArray{m_cur, msgId, newText}, [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) reloadMessages(); });
+    }
+    Q_INVOKABLE void pinMessage(const QString &msgId, const QString &sender, bool fromMe, bool on) {
+        m_c->call(QStringLiteral("PinMessage"), QJsonArray{m_cur, msgId, sender, fromMe, on}, {});
+    }
+    Q_INVOKABLE void sendTyping(bool on) {
+        if (!m_cur.isEmpty()) m_c->call(QStringLiteral("SendTyping"), QJsonArray{m_cur, on}, {});
+    }
+
+    // --- Pagination: muat pesan lebih lama (prepend) ---
+    Q_INVOKABLE void loadOlder() {
+        if (m_cur.isEmpty() || m_oldestTs <= 0) return;
+        m_c->call(QStringLiteral("GetMessagesBefore"), QJsonArray{m_cur, m_oldestTs}, [this](const QJsonValue &r, const QString &e) {
+            if (e.isEmpty()) {
+                const QJsonArray older = r.toArray();
+                if (!older.isEmpty()) {
+                    m_oldestTs = older.first().toObject().value(QStringLiteral("ts")).toVariant().toLongLong();
+                    m_msgs->prepend(older);
+                }
+            }
+        });
+    }
 
     // --- Setelan anti-delete (fitur #2) ---
     Q_INVOKABLE void setKeepDeleted(bool v) {
@@ -275,8 +314,11 @@ private:
         if (m_cur.isEmpty())
             return;
         m_c->call(QStringLiteral("GetMessages"), QJsonArray{m_cur}, [this](const QJsonValue &r, const QString &e) {
-            if (e.isEmpty())
-                m_msgs->setItems(r.toArray());
+            if (e.isEmpty()) {
+                const QJsonArray msgs = r.toArray();
+                m_msgs->setItems(msgs);
+                m_oldestTs = msgs.isEmpty() ? 0 : msgs.first().toObject().value(QStringLiteral("ts")).toVariant().toLongLong();
+            }
         });
     }
 
@@ -292,6 +334,7 @@ private:
     QString m_state;
     QString m_qr;
     QVariantMap m_detail;
+    qint64 m_oldestTs = 0;
     bool m_keepDeleted = true;
     bool m_openFirst = true;
 };

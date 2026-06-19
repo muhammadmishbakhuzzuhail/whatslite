@@ -9,8 +9,6 @@ package app
 
 import (
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Pin menyematkan / melepas sematan chat.
@@ -20,9 +18,9 @@ func (a *App) Pin(jid string, pin bool) {
 	}
 	_ = a.store.SetPinned(a.ctx, jid, pin)
 	if err := a.eng.Pin(a.ctx, jid, pin); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // Mute membisukan / mengaktifkan notifikasi chat (mute = sampai dimatikan).
@@ -36,9 +34,9 @@ func (a *App) Mute(jid string, mute bool) {
 		dur = 365 * 24 * time.Hour
 	}
 	if err := a.eng.Mute(a.ctx, jid, mute, dur); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // Archive mengarsip / mengeluarkan chat dari arsip.
@@ -49,9 +47,9 @@ func (a *App) Archive(jid string, archive bool) {
 	_ = a.store.SetArchived(a.ctx, jid, archive)
 	id, ts, fromMe, _, _ := a.store.LastMessage(a.ctx, jid)
 	if err := a.eng.Archive(a.ctx, jid, archive, ts, id, fromMe); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // MarkUnread menandai chat belum dibaca (true) / dibaca (false).
@@ -66,9 +64,9 @@ func (a *App) MarkUnread(jid string, unread bool) {
 	_ = a.store.SetUnread(a.ctx, jid, n)
 	id, ts, fromMe, _, _ := a.store.LastMessage(a.ctx, jid)
 	if err := a.eng.MarkChatRead(a.ctx, jid, !unread, ts, id, fromMe); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // DeleteChat menghapus chat dari penyimpanan lokal.
@@ -77,7 +75,7 @@ func (a *App) DeleteChat(jid string) {
 		return
 	}
 	_ = a.store.DeleteChat(a.ctx, jid)
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // ClearChat mengosongkan isi chat (hapus semua pesan) tapi chat tetap ada.
@@ -86,7 +84,7 @@ func (a *App) ClearChat(jid string) {
 		return
 	}
 	_ = a.store.ClearMessages(a.ctx, a.canon(jid))
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // SearchHitDTO = satu hasil pencarian isi pesan.

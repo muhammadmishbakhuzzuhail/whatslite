@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
@@ -27,7 +25,7 @@ func (a *App) ScheduleMessage(chatJID, text string, sendAt int64) {
 		ID: a.genID(), ChatJID: a.canon(chatJID), ChatName: a.displayName(a.canon(chatJID)),
 		Text: text, SendAt: sendAt, Created: time.Now().Unix(),
 	})
-	runtime.EventsEmit(a.ctx, "wa:scheduled", "")
+	a.emit("wa:scheduled", "")
 }
 
 func (a *App) GetScheduled() []storage.Scheduled {
@@ -44,7 +42,7 @@ func (a *App) GetScheduled() []storage.Scheduled {
 func (a *App) CancelScheduled(id string) {
 	if a.store != nil {
 		_ = a.store.DeleteScheduled(a.ctx, id)
-		runtime.EventsEmit(a.ctx, "wa:scheduled", "")
+		a.emit("wa:scheduled", "")
 	}
 }
 
@@ -57,7 +55,7 @@ func (a *App) AddReminder(chatJID, msgID, note string, remindAt int64) {
 	_ = a.store.AddReminder(a.ctx, storage.Reminder{
 		ID: a.genID(), ChatJID: cj, ChatName: a.displayName(cj), MsgID: msgID, Note: note, RemindAt: remindAt,
 	})
-	runtime.EventsEmit(a.ctx, "wa:reminders", "")
+	a.emit("wa:reminders", "")
 }
 
 func (a *App) GetReminders() []storage.Reminder {
@@ -74,7 +72,7 @@ func (a *App) GetReminders() []storage.Reminder {
 func (a *App) CancelReminder(id string) {
 	if a.store != nil {
 		_ = a.store.DeleteReminder(a.ctx, id)
-		runtime.EventsEmit(a.ctx, "wa:reminders", "")
+		a.emit("wa:reminders", "")
 	}
 }
 
@@ -94,18 +92,18 @@ func (a *App) startScheduler() {
 				}
 				_ = a.store.DeleteScheduled(a.ctx, m.ID)
 			}
-			runtime.EventsEmit(a.ctx, "wa:scheduled", "")
+			a.emit("wa:scheduled", "")
 		}
 		// Pengingat jatuh tempo → event in-app (toast/suara di FE) + hapus.
 		// TANPA notif desktop (dihapus total).
 		if due, _ := a.store.DueReminders(a.ctx, now); len(due) > 0 {
 			for _, r := range due {
-				runtime.EventsEmit(a.ctx, "wa:reminder", map[string]interface{}{
+				a.emit("wa:reminder", map[string]interface{}{
 					"chatJid": r.ChatJID, "chatName": r.ChatName, "msgId": r.MsgID, "note": r.Note,
 				})
 				_ = a.store.DeleteReminder(a.ctx, r.ID)
 			}
-			runtime.EventsEmit(a.ctx, "wa:reminders", "")
+			a.emit("wa:reminders", "")
 		}
 	}
 	go func() {

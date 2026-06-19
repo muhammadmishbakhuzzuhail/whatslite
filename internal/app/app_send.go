@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
@@ -36,7 +34,7 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 	jid = a.canon(jid)
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", "media tak valid: "+err.Error())
+		a.emit("wa:error", "media tak valid: "+err.Error())
 		return ""
 	}
 	// Voice note: ponsel WhatsApp memutar PTT hanya bila ogg/opus. WebKitGTK
@@ -49,24 +47,31 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 	}
 	id, err := a.eng.SendMedia(a.ctx, jid, kind, mime, caption, fileName, data, viewOnce, seconds)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	// Tulis byte ke file-cache (disajikan via /media) — JANGAN simpan data-URI
 	// raksasa di DB. thumb dikosongkan.
 	a.cacheSentMedia(jid, id, data, mime)
 	txt := caption
+	thumb := ""
 	if kind == "voice" && seconds > 0 { // tampilkan durasi di bubble voice lokal
 		txt = mmss(seconds)
 	}
-	if kind == "document" && fileName != "" { // doc: bubble pakai nama file (tampil + unduh)
-		txt = fileName
+	if kind == "document" { // doc: bubble pakai nama file + metadata preview (size/mime)
+		if fileName != "" {
+			txt = fileName
+		}
+		// thumb=JSON metadata (sama format dgn document MASUK) → bubble keluar
+		// ikut tampil ukuran/ikon. pages/img kosong (tak hitung halaman lokal).
+		j, _ := json.Marshal(map[string]any{"size": len(data), "pages": 0, "mime": mime, "img": ""})
+		thumb = string(j)
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
-		ID: id, ChatJID: jid, Text: txt, Kind: kind,
+		ID: id, ChatJID: jid, Text: txt, Kind: kind, Thumb: thumb,
 		Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -78,13 +83,13 @@ func (a *App) SendTextMentioned(jid, text string, mentions []string) string {
 	jid = a.canon(jid)
 	id, err := a.eng.SendTextMentions(a.ctx, jid, text, mentions)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -96,13 +101,13 @@ func (a *App) Reply(jid, text, quotedID, quotedSender, quotedText string) string
 	jid = a.canon(jid)
 	id, err := a.eng.Reply(a.ctx, jid, text, quotedID, quotedSender, quotedText)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -114,7 +119,7 @@ func (a *App) Forward(srcChat, msgID, toJID string) string {
 	toJID = a.canon(toJID)
 	m, err := a.store.GetMessage(a.ctx, srcChat, msgID)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	var id string
@@ -124,14 +129,14 @@ func (a *App) Forward(srcChat, msgID, toJID string) string {
 		id, err = a.eng.ForwardText(a.ctx, toJID, m.Text)
 	}
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: toJID, Text: m.Text, Kind: m.Kind, Thumb: m.Thumb,
 		Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", toJID)
+	a.emit("wa:message", toJID)
 	return id
 }
 
@@ -141,11 +146,11 @@ func (a *App) EditMessage(chat, msgID, newText string) {
 		return
 	}
 	if err := a.eng.SendEdit(a.ctx, chat, msgID, newText); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	_ = a.store.EditText(a.ctx, chat, msgID, newText)
-	runtime.EventsEmit(a.ctx, "wa:message", chat)
+	a.emit("wa:message", chat)
 }
 
 // React menambah/menghapus reaksi emoji pada pesan (emoji "" = hapus).
@@ -154,7 +159,7 @@ func (a *App) React(chat, msgID, sender, emoji string, fromMe bool) {
 		return
 	}
 	if err := a.eng.React(a.ctx, chat, sender, msgID, emoji, fromMe); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
@@ -171,13 +176,13 @@ func (a *App) DeleteMessage(chat, msgID, sender string, fromMe, everyone bool) {
 	}
 	if everyone {
 		if err := a.eng.Revoke(a.ctx, chat, sender, msgID, fromMe); err != nil {
-			runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+			a.emit("wa:error", err.Error())
 		}
 		_ = a.store.MarkDeleted(a.ctx, chat, msgID)
 	} else {
 		_ = a.store.DeleteLocalMessage(a.ctx, chat, msgID)
 	}
-	runtime.EventsEmit(a.ctx, "wa:message", chat)
+	a.emit("wa:message", chat)
 }
 
 // StarMessage membintangi / melepas bintang pesan.
@@ -189,7 +194,7 @@ func (a *App) StarMessage(chat, msgID, sender string, fromMe, star bool) {
 		_ = a.store.SetStarred(a.ctx, chat, msgID, star)
 	}
 	if err := a.eng.Star(a.ctx, chat, sender, msgID, fromMe, star); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -225,11 +230,11 @@ func (a *App) PinMessage(chat, msgID, sender string, fromMe, pin bool) {
 		return
 	}
 	if err := a.eng.PinMessage(a.ctx, chat, sender, msgID, fromMe, pin); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	_ = a.store.SetPinnedInChat(a.ctx, chat, msgID, pin)
-	runtime.EventsEmit(a.ctx, "wa:message", chat)
+	a.emit("wa:message", chat)
 }
 
 // GetPinned mengembalikan pesan yang disematkan di chat (terbaru dulu).
@@ -326,7 +331,7 @@ func (a *App) SendSticker(jid, dataURI string) string {
 	jid = a.canon(jid)
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	// WhatsApp stiker WAJIB WebP.
@@ -343,14 +348,14 @@ func (a *App) SendSticker(jid, dataURI string) string {
 	}
 	id, err := a.eng.SendSticker(a.ctx, jid, data)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	a.cacheSentMedia(jid, id, data, "image/webp")
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "sticker", Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -362,19 +367,19 @@ func (a *App) SendGif(jid, dataURI string) string {
 	jid = a.canon(jid)
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	id, err := a.eng.SendGif(a.ctx, jid, mime, data)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	a.cacheSentMedia(jid, id, data, mime)
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "gif", Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -394,13 +399,13 @@ func (a *App) SendContact(jid, displayName, phone string) string {
 		"\nTEL;type=CELL;type=VOICE;waid=" + num + ":+" + num + "\nEND:VCARD"
 	id, err := a.eng.SendContact(a.ctx, jid, displayName, vcard)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "contact", Text: "👤 " + displayName, Thumb: num, Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -412,14 +417,14 @@ func (a *App) SendLocation(jid string, lat, lng float64, name string) string {
 	jid = a.canon(jid)
 	id, err := a.eng.SendLocation(a.ctx, jid, lat, lng, name)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "location", Text: nonEmpty(name, "📍 Lokasi"),
 		Thumb: fmt.Sprintf("%f,%f", lat, lng), Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -431,14 +436,14 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 	jid = a.canon(jid)
 	id, err := a.eng.SendPoll(a.ctx, jid, question, options, selectable)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	optJSON, _ := json.Marshal(options)
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "poll", Text: question, Thumb: string(optJSON), Timestamp: time.Now(), FromMe: true,
 	})
-	runtime.EventsEmit(a.ctx, "wa:message", jid)
+	a.emit("wa:message", jid)
 	return id
 }
 
@@ -469,12 +474,12 @@ func (a *App) VotePoll(chat, pollSender, pollID string, options []string) {
 		return
 	}
 	if err := a.eng.VotePoll(a.ctx, chat, pollSender, pollID, options); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
 		_ = a.store.SetPollVote(a.ctx, pollID, a.eng.SelfJID(), options, time.Now())
-		runtime.EventsEmit(a.ctx, "wa:poll", pollID)
+		a.emit("wa:poll", pollID)
 	}
 }
 
@@ -484,7 +489,7 @@ func (a *App) SetDisappearing(jid string, seconds int) {
 		return
 	}
 	if err := a.eng.SetDisappearing(a.ctx, jid, seconds); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -494,7 +499,7 @@ func (a *App) MarkRead(chat, sender, msgID string) {
 		return
 	}
 	if err := a.eng.MarkRead(a.ctx, chat, sender, msgID); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 	_ = a.store.SetUnread(a.ctx, chat, 0)
 }

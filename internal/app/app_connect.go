@@ -12,7 +12,6 @@ import (
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
@@ -24,16 +23,16 @@ func (a *App) Connect() {
 		return
 	}
 	if os.Getenv("WALITE_NO_CONNECT") == "1" {
-		runtime.EventsEmit(a.ctx, "wa:state", "offline")
+		a.emit("wa:state", "offline")
 		return
 	}
 	qr, err := a.eng.Start(a.ctx)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if qr == nil {
-		runtime.EventsEmit(a.ctx, "wa:ready", a.eng.SelfJID())
+		a.emit("wa:ready", a.eng.SelfJID())
 		return
 	}
 	go func() {
@@ -41,18 +40,18 @@ func (a *App) Connect() {
 			switch evt.Event {
 			case "code":
 				if png, e := qrcode.Encode(evt.Code, qrcode.Medium, 320); e == nil {
-					runtime.EventsEmit(a.ctx, "wa:qr", "data:image/png;base64,"+base64.StdEncoding.EncodeToString(png))
+					a.emit("wa:qr", "data:image/png;base64,"+base64.StdEncoding.EncodeToString(png))
 				}
 			case "success":
-				runtime.EventsEmit(a.ctx, "wa:ready", a.eng.SelfJID())
+				a.emit("wa:ready", a.eng.SelfJID())
 			case "timeout":
-				runtime.EventsEmit(a.ctx, "wa:qr_timeout", "")
+				a.emit("wa:qr_timeout", "")
 			case "error":
 				msg := ""
 				if evt.Err != nil {
 					msg = evt.Err.Error()
 				}
-				runtime.EventsEmit(a.ctx, "wa:error", msg)
+				a.emit("wa:error", msg)
 			}
 		}
 	}()
@@ -73,7 +72,7 @@ func (a *App) LinkWithPhone(phone string) string {
 	}
 	code, err := a.eng.PairPhone(a.ctx, string(digits))
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	return code
@@ -85,7 +84,7 @@ func (a *App) Logout() {
 		return
 	}
 	_ = a.eng.Logout(a.ctx)
-	runtime.EventsEmit(a.ctx, "wa:loggedout", "")
+	a.emit("wa:loggedout", "")
 }
 
 // GetState: "offline" | "qr" | "ready".
@@ -107,7 +106,7 @@ func (a *App) SendText(jid, text string) string {
 	jid = a.canon(jid)
 	id, err := a.eng.SendText(a.ctx, jid, text)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{

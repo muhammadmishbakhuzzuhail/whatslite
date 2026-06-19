@@ -7,8 +7,6 @@ package app
 // feed read-only, ikuti/berhenti via tautan.
 
 import (
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
 )
 
@@ -42,10 +40,10 @@ func (a *App) CreateChannel(name, desc string) string {
 	}
 	jid, err := a.eng.CreateChannel(a.ctx, name, desc, nil)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 	return jid
 }
 
@@ -56,10 +54,10 @@ func (a *App) PostChannel(jid, text string) {
 		return
 	}
 	if _, err := a.eng.SendText(a.ctx, jid, text); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // GetChannels mengembalikan saluran yang diikuti.
@@ -70,7 +68,7 @@ func (a *App) GetChannels() (out []ChannelDTO) {
 	}
 	cs, err := a.eng.ListChannels(a.ctx)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	for _, c := range cs {
@@ -88,7 +86,7 @@ func (a *App) GetRecommendedChannels(query string) (out []ChannelDTO) {
 	}
 	cs, err := a.eng.RecommendedChannels(a.ctx, query)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	for _, c := range cs {
@@ -103,10 +101,10 @@ func (a *App) FollowChannelByJID(jid string) {
 		return
 	}
 	if err := a.eng.FollowChannelByJID(a.ctx, jid); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // GetChannelMessages mengambil feed (read-only) satu saluran.
@@ -117,7 +115,7 @@ func (a *App) GetChannelMessages(jid string) (out []ChannelMsgDTO) {
 	}
 	ms, err := a.eng.ChannelMessages(a.ctx, jid, 50)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	// Tandai sudah dilihat (view-receipt) — off-loop, best-effort.
@@ -148,7 +146,7 @@ func (a *App) FollowChannel(link string) *ChannelDTO {
 	}
 	c, err := a.eng.FollowChannel(a.ctx, link)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return nil
 	}
 	d := channelDTO(c)
@@ -161,7 +159,7 @@ func (a *App) UnfollowChannel(jid string) {
 		return
 	}
 	if err := a.eng.UnfollowChannel(a.ctx, jid); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -171,7 +169,7 @@ func (a *App) ReactChannel(channelJID, msgID string, serverID int64, emoji strin
 		return
 	}
 	if err := a.eng.ReactChannel(a.ctx, channelJID, msgID, serverID, emoji); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -181,7 +179,7 @@ func (a *App) MuteChannel(jid string, mute bool) {
 		return
 	}
 	if err := a.eng.MuteChannel(a.ctx, jid, mute); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 

@@ -157,9 +157,49 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.serveMedia(w, r)
 	case strings.HasPrefix(r.URL.Path, "/avatar/"):
 		a.serveAvatar(w, r)
+	case strings.HasPrefix(r.URL.Path, "/sticker/"):
+		a.serveSticker(w, r)
+	case strings.HasPrefix(r.URL.Path, "/savedgif/"):
+		a.serveSavedGif(w, r)
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// serveSavedGif: GET /savedgif/<hash> → byte GIF koleksi dari dir permanen.
+// Ext bervariasi (.mp4/.gif) → glob <hash>.* lalu sajikan.
+func (a *App) serveSavedGif(w http.ResponseWriter, r *http.Request) {
+	hash, _ := url.PathUnescape(strings.TrimPrefix(r.URL.Path, "/savedgif/"))
+	if hash == "" || a.gifDir == "" || strings.ContainsAny(hash, "/\\.") {
+		http.NotFound(w, r)
+		return
+	}
+	hits, _ := filepath.Glob(filepath.Join(a.gifDir, hash+".*"))
+	if len(hits) == 0 {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "max-age=31536000")
+	http.ServeFile(w, r, hits[0])
+}
+
+// serveSticker: GET /sticker/<hash> → byte stiker koleksi dari dir permanen.
+// Byte content-addressed (hash) + immutable → cache browser panjang aman.
+func (a *App) serveSticker(w http.ResponseWriter, r *http.Request) {
+	hash, _ := url.PathUnescape(strings.TrimPrefix(r.URL.Path, "/sticker/"))
+	// Tolak hash kosong / mengandung pemisah path (cegah path-traversal).
+	if hash == "" || a.stickerDir == "" || strings.ContainsAny(hash, "/\\.") {
+		http.NotFound(w, r)
+		return
+	}
+	path := filepath.Join(a.stickerDir, hash+".webp")
+	if _, err := os.Stat(path); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Cache-Control", "max-age=31536000")
+	http.ServeFile(w, r, path)
 }
 
 // serveAvatar: GET /avatar/<jid> → foto profil cache-FILE (lazy, hanya avatar

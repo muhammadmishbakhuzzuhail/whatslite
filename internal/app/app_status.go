@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
@@ -140,7 +138,7 @@ func (a *App) PostTextStatus(text string, bgArgb int64, font int) string {
 	}
 	id, err := a.eng.PostTextStatus(a.ctx, text, uint32(bgArgb), uint32(font))
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	return id
@@ -153,12 +151,12 @@ func (a *App) PostMediaStatus(kind, caption, dataURI string) string {
 	}
 	mime, data, err := decodeDataURI(dataURI)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	id, err := a.eng.PostMediaStatus(a.ctx, kind, mime, caption, data)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return ""
 	}
 	return id
@@ -170,7 +168,7 @@ func (a *App) ReactStatus(posterJid, statusID, emoji string) {
 		return
 	}
 	if err := a.eng.React(a.ctx, "status@broadcast", a.canon(posterJid), statusID, emoji, false); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 	}
 }
 
@@ -182,7 +180,7 @@ func (a *App) ReplyStatus(posterJid, statusID, statusText, text string) {
 	to := a.canon(posterJid)
 	id, err := a.eng.ReplyToStatus(a.ctx, to, text, statusID, a.canon(posterJid), statusText)
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	if a.store != nil {
@@ -191,7 +189,7 @@ func (a *App) ReplyStatus(posterJid, statusID, statusText, text string) {
 			QuotedID: statusID, QuotedText: statusText,
 		})
 	}
-	runtime.EventsEmit(a.ctx, "wa:message", to)
+	a.emit("wa:message", to)
 }
 
 // userPart mengambil bagian pengguna JID (sebelum ':' device & '@' server).

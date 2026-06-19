@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -27,16 +28,19 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/ipc"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
 // App = konteks aplikasi Wails. Method publik di sini otomatis ter-bind ke JS
 // sebagai window.go.main.App.<Method>. Event ke UI lewat runtime.EventsEmit.
 type App struct {
-	ctx      context.Context
-	eng      *engine.Engine
-	store    *storage.Store
-	mediaDir string // cache file media (bukan di DB) → ringan
+	ctx        context.Context
+	eng        *engine.Engine
+	store      *storage.Store
+	mediaDir   string // cache file media (bukan di DB) → ringan
+	stickerDir string // koleksi stiker tersimpan (permanen, di luar LRU media)
+	gifDir     string // koleksi GIF tersimpan (permanen, di luar LRU media)
 
 	labelsMu sync.RWMutex      // melindungi labels
 	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB
@@ -48,6 +52,40 @@ type App struct {
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
+
+	ipc       *ipc.Server // jembatan IPC ke FE baru (Qt6/QML); nil = belum aktif/Wails saja
+	headless  bool        // true = jalan tanpa Wails (binary whatslite-engine) → skip runtime.*
+	mediaBase string      // base URL media-server (mode headless) → FE muat /media via URL ini
+}
+
+// emit menyiarkan event UI ke DUA jalur: Wails (Svelte) DAN IPC (Qt baru, bila
+// aktif). Semua call-site lama dipindahkan ke sini → fan-out transparan, Svelte
+// tetap utuh, FE baru ikut dengar event yang sama. Rollback = nonaktifkan IPC.
+func (a *App) emit(event string, data ...any) {
+	if !a.headless { // mode Wails: kirim ke JS/Svelte
+		runtime.EventsEmit(a.ctx, event, data...)
+	}
+	if a.ipc != nil {
+		var payload any
+		switch len(data) {
+		case 0:
+		case 1:
+			payload = data[0]
+		default:
+			payload = data
+		}
+		a.ipc.Broadcast(event, payload)
+	}
+}
+
+// logErr mencatat error secara aman di kedua mode: Wails (runtime.LogError) atau
+// headless (log standar). Hindari runtime.* dgn ctx non-Wails yang bisa panik.
+func (a *App) logErr(msg string) {
+	if a.headless {
+		log.Println("[engine]", msg)
+		return
+	}
+	runtime.LogError(a.ctx, msg)
 }
 
 // SetVersion menyetel versi build (dipanggil dari main sebelum wails.Run).
@@ -145,6 +183,22 @@ func (a *App) Startup(ctx context.Context) {
 	_ = os.MkdirAll(a.mediaDir, 0o755)
 	a.startMediaEviction(512 << 20) // cap cache media ~512MB (LRU by modtime)
 
+	// Koleksi stiker tersimpan: dir TERPISAH dari media → TAK kena LRU evict,
+	// jadi stiker yang disimpan dari teman bertahan permanen.
+	a.stickerDir = filepath.Join(dataDir, "stickers")
+	_ = os.MkdirAll(a.stickerDir, 0o755)
+	a.gifDir = filepath.Join(dataDir, "gifs")
+	_ = os.MkdirAll(a.gifDir, 0o755)
+
+	// Jembatan IPC ke FE baru (Qt6/QML): stream event via UDS. Berdampingan dgn
+	// Wails (dual-emit) → Svelte tetap jalan; FE baru connect ke socket ini.
+	// Gagal listen tak fatal → app jalan normal (Wails saja).
+	if srv, err := ipc.Listen(filepath.Join(dataDir, "bridge.sock")); err == nil {
+		a.attachIPC(srv) // pasang dispatcher request (FE→engine) + simpan utk emit
+	} else {
+		runtime.LogError(ctx, "ipc bridge: "+err.Error())
+	}
+
 	// Retensi pesan: default 90 hari. Prune + VACUUM sekali saat boot (off-loop)
 	// → app.db tetap ramping walau riwayat besar. Berbintang/disematkan aman.
 	// Proxy (opsional): terapkan SEBELUM Connect (dipicu FE setelah ini).
@@ -158,7 +212,7 @@ func (a *App) Startup(ctx context.Context) {
 		if cut := a.retentionCutoff(); cut > 0 {
 			if n, _ := a.store.PruneMessages(a.ctx, cut); n > 0 {
 				_ = a.store.Vacuum(a.ctx)
-				runtime.EventsEmit(a.ctx, "wa:sync", "")
+				a.emit("wa:sync", "")
 			}
 		}
 	})
@@ -170,7 +224,7 @@ func (a *App) Startup(ctx context.Context) {
 				return
 			}
 			if n, _ := a.store.SweepExpired(a.ctx, time.Now().Unix()); n > 0 {
-				runtime.EventsEmit(a.ctx, "wa:sync", "")
+				a.emit("wa:sync", "")
 			}
 		}
 		sweep()
@@ -224,7 +278,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
 				ExpireAt: expireAt,
 			})
-			runtime.EventsEmit(a.ctx, "wa:message", chat)
+			a.emit("wa:message", chat)
 		})
 	})
 	// History sync → simpan semua percakapan & riwayat dalam SATU transaksi
@@ -249,9 +303,9 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				})
 			}
 			_ = store.SaveHistory(a.ctx, meta, nil, nil)
-			a.syncChatSettings()                                    // pin/arsip/bisukan dari HP (app-state)
-			runtime.EventsEmit(a.ctx, "wa:syncprogress", len(meta)) // indikator: jumlah chat
-			runtime.EventsEmit(a.ctx, "wa:sync", "")                // sidebar tampil cepat (unread!)
+			a.syncChatSettings()                 // pin/arsip/bisukan dari HP (app-state)
+			a.emit("wa:syncprogress", len(meta)) // indikator: jumlah chat
+			a.emit("wa:sync", "")                // sidebar tampil cepat (unread!)
 
 			// FASE 2 — ISI PESAN (lambat) streaming berkelompok (~2000/tx). TANPA
 			// kirim ulang metadata chat → tak menimpa apa pun.
@@ -287,12 +341,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			}
 			a.dedupChats(eng, store)
 			_ = store.RecomputeSummaries(a.ctx)
-			runtime.EventsEmit(a.ctx, "wa:sync", "")
+			a.emit("wa:sync", "")
 		})
 	})
 
 	eng.OnConnected(func() {
-		runtime.EventsEmit(a.ctx, "wa:ready", eng.SelfJID())
+		a.emit("wa:ready", eng.SelfJID())
 		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
 		go eng.SyncContacts()
 		// Umumkan online → server mulai kirim presence balik. SubscribePresence
@@ -323,7 +377,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		a.bg(func() {
 			a.dedupChats(eng, store)
 			a.syncChatSettings() // tarik pin/arsip/bisukan dari HP (app-state) → app.db
-			runtime.EventsEmit(a.ctx, "wa:sync", "")
+			a.emit("wa:sync", "")
 		})
 		// Ambil subjek grup yang diikuti → perbarui nama chat grup.
 		go func() {
@@ -334,12 +388,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			for _, g := range gs {
 				_ = store.SetChatName(a.ctx, g.JID, g.Name)
 			}
-			runtime.EventsEmit(a.ctx, "wa:sync", "")
+			a.emit("wa:sync", "")
 		}()
 	})
 	// Buku alamat / pushname berubah (app-state sync) → refresh nama di UI.
 	eng.OnContactsSynced(func() {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	})
 	// Pesan ditarik/dihapus-untuk-semua (oleh siapa pun) → tandai placeholder.
 	eng.OnRevoke(func(chat, msgID, sender string) {
@@ -350,7 +404,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			} else {
 				_ = store.MarkDeletedHard(a.ctx, chat, msgID) // WA asli: kosongkan isi
 			}
-			runtime.EventsEmit(a.ctx, "wa:message", chat)
+			a.emit("wa:message", chat)
 		})
 	})
 	// Pin/mute/arsip dari perangkat lain (mis. di-pin dari HP) → sinkron ke DB lokal.
@@ -365,15 +419,15 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			case "archive":
 				_ = store.SetArchived(a.ctx, jid, on)
 			}
-			runtime.EventsEmit(a.ctx, "wa:sync", "")
+			a.emit("wa:sync", "")
 		})
 	})
-	eng.OnLoggedOut(func() { runtime.EventsEmit(a.ctx, "wa:loggedout", "") })
+	eng.OnLoggedOut(func() { a.emit("wa:loggedout", "") })
 	// Sesi direbut proses kembar → beri tahu (jangan reconnect, whatsmeow stop).
-	eng.OnStreamReplaced(func() { runtime.EventsEmit(a.ctx, "wa:streamreplaced", "") })
+	eng.OnStreamReplaced(func() { a.emit("wa:streamreplaced", "") })
 	// Blokir sementara → tampilkan alasan + sisa menit (0 = tak diketahui).
 	eng.OnTemporaryBan(func(reason string, expire time.Duration) {
-		runtime.EventsEmit(a.ctx, "wa:tempban", map[string]interface{}{"reason": reason, "mins": int(expire.Minutes())})
+		a.emit("wa:tempban", map[string]interface{}{"reason": reason, "mins": int(expire.Minutes())})
 	})
 	// Pesan gagal-dekripsi → placeholder "menunggu pesan…"; isi asli menyusul
 	// (whatsmeow minta kirim ulang + rerequest ke HP). Off-loop lewat antrian.
@@ -381,7 +435,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			if a.store.SavePlaceholder(a.ctx, id, chat, sender, ts, fromMe) == nil {
-				runtime.EventsEmit(a.ctx, "wa:message", chat)
+				a.emit("wa:message", chat)
 			}
 		})
 	})
@@ -414,7 +468,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				})
 			}
 		})
-		runtime.EventsEmit(a.ctx, "wa:call", map[string]interface{}{
+		a.emit("wa:call", map[string]interface{}{
 			"id": callID, "jid": jid, "name": name, "video": video, "group": group, "ts": ts.Unix(),
 		})
 	})
@@ -428,7 +482,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				txt = "terakhir dilihat " + hm(ls)
 			}
 		}
-		runtime.EventsEmit(a.ctx, "wa:presence", map[string]string{"jid": jid, "text": txt})
+		a.emit("wa:presence", map[string]string{"jid": jid, "text": txt})
 	})
 	eng.OnChatPresence(func(chat, sender string, composing, recording bool) {
 		chat = eng.CanonicalJID(chat) // samakan dgn id chat di UI (cegah @lid mismatch)
@@ -436,7 +490,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if composing && isGroupJID(chat) && sender != "" {
 			who = a.displayName(sender) // grup → "Budi sedang mengetik…"
 		}
-		runtime.EventsEmit(a.ctx, "wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who, "rec": recording})
+		a.emit("wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who, "rec": recording})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {
 		chat = eng.CanonicalJID(chat)
@@ -447,7 +501,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				_ = a.store.SetReceipts(a.ctx, chat, ids, sender, status, ts)
 			})
 		}
-		runtime.EventsEmit(a.ctx, "wa:receipt", map[string]interface{}{
+		a.emit("wa:receipt", map[string]interface{}{
 			"chat": chat, "ids": ids, "status": status,
 		})
 	})
@@ -459,7 +513,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			_ = a.store.EditText(a.ctx, chat, msgID, newText)
-			runtime.EventsEmit(a.ctx, "wa:message", chat)
+			a.emit("wa:message", chat)
 		})
 	})
 	// Reaksi masuk → simpan & beri tahu UI (reload chat aktif).
@@ -470,7 +524,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		chat = eng.CanonicalJID(chat)
 		a.bg(func() {
 			_ = a.store.SetReaction(a.ctx, chat, targetID, sender, emoji, time.Now())
-			runtime.EventsEmit(a.ctx, "wa:message", chat)
+			a.emit("wa:message", chat)
 		})
 	})
 	// Suara polling masuk → cocokkan hash ke opsi, simpan, beri tahu UI.
@@ -488,7 +542,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			_ = json.Unmarshal([]byte(m.Thumb), &opts) // poll: thumb = JSON opsi
 			names := eng.MatchPollHashes(opts, selected)
 			_ = a.store.SetPollVote(a.ctx, pollID, voter, names, time.Now())
-			runtime.EventsEmit(a.ctx, "wa:poll", pollID)
+			a.emit("wa:poll", pollID)
 		})
 	})
 	// Pin/unpin dari perangkat atau anggota lain → perbarui banner tersemat.
@@ -498,7 +552,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			if a.store != nil {
 				_ = a.store.SetPinnedInChat(a.ctx, chat, msgID, pinned)
 			}
-			runtime.EventsEmit(a.ctx, "wa:message", chat)
+			a.emit("wa:message", chat)
 		})
 	})
 }
@@ -540,7 +594,7 @@ func (a *App) syncChatSettings() {
 		}
 	}
 	if changed {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
@@ -604,11 +658,11 @@ func (a *App) OpenChat(jid string) {
 					}
 					names = append(names, n)
 				}
-				runtime.EventsEmit(a.ctx, "wa:chatinfo", map[string]string{"jid": jid, "subtitle": strings.Join(names, ", ")})
+				a.emit("wa:chatinfo", map[string]string{"jid": jid, "subtitle": strings.Join(names, ", ")})
 				return
 			}
 			if s := a.eng.GroupSubtitle(jid); s != "" {
-				runtime.EventsEmit(a.ctx, "wa:chatinfo", map[string]string{"jid": jid, "subtitle": s})
+				a.emit("wa:chatinfo", map[string]string{"jid": jid, "subtitle": s})
 			}
 		}()
 	}

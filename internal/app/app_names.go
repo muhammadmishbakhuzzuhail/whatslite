@@ -16,8 +16,6 @@ package app
 
 import (
 	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // loadLabels mengisi cache label dari DB (dipanggil saat startup).
@@ -114,7 +112,7 @@ func (a *App) SaveContactLabel(jid, name string) {
 		return
 	}
 	if err := a.store.SetContactLabel(a.ctx, jid, name); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	a.labelsMu.Lock()
@@ -123,7 +121,7 @@ func (a *App) SaveContactLabel(jid, name string) {
 	}
 	a.labels[jid] = name
 	a.labelsMu.Unlock()
-	runtime.EventsEmit(a.ctx, "wa:sync", "") // UI refresh nama
+	a.emit("wa:sync", "") // UI refresh nama
 }
 
 // RemoveContactLabel menghapus label lokal sebuah jid.
@@ -132,11 +130,11 @@ func (a *App) RemoveContactLabel(jid string) {
 		return
 	}
 	if err := a.store.DeleteContactLabel(a.ctx, jid); err != nil {
-		runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+		a.emit("wa:error", err.Error())
 		return
 	}
 	a.labelsMu.Lock()
 	delete(a.labels, jid)
 	a.labelsMu.Unlock()
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }

@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	qrcode "github.com/skip2/go-qrcode"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
@@ -27,7 +26,7 @@ func atoiDef(s string, def int) int {
 // SetDefaultDisappearing menyetel timer hilang-otomatis default (detik; 0 = off).
 func (a *App) SetDefaultDisappearing(seconds int) {
 	if a.eng != nil && !a.emitErr(a.eng.SetDefaultDisappearing(a.ctx, seconds)) {
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	}
 }
 
@@ -39,7 +38,7 @@ func (a *App) MyQR(revoke bool) string {
 	link, err := a.eng.MyQRLink(a.ctx, revoke)
 	if err != nil || link == "" {
 		if err != nil {
-			runtime.EventsEmit(a.ctx, "wa:error", err.Error())
+			a.emit("wa:error", err.Error())
 		}
 		return ""
 	}
@@ -63,7 +62,7 @@ func (a *App) SetProxy(addr string) {
 	if a.store != nil {
 		_ = a.store.SetMeta(a.ctx, "proxy", addr)
 	}
-	runtime.EventsEmit(a.ctx, "wa:sync", "")
+	a.emit("wa:sync", "")
 }
 
 // StorageUsageDTO = rincian penyimpanan untuk layar setelan.
@@ -110,6 +109,6 @@ func (a *App) SetRetention(days int) {
 				_ = a.store.Vacuum(a.ctx)
 			}
 		}
-		runtime.EventsEmit(a.ctx, "wa:sync", "")
+		a.emit("wa:sync", "")
 	})
 }

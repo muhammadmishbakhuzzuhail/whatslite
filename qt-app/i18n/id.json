@@ -1,4 +1,6 @@
 {
+  "filter_all": "Semua", "filter_unread": "Belum dibaca", "filter_favorites": "Favorit", "filter_groups": "Grup",
+  "folder_new": "Folder baru",
   "search": "Cari pesan",
   "pick_conversation": "Pilih percakapan",
   "type_message": "Ketik pesan",

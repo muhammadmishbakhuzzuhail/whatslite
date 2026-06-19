@@ -1,4 +1,6 @@
 {
+  "filter_all": "All", "filter_unread": "Unread", "filter_favorites": "Favorites", "filter_groups": "Groups",
+  "folder_new": "New folder",
   "search": "Search messages",
   "pick_conversation": "Select a conversation",
   "type_message": "Type a message",

@@ -43,6 +43,7 @@ ApplicationWindow {
         "pollq": '<path d="M5 5h14M5 12h9M5 19h5"/>',
         "play": '<path d="M8 5v14l11-7z"/>',
         "locpin": '<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+        "download": '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
@@ -813,14 +814,36 @@ ApplicationWindow {
                                     // .poll-note: total suara.
                                     Text { text: "0 " + i18n.t("poll_votes_n"); color: theme.text2; font.pixelSize: 12 }
                                 }
-                                // Thumbnail gambar/video (data-URI di thumb)
-                                Image {
-                                    visible: (model.m.type === "image" || model.m.type === "video") && (model.m.thumb || "").indexOf("data:") === 0
-                                    source: visible ? model.m.thumb : ""
-                                    Layout.preferredWidth: Math.min(timeline.width * 0.45, 240)
-                                    Layout.preferredHeight: Layout.preferredWidth * 0.62
-                                    fillMode: Image.PreserveAspectCrop; clip: true
-                                    Text { visible: model.m.type === "video"; anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 30 }
+                                // Gambar/video: thumbnail bila ada, else placeholder (.img-ph).
+                                Rectangle {
+                                    visible: model.m.type === "image" || model.m.type === "video"
+                                    Layout.preferredWidth: 220; Layout.preferredHeight: 160
+                                    radius: 14; clip: true; color: theme.bg2
+                                    property bool hasMedia: imgM.status === Image.Ready && imgM.sourceSize.width > 2
+                                    Image {
+                                        id: imgM; anchors.fill: parent; fillMode: Image.PreserveAspectCrop
+                                        source: (content.pmsg.thumb || "").indexOf("data:") === 0 ? content.pmsg.thumb : ""
+                                        visible: parent.hasMedia
+                                    }
+                                    // Placeholder media belum diunduh: lingkaran download + label.
+                                    ColumnLayout {
+                                        anchors.centerIn: parent; spacing: 8; visible: !parent.hasMedia
+                                        Rectangle {
+                                            Layout.alignment: Qt.AlignHCenter; width: 46; height: 46; radius: 23
+                                            color: theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.06)
+                                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["download"]; color: theme.text2 }
+                                        }
+                                        Text {
+                                            Layout.alignment: Qt.AlignHCenter; color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium
+                                            text: model.m.type === "video" ? i18n.t("t_video") : i18n.t("t_photo")
+                                        }
+                                    }
+                                    // Play badge video (saat ada thumbnail).
+                                    Rectangle {
+                                        visible: model.m.type === "video" && parent.hasMedia
+                                        anchors.centerIn: parent; width: 54; height: 54; radius: 27; color: "#00000066"
+                                        Text { anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 24 }
+                                    }
                                 }
                                 // Voice note — play + waveform + durasi (app.css .play/.wave/.vtime).
                                 RowLayout {

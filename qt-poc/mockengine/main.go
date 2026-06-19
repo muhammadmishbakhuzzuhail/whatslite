@@ -62,6 +62,8 @@ func main() {
 					"thumb": `["Nasi", "Mie", "Roti"]`, "time": "09:06"},
 				{"id": "m7", "dir": "in", "type": "image", "text": "Foto liburan",
 					"thumb": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "time": "09:07"},
+				{"id": "mc", "dir": "in", "type": "contact", "text": "👤 Budi Santoso", "thumb": "+62 812-3456-7890", "time": "09:07", "sender": "Citra"},
+				{"id": "ml", "dir": "out", "type": "location", "text": "Monas, Jakarta Pusat", "time": "09:08", "status": "read"},
 				{"id": "m8", "dir": "out", "type": "voice", "text": "0:12", "time": "09:08", "status": "delivered"},
 				{"id": "m9", "dir": "out", "type": "text", "text": "Setuju, jam 3 di kantor ya", "time": "09:09", "status": "read",
 					"quoteId": "m3", "quoteName": "Citra", "quoteText": "Sehat. Nanti jadi ketemu jam 3 ya"},

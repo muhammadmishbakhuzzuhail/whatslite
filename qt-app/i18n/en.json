@@ -1,6 +1,7 @@
 {
   "filter_all": "All", "filter_unread": "Unread", "filter_favorites": "Favorites", "filter_groups": "Groups",
   "folder_new": "New folder",
+  "a_document": "Document", "a_stickers": "Stickers", "a_gifs": "GIFs",
   "search": "Search messages",
   "pick_conversation": "Select a conversation",
   "type_message": "Type a message",

@@ -38,6 +38,8 @@ ApplicationWindow {
         "search": '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
         "plus": '<path d="M12 5v14M5 12h14"/>',
         "send": '<path d="M3 11l18-8-8 18-2-7-8-3z"/>',
+        "emoji": '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/>',
+        "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
@@ -872,30 +874,20 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.preferredHeight: 56
                 color: theme.bg2
                 RowLayout {
-                    anchors.fill: parent; anchors.margins: 8; spacing: 8
-                    // Menu lampiran (lokasi/polling/kontak/mention).
+                    anchors.fill: parent; anchors.margins: 8; spacing: 6
+                    // Emoji (placeholder picker) — kiri, ala Composer.svelte.
                     Rectangle {
-                        width: 40; height: 40; radius: 20; color: "transparent"
+                        width: 40; height: 40; radius: 20; color: emojiHov.hovered ? theme.hover : "transparent"
+                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["emoji"]; color: theme.railIco }
+                        HoverHandler { id: emojiHov }
+                        MouseArea { anchors.fill: parent; onClicked: emojiMenu.popup() }
+                    }
+                    // Lampiran (+) → menu: dokumen/stiker/gif/gambar/video/lokasi/polling/kontak/mention.
+                    Rectangle {
+                        width: 40; height: 40; radius: 20; color: attachHov.hovered ? theme.hover : "transparent"
                         Icon { anchors.centerIn: parent; width: 26; height: 26; svg: win.ico["plus"]; color: theme.railIco }
+                        HoverHandler { id: attachHov }
                         MouseArea { anchors.fill: parent; onClicked: attachMenu.popup() }
-                    }
-                    // Lampirkan dokumen → pilih file → rename/cut → kirim.
-                    Rectangle {
-                        width: 40; height: 40; radius: 20; color: "transparent"
-                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["document"]; color: theme.railIco }
-                        MouseArea { anchors.fill: parent; onClicked: docDialog.open() }
-                    }
-                    // Tombol stiker → picker koleksi (fitur #1).
-                    Rectangle {
-                        width: 40; height: 40; radius: 20; color: "transparent"
-                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["sticker"]; color: theme.railIco }
-                        MouseArea { anchors.fill: parent; onClicked: { app.loadStickers(); stickerPopup.open() } }
-                    }
-                    // Tombol GIF → picker koleksi (fitur #3).
-                    Rectangle {
-                        width: 40; height: 40; radius: 20; color: "transparent"
-                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["gifb"]; color: theme.railIco }
-                        MouseArea { anchors.fill: parent; onClicked: { app.loadGifs(); gifPopup.open() } }
                     }
                     Rectangle {
                         Layout.fillWidth: true; Layout.fillHeight: true
@@ -925,11 +917,16 @@ ApplicationWindow {
                             text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 14
                         }
                     }
+                    // Kosong → mic (transparan); ada teks → tombol kirim (accent).
                     Rectangle {
                         id: sendBtn
-                        width: 40; height: 40; radius: 20; color: theme.accent
-                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["send"]; color: "white" }
-                        MouseArea { anchors.fill: parent; onClicked: composerInput.parent.send() }
+                        property bool hasText: composerInput.text.trim() !== ""
+                        width: 40; height: 40; radius: 20
+                        color: hasText ? theme.accent : "transparent"
+                        Icon { anchors.centerIn: parent; width: 22; height: 22
+                            svg: sendBtn.hasText ? win.ico["send"] : win.ico["mic"]
+                            color: sendBtn.hasText ? "white" : theme.railIco }
+                        MouseArea { anchors.fill: parent; onClicked: if (sendBtn.hasText) composerInput.parent.send() }
                     }
                 }
             }
@@ -1392,6 +1389,9 @@ ApplicationWindow {
     // === Menu lampiran compose (lokasi/polling/kontak/mention/poll-vote) ===
     Menu {
         id: attachMenu
+        MenuItem { text: "📄  " + i18n.t("a_document"); onTriggered: docDialog.open() }
+        MenuItem { text: "🏷️  " + i18n.t("a_stickers"); onTriggered: { app.loadStickers(); stickerPopup.open() } }
+        MenuItem { text: "🎬  " + i18n.t("a_gifs"); onTriggered: { app.loadGifs(); gifPopup.open() } }
         MenuItem { text: "🖼️  " + i18n.t("a_image"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
         MenuItem { text: "🎬  " + i18n.t("a_video"); onTriggered: { mediaDialog.kind = "video"; mediaDialog.open() } }
         MenuItem { text: "🎵  " + i18n.t("a_audio"); onTriggered: { mediaDialog.kind = "audio"; mediaDialog.open() } }
@@ -1402,6 +1402,15 @@ ApplicationWindow {
         MenuItem { text: "🏷️  " + i18n.t("a_send_sticker"); onTriggered: { mediaDialog.kind = "sticker"; mediaDialog.open() } }
         MenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: { mediaDialog.kind = "gif"; mediaDialog.open() } }
         MenuItem { text: "🗳️  " + i18n.t("a_vote"); onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
+    }
+
+    // Emoji picker ringkas (sisip ke composer) — paritas tombol emoji Composer.svelte.
+    Menu {
+        id: emojiMenu
+        Repeater {
+            model: ["😀", "😂", "😍", "👍", "🙏", "🎉", "❤️", "🔥", "😢", "😮"]
+            delegate: MenuItem { text: modelData; onTriggered: composerInput.text += modelData }
+        }
     }
 
     // FileDialog media (gambar/video/audio/sticker/gif) → kirim file nyata.

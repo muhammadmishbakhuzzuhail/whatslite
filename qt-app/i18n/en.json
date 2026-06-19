@@ -83,5 +83,5 @@
   "a_image": "Image", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Create poll", "poll_question": "Question", "poll_option": "Option",
   "send_contact": "Send contact", "contact_name": "Name", "contact_phone": "Phone",
-  "result": "Result"
+  "result": "Result", "typing": "typing…", "voice": "Voice note"
 }

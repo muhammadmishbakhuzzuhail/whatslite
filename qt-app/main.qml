@@ -214,12 +214,9 @@ ApplicationWindow {
                             background: Rectangle { color: hovered ? theme.hover : "transparent" }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
-                                Rectangle {
-                                    width: 49; height: 49; radius: 24.5; color: theme.accent
-                                    Text {
-                                        anchors.centerIn: parent; color: "white"; font.pixelSize: 18; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase()
-                                    }
+                                Avatar {
+                                    width: 49; height: 49
+                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
@@ -436,10 +433,12 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 60
                 color: theme.bg; border.color: theme.line
-                Text {
+                ColumnLayout {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 16
-                    text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text
+                    spacing: 0
+                    Text { text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text }
+                    Text { visible: app.typing; text: i18n.t("typing"); color: theme.accent; font.pixelSize: 12 }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -493,6 +492,7 @@ ApplicationWindow {
                             border.color: theme.line
                             ColumnLayout {
                                 id: content
+                                property var pmsg: model.m // tangkap pesan (hindari shadowing Repeater)
                                 anchors.left: parent.left
                                 anchors.top: parent.top
                                 anchors.margins: 8
@@ -520,9 +520,40 @@ ApplicationWindow {
                                     text: model.m.type === "sticker" ? "🏷️  Stiker" : "🎬  GIF"
                                     color: theme.text2; font.pixelSize: 14
                                 }
+                                // Polling: pertanyaan + opsi (klik = vote → VotePoll)
+                                ColumnLayout {
+                                    visible: model.m.type === "poll"
+                                    spacing: 4
+                                    Text {
+                                        text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 15; font.bold: true
+                                        wrapMode: Text.WordWrap; Layout.maximumWidth: timeline.width * 0.6
+                                    }
+                                    Repeater {
+                                        model: { try { return JSON.parse(content.pmsg.thumb || "[]") } catch (e) { return [] } }
+                                        delegate: Button {
+                                            text: "🗳️ " + modelData
+                                            onClicked: app.act("VotePoll", [win.selectedChat.id, content.pmsg.senderId || "", content.pmsg.id, [modelData]])
+                                        }
+                                    }
+                                }
+                                // Thumbnail gambar/video (data-URI di thumb)
+                                Image {
+                                    visible: (model.m.type === "image" || model.m.type === "video") && (model.m.thumb || "").indexOf("data:") === 0
+                                    source: visible ? model.m.thumb : ""
+                                    Layout.preferredWidth: Math.min(timeline.width * 0.45, 240)
+                                    Layout.preferredHeight: Layout.preferredWidth * 0.62
+                                    fillMode: Image.PreserveAspectCrop; clip: true
+                                    Text { visible: model.m.type === "video"; anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 30 }
+                                }
+                                // Voice note
+                                RowLayout {
+                                    visible: model.m.type === "voice"; spacing: 8
+                                    Text { text: "🎤"; font.pixelSize: 20 }
+                                    Text { text: i18n.t("voice") + " · " + (content.pmsg.text || ""); color: theme.text; font.pixelSize: 14 }
+                                }
                                 // Teks biasa
                                 Text {
-                                    visible: model.m.type !== "document" && model.m.type !== "sticker" && model.m.type !== "gif"
+                                    visible: ["document", "sticker", "gif", "poll", "voice"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     Layout.maximumWidth: timeline.width * 0.66
@@ -531,6 +562,19 @@ ApplicationWindow {
                                     Layout.alignment: Qt.AlignRight
                                     text: model.m.time || ""
                                     color: theme.text2; font.pixelSize: 11
+                                }
+                                // Chip reaksi (emoji + jumlah)
+                                Flow {
+                                    visible: content.pmsg.reactions !== undefined && content.pmsg.reactions.length > 0
+                                    Layout.fillWidth: true; spacing: 4
+                                    Repeater {
+                                        model: content.pmsg.reactions || []
+                                        delegate: Rectangle {
+                                            radius: 10; color: theme.bg2; border.color: theme.line
+                                            implicitWidth: rc.implicitWidth + 12; implicitHeight: 22
+                                            Text { id: rc; anchors.centerIn: parent; text: modelData.emoji + " " + modelData.count; font.pixelSize: 12; color: theme.text }
+                                        }
+                                    }
                                 }
                             }
                             // Klik-kanan → menu aksi; klik-kiri media → lightbox.

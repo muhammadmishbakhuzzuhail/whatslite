@@ -55,6 +55,11 @@ func main() {
 				{"id": "m4", "dir": "out", "type": "sticker", "text": "", "time": "09:03"},
 				{"id": "m5", "dir": "in", "type": "document", "text": "Proposal-Kerja.pdf",
 					"time": "09:05", "docSize": 1887436, "docMime": "application/pdf", "docPages": 12},
+				{"id": "m6", "dir": "in", "type": "poll", "text": "Makan siang apa?",
+					"thumb": `["Nasi", "Mie", "Roti"]`, "time": "09:06"},
+				{"id": "m7", "dir": "in", "type": "image", "text": "Foto liburan",
+					"thumb": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "time": "09:07"},
+				{"id": "m8", "dir": "out", "type": "voice", "text": "0:12", "time": "09:08"},
 			}
 			mu.Lock()
 			base = append(base, sent[chatID]...)
@@ -249,5 +254,6 @@ func main() {
 	defer t.Stop()
 	for range t.C {
 		srv.Broadcast("wa:message", "a@s.whatsapp.net")
+		srv.Broadcast("wa:typing", map[string]any{"chat": "a@s.whatsapp.net", "on": true})
 	}
 }

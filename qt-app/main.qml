@@ -27,20 +27,21 @@ ApplicationWindow {
     QtObject {
         id: theme
         property bool dark: (typeof startDark !== "undefined") ? startDark : false
-        readonly property color railBg: dark ? "#11161d" : "#f4f6fa"
-        readonly property color railIco: dark ? "#8a97a3" : "#6b7785"
-        readonly property color accent: dark ? "#06c98c" : "#06b67f"
-        readonly property color sidebarBg: dark ? "#0e1318" : "#ffffff"
-        readonly property color bg: dark ? "#1a232a" : "#ffffff"
-        readonly property color bg2: dark ? "#222e35" : "#f0f2f5"
-        readonly property color line: dark ? "#2a3942" : "#e4e8ee"
-        readonly property color searchBg: dark ? "#1b232b" : "#eef1f6"
-        readonly property color wallpaper: dark ? "#0a0f14" : "#eef1f6"
-        readonly property color inBg: dark ? "#1d262e" : "#ffffff"
-        readonly property color outBg: dark ? "#114b39" : "#d6f3c4"
-        readonly property color text: dark ? "#e7ecf0" : "#0f1722"
-        readonly property color text2: dark ? "#8a97a3" : "#6b7785"
-        readonly property color hover: dark ? "#161d24" : "#f2f4f8"
+        // Token WhatsApp Web (light + dark) — dari riset palet WA Web/Desktop.
+        readonly property color railBg: dark ? "#202c33" : "#f0f2f5"
+        readonly property color railIco: dark ? "#aebac1" : "#54656f"
+        readonly property color accent: "#00a884"                       // brand teal WA
+        readonly property color sidebarBg: dark ? "#111b21" : "#ffffff"
+        readonly property color bg: dark ? "#0b141a" : "#ffffff"
+        readonly property color bg2: dark ? "#202c33" : "#f0f2f5"
+        readonly property color line: dark ? "#2a3942" : "#e9edef"
+        readonly property color searchBg: dark ? "#2a3942" : "#f0f2f5"
+        readonly property color wallpaper: dark ? "#0b141a" : "#efeae2"  // dasar doodle WA
+        readonly property color inBg: dark ? "#202c33" : "#ffffff"
+        readonly property color outBg: dark ? "#005c4b" : "#d9fdd3"      // bubble keluar WA
+        readonly property color text: dark ? "#e9edef" : "#111b21"
+        readonly property color text2: dark ? "#8696a0" : "#667781"
+        readonly property color hover: dark ? "#2a3942" : "#f5f6f6"
     }
 
     // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
@@ -138,7 +139,7 @@ ApplicationWindow {
                     delegate: Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         width: 44; height: 44; radius: 22
-                        color: (activeView === modelData.view) ? Qt.rgba(0.02, 0.71, 0.5, 0.14) : "transparent"
+                        color: (activeView === modelData.view) ? Qt.rgba(0, 0.659, 0.518, 0.16) : "transparent"
                         Text { anchors.centerIn: parent; text: modelData.icon; font.pixelSize: 20 }
                         MouseArea {
                             anchors.fill: parent

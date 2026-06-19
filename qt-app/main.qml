@@ -189,7 +189,7 @@ ApplicationWindow {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 16
-                        text: "WhatsLite"; font.pixelSize: 22; font.bold: true; color: theme.text
+                        text: "WhatsLite"; font.pixelSize: 23; font.bold: true; color: theme.text
                     }
                 }
                 // Search (FTS pesan)
@@ -262,7 +262,7 @@ ApplicationWindow {
                                 Text { text: model.m.video ? "📹" : "📞"; font.pixelSize: 20 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text {
                                         text: (model.m.status === "missed" ? "Tak terjawab" : "Ditolak") + " · " + (model.m.time || "")
                                         color: model.m.status === "missed" ? "#e0533d" : theme.text2; font.pixelSize: 12
@@ -302,17 +302,16 @@ ApplicationWindow {
                                     width: 46; height: 46; radius: 23
                                     color: "transparent"; border.width: 2
                                     border.color: model.m.seen ? theme.text2 : theme.accent
-                                    Rectangle {
-                                        anchors.centerIn: parent; width: 40; height: 40; radius: 20; color: theme.accent
-                                        Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                            text: (model.m.name || "?").charAt(0).toUpperCase() }
+                                    Avatar {
+                                        anchors.centerIn: parent; width: 40; height: 40; fontSize: 16
+                                        name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                     }
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { text: (model.m.count || 0) + " pembaruan · " + (model.m.time || "")
-                                        color: theme.text2; font.pixelSize: 12 }
+                                        color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                         }
@@ -327,16 +326,16 @@ ApplicationWindow {
                             onClicked: { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
-                                Rectangle {
-                                    width: 42; height: 42; radius: 21; color: theme.accent
-                                    Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase() }
+                                Avatar {
+                                    Layout.preferredWidth: 42; Layout.preferredHeight: 42; fontSize: 16
+                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                        text: model.m.about || ""; color: theme.text2; font.pixelSize: 12 }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.about || ""; color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                             MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
@@ -354,7 +353,7 @@ ApplicationWindow {
                                 Text { text: "📢"; font.pixelSize: 22 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
@@ -373,7 +372,7 @@ ApplicationWindow {
                                     Text { anchors.centerIn: parent; text: "👥"; font.pixelSize: 18 } }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
                                     Text { text: model.m.subtitle || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                             }
@@ -386,13 +385,13 @@ ApplicationWindow {
                             width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
-                                Rectangle { width: 42; height: 42; radius: 21; color: theme.text2
-                                    Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 16; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase() } }
+                                Avatar { Layout.preferredWidth: 42; Layout.preferredHeight: 42; fontSize: 16
+                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.text2 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 12 }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
+                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; text: model.m.preview || ""; color: theme.text2; font.pixelSize: 14 }
                                 }
                             }
                         }

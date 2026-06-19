@@ -41,6 +41,7 @@ ApplicationWindow {
         "emoji": '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/>',
         "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
         "pollq": '<path d="M5 5h14M5 12h9M5 19h5"/>',
+        "play": '<path d="M8 5v14l11-7z"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
@@ -68,6 +69,12 @@ ApplicationWindow {
             if (m && m[field] === true) n++
         }
         return n
+    }
+    // Tinggi bar waveform voice (app.css: nth 3n→40%, odd→60%, even→95%). i 0-based.
+    function barH(i) {
+        var c = i + 1
+        if (c % 3 === 0) return 0.40
+        return (c % 2 === 1) ? 0.60 : 0.95
     }
 
     // --- Token tema (light + dark) — cocok dgn app.css [data-theme] ---
@@ -814,11 +821,29 @@ ApplicationWindow {
                                     fillMode: Image.PreserveAspectCrop; clip: true
                                     Text { visible: model.m.type === "video"; anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 30 }
                                 }
-                                // Voice note
+                                // Voice note — play + waveform + durasi (app.css .play/.wave/.vtime).
                                 RowLayout {
                                     visible: model.m.type === "voice"; spacing: 8
-                                    Text { text: "🎤"; font.pixelSize: 20 }
-                                    Text { text: i18n.t("voice") + " · " + (content.pmsg.text || ""); color: theme.text; font.pixelSize: 14 }
+                                    Rectangle {
+                                        Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17
+                                        color: playHov.hovered ? theme.hover : "transparent"
+                                        Icon { anchors.centerIn: parent; width: 24; height: 24; fill: "currentColor"
+                                            svg: win.ico["play"]; color: theme.text2 }
+                                        HoverHandler { id: playHov }
+                                    }
+                                    // Waveform: 22 bar tinggi pola tetap (deterministik).
+                                    RowLayout {
+                                        Layout.preferredWidth: 132; Layout.preferredHeight: 26; spacing: 3
+                                        Repeater {
+                                            model: 22
+                                            delegate: Rectangle {
+                                                Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
+                                                Layout.preferredHeight: 26 * win.barH(index)
+                                                radius: 2; color: theme.text2; opacity: 0.55
+                                            }
+                                        }
+                                    }
+                                    Text { text: content.pmsg.text || ""; color: theme.text2; font.pixelSize: 12 }
                                 }
                                 // Teks biasa
                                 Text {

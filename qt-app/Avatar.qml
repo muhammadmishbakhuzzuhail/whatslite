@@ -14,6 +14,8 @@ Rectangle {
     property color accent: "#06b67f"
     property real fontSize: 18
 
+    implicitWidth: 44
+    implicitHeight: 44
     radius: width / 2
     color: accent
 

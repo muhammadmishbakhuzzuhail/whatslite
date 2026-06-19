@@ -209,24 +209,24 @@ ApplicationWindow {
                         visible: activeView === "chats" && searchInput.text === ""
                         clip: true; model: chatsModel; reuseItems: true
                         delegate: ItemDelegate {
-                            width: chatList.width; height: 68
+                            width: chatList.width; height: 68; clip: true
                             onClicked: { win.selectedChat = model.m; app.openChat(model.m.id) }
                             background: Rectangle { color: hovered ? theme.hover : "transparent" }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
                                 Avatar {
-                                    width: 49; height: 49
+                                    Layout.preferredWidth: 49; Layout.preferredHeight: 49; Layout.alignment: Qt.AlignVCenter
                                     name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 2
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
                                     Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                         text: model.m.name || model.m.id || ""
                                         font.pixelSize: 16; font.weight: Font.Medium; color: theme.text
                                     }
                                     Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                         text: model.m.preview || ""; font.pixelSize: 13; color: theme.text2
                                     }
                                 }
@@ -245,7 +245,7 @@ ApplicationWindow {
                         visible: activeView === "calls" && searchInput.text === ""
                         clip: true; model: callsModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: model.m.video ? "📹" : "📞"; font.pixelSize: 20 }
@@ -266,7 +266,7 @@ ApplicationWindow {
                         visible: activeView === "starred" && searchInput.text === ""
                         clip: true; model: starredModel
                         delegate: Item {
-                            width: ListView.view.width; height: 62
+                            width: ListView.view.width; height: 62; clip: true
                             ColumnLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12
                                 anchors.topMargin: 8; anchors.bottomMargin: 8; spacing: 2
@@ -284,7 +284,7 @@ ApplicationWindow {
                         visible: activeView === "status" && searchInput.text === ""
                         clip: true; model: statusModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Rectangle {
@@ -312,7 +312,7 @@ ApplicationWindow {
                         visible: activeView === "contacts" && searchInput.text === ""
                         clip: true; model: contactsModel
                         delegate: ItemDelegate {
-                            width: ListView.view.width; height: 60
+                            width: ListView.view.width; height: 60; clip: true
                             onClicked: { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
@@ -337,7 +337,7 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "channels" && searchInput.text === ""
                         clip: true; model: channelsModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: "📢"; font.pixelSize: 22 }
@@ -355,7 +355,7 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "communities" && searchInput.text === ""
                         clip: true; model: communitiesModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Rectangle { width: 42; height: 42; radius: 10; color: theme.accent
@@ -372,7 +372,7 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "archived" && searchInput.text === ""
                         clip: true; model: archivedModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Rectangle { width: 42; height: 42; radius: 21; color: theme.text2
@@ -390,7 +390,7 @@ ApplicationWindow {
                         anchors.fill: parent; visible: activeView === "scheduled" && searchInput.text === ""
                         clip: true; model: scheduledModel
                         delegate: Item {
-                            width: ListView.view.width; height: 64
+                            width: ListView.view.width; height: 64; clip: true
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Text { text: "⏰"; font.pixelSize: 20 }
@@ -410,7 +410,7 @@ ApplicationWindow {
                         visible: searchInput.text !== ""
                         clip: true; model: searchModel
                         delegate: Item {
-                            width: ListView.view.width; height: 62
+                            width: ListView.view.width; height: 62; clip: true
                             ColumnLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12
                                 anchors.topMargin: 8; anchors.bottomMargin: 8; spacing: 2
@@ -929,7 +929,7 @@ ApplicationWindow {
                 visible: app.detail.members !== undefined
                 model: app.detail.members || []
                 delegate: RowLayout {
-                    width: ListView.view.width; height: 44; spacing: 10
+                    width: ListView.view.width; height: 44; clip: true; spacing: 10
                     Rectangle {
                         Layout.leftMargin: 8; width: 32; height: 32; radius: 16; color: theme.accent
                         Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 13; font.bold: true
@@ -972,7 +972,7 @@ ApplicationWindow {
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: chatsModel
                 delegate: ItemDelegate {
-                    width: ListView.view.width; height: 56
+                    width: ListView.view.width; height: 56; clip: true
                     onClicked: { app.forwardMsg(win.ctxMsg.id, model.m.id); forwardPopup.close() }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 8; spacing: 10
@@ -1030,7 +1030,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 model: win.ctxMsg.reactions || []
                 delegate: RowLayout {
-                    width: ListView.view.width; height: 40; spacing: 10
+                    width: ListView.view.width; height: 40; clip: true; spacing: 10
                     Text { text: modelData.emoji; font.pixelSize: 20 }
                     Text { Layout.fillWidth: true; text: (modelData.who || []).join(", "); color: theme.text; font.pixelSize: 14 }
                     Text { text: modelData.count; color: theme.text2; font.pixelSize: 13 }

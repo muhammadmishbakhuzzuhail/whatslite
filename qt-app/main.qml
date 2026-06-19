@@ -436,10 +436,12 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 60
                 color: theme.bg; border.color: theme.line
-                Text {
+                ColumnLayout {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left; anchors.leftMargin: 16
-                    text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text
+                    spacing: 0
+                    Text { text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text }
+                    Text { visible: app.typing; text: i18n.t("typing"); color: theme.accent; font.pixelSize: 12 }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -537,9 +539,24 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+                                // Thumbnail gambar/video (data-URI di thumb)
+                                Image {
+                                    visible: (model.m.type === "image" || model.m.type === "video") && (model.m.thumb || "").indexOf("data:") === 0
+                                    source: visible ? model.m.thumb : ""
+                                    Layout.preferredWidth: Math.min(timeline.width * 0.45, 240)
+                                    Layout.preferredHeight: Layout.preferredWidth * 0.62
+                                    fillMode: Image.PreserveAspectCrop; clip: true
+                                    Text { visible: model.m.type === "video"; anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 30 }
+                                }
+                                // Voice note
+                                RowLayout {
+                                    visible: model.m.type === "voice"; spacing: 8
+                                    Text { text: "🎤"; font.pixelSize: 20 }
+                                    Text { text: i18n.t("voice") + " · " + (content.pmsg.text || ""); color: theme.text; font.pixelSize: 14 }
+                                }
                                 // Teks biasa
                                 Text {
-                                    visible: ["document", "sticker", "gif", "poll"].indexOf(model.m.type) < 0
+                                    visible: ["document", "sticker", "gif", "poll", "voice"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     Layout.maximumWidth: timeline.width * 0.66

@@ -83,5 +83,5 @@
   "a_image": "Gambar", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Buat polling", "poll_question": "Pertanyaan", "poll_option": "Opsi",
   "send_contact": "Kirim kontak", "contact_name": "Nama", "contact_phone": "Telepon",
-  "result": "Hasil"
+  "result": "Hasil", "typing": "mengetik…", "voice": "Pesan suara"
 }

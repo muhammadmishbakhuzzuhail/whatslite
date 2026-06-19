@@ -25,6 +25,7 @@ class AppController : public QObject {
     Q_PROPERTY(QString qr READ qr NOTIFY qrChanged)          // data-URI QR (belum login)
     Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged) // objek detail (grup/profil)
     Q_PROPERTY(QString lastResult READ lastResult NOTIFY lastResultChanged) // hasil getter-string
+    Q_PROPERTY(bool typing READ typing NOTIFY typingChanged) // lawan bicara mengetik
 public:
     AppController(WaEngineClient *c, JsonListModel *chats, JsonListModel *msgs,
                   JsonListModel *stickers, JsonListModel *gifs, JsonListModel *calls,
@@ -68,6 +69,12 @@ public:
                 refreshChats();
             } else if (t == QLatin1String("wa:loggedout")) {
                 m_state = QStringLiteral("offline"); emit stateChanged();
+            } else if (t == QLatin1String("wa:typing")) {
+                const QVariantMap m = p.toObject().toVariantMap();
+                if (m.value("chat").toString() == m_cur) {
+                    m_typing = m.value("on").toBool();
+                    emit typingChanged();
+                }
             }
         });
     }
@@ -89,6 +96,7 @@ public:
         if (id.isEmpty())
             return;
         m_cur = id;
+        if (m_typing) { m_typing = false; emit typingChanged(); }
         reloadMessages();
     }
 
@@ -357,6 +365,7 @@ public:
     QString mediaBase() const { return m_mediaBase; }
     bool keepDeleted() const { return m_keepDeleted; }
     QString lastResult() const { return m_lastResult; }
+    bool typing() const { return m_typing; }
     QString state() const { return m_state; }
     QString qr() const { return m_qr; }
     QVariantMap detail() const { return m_detail; }
@@ -368,6 +377,7 @@ signals:
     void qrChanged();
     void detailChanged();
     void lastResultChanged();
+    void typingChanged();
 
 private:
     void reloadMessages() {
@@ -395,6 +405,7 @@ private:
     QString m_qr;
     QVariantMap m_detail;
     QString m_lastResult;
+    bool m_typing = false;
     qint64 m_oldestTs = 0;
     bool m_keepDeleted = true;
     bool m_openFirst = true;

@@ -18,6 +18,7 @@ ApplicationWindow {
     property var ctxMsg: ({})        // pesan target context-menu
     property var selectedChat: ({})  // chat aktif (utk header)
     property string activeView: "chats" // chats | calls | starred
+    property string chatFilter: "Semua" // filter chip aktif
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
     property bool locked: (typeof startLock !== "undefined") && startLock // app-lock PIN
     property var replyTo: null        // pesan yang sedang dibalas (banner composer)
@@ -40,8 +41,17 @@ ApplicationWindow {
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
-        "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>'
+        "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+        "newchat": '<path d="M12 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-5"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L13 15l-4 1 1-4 8.5-8.5z"/>'
     })
+    // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
+    readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
+    function avatarColor(s) {
+        s = s || "?"
+        var h = 0
+        for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+        return avPalette[h % avPalette.length]
+    }
 
     // --- Token tema (light + dark) — cocok dgn app.css [data-theme] ---
     QtObject {
@@ -206,14 +216,27 @@ ApplicationWindow {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
-                // Header
+                // Header: judul view + aksi (chat baru, menu) — ala WhatsApp.
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 60
-                    color: theme.sidebarBg
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left; anchors.leftMargin: 16
-                        text: "WhatsLite"; font.pixelSize: 23; font.bold: true; color: theme.text
+                    color: theme.headBg
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: 18; anchors.rightMargin: 10; spacing: 4
+                        Text {
+                            Layout.fillWidth: true
+                            text: ({ chats: "Chat", status: "Status", channels: "Channels", communities: "Communities", calls: "Panggilan", contacts: "Kontak", starred: "Berbintang", archived: "Arsip", scheduled: "Terjadwal" }[activeView] || "Chat")
+                            font.pixelSize: 23; font.bold: true; color: theme.text
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: chatNewMa.containsMouse ? theme.hover : "transparent"
+                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["newchat"]; color: theme.railIco }
+                            MouseArea { id: chatNewMa; anchors.fill: parent; hoverEnabled: true; onClicked: app.act("CreateGroup", []) }
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: menuMa.containsMouse ? theme.hover : "transparent"
+                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["overflow"]; color: theme.railIco }
+                            MouseArea { id: menuMa; anchors.fill: parent; hoverEnabled: true; onClicked: settingsPopup.open() }
+                        }
                     }
                 }
                 // Search (FTS pesan)
@@ -239,6 +262,22 @@ ApplicationWindow {
                         text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
                     }
                 }
+                // Filter chips (Semua / Belum dibaca / Favorit / Grup) — ala WhatsApp.
+                Flow {
+                    Layout.fillWidth: true; Layout.leftMargin: 14; Layout.rightMargin: 14; Layout.bottomMargin: 6; spacing: 8
+                    visible: activeView === "chats" && searchInput.text === ""
+                    Repeater {
+                        model: ["Semua", "Belum dibaca", "Favorit", "Grup"]
+                        delegate: Rectangle {
+                            radius: 15; height: 30; implicitWidth: ct.implicitWidth + 26
+                            color: (win.chatFilter === modelData) ? theme.selected : theme.searchBg
+                            border.width: (win.chatFilter === modelData) ? 1 : 0; border.color: theme.accent
+                            Text { id: ct; anchors.centerIn: parent; text: modelData; font.pixelSize: 13
+                                color: (win.chatFilter === modelData) ? theme.accentDeep : theme.text2 }
+                            MouseArea { anchors.fill: parent; onClicked: win.chatFilter = modelData }
+                        }
+                    }
+                }
                 // Daftar (swap per activeView): chats / calls / starred
                 Item {
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -256,7 +295,7 @@ ApplicationWindow {
                                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
                                 Avatar {
                                     Layout.preferredWidth: 49; Layout.preferredHeight: 49; Layout.alignment: Qt.AlignVCenter
-                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
+                                    name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
@@ -352,7 +391,7 @@ ApplicationWindow {
                                     border.color: model.m.seen ? theme.text2 : theme.accent
                                     Avatar {
                                         anchors.centerIn: parent; width: 40; height: 40; fontSize: 16
-                                        name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: theme.accent
+                                        name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
                                     }
                                 }
                                 ColumnLayout {
@@ -376,7 +415,7 @@ ApplicationWindow {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Avatar {
                                     Layout.preferredWidth: 42; Layout.preferredHeight: 42; fontSize: 16
-                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: theme.accent
+                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: win.avatarColor(model.m.name)
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 2

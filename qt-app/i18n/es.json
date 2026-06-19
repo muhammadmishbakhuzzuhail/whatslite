@@ -2,6 +2,7 @@
   "filter_all": "Todos", "filter_unread": "No leídos", "filter_favorites": "Favoritos", "filter_groups": "Grupos",
   "folder_new": "Nueva carpeta",
   "a_document": "Documento", "a_stickers": "Stickers", "a_gifs": "GIFs",
+  "poll_votes_n": "votos",
   "search": "Buscar mensajes",
   "pick_conversation": "Selecciona una conversación",
   "type_message": "Escribe un mensaje",

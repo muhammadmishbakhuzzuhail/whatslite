@@ -272,8 +272,8 @@ ApplicationWindow {
                 }
                 // Search (FTS pesan)
                 Rectangle {
-                    Layout.fillWidth: true; Layout.preferredHeight: 44
-                    Layout.margins: 8; radius: 22; color: theme.searchBg
+                    Layout.fillWidth: true; Layout.preferredHeight: 38  // = Svelte .search (pad 9 + icon 18)
+                    Layout.margins: 8; radius: 19; color: theme.searchBg
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 14
@@ -306,7 +306,7 @@ ApplicationWindow {
                         delegate: Rectangle {
                             property bool on: win.chatFilter === modelData.v
                             property int n: modelData.f ? win.chatCount(modelData.f, chatList.count) : 0
-                            radius: 16; height: 30; implicitWidth: crow.implicitWidth + 26
+                            radius: 13; height: 26; implicitWidth: crow.implicitWidth + 26  // = Svelte .chip (pad 5/13)
                             // app.css: aktif = bg accent + teks putih (solid), bukan outline.
                             color: on ? theme.accent : theme.searchBg
                             Row {
@@ -320,7 +320,7 @@ ApplicationWindow {
                     }
                     // Chip "+" (buat folder) — app.css .chip.plus.
                     Rectangle {
-                        radius: 16; height: 30; width: 34; color: theme.searchBg
+                        radius: 13; height: 26; width: 34; color: theme.searchBg
                         Text { anchors.centerIn: parent; text: "+"; font.pixelSize: 17; color: theme.text2 }
                         MouseArea { anchors.fill: parent
                             onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) app.act("AddFolder", [v]) }) }

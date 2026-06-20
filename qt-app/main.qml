@@ -1964,10 +1964,25 @@ ApplicationWindow {
                 }
                 Text { anchors.centerIn: parent; visible: app.qr === ""; text: app.state || "menghubungkan…"; color: "#555" }
             }
-            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("connect"); onClicked: app.doConnect() }
-            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("link_code"); onClicked: app.fetchStr("AddViaQR", [""]) }
-            Button { Layout.alignment: Qt.AlignHCenter; text: i18n.t("link_phone"); onClicked: app.fetchStr("LinkWithPhone", ["6281234567890"]) }
-}
+            // Tombol login (app.css .btn-accent / .btn-ghost).
+            Repeater {
+                model: [{ t: i18n.t("connect"), primary: true, fn: "connect" },
+                        { t: i18n.t("link_code"), primary: false, fn: "code" },
+                        { t: i18n.t("link_phone"), primary: false, fn: "phone" }]
+                delegate: Rectangle {
+                    Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 240; implicitHeight: 40; radius: 10
+                    color: modelData.primary ? (loginHov.hovered ? theme.accentDeep : theme.accent)
+                                              : (loginHov.hovered ? theme.hover : theme.bg2)
+                    Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 14; font.weight: Font.DemiBold
+                        color: modelData.primary ? "#ffffff" : theme.text }
+                    HoverHandler { id: loginHov }
+                    MouseArea { anchors.fill: parent; onClicked: {
+                        if (modelData.fn === "connect") app.doConnect()
+                        else if (modelData.fn === "code") app.fetchStr("AddViaQR", [""])
+                        else app.fetchStr("LinkWithPhone", ["6281234567890"]) } }
+                }
+            }
+        }
     }
 
     // Auto-buka panel (uji/screenshot) bila diminta via env WALITE_OPEN.

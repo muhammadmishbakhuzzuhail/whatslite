@@ -8,7 +8,7 @@
   "about": "About", "group_admin_settings": "Group settings", "member_admin": "admin",
   "stk_online": "Online", "stk_recents": "Recents", "stk_pack": "Pack", "stk_create": "Create",
   "gif_online": "Online", "gif_recents": "Recents",
-  "search": "Search messages",
+  "search": "Search messages", "search_placeholder": "Search or start a new chat",
   "pick_conversation": "Select a conversation",
   "type_message": "Type a message",
   "replying": "Replying",

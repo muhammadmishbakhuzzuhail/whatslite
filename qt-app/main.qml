@@ -968,14 +968,15 @@ ApplicationWindow {
                                         color: content.pmsg.status === "read" ? theme.tick : theme.text2
                                     }
                                 }
-                                // Chip reaksi (emoji + jumlah)
+                                // Chip reaksi (emoji + jumlah). app.css .reactions: in→kiri, out→kanan.
                                 Flow {
                                     visible: content.pmsg.reactions && content.pmsg.reactions.length > 0
-                                    Layout.fillWidth: true; spacing: 4
+                                    spacing: 4
+                                    Layout.alignment: content.pmsg.dir === "out" ? Qt.AlignRight : Qt.AlignLeft
                                     Repeater {
                                         model: content.pmsg.reactions || []
                                         delegate: Rectangle {
-                                            radius: 10; color: theme.bg2; border.color: theme.line
+                                            radius: 11; color: theme.bg2; border.width: 1; border.color: theme.line
                                             implicitWidth: rc.implicitWidth + 12; implicitHeight: 22
                                             Text { id: rc; anchors.centerIn: parent; text: modelData.emoji + " " + modelData.count; font.pixelSize: 12; color: theme.text }
                                         }

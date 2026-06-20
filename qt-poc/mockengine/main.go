@@ -63,8 +63,9 @@ func main() {
 			// yang auto-dipilih → render percakapan setara Svelte utk DSSIM.
 			base := []map[string]any{
 				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Jadi nanti malam ngumpul jam berapa?", "time": "19.02",
-					"reactions": []map[string]any{{"emoji": "👍", "count": 1}}},
-				{"id": "m2", "dir": "out", "type": "text", "text": "Jam 8 ya, di tempat biasa 👌", "time": "19.03", "status": "read"},
+					"reactions": []map[string]any{{"emoji": "👍", "count": 2}, {"emoji": "❤️", "count": 1}, {"emoji": "😂", "count": 5}}},
+				{"id": "m2", "dir": "out", "type": "text", "text": "Jam 8 ya, di tempat biasa 👌", "time": "19.03", "status": "read",
+					"reactions": []map[string]any{{"emoji": "🔥", "count": 1}}},
 				{"id": "m3", "dir": "in", "type": "text", "text": "Oke sip. Oh iya aku bawa kamera, sekalian foto-foto. Kamu bawa speaker yang kemarin gak?", "time": "19.04"},
 				{"id": "m4", "dir": "out", "type": "text", "text": "Bawa dong, udah aku charge full 🔋", "time": "19.05", "status": "read",
 					"quoteId": "m3", "quoteName": "Andi Pratama", "quoteText": "Kamu bawa speaker yang kemarin gak?"},

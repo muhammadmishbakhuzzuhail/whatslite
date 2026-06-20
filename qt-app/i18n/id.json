@@ -163,6 +163,8 @@
   "my_status": "Status saya", "status_add_hint": "Ketuk untuk menambahkan status",
   "ch_subs": "subscriber", "comm_groups": "grup",
   "sc_scheduled": "Terjadwal", "sc_reminders": "Pengingat",
+  "contact_save_new": "Kontak baru", "ch_following": "Diikuti", "ch_discover": "Jelajahi",
+  "comm_leave": "Keluar", "comm_announce": "Pengumuman", "comm_no_groups": "Belum ada grup",
   "splash_title": "WhatsLite untuk Desktop",
   "splash_sub": "Kirim & terima pesan tanpa ponsel tetap online.",
   "splash_enc": "Terenkripsi end-to-end",

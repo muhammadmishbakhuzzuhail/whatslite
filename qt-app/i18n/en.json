@@ -70,6 +70,13 @@
   "link_code": "Link via code",
   "link_phone": "Link via phone number",
   "link_hint": "Scan the QR via WhatsApp → Linked Devices → Link a device",
+  "login_title": "Link a device",
+  "login_hint": "Open WhatsLite on your phone to scan.",
+  "login_s1": "Open WhatsApp on your phone",
+  "login_s2": "Tap Menu, then select Linked devices",
+  "login_s3": "Tap Link a device and point your camera at this screen",
+  "login_waiting": "Waiting for QR code…",
+  "login_use_phone": "Link with phone number",
   "enter_pin": "Enter PIN",
   "members": "members",
   "forward_to": "Forward to…",
@@ -177,5 +184,7 @@
   "pv_blocked": "Blocked contacts",
   "pv_unblock": "Unblock",
   "pv_no_blocked": "No blocked contacts",
-  "unblocked_toast": "%s unblocked"
+  "unblocked_toast": "%s unblocked",
+  "toast_copied": "Copied to clipboard",
+  "toast_unblocked": "Contact unblocked"
 }

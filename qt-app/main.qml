@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import Qt5Compat.GraphicalEffects
 
 ApplicationWindow {
     id: win
@@ -18,6 +19,7 @@ ApplicationWindow {
     property var ctxMsg: ({})        // pesan target context-menu
     property var selectedChat: ({})  // chat aktif (utk header)
     property string activeView: "chats" // chats | calls | starred
+    property string myName: "Saya"   // nama profil sendiri (avatar rail, GetProfile)
     property string chatFilter: "Semua" // filter chip aktif
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
     property string lightboxCaption: "" // keterangan media di lightbox (Lightbox.svelte .lb-cap)
@@ -93,6 +95,8 @@ ApplicationWindow {
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+        // .doc-ico svg (Bubble.svelte cabang document) — disalin persis.
+        "docfile": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
         "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
         "newchat": '<path d="M12 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-5"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3L13 15l-4 1 1-4 8.5-8.5z"/>',
         "pin": '<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>',
@@ -385,6 +389,15 @@ ApplicationWindow {
         return p.join(" · ")
     }
 
+    // toast — pil bawah-tengah sementara (Toast.svelte). type: "" | "ok" | "error".
+    property string toastText: ""
+    property string toastType: ""
+    function toast(msg, type) {
+        toastText = msg || ""
+        toastType = type || ""
+        toastTimer.restart()
+    }
+
     // prompt — dialog input teks reusable. cb(nilai) dipanggil saat simpan.
     function prompt(label, def, cb) {
         promptDialog.label = label
@@ -424,28 +437,48 @@ ApplicationWindow {
                 spacing: 6
                 Repeater {
                     model: [
-                        { icon: "💬", view: "chats" },
-                        { icon: "📷", view: "status" },
-                        { icon: "📢", view: "channels" },
-                        { icon: "👥", view: "communities" },
-                        { icon: "⭐", view: "starred" },
-                        { icon: "📞", view: "calls" },
-                        { icon: "👤", view: "contacts" },
-                        { icon: "🗄️", view: "archived" },
-                        { icon: "⏰", view: "scheduled" },
-                        { icon: "⚙️", view: "settings" }
+                        { view: "chats" },
+                        { view: "status" },
+                        { view: "channels" },
+                        { view: "communities" },
+                        { view: "starred" },
+                        { view: "calls" },
+                        { view: "contacts" },
+                        { view: "archived" },
+                        { view: "scheduled" },
+                        { view: "settings" }
                     ]
+                    // .rail-btn: 44×44; default lingkaran (radius 50%), aktif → rounded-rect
+                    // radius 14 + bg rgba(0,168,132,.15) + ikon rail-active (app.css).
                     delegate: Rectangle {
+                        id: railBtn
+                        property bool active: activeView === modelData.view
                         Layout.alignment: Qt.AlignHCenter
-                        width: 44; height: 44; radius: 22
-                        color: (activeView === modelData.view) ? theme.selected : "transparent"
+                        width: 44; height: 44
+                        radius: active ? 14 : 22
+                        color: active ? Qt.rgba(0, 168/255, 132/255, 0.15)
+                                      : (railMa.containsMouse ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06))
+                                                              : "transparent")
                         Icon {
                             anchors.centerIn: parent; width: 24; height: 24
                             svg: win.ico[modelData.view] || ""
-                            color: (activeView === modelData.view) ? theme.accent : theme.railIco
+                            color: railBtn.active ? theme.accent : theme.railIco
+                        }
+                        // Badge belum-dibaca pada tombol Chats (.rail-badge app.css).
+                        Rectangle {
+                            visible: modelData.view === "chats" && win.chatCount("unread", chatList.count) > 0
+                            anchors.top: parent.top; anchors.topMargin: 3
+                            anchors.right: parent.right; anchors.rightMargin: 5
+                            height: 16; width: Math.max(16, badgeTxt.implicitWidth + 8); radius: 8
+                            color: theme.accent
+                            Text {
+                                id: badgeTxt; anchors.centerIn: parent
+                                text: { var n = win.chatCount("unread", chatList.count); return n > 99 ? "99+" : n }
+                                color: "#ffffff"; font.pixelSize: 10; font.bold: true
+                            }
                         }
                         MouseArea {
-                            anchors.fill: parent
+                            id: railMa; anchors.fill: parent; hoverEnabled: true
                             onClicked: {
                                 if (modelData.view === "settings") { settingsPopup.open(); return }
                                 activeView = modelData.view
@@ -457,11 +490,22 @@ ApplicationWindow {
                 Item { Layout.fillHeight: true }
                 // Toggle tema light/dark (bawah rail).
                 Rectangle {
+                    id: themeBtn
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 44; height: 44; radius: 22
+                    color: themeMa.containsMouse ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
+                    Text { anchors.centerIn: parent; text: theme.dark ? "☀️" : "🌙"; font.pixelSize: 18 }
+                    MouseArea { id: themeMa; anchors.fill: parent; hoverEnabled: true; onClicked: theme.dark = !theme.dark }
+                }
+                // Avatar profil di dasar rail (.rail-avatar 40px, inisial putih).
+                Avatar {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.bottomMargin: 12
-                    width: 44; height: 44; radius: 22; color: "transparent"
-                    Text { anchors.centerIn: parent; text: theme.dark ? "☀️" : "🌙"; font.pixelSize: 18 }
-                    MouseArea { anchors.fill: parent; onClicked: theme.dark = !theme.dark }
+                    implicitWidth: 40; implicitHeight: 40; fontSize: 16
+                    name: win.myName; jid: "self"; base: app.mediaBase
+                    accent: win.avatarColor(win.myName)
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: { app.loadDetail("GetContactProfile", "self"); detailPopup.open() } }
                 }
             }
         }
@@ -1258,21 +1302,47 @@ ApplicationWindow {
                                             text: content.pmsg.quoteText || ""; color: theme.text2; font.pixelSize: 13 }
                                     }
                                 }
-                                // Document → ikon + nama + (PDF · ukuran · halaman)
+                                // Document → .doc-card: ikon-box + (nama + meta) + unduh.
                                 RowLayout {
                                     visible: model.m.type === "document"
-                                    spacing: 8
-                                    Text { text: "📄"; font.pixelSize: 26 }
+                                    Layout.minimumWidth: 200
+                                    Layout.topMargin: 6; Layout.bottomMargin: 6
+                                    Layout.leftMargin: 2; Layout.rightMargin: 2
+                                    spacing: 11
+                                    // .doc-ico: 40×40, radius 9, bg accent 16%, stroke accent.
+                                    Rectangle {
+                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                                        radius: 9
+                                        color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
+                                        Icon {
+                                            anchors.centerIn: parent; width: 22; height: 22
+                                            svg: win.ico["docfile"]; color: theme.accent
+                                        }
+                                    }
                                     ColumnLayout {
+                                        Layout.fillWidth: true
                                         spacing: 1
+                                        // .doc-name: ellipsis 1 baris, 13.5px (→14 int).
                                         Text {
-                                            text: model.m.text || "Dokumen"
-                                            color: theme.text; font.pixelSize: 14; font.weight: Font.Medium
+                                            Layout.fillWidth: true
+                                            text: model.m.text || i18n.t("a_document")
+                                            color: theme.text; font.pixelSize: 14
+                                            elide: Text.ElideRight; maximumLineCount: 1
                                         }
                                         Text {
+                                            visible: text !== ""
                                             text: win.fmtDoc(model.m)
                                             color: theme.text2; font.pixelSize: 12
                                         }
+                                    }
+                                    // .doc-dl: ikon unduh 20×20 (text2; accent saat hover).
+                                    Icon {
+                                        Layout.preferredWidth: 20; Layout.preferredHeight: 20
+                                        Layout.alignment: Qt.AlignVCenter
+                                        svg: win.ico["download"]
+                                        color: docDlMa.containsMouse ? theme.accent : theme.text2
+                                        MouseArea { id: docDlMa; anchors.fill: parent; hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor }
                                     }
                                 }
                                 // Stiker: kotak 160 (.media-box.sticker) — gambar /media/<id> atau placeholder.
@@ -3085,7 +3155,7 @@ ApplicationWindow {
                                     text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
                                 Btn {
                                     text: i18n.t("pv_unblock")
-                                    onClicked: { app.act("Block", [model.m.jid, false]); app.loadInto("GetBlockedContacts", searchModel) }
+                                    onClicked: { app.act("Block", [model.m.jid, false]); app.loadInto("GetBlockedContacts", searchModel); win.toast(i18n.t("toast_unblocked"), "ok") }
                                 }
                             }
                         }
@@ -3580,46 +3650,143 @@ ApplicationWindow {
         }
     }
 
-    // === Gerbang login QR — tampil bila belum terhubung ===
+    // === Gerbang login (Login.svelte) — tampil bila belum terhubung ===
     Rectangle {
         anchors.fill: parent
         z: 100
         visible: app.state !== "" && app.state !== "ready" && app.state !== "connected"
-        color: theme.bg
-        ColumnLayout {
-            anchors.centerIn: parent; spacing: 18; width: 340
-            Text { Layout.alignment: Qt.AlignHCenter; text: "WhatsLite"; font.pixelSize: 28; font.bold: true; color: theme.accent }
+        // .login: bg head-bg, kolom, align tengah.
+        color: theme.headBg
+        // .login-bar: bar atas full-width 56px accent, "WhatsLite" 17 w600.
+        Rectangle {
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+            height: 56; color: theme.accent
             Text {
-                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                text: i18n.t("link_hint")
-                color: theme.text2; font.pixelSize: 13
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left; anchors.leftMargin: 24
+                text: "WhatsLite"; color: "#ffffff"; font.pixelSize: 17; font.weight: Font.DemiBold
             }
-            Rectangle {
-                Layout.alignment: Qt.AlignHCenter; width: 240; height: 240; radius: 12
-                color: "white"; border.color: theme.line
-                Image {
-                    anchors.fill: parent; anchors.margins: 10; fillMode: Image.PreserveAspectFit
-                    source: app.qr; visible: app.qr !== ""
-                }
-                Text { anchors.centerIn: parent; visible: app.qr === ""; text: app.state || "menghubungkan…"; color: "#555" }
+        }
+        // .login-card: margin-top 56 (dari bar) → diposisikan di bawah bar, tengah.
+        Rectangle {
+            id: loginCard
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top; anchors.topMargin: 56 + 56  // bar 56 + margin-top 56
+            radius: 14; color: theme.sidebarBg
+            implicitWidth: loginRow.implicitWidth + 88   // padding 44 kiri+kanan
+            implicitHeight: loginRow.implicitHeight + 88
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 8; radius: 28; samples: 33
+                color: Qt.rgba(0, 0, 0, 0.14)
             }
-            // Tombol login (app.css .btn-accent / .btn-ghost).
-            Repeater {
-                model: [{ t: i18n.t("connect"), primary: true, fn: "connect" },
-                        { t: i18n.t("link_code"), primary: false, fn: "code" },
-                        { t: i18n.t("link_phone"), primary: false, fn: "phone" }]
-                delegate: Rectangle {
-                    Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 240; implicitHeight: 40; radius: 10
-                    color: modelData.primary ? (loginHov.hovered ? theme.accentDeep : theme.accent)
-                                              : (loginHov.hovered ? theme.hover : theme.bg2)
-                    Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 14; font.weight: Font.DemiBold
-                        color: modelData.primary ? "#ffffff" : theme.text }
-                    HoverHandler { id: loginHov }
-                    MouseArea { anchors.fill: parent; onClicked: {
-                        if (modelData.fn === "connect") app.doConnect()
-                        else if (modelData.fn === "code") app.fetchStr("AddViaQR", [""])
-                        else app.fetchStr("LinkWithPhone", ["6281234567890"]) } }
+            RowLayout {
+                id: loginRow
+                anchors.centerIn: parent
+                spacing: 56   // .login-card gap
+                // .login-left: judul + langkah bernomor.
+                ColumnLayout {
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 0
+                    Text {
+                        text: i18n.t("login_title")
+                        color: theme.text; font.pixelSize: 26; font.weight: Font.Medium
+                        bottomPadding: 22   // .login-left h2 margin-bottom
+                    }
+                    // .login-steps: ol bernomor, gap 16, font 15, max-w 320.
+                    ColumnLayout {
+                        spacing: 16
+                        Repeater {
+                            model: [i18n.t("login_s1"), i18n.t("login_s2"), i18n.t("login_s3")]
+                            delegate: RowLayout {
+                                Layout.maximumWidth: 320
+                                spacing: 8
+                                Text { text: (index + 1) + "."; color: theme.text; font.pixelSize: 15 }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData; color: theme.text; font.pixelSize: 15
+                                    wrapMode: Text.WordWrap; lineHeight: 1.45
+                                }
+                            }
+                        }
+                    }
                 }
+                // .login-right: QR + waiting + ganti ke nomor telepon.
+                ColumnLayout {
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 12
+                    // .qr / .qr-img: 220×220, bg putih, radius 8, pad 8.
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        width: 220; height: 220; radius: 8; color: "#ffffff"
+                        Image {
+                            anchors.fill: parent; anchors.margins: 8; fillMode: Image.PreserveAspectFit
+                            source: app.qr; visible: app.qr !== ""
+                        }
+                        Text {
+                            anchors.centerIn: parent; visible: app.qr === ""
+                            text: i18n.t("login_waiting"); color: "#555"; font.pixelSize: 13
+                        }
+                        // Klik QR → mulai sambungan (parity tombol "connect" lama).
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: app.doConnect() }
+                    }
+                    // .login-waiting
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: i18n.t("login_waiting"); color: theme.text2; font.pixelSize: 13
+                    }
+                    // .pl-switch: tautan accent (ganti ke nomor telepon).
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: i18n.t("login_use_phone"); color: theme.accent; font.pixelSize: 13
+                        MouseArea {
+                            id: phoneSwitchMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: app.fetchStr("LinkWithPhone", ["6281234567890"])
+                        }
+                        // hover sendiri (bukan bersama) — perbaikan bug shared-hover.
+                        font.underline: phoneSwitchMa.containsMouse
+                    }
+                }
+            }
+        }
+        // .login-hint: di bawah kartu (margin-top 30), text2 14.
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: loginCard.bottom; anchors.topMargin: 30
+            text: i18n.t("login_hint"); color: theme.text2; font.pixelSize: 14
+        }
+    }
+
+    // === Toast — pil bawah-tengah (Toast.svelte / .toast app.css) ===
+    Timer { id: toastTimer; interval: 2500; repeat: false; onTriggered: win.toastText = "" }
+    Item {
+        anchors.fill: parent
+        z: 200
+        visible: win.toastText !== ""
+        // .toast-stack: bottom 22px, tengah horizontal.
+        Rectangle {
+            id: toastPill
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 22
+            // .toast: pad 10px 16px, radius 999, max-width 70vw, nowrap ellipsis.
+            implicitWidth: Math.min(toastLbl.implicitWidth + 32, parent.width * 0.7)
+            implicitHeight: toastLbl.implicitHeight + 20
+            radius: 999
+            color: win.toastType === "error" ? "#c0392b"
+                 : win.toastType === "ok" ? "#2e7d52" : "#2a2f36"
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 6; radius: 20; samples: 25
+                color: Qt.rgba(0, 0, 0, 0.3)
+            }
+            Text {
+                id: toastLbl
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, toastPill.parent.width * 0.7 - 32)
+                text: win.toastText
+                color: "#ffffff"; font.pixelSize: 14
+                elide: Text.ElideRight; maximumLineCount: 1
             }
         }
     }
@@ -3648,6 +3815,7 @@ ApplicationWindow {
             else if (openPanel === "lightbox") { win.lightboxCaption = "Sunset di pantai 🌅"; win.lightboxSrc = (app.mediaBase || "") + "/media/c/m1" }
             else if (openPanel === "poll") pollDialog.open()
             else if (openPanel === "contact") contactDialog.open()
+            else if (openPanel === "toast") win.toast(i18n.t("toast_copied"))
             else { activeView = openPanel; win.loadView(openPanel) } // calls/starred/status/contacts/channels/communities/archived/scheduled
         }
     }

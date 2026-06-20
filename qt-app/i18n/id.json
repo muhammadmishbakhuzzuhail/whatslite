@@ -70,6 +70,13 @@
   "link_code": "Tautkan via kode",
   "link_phone": "Tautkan via nomor telepon",
   "link_hint": "Pindai QR via WhatsApp → Perangkat Tertaut → Tautkan perangkat",
+  "login_title": "Tautkan perangkat",
+  "login_hint": "Buka WhatsLite di ponsel untuk memindai.",
+  "login_s1": "Buka WhatsApp di ponsel Anda",
+  "login_s2": "Ketuk Menu, lalu pilih Perangkat Tertaut",
+  "login_s3": "Ketuk Tautkan perangkat dan arahkan kamera ke layar ini",
+  "login_waiting": "Menunggu kode QR…",
+  "login_use_phone": "Tautkan dengan nomor telepon",
   "enter_pin": "Masukkan PIN",
   "members": "anggota",
   "forward_to": "Teruskan ke…",
@@ -177,5 +184,7 @@
   "pv_blocked": "Kontak diblokir",
   "pv_unblock": "Buka blokir",
   "pv_no_blocked": "Tak ada kontak diblokir",
-  "unblocked_toast": "Blokir %s dibuka"
+  "unblocked_toast": "Blokir %s dibuka",
+  "toast_copied": "Disalin ke papan klip",
+  "toast_unblocked": "Blokir kontak dibuka"
 }

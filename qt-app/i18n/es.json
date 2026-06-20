@@ -70,6 +70,13 @@
   "link_code": "Vincular con código",
   "link_phone": "Vincular con número de teléfono",
   "link_hint": "Escanea el QR en WhatsApp → Dispositivos vinculados → Vincular un dispositivo",
+  "login_title": "Vincular dispositivo",
+  "login_hint": "Abre WhatsLite en tu teléfono para escanear.",
+  "login_s1": "Abre WhatsApp en tu teléfono",
+  "login_s2": "Toca Menú y selecciona Dispositivos vinculados",
+  "login_s3": "Toca Vincular dispositivo y apunta la cámara a esta pantalla",
+  "login_waiting": "Esperando el código QR…",
+  "login_use_phone": "Vincular con número de teléfono",
   "enter_pin": "Introduce el PIN",
   "members": "miembros",
   "forward_to": "Reenviar a…",
@@ -177,5 +184,7 @@
   "pv_blocked": "Contactos bloqueados",
   "pv_unblock": "Desbloquear",
   "pv_no_blocked": "Sin contactos bloqueados",
-  "unblocked_toast": "%s desbloqueado"
+  "unblocked_toast": "%s desbloqueado",
+  "toast_copied": "Copiado al portapapeles",
+  "toast_unblocked": "Contacto desbloqueado"
 }

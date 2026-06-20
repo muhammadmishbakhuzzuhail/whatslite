@@ -268,6 +268,40 @@ ApplicationWindow {
         }
     }
 
+    // .attach-menu: panel gelap (bg/line, radius 14, shadow-lg, pad 6, min-w 200).
+    // Basic Menu = chrome putih → teks tak terbaca di tema gelap. Override panel.
+    component TMenu: Menu {
+        id: _menu
+        padding: 6
+        implicitWidth: Math.max(200, contentWidth + leftPadding + rightPadding)
+        background: Rectangle {
+            implicitWidth: 200
+            radius: 14
+            color: theme.bg
+            border.width: 1; border.color: theme.line
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 8; radius: 30; samples: 41
+                color: Qt.rgba(0, 0, 0, theme.dark ? 0.45 : 0.18)
+            }
+        }
+    }
+    // .attach-item: hover bg hover, teks text 15px, radius 8, pad ~9 12.
+    component TMenuItem: MenuItem {
+        id: _mi
+        implicitHeight: 38
+        leftPadding: 12; rightPadding: 12; topPadding: 9; bottomPadding: 9
+        contentItem: Text {
+            text: _mi.text; color: theme.text; font.pixelSize: 15
+            verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+            opacity: _mi.enabled ? 1 : 0.5
+        }
+        background: Rectangle {
+            radius: 8
+            color: (_mi.hovered || _mi.highlighted) ? theme.hover : "transparent"
+        }
+    }
+
     // .settings-item: flex, align center, gap 20, padding 14 20, border-bottom 1px
     // divider, hover bg hover; leading svg 24x24 text2; .si-name 16; .si-desc 13
     // text2 mt 2; .grow flex:1. danger → #e35d6a. `extra` = blok di bawah teks
@@ -1376,8 +1410,19 @@ ApplicationWindow {
                                     Repeater {
                                         model: { try { return JSON.parse(content.pmsg.thumb || "[]") } catch (e) { return [] } }
                                         delegate: Rectangle {
+                                            id: pollOpt
                                             Layout.fillWidth: true; Layout.minimumWidth: 214; implicitHeight: 38
                                             radius: 10; color: theme.bg; border.width: 1; border.color: pollHov.hovered ? theme.accent : theme.line
+                                            clip: true   // .poll-opt overflow:hidden agar fill ikut radius
+                                            // .poll-bar: fill accent 16% di belakang opsi, lebar ~ rasio suara.
+                                            // Mock: opsi = string tanpa hitungan → share 0 → lebar 0 (benar).
+                                            property real share: 0
+                                            Rectangle {
+                                                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                                                width: parent.width * pollOpt.share
+                                                color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
+                                                Behavior on width { NumberAnimation { duration: 300 } }
+                                            }
                                             RowLayout {
                                                 anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 9
                                                 Rectangle { Layout.preferredWidth: 16; Layout.preferredHeight: 16; radius: 8
@@ -1941,48 +1986,48 @@ ApplicationWindow {
     }
 
     // === Menu aksi pesan (klik-kanan bubble) ===
-    Menu {
+    TMenu {
         id: msgMenu
-        MenuItem { text: "👍  " + i18n.t("m_like"); onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
-        MenuItem { text: "😀  " + i18n.t("m_react"); onTriggered: reactionPopup.open() }
-        MenuItem { text: "↩️  " + i18n.t("m_reply"); onTriggered: win.replyTo = win.ctxMsg }
-        MenuItem {
+        TMenuItem { text: "👍  " + i18n.t("m_like"); onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
+        TMenuItem { text: "😀  " + i18n.t("m_react"); onTriggered: reactionPopup.open() }
+        TMenuItem { text: "↩️  " + i18n.t("m_reply"); onTriggered: win.replyTo = win.ctxMsg }
+        TMenuItem {
             text: "✏️  " + i18n.t("m_edit"); visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
             onTriggered: { editInput.text = win.ctxMsg.text || ""; editPopup.open() }
         }
-        MenuItem { text: "📌  " + i18n.t("m_pin"); onTriggered: app.pinMessage(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
-        MenuItem { text: "⭐  " + i18n.t("m_star"); onTriggered: app.star(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
-        MenuItem {
+        TMenuItem { text: "📌  " + i18n.t("m_pin"); onTriggered: app.pinMessage(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        TMenuItem { text: "⭐  " + i18n.t("m_star"); onTriggered: app.star(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        TMenuItem {
             text: "💾  " + i18n.t("m_save_sticker"); visible: win.ctxMsg.type === "sticker"; height: visible ? implicitHeight : 0
             onTriggered: app.saveStickerFromMsg(win.ctxMsg.id)
         }
-        MenuItem {
+        TMenuItem {
             text: "🎬  " + i18n.t("m_save_gif"); visible: win.ctxMsg.type === "gif"; height: visible ? implicitHeight : 0
             onTriggered: app.saveGifFromMsg(win.ctxMsg.id)
         }
-        MenuItem { text: "↪️  " + i18n.t("m_forward"); onTriggered: forwardPopup.open() }
-        MenuItem {
+        TMenuItem { text: "↪️  " + i18n.t("m_forward"); onTriggered: forwardPopup.open() }
+        TMenuItem {
             text: "😀  " + i18n.t("m_reactions")
             visible: win.ctxMsg.reactions && win.ctxMsg.reactions.length > 0
             height: visible ? implicitHeight : 0
             onTriggered: reactionDetailPopup.open()
         }
-        MenuItem {
+        TMenuItem {
             text: "ℹ️  " + i18n.t("m_info")
             onTriggered: { app.loadDetailA("GetMessageInfo", [win.selectedChat.id || "", win.ctxMsg.id]); msgInfoPopup.open() }
         }
-        MenuItem { text: "🗑️  " + i18n.t("m_delete_all"); onTriggered: app.deleteMsg(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
+        TMenuItem { text: "🗑️  " + i18n.t("m_delete_all"); onTriggered: app.deleteMsg(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", true) }
     }
 
     // === Menu kelola chat (klik-kanan baris) ===
-    Menu {
+    TMenu {
         id: chatMenu
-        MenuItem { text: "✓  " + i18n.t("c_mark_read"); onTriggered: app.markRead(win.ctxChat.id) }
-        MenuItem { text: "📌  " + (win.ctxChat.pinned ? i18n.t("c_unpin") : i18n.t("c_pin")); onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
-        MenuItem { text: (win.ctxChat.muted ? "🔔  " + i18n.t("c_unmute") : "🔇  " + i18n.t("c_mute")); onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
-        MenuItem { text: "🗄️  " + i18n.t("c_archive"); onTriggered: app.archiveChat(win.ctxChat.id, true) }
-        MenuItem { text: "📁  " + i18n.t("folders"); onTriggered: win.openFolderPicker(win.ctxChat.id, win.ctxChat.name || "") }
-        MenuItem { text: "🗑️  " + i18n.t("c_delete"); onTriggered: app.deleteChat(win.ctxChat.id) }
+        TMenuItem { text: "✓  " + i18n.t("c_mark_read"); onTriggered: app.markRead(win.ctxChat.id) }
+        TMenuItem { text: "📌  " + (win.ctxChat.pinned ? i18n.t("c_unpin") : i18n.t("c_pin")); onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
+        TMenuItem { text: (win.ctxChat.muted ? "🔔  " + i18n.t("c_unmute") : "🔇  " + i18n.t("c_mute")); onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
+        TMenuItem { text: "🗄️  " + i18n.t("c_archive"); onTriggered: app.archiveChat(win.ctxChat.id, true) }
+        TMenuItem { text: "📁  " + i18n.t("folders"); onTriggered: win.openFolderPicker(win.ctxChat.id, win.ctxChat.name || "") }
+        TMenuItem { text: "🗑️  " + i18n.t("c_delete"); onTriggered: app.deleteChat(win.ctxChat.id) }
     }
 
     // === Edit pesan ===
@@ -3405,29 +3450,29 @@ ApplicationWindow {
     }
 
     // === Menu lampiran compose (lokasi/polling/kontak/mention/poll-vote) ===
-    Menu {
+    TMenu {
         id: attachMenu
-        MenuItem { text: "📄  " + i18n.t("a_document"); onTriggered: docDialog.open() }
-        MenuItem { text: "🏷️  " + i18n.t("a_stickers"); onTriggered: { app.loadStickers(); stickerPopup.open() } }
-        MenuItem { text: "🎬  " + i18n.t("a_gifs"); onTriggered: { app.loadGifs(); gifPopup.open() } }
-        MenuItem { text: "🖼️  " + i18n.t("a_image"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
-        MenuItem { text: "🎬  " + i18n.t("a_video"); onTriggered: { mediaDialog.kind = "video"; mediaDialog.open() } }
-        MenuItem { text: "🎵  " + i18n.t("a_audio"); onTriggered: { mediaDialog.kind = "audio"; mediaDialog.open() } }
-        MenuItem { text: "📍  " + i18n.t("a_location"); onTriggered: win.prompt(i18n.t("a_location"), "Jakarta", function(v){ app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, v]) }) }
-        MenuItem { text: "📊  " + i18n.t("a_poll"); onTriggered: pollDialog.open() }
-        MenuItem { text: "👤  " + i18n.t("a_contact"); onTriggered: contactDialog.open() }
-        MenuItem { text: "@  " + i18n.t("a_mention"); onTriggered: win.prompt(i18n.t("a_mention"), "", function(v){ app.act("SendTextMentioned", [win.selectedChat.id, v, []]) }) }
-        MenuItem { text: "🏷️  " + i18n.t("a_send_sticker"); onTriggered: { mediaDialog.kind = "sticker"; mediaDialog.open() } }
-        MenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: { mediaDialog.kind = "gif"; mediaDialog.open() } }
-        MenuItem { text: "🗳️  " + i18n.t("a_vote"); onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
+        TMenuItem { text: "📄  " + i18n.t("a_document"); onTriggered: docDialog.open() }
+        TMenuItem { text: "🏷️  " + i18n.t("a_stickers"); onTriggered: { app.loadStickers(); stickerPopup.open() } }
+        TMenuItem { text: "🎬  " + i18n.t("a_gifs"); onTriggered: { app.loadGifs(); gifPopup.open() } }
+        TMenuItem { text: "🖼️  " + i18n.t("a_image"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
+        TMenuItem { text: "🎬  " + i18n.t("a_video"); onTriggered: { mediaDialog.kind = "video"; mediaDialog.open() } }
+        TMenuItem { text: "🎵  " + i18n.t("a_audio"); onTriggered: { mediaDialog.kind = "audio"; mediaDialog.open() } }
+        TMenuItem { text: "📍  " + i18n.t("a_location"); onTriggered: win.prompt(i18n.t("a_location"), "Jakarta", function(v){ app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, v]) }) }
+        TMenuItem { text: "📊  " + i18n.t("a_poll"); onTriggered: pollDialog.open() }
+        TMenuItem { text: "👤  " + i18n.t("a_contact"); onTriggered: contactDialog.open() }
+        TMenuItem { text: "@  " + i18n.t("a_mention"); onTriggered: win.prompt(i18n.t("a_mention"), "", function(v){ app.act("SendTextMentioned", [win.selectedChat.id, v, []]) }) }
+        TMenuItem { text: "🏷️  " + i18n.t("a_send_sticker"); onTriggered: { mediaDialog.kind = "sticker"; mediaDialog.open() } }
+        TMenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: { mediaDialog.kind = "gif"; mediaDialog.open() } }
+        TMenuItem { text: "🗳️  " + i18n.t("a_vote"); onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
     }
 
     // Emoji picker ringkas (sisip ke composer) — paritas tombol emoji Composer.svelte.
-    Menu {
+    TMenu {
         id: emojiMenu
         Repeater {
             model: ["😀", "😂", "😍", "👍", "🙏", "🎉", "❤️", "🔥", "😢", "😮"]
-            delegate: MenuItem { text: modelData; onTriggered: composerInput.text += modelData }
+            delegate: TMenuItem { text: modelData; onTriggered: composerInput.text += modelData }
         }
     }
 
@@ -3552,75 +3597,75 @@ ApplicationWindow {
     }
 
     // === Aksi channel (klik-kanan baris channel) ===
-    Menu {
+    TMenu {
         id: channelMenu
-        MenuItem { text: "➕  " + i18n.t("ch_follow"); onTriggered: app.act("FollowChannelByJID", [win.ctxChat.id || ""]) }
-        MenuItem { text: "➖  " + i18n.t("ch_unfollow"); onTriggered: app.act("UnfollowChannel", [win.ctxChat.id || ""]) }
-        MenuItem { text: "🔇  " + i18n.t("ch_mute"); onTriggered: app.act("MuteChannel", [win.ctxChat.id || "", true]) }
-        MenuItem { text: "📝  " + i18n.t("ch_post"); onTriggered: win.prompt(i18n.t("ch_post"), "", function(v){ app.act("PostChannel", [win.ctxChat.id || "", v]) }) }
-        MenuItem { text: "👍  " + i18n.t("ch_react"); onTriggered: app.act("ReactChannel", [win.ctxChat.id || "", "m", 0, "👍"]) }
-        MenuItem { text: "💬  " + i18n.t("ch_messages"); onTriggered: app.loadIntoA("GetChannelMessages", [win.ctxChat.id || ""], msgsModel) }
-        MenuItem { text: "🔎  " + i18n.t("ch_recommend"); onTriggered: app.loadIntoA("GetRecommendedChannels", [""], channelsModel) }
-        MenuItem { text: "✨  " + i18n.t("ch_create"); onTriggered: win.prompt(i18n.t("ch_create"), "", function(v){ app.act("CreateChannel", [v, ""]) }) }
+        TMenuItem { text: "➕  " + i18n.t("ch_follow"); onTriggered: app.act("FollowChannelByJID", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "➖  " + i18n.t("ch_unfollow"); onTriggered: app.act("UnfollowChannel", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "🔇  " + i18n.t("ch_mute"); onTriggered: app.act("MuteChannel", [win.ctxChat.id || "", true]) }
+        TMenuItem { text: "📝  " + i18n.t("ch_post"); onTriggered: win.prompt(i18n.t("ch_post"), "", function(v){ app.act("PostChannel", [win.ctxChat.id || "", v]) }) }
+        TMenuItem { text: "👍  " + i18n.t("ch_react"); onTriggered: app.act("ReactChannel", [win.ctxChat.id || "", "m", 0, "👍"]) }
+        TMenuItem { text: "💬  " + i18n.t("ch_messages"); onTriggered: app.loadIntoA("GetChannelMessages", [win.ctxChat.id || ""], msgsModel) }
+        TMenuItem { text: "🔎  " + i18n.t("ch_recommend"); onTriggered: app.loadIntoA("GetRecommendedChannels", [""], channelsModel) }
+        TMenuItem { text: "✨  " + i18n.t("ch_create"); onTriggered: win.prompt(i18n.t("ch_create"), "", function(v){ app.act("CreateChannel", [v, ""]) }) }
     }
 
     // === Aksi kontak (klik-kanan baris kontak) ===
-    Menu {
+    TMenu {
         id: contactMenu
-        MenuItem { text: "🚫  " + i18n.t("ct_block"); onTriggered: app.act("Block", [win.ctxChat.id || "", true]) }
-        MenuItem { text: "✅  " + i18n.t("ct_unblock"); onTriggered: app.act("Block", [win.ctxChat.id || "", false]) }
-        MenuItem { text: "🏷️  " + i18n.t("ct_label"); onTriggered: win.prompt(i18n.t("ct_label"), win.ctxChat.name || "", function(v){ app.act("SaveContactLabel", [win.ctxChat.id || "", v]) }) }
-        MenuItem { text: "🧹  " + i18n.t("ct_unlabel"); onTriggered: app.act("RemoveContactLabel", [win.ctxChat.id || ""]) }
-        MenuItem { text: "ℹ️  " + i18n.t("ct_about"); onTriggered: app.fetchStr("GetContactAbout", [win.ctxChat.id || ""]) }
-        MenuItem { text: "💼  " + i18n.t("ct_business"); onTriggered: app.loadDetailA("GetBusinessProfile", [win.ctxChat.id || ""]) }
-        MenuItem { text: "👥  " + i18n.t("ct_common"); onTriggered: app.loadIntoA("GetCommonGroups", [win.ctxChat.id || ""], starredModel) }
-        MenuItem { text: "📵  " + i18n.t("ct_blocklist"); onTriggered: app.loadInto("GetBlockedContacts", contactsModel) }
-        MenuItem { text: "👁️  " + i18n.t("ct_presence"); onTriggered: app.act("SubscribePresence", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "🚫  " + i18n.t("ct_block"); onTriggered: app.act("Block", [win.ctxChat.id || "", true]) }
+        TMenuItem { text: "✅  " + i18n.t("ct_unblock"); onTriggered: app.act("Block", [win.ctxChat.id || "", false]) }
+        TMenuItem { text: "🏷️  " + i18n.t("ct_label"); onTriggered: win.prompt(i18n.t("ct_label"), win.ctxChat.name || "", function(v){ app.act("SaveContactLabel", [win.ctxChat.id || "", v]) }) }
+        TMenuItem { text: "🧹  " + i18n.t("ct_unlabel"); onTriggered: app.act("RemoveContactLabel", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "ℹ️  " + i18n.t("ct_about"); onTriggered: app.fetchStr("GetContactAbout", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "💼  " + i18n.t("ct_business"); onTriggered: app.loadDetailA("GetBusinessProfile", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "👥  " + i18n.t("ct_common"); onTriggered: app.loadIntoA("GetCommonGroups", [win.ctxChat.id || ""], starredModel) }
+        TMenuItem { text: "📵  " + i18n.t("ct_blocklist"); onTriggered: app.loadInto("GetBlockedContacts", contactsModel) }
+        TMenuItem { text: "👁️  " + i18n.t("ct_presence"); onTriggered: app.act("SubscribePresence", [win.ctxChat.id || ""]) }
     }
 
     // === Aksi item terjadwal (klik-kanan) ===
-    Menu {
+    TMenu {
         id: schedMenu
-        MenuItem { text: "➕  " + i18n.t("s_schedule"); onTriggered: win.prompt(i18n.t("s_schedule"), "", function(v){ app.act("ScheduleMessage", [win.selectedChat.id || "", v, 0]) }) }
-        MenuItem { text: "❌  " + i18n.t("s_cancel"); onTriggered: { app.act("CancelScheduled", [win.ctxChat.id || ""]); app.loadInto("GetScheduled", scheduledModel) } }
-        MenuItem { text: "⏰  " + i18n.t("s_add_reminder"); onTriggered: app.act("AddReminder", [win.selectedChat.id || "", win.ctxMsg.id || "", "Ingat ini", 0]) }
-        MenuItem { text: "🗑️  " + i18n.t("s_del_reminder"); onTriggered: app.act("CancelReminder", [win.ctxChat.id || ""]) }
-        MenuItem { text: "📋  " + i18n.t("s_reminders"); onTriggered: app.loadInto("GetReminders", scheduledModel) }
+        TMenuItem { text: "➕  " + i18n.t("s_schedule"); onTriggered: win.prompt(i18n.t("s_schedule"), "", function(v){ app.act("ScheduleMessage", [win.selectedChat.id || "", v, 0]) }) }
+        TMenuItem { text: "❌  " + i18n.t("s_cancel"); onTriggered: { app.act("CancelScheduled", [win.ctxChat.id || ""]); app.loadInto("GetScheduled", scheduledModel) } }
+        TMenuItem { text: "⏰  " + i18n.t("s_add_reminder"); onTriggered: app.act("AddReminder", [win.selectedChat.id || "", win.ctxMsg.id || "", "Ingat ini", 0]) }
+        TMenuItem { text: "🗑️  " + i18n.t("s_del_reminder"); onTriggered: app.act("CancelReminder", [win.ctxChat.id || ""]) }
+        TMenuItem { text: "📋  " + i18n.t("s_reminders"); onTriggered: app.loadInto("GetReminders", scheduledModel) }
     }
 
     // === Overflow header: utilitas (tutup permukaan method engine sisanya) ===
-    Menu {
+    TMenu {
         id: overflowMenu
         property string cid: win.selectedChat.id || ""
-        MenuItem { text: i18n.t("o_chat_media"); onTriggered: app.loadIntoA("GetChatMedia", [overflowMenu.cid], msgsModel) }
-        MenuItem { text: i18n.t("o_pinned"); onTriggered: app.loadIntoA("GetPinned", [overflowMenu.cid], msgsModel) }
-        MenuItem { text: i18n.t("o_poll_votes"); onTriggered: app.loadDetailA("GetPollVotes", [win.ctxMsg.id || "p"]) }
-        MenuItem { text: i18n.t("o_link_preview"); onTriggered: app.fetchStr("GetLinkPreview", ["https://example.com"]) }
-        MenuItem { text: i18n.t("o_fetch_media"); onTriggered: app.fetchStr("FetchRemoteMedia", ["https://example.com/a.jpg"]) }
-        MenuItem { text: i18n.t("o_check_wa"); onTriggered: app.act("IsOnWhatsApp", [["6281234567890"]]) }
-        MenuItem { text: i18n.t("o_search_stickers"); onTriggered: app.loadIntoA("SearchStickers", ["happy", ""], stickersModel) }
-        MenuItem { text: i18n.t("o_search_gifs"); onTriggered: app.loadIntoA("SearchGifs", ["happy", ""], gifsModel) }
-        MenuItem { text: i18n.t("o_open_chat"); onTriggered: app.act("OpenChat", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_load_old"); onTriggered: app.act("LoadOlderHistory", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_mark_unread"); onTriggered: app.act("MarkUnread", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_clear"); onTriggered: app.act("ClearChat", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_export"); onTriggered: app.fetchStr("ExportChat", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_disappearing"); onTriggered: app.act("SetDisappearing", [overflowMenu.cid, 604800]) }
-        MenuItem { text: i18n.t("o_profile"); onTriggered: { app.loadDetail("GetProfile", ""); detailPopup.open() } }
-        MenuItem { text: i18n.t("o_set_name"); onTriggered: win.prompt(i18n.t("o_set_name"), "", function(v){ app.act("SetMyName", [v]) }) }
-        MenuItem { text: i18n.t("o_set_about"); onTriggered: win.prompt(i18n.t("o_set_about"), "", function(v){ app.act("SetMyAbout", [v]) }) }
-        MenuItem { text: i18n.t("o_set_photo"); onTriggered: app.act("SetMyPhoto", ["", ""]) }
-        MenuItem { text: i18n.t("o_version"); onTriggered: app.fetchStr("Version", []) }
-        MenuItem { text: i18n.t("o_status_viewers"); onTriggered: app.loadIntoA("GetStatusViewers", ["st1"], starredModel) }
-        MenuItem { text: i18n.t("o_react_status"); onTriggered: app.act("ReactStatus", [overflowMenu.cid, "st1", "👍"]) }
-        MenuItem { text: i18n.t("o_reply_status"); onTriggered: app.act("ReplyStatus", [overflowMenu.cid, "st1", "teks", "balas"]) }
-        MenuItem { text: i18n.t("o_create_group"); onTriggered: win.prompt(i18n.t("o_create_group"), "", function(v){ app.act("CreateGroup", [v, []]) }) }
-        MenuItem { text: i18n.t("o_join_link"); onTriggered: win.prompt(i18n.t("o_join_link"), "https://chat.whatsapp.com/", function(v){ app.fetchStr("JoinGroupLink", [v]) }) }
-        MenuItem { text: i18n.t("o_preview_link"); onTriggered: win.prompt(i18n.t("o_preview_link"), "https://chat.whatsapp.com/", function(v){ app.fetchStr("PreviewGroupLink", [v]) }) }
-        MenuItem { text: i18n.t("o_follow_channel"); onTriggered: win.prompt(i18n.t("o_follow_channel"), "https://whatsapp.com/channel/", function(v){ app.loadDetailA("FollowChannel", [v]) }) }
-        MenuItem { text: i18n.t("o_leave_community"); onTriggered: app.act("LeaveCommunity", [overflowMenu.cid]) }
-        MenuItem { text: i18n.t("o_reject_call"); onTriggered: app.act("RejectCall", [overflowMenu.cid, "callid"]) }
-        MenuItem { text: i18n.t("o_post_status"); onTriggered: statusPostPopup.open() }
+        TMenuItem { text: i18n.t("o_chat_media"); onTriggered: app.loadIntoA("GetChatMedia", [overflowMenu.cid], msgsModel) }
+        TMenuItem { text: i18n.t("o_pinned"); onTriggered: app.loadIntoA("GetPinned", [overflowMenu.cid], msgsModel) }
+        TMenuItem { text: i18n.t("o_poll_votes"); onTriggered: app.loadDetailA("GetPollVotes", [win.ctxMsg.id || "p"]) }
+        TMenuItem { text: i18n.t("o_link_preview"); onTriggered: app.fetchStr("GetLinkPreview", ["https://example.com"]) }
+        TMenuItem { text: i18n.t("o_fetch_media"); onTriggered: app.fetchStr("FetchRemoteMedia", ["https://example.com/a.jpg"]) }
+        TMenuItem { text: i18n.t("o_check_wa"); onTriggered: app.act("IsOnWhatsApp", [["6281234567890"]]) }
+        TMenuItem { text: i18n.t("o_search_stickers"); onTriggered: app.loadIntoA("SearchStickers", ["happy", ""], stickersModel) }
+        TMenuItem { text: i18n.t("o_search_gifs"); onTriggered: app.loadIntoA("SearchGifs", ["happy", ""], gifsModel) }
+        TMenuItem { text: i18n.t("o_open_chat"); onTriggered: app.act("OpenChat", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_load_old"); onTriggered: app.act("LoadOlderHistory", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_mark_unread"); onTriggered: app.act("MarkUnread", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_clear"); onTriggered: app.act("ClearChat", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_export"); onTriggered: app.fetchStr("ExportChat", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_disappearing"); onTriggered: app.act("SetDisappearing", [overflowMenu.cid, 604800]) }
+        TMenuItem { text: i18n.t("o_profile"); onTriggered: { app.loadDetail("GetProfile", ""); detailPopup.open() } }
+        TMenuItem { text: i18n.t("o_set_name"); onTriggered: win.prompt(i18n.t("o_set_name"), "", function(v){ app.act("SetMyName", [v]) }) }
+        TMenuItem { text: i18n.t("o_set_about"); onTriggered: win.prompt(i18n.t("o_set_about"), "", function(v){ app.act("SetMyAbout", [v]) }) }
+        TMenuItem { text: i18n.t("o_set_photo"); onTriggered: app.act("SetMyPhoto", ["", ""]) }
+        TMenuItem { text: i18n.t("o_version"); onTriggered: app.fetchStr("Version", []) }
+        TMenuItem { text: i18n.t("o_status_viewers"); onTriggered: app.loadIntoA("GetStatusViewers", ["st1"], starredModel) }
+        TMenuItem { text: i18n.t("o_react_status"); onTriggered: app.act("ReactStatus", [overflowMenu.cid, "st1", "👍"]) }
+        TMenuItem { text: i18n.t("o_reply_status"); onTriggered: app.act("ReplyStatus", [overflowMenu.cid, "st1", "teks", "balas"]) }
+        TMenuItem { text: i18n.t("o_create_group"); onTriggered: win.prompt(i18n.t("o_create_group"), "", function(v){ app.act("CreateGroup", [v, []]) }) }
+        TMenuItem { text: i18n.t("o_join_link"); onTriggered: win.prompt(i18n.t("o_join_link"), "https://chat.whatsapp.com/", function(v){ app.fetchStr("JoinGroupLink", [v]) }) }
+        TMenuItem { text: i18n.t("o_preview_link"); onTriggered: win.prompt(i18n.t("o_preview_link"), "https://chat.whatsapp.com/", function(v){ app.fetchStr("PreviewGroupLink", [v]) }) }
+        TMenuItem { text: i18n.t("o_follow_channel"); onTriggered: win.prompt(i18n.t("o_follow_channel"), "https://whatsapp.com/channel/", function(v){ app.loadDetailA("FollowChannel", [v]) }) }
+        TMenuItem { text: i18n.t("o_leave_community"); onTriggered: app.act("LeaveCommunity", [overflowMenu.cid]) }
+        TMenuItem { text: i18n.t("o_reject_call"); onTriggered: app.act("RejectCall", [overflowMenu.cid, "callid"]) }
+        TMenuItem { text: i18n.t("o_post_status"); onTriggered: statusPostPopup.open() }
     }
 
     // === Dialog input teks reusable (dipakai aksi yang butuh input) ===

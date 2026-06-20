@@ -12,8 +12,8 @@
       WhatsApp's Terms of Service; the linked phone number may be banned. Use at your own risk.
     </p>
     <p>
-      It is lightweight by design: the UI runs in the system WebView (WebKitGTK) instead of a bundled
-      Chromium, the engine is Go/whatsmeow, and data is stored locally in SQLite. There is no telemetry.
+      It is lightweight by design: the UI is a native Qt6/QML application (no bundled Chromium or
+      WebView), the engine is Go/whatsmeow, and data is stored locally in SQLite. There is no telemetry.
     </p>
     <p>Features include text and media messages, voice notes, stickers, groups, status, and more.</p>
   </description>

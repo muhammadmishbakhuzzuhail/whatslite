@@ -30,6 +30,41 @@ ApplicationWindow {
     property bool locked: (typeof startLock !== "undefined") && startLock // app-lock PIN
     property var replyTo: null        // pesan yang sedang dibalas (banner composer)
     property var ctxChat: ({})        // chat target context-menu baris
+    // --- Folder chat kustom (client-side, sama desain dgn FolderPicker.svelte /
+    // stores.js: folders adalah daftar lokal {name, jids[]}; engine Qt tak punya
+    // store folder, jadi disimpan in-memory di sini). folderPickFor = jid yg sedang
+    // diatur foldernya (null = modal tutup). folderPickName = nama chat utk judul.
+    property var folders: []          // [{name, jids:[]}]
+    property string folderPickFor: "" // jid chat dlm picker ("" = tutup)
+    property string folderPickName: "" // nama chat (judul modal)
+    function openFolderPicker(jid, name) {
+        if (!jid) return
+        folderPickName = name || ""
+        folderPickFor = jid
+        folderPickerPopup.open()
+    }
+    function addFolder(name) {
+        if (!name) return
+        for (var i = 0; i < folders.length; i++) if (folders[i].name === name) return
+        var f = folders.slice(); f.push({ name: name, jids: [] }); folders = f
+    }
+    function deleteFolder(name) {
+        folders = folders.filter(function(x){ return x.name !== name })
+    }
+    function chatInFolder(name, jid) {
+        for (var i = 0; i < folders.length; i++)
+            if (folders[i].name === name) return folders[i].jids.indexOf(jid) >= 0
+        return false
+    }
+    function toggleChatFolder(name, jid) {
+        var f = folders.map(function(x){
+            if (x.name !== name) return x
+            var has = x.jids.indexOf(jid) >= 0
+            return { name: x.name, jids: has ? x.jids.filter(function(j){ return j !== jid })
+                                             : x.jids.concat([jid]) }
+        })
+        folders = f
+    }
     // Ikon SVG disalin dari komponen Svelte (Rail/SearchBar/Composer) — faithful.
     readonly property var ico: ({
         "chats": '<path d="M12 3C6.5 3 2 6.8 2 11.5c0 2.3 1.1 4.4 2.9 5.9-.1 1.2-.6 2.6-1.4 3.6 1.6-.2 3.2-.8 4.4-1.6 1.2.4 2.6.6 4.1.6 5.5 0 10-3.8 10-8.5S17.5 3 12 3z"/>',
@@ -52,6 +87,8 @@ ApplicationWindow {
         "locpin": '<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
         "download": '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
         "close": '<path d="M6 6l12 12M18 6L6 18"/>',
+        // Panah kembali (pane-head .icon-btn pada PrivacyPane/StoragePane.svelte).
+        "chevleft": '<path d="M15 5l-7 7 7 7"/>',
         "logout": '<path d="M16 17l5-5-5-5M21 12H9M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/>',
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
@@ -517,7 +554,7 @@ ApplicationWindow {
                         radius: 13; height: 26; width: 34; color: theme.searchBg
                         Text { anchors.centerIn: parent; text: "+"; font.pixelSize: 17; color: theme.text2 }
                         MouseArea { anchors.fill: parent
-                            onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) app.act("AddFolder", [v]) }) }
+                            onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) { app.act("AddFolder", [v]); win.addFolder(v) } }) }
                     }
                 }
                 // Daftar (swap per activeView): chats / calls / starred
@@ -1874,6 +1911,7 @@ ApplicationWindow {
         MenuItem { text: "📌  " + (win.ctxChat.pinned ? i18n.t("c_unpin") : i18n.t("c_pin")); onTriggered: app.pinChat(win.ctxChat.id, !win.ctxChat.pinned) }
         MenuItem { text: (win.ctxChat.muted ? "🔔  " + i18n.t("c_unmute") : "🔇  " + i18n.t("c_mute")); onTriggered: app.muteChat(win.ctxChat.id, !win.ctxChat.muted) }
         MenuItem { text: "🗄️  " + i18n.t("c_archive"); onTriggered: app.archiveChat(win.ctxChat.id, true) }
+        MenuItem { text: "📁  " + i18n.t("folders"); onTriggered: win.openFolderPicker(win.ctxChat.id, win.ctxChat.name || "") }
         MenuItem { text: "🗑️  " + i18n.t("c_delete"); onTriggered: app.deleteChat(win.ctxChat.id) }
     }
 
@@ -2051,7 +2089,7 @@ ApplicationWindow {
                     // 8) Penyimpanan (link)
                     SettingsItem {
                         icon: "disk"; name: i18n.t("storage"); desc: i18n.t("storage_d")
-                        onActivated: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() }
+                        onActivated: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); storagePopup.open() }
                     }
 
                     // 9) Privasi (link)
@@ -2938,36 +2976,330 @@ ApplicationWindow {
         }
     }
 
-    // === Privasi (dari settings) ===
+    // === Privasi (PrivacyPane.svelte) — surface bg, pv-row + toggle + blocklist ===
     Popup {
         id: privacyPopup
-        width: 380; height: 420; modal: true; anchors.centerIn: Overlay.overlay; padding: 16
-        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        width: 380; height: 480; modal: true; anchors.centerIn: Overlay.overlay; padding: 0
+        Overlay.modal: Rectangle { color: "#66000000" }
+        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0; clip: true }
+        // Saat dibuka: muat daftar diblokir ke searchModel (transient; tak aktif
+        // saat popup terbuka). Engine kembalikan [] bila tak ada → empty state.
+        onAboutToShow: app.loadInto("GetBlockedContacts", searchModel)
+
+        // opsi visibilitas (nilai native engine: everyone/contacts/nobody).
+        readonly property var pvVals: ["everyone", "contacts", "nobody"]
+        readonly property var pvKeys: ["pv_everyone", "pv_contacts", "pv_nobody"]
+        function pvLabels() { return [i18n.t("pv_everyone"), i18n.t("pv_contacts"), i18n.t("pv_nobody")] }
+
         ColumnLayout {
-            anchors.fill: parent; spacing: 10
-            Text { text: i18n.t("privacy_title"); color: theme.text; font.pixelSize: 18; font.bold: true }
-            Repeater {
-                model: [
-                    { key: "lastseen", label: "Terakhir dilihat" },
-                    { key: "profile", label: "Foto profil" },
-                    { key: "status", label: "Status" },
-                    { key: "readreceipts", label: "Laporan dibaca" },
-                    { key: "groupadd", label: "Grup" },
-                    { key: "online", label: "Sedang online" }
-                ]
-                delegate: RowLayout {
-                    Layout.fillWidth: true; spacing: 10
-                    Text { Layout.fillWidth: true; text: modelData.label; color: theme.text; font.pixelSize: 14 }
-                    Combo {
-                        implicitWidth: 130
-                        model: ["everyone", "contacts", "nobody"]
-                        currentIndex: Math.max(0, model.indexOf(app.detail[modelData.key] || "everyone"))
-                        onActivated: app.setPrivacy(modelData.key, currentText)
+            anchors.fill: parent; spacing: 0
+            // .pane-head (head-bg, 56px, gap 14) dgn tombol back + judul.
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 56; color: theme.headBg
+                radius: 14
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 14; color: theme.headBg } // ratakan sudut bawah
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 14
+                    ItemDelegate {
+                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; hoverEnabled: true
+                        background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
+                        onClicked: privacyPopup.close()
+                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["chevleft"]; color: theme.text }
+                    }
+                    Text { Layout.fillWidth: true; text: i18n.t("privacy_title"); color: theme.text
+                        font.pixelSize: 17; font.weight: Font.DemiBold }
+                }
+            }
+
+            Flickable {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                contentHeight: pvCol.implicitHeight; flickableDirection: Flickable.VerticalFlick
+                ScrollIndicator.vertical: ScrollIndicator {}
+                ColumnLayout {
+                    id: pvCol; width: parent.width; spacing: 0
+
+                    // 4 baris .pv-row dgn Combo bertema.
+                    Repeater {
+                        model: [
+                            { key: "lastseen", label: "pv_last_seen" },
+                            { key: "profile",  label: "pv_profile_photo" },
+                            { key: "status",   label: "pv_status" },
+                            { key: "groupadd", label: "pv_groups" }
+                        ]
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 50 // padding 13 + 24 control + 13
+                            color: "transparent"
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.line }
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
+                                Text { Layout.fillWidth: true; text: i18n.t(modelData.label)
+                                    color: theme.text; font.pixelSize: 15 } // 14.5 → 15 (int)
+                                Combo {
+                                    implicitWidth: 140
+                                    model: privacyPopup.pvLabels()
+                                    currentIndex: Math.max(0, privacyPopup.pvVals.indexOf(app.detail[modelData.key] || "everyone"))
+                                    onActivated: app.setPrivacy(modelData.key, privacyPopup.pvVals[currentIndex])
+                                }
+                            }
+                        }
+                    }
+
+                    // Baris .pv-row read-receipts dgn Tog (off bila "none"/"nobody").
+                    Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 50; color: "transparent"
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.line }
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
+                            Text { Layout.fillWidth: true; text: i18n.t("pv_read_receipts")
+                                color: theme.text; font.pixelSize: 15 }
+                            Tog {
+                                checked: (app.detail.readreceipts || "all") !== "none" && (app.detail.readreceipts || "all") !== "nobody"
+                                onToggled: app.setPrivacy("readreceipts", checked ? "all" : "none")
+                            }
+                        }
+                    }
+
+                    // .list-label "Kontak diblokir (N)" — pad 8 16 4, 12.5px text2.
+                    Text {
+                        Layout.fillWidth: true; Layout.topMargin: 14
+                        leftPadding: 16; rightPadding: 16; topPadding: 8; bottomPadding: 4
+                        text: i18n.t("pv_blocked") + " (" + blockedRep.count + ")"
+                        color: theme.text2; font.pixelSize: 13; font.weight: Font.DemiBold
+                    }
+
+                    // Daftar diblokir (.pv-blocked) — pad 9 16, av 38, btn-ghost unblock.
+                    Repeater {
+                        id: blockedRep
+                        model: searchModel
+                        delegate: Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 56; color: "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
+                                Avatar {
+                                    Layout.preferredWidth: 38; Layout.preferredHeight: 38; fontSize: 15
+                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase
+                                    accent: win.avatarColor(model.m.name || "?")
+                                }
+                                Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                    text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
+                                Btn {
+                                    text: i18n.t("pv_unblock")
+                                    onClicked: { app.act("Block", [model.m.jid, false]); app.loadInto("GetBlockedContacts", searchModel) }
+                                }
+                            }
+                        }
+                    }
+
+                    // Empty state (.empty-list) — pad 14 16, 13px text2.
+                    Text {
+                        visible: blockedRep.count === 0
+                        Layout.fillWidth: true; leftPadding: 16; rightPadding: 16; topPadding: 14; bottomPadding: 14
+                        text: i18n.t("pv_no_blocked"); color: theme.text2; font.pixelSize: 13
+                    }
+                    Item { Layout.preferredHeight: 12 }
+                }
+            }
+        }
+    }
+
+    // === Penyimpanan (StoragePane.svelte) — ringkasan + bar per-jenis ===
+    Popup {
+        id: storagePopup
+        width: 380; height: 480; modal: true; anchors.centerIn: Overlay.overlay; padding: 0
+        Overlay.modal: Rectangle { color: "#66000000" }
+        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0; clip: true }
+
+        // fmt byte (StoragePane.svelte fmt()).
+        function fmt(b) {
+            if (!b) return "0 B"
+            var k = 1024
+            if (b < k) return b + " B"
+            if (b < k * k) return Math.round(b / k) + " KB"
+            if (b < k * k * k) return (b / k / k).toFixed(1) + " MB"
+            return (b / k / k / k).toFixed(2) + " GB"
+        }
+        // label jenis (StoragePane.svelte label map).
+        function kindName(kk) {
+            var m = { text:"t_text", image:"t_photo", video:"t_video", sticker:"t_sticker",
+                      voice:"t_voice", gif:"t_video", document:"attach_document" }
+            return m[kk] ? i18n.t(m[kk]) : kk
+        }
+        // msgCount real engine; mock pakai "messages" → fallback.
+        readonly property real total: (app.detail.dbBytes || 0) + (app.detail.mediaBytes || 0)
+        readonly property int msgCount: (app.detail.msgCount !== undefined ? app.detail.msgCount
+                                        : (app.detail.messages || 0))
+
+        ColumnLayout {
+            anchors.fill: parent; spacing: 0
+            // .pane-head (gap 22 di Svelte).
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 56; color: theme.headBg; radius: 14
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 14; color: theme.headBg }
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 22
+                    ItemDelegate {
+                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; hoverEnabled: true
+                        background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
+                        onClicked: storagePopup.close()
+                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["chevleft"]; color: theme.text }
+                    }
+                    Text { Layout.fillWidth: true; text: i18n.t("storage_title")
+                        color: theme.text; font.pixelSize: 17; font.weight: Font.DemiBold }
+                }
+            }
+
+            Flickable {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                contentHeight: suCol.implicitHeight; flickableDirection: Flickable.VerticalFlick
+                ScrollIndicator.vertical: ScrollIndicator {}
+                ColumnLayout {
+                    id: suCol; width: parent.width; spacing: 0
+
+                    // .su-totals (text-align center, pad 18 16)
+                    ColumnLayout {
+                        Layout.fillWidth: true; Layout.topMargin: 18; Layout.bottomMargin: 0; spacing: 0
+                        // .su-total 30px bold
+                        Text { Layout.alignment: Qt.AlignHCenter; text: storagePopup.fmt(storagePopup.total)
+                            color: theme.text; font.pixelSize: 30; font.weight: Font.Bold }
+                        Text { Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 2; text: i18n.t("storage")
+                            color: theme.text2; font.pixelSize: 13 }
+                        // .su-split (gap 28, mt 14): DB / Media dlm aksen
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 14; spacing: 28
+                            ColumnLayout { spacing: 0
+                                Text { Layout.alignment: Qt.AlignHCenter; text: storagePopup.fmt(app.detail.dbBytes || 0)
+                                    color: theme.accent; font.pixelSize: 16; font.weight: Font.Bold }
+                                Text { Layout.alignment: Qt.AlignHCenter; text: i18n.t("messages_label")
+                                    color: theme.text2; font.pixelSize: 12 }
+                            }
+                            ColumnLayout { spacing: 0
+                                Text { Layout.alignment: Qt.AlignHCenter; text: storagePopup.fmt(app.detail.mediaBytes || 0)
+                                    color: theme.accent; font.pixelSize: 16; font.weight: Font.Bold }
+                                Text { Layout.alignment: Qt.AlignHCenter; text: i18n.t("info_media")
+                                    color: theme.text2; font.pixelSize: 12 }
+                            }
+                        }
+                        // .su-count (mt 10, 12.5px)
+                        Text { Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 10
+                            text: storagePopup.msgCount.toLocaleString(Qt.locale(), "f", 0) + " " + i18n.t("messages_label")
+                            color: theme.text2; font.pixelSize: 13 }
+                    }
+
+                    // .su-list (pad 8 16) — baris per-jenis dgn bar proporsional.
+                    ColumnLayout {
+                        Layout.fillWidth: true; Layout.topMargin: 8; Layout.leftMargin: 16; Layout.rightMargin: 16; spacing: 0
+                        Repeater {
+                            model: app.detail.kinds || []
+                            delegate: RowLayout {
+                                Layout.fillWidth: true; Layout.topMargin: 8; Layout.bottomMargin: 8; spacing: 10
+                                Text { Layout.preferredWidth: 90; text: storagePopup.kindName(modelData.kind)
+                                    color: theme.text; font.pixelSize: 13; elide: Text.ElideRight }
+                                Rectangle { // .su-bar track
+                                    Layout.fillWidth: true; Layout.preferredHeight: 8; radius: 5; color: theme.bg2; clip: true
+                                    Rectangle { // fill
+                                        height: parent.height; radius: 5; color: theme.accent
+                                        width: parent.width * (storagePopup.total
+                                            ? Math.max(0.02, (modelData.bytes / storagePopup.total)) : 0)
+                                    }
+                                }
+                                Text { text: storagePopup.fmt(modelData.bytes) + " · " + modelData.count
+                                    color: theme.text2; font.pixelSize: 12 }
+                            }
+                        }
+                    }
+                    Item { Layout.preferredHeight: 12 }
+                }
+            }
+        }
+    }
+
+    // === Pemilih folder per-chat (FolderPicker.svelte) — .nc-modal kartu ===
+    Popup {
+        id: folderPickerPopup
+        modal: true; anchors.centerIn: Overlay.overlay; padding: 0
+        width: 400; height: fpCol.implicitHeight
+        Overlay.modal: Rectangle { color: "#66000000" } // .modal-backdrop rgba(0,0,0,.4)
+        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0; clip: true }
+        onClosed: win.folderPickFor = ""
+
+        ColumnLayout {
+            id: fpCol
+            anchors.fill: parent; spacing: 0
+
+            // .nc-head — judul "Folders · <chat>" + tombol tutup.
+            RowLayout {
+                Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16
+                Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 10
+                Text {
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                    text: i18n.t("folders") + (win.folderPickName !== "" ? " · " + win.folderPickName : "")
+                    color: theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
+                }
+                ItemDelegate {
+                    Layout.preferredWidth: 32; Layout.preferredHeight: 32; hoverEnabled: true
+                    background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
+                    onClicked: folderPickerPopup.close()
+                    Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["close"]; color: theme.text2 }
+                }
+            }
+
+            // .fp-list (max-height 50vh, scroll). Baris .fp-row: checkbox + nama + ✕.
+            Flickable {
+                Layout.fillWidth: true
+                Layout.leftMargin: 6; Layout.rightMargin: 6
+                Layout.preferredHeight: Math.min(fpList.implicitHeight, win.height * 0.5)
+                clip: true; contentHeight: fpList.implicitHeight
+                flickableDirection: Flickable.VerticalFlick
+                ScrollIndicator.vertical: ScrollIndicator {}
+                ColumnLayout {
+                    id: fpList; width: parent.width; spacing: 0
+                    Repeater {
+                        model: win.folders
+                        delegate: ItemDelegate {
+                            Layout.fillWidth: true; implicitHeight: 44; hoverEnabled: true
+                            background: Rectangle { anchors.margins: 2; radius: 8; color: hovered ? theme.bg2 : "transparent" }
+                            onClicked: win.toggleChatFolder(modelData.name, win.folderPickFor)
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 10
+                                // checkbox (kotak; centang aksen bila chat ada di folder)
+                                Rectangle {
+                                    Layout.preferredWidth: 18; Layout.preferredHeight: 18; radius: 4
+                                    border.width: 2
+                                    property bool on: win.chatInFolder(modelData.name, win.folderPickFor)
+                                    border.color: on ? theme.accent : theme.text2
+                                    color: on ? theme.accent : "transparent"
+                                    Icon { anchors.centerIn: parent; width: 12; height: 12; visible: parent.on
+                                        svg: win.ico["check"]; color: "#ffffff"; vbox: "0 0 17 15" }
+                                }
+                                Text { Layout.fillWidth: true; text: modelData.name; color: theme.text
+                                    font.pixelSize: 15; elide: Text.ElideRight }
+                                // .fp-del ✕
+                                ItemDelegate {
+                                    Layout.preferredWidth: 28; Layout.preferredHeight: 28; hoverEnabled: true
+                                    background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
+                                    onClicked: win.deleteFolder(modelData.name)
+                                    Icon { anchors.centerIn: parent; width: 14; height: 14; svg: win.ico["close"]; color: theme.text2 }
+                                }
+                            }
+                        }
+                    }
+                    // .fp-empty — "No folders yet"
+                    Text {
+                        visible: win.folders.length === 0
+                        Layout.fillWidth: true; topPadding: 16; bottomPadding: 16
+                        horizontalAlignment: Text.AlignHCenter
+                        text: i18n.t("no_folders"); color: theme.text2; font.pixelSize: 13
                     }
                 }
             }
-            Item { Layout.fillHeight: true }
-            Btn { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: privacyPopup.close() }
+
+            // .nc-create — "+ New folder" (accent pill).
+            Btn {
+                Layout.fillWidth: true; Layout.margins: 12; accent: true
+                text: "+ " + i18n.t("folder_new")
+                onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) win.addFolder(v) })
+            }
         }
     }
 
@@ -3307,6 +3639,8 @@ ApplicationWindow {
             else if (openPanel === "detailc") { app.loadDetail("GetContactProfile", "c"); detailPopup.open() }
             else if (openPanel === "forward") { win.ctxMsg = { id: "m1" }; forwardPopup.open() }
             else if (openPanel === "privacy") { app.loadDetail("GetPrivacy", ""); privacyPopup.open() }
+            else if (openPanel === "storage") { app.loadDetail("GetStorageUsage", ""); storagePopup.open() }
+            else if (openPanel === "folder") { win.folders = [{ name: "Kerja", jids: ["c"] }, { name: "Keluarga", jids: [] }]; win.openFolderPicker("c", "Alice") }
             else if (openPanel === "msginfo") { app.loadDetailA("GetMessageInfo", ["c", "m1"]); msgInfoPopup.open() }
             else if (openPanel === "reaction") { win.ctxMsg = { id: "m1", senderId: "", dir: "in" }; reactionPopup.open() }
             else if (openPanel === "reactiondetail") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionDetailPopup.open() }

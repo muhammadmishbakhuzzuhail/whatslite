@@ -122,6 +122,15 @@ ApplicationWindow {
         "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
         "star2": '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>',
         "window": '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>',
+        // --- Ikon Setelan tambahan (SettingsPane.svelte inline svg) ---
+        "translate": '<path d="M4 5h7M9 3v2c0 4-2 7-5 9M5 9c0 3 3 5 6 5"/><path d="M14 19l3-7 3 7M15.5 16h3"/>',
+        "speaker": '<path d="M11 5L6 9H2v6h4l5 4zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/>',
+        "hamburger": '<path d="M4 6h16M4 12h16M4 18h16"/>',
+        "eyeoff": '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+        "moon": '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+        "emojiface": '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
+        "zoom": '<path d="M7 8V5h3M17 8V5h-3M7 16v3h3M17 16v3h-3"/>',
+        "power": '<path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>',
         // --- Ikon panel info/profil (disalin dari InfoPanel.svelte & ContactProfile.svelte) ---
         "editpen": '<path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M14 6l4 4"/>',
         "addmember": '<circle cx="9" cy="8" r="4"/><path d="M2 20c0-3.5 3-6 7-6M18 11v6M15 14h6"/>',
@@ -174,8 +183,10 @@ ApplicationWindow {
         // existing) — sumber valid in-repo, bukan tebakan eksternal.
         readonly property color railBg: dark ? "#11161d" : "#f4f6fa"
         readonly property color railIco: dark ? "#8a97a3" : "#6b7785"
-        readonly property color accent: dark ? "#06c98c" : "#06b67f"
-        readonly property color accentDeep: dark ? "#06b67f" : "#048a60"
+        // Override aksen kustom (Setelan → .acc-sw). "" = pakai default tema.
+        property string accentOverride: ""
+        readonly property color accent: accentOverride !== "" ? accentOverride : (dark ? "#06c98c" : "#06b67f")
+        readonly property color accentDeep: accentOverride !== "" ? Qt.darker(accentOverride, 1.18) : (dark ? "#06b67f" : "#048a60")
         readonly property color sidebarBg: dark ? "#0e1318" : "#ffffff"
         readonly property color bg: dark ? "#1a232a" : "#ffffff"
         readonly property color bg2: dark ? "#222e35" : "#f0f2f5"
@@ -379,6 +390,27 @@ ApplicationWindow {
             color: _tm.on ? theme.text : theme.text2
         }
         TapHandler { onTapped: _tm.clicked() }
+    }
+
+    // Slider bertema (input[type=range] accent-color:var(--accent)). Basic Slider
+    // = chrome terang → override track/handle ke token accent.
+    component TSlider: Slider {
+        id: _sl
+        implicitHeight: 20
+        background: Rectangle {
+            x: _sl.leftPadding; y: _sl.topPadding + _sl.availableHeight / 2 - height / 2
+            width: _sl.availableWidth; height: 4; radius: 2; color: theme.bg2
+            Rectangle {
+                width: _sl.visualPosition * parent.width; height: parent.height
+                color: theme.accent; radius: 2
+            }
+        }
+        handle: Rectangle {
+            x: _sl.leftPadding + _sl.visualPosition * (_sl.availableWidth - width)
+            y: _sl.topPadding + _sl.availableHeight / 2 - height / 2
+            width: 16; height: 16; radius: 8
+            color: theme.accent; border.color: "#ffffff"; border.width: 2
+        }
     }
 
     // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
@@ -2060,6 +2092,26 @@ ApplicationWindow {
         // app.css/Svelte (retDays 90, defDis 0) + update saat klik.
         property int retDays: 90
         property int defDis: 0
+        // State klien-saja (di Svelte = localStorage; Qt belum punya store C++).
+        // Mode tema 3-arah: light/dark/system. Qt theme hanya punya `dark`;
+        // "system" fallback ke light (note: tak ada deteksi OS di engine ini).
+        property string themeMode: theme.dark ? "dark" : "light"
+        property string translateLang: "en"
+        property bool soundOn: true
+        property bool virtList: false
+        property bool showDeleted: false
+        property bool appLock: false
+        property bool dndOn: false
+        property string dndFrom: "22:00"
+        property string dndTo: "07:00"
+        property var quickReactions: ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+        property int uiScale: 100
+        property bool bgRun: false
+        function setThemeMode(m) {
+            themeMode = m
+            // light/system → terang; dark → gelap (system jatuh ke light).
+            theme.dark = (m === "dark")
+        }
         onOpened: { app.act("GetProxy", []); app.act("GetRetention", []); app.act("GetBackgroundClose", []) }
         background: Rectangle { color: theme.sidebarBg }
 
@@ -2116,13 +2168,39 @@ ApplicationWindow {
 
                     // ===== .settings-list =====
 
-                    // 2) Tema — .theme-modes (Light / Dark)
+                    // 1) Tema — .theme-modes (Light / Dark / System)
                     SettingsItem {
                         icon: "theme"; name: i18n.t("theme"); topAlign: true; clickable: false
                         extra: RowLayout {
                             Layout.fillWidth: true; Layout.topMargin: 8; spacing: 6
-                            ThemeMode { text: i18n.t("theme_light"); on: !theme.dark; onClicked: theme.dark = false }
-                            ThemeMode { text: i18n.t("theme_dark"); on: theme.dark; onClicked: theme.dark = true }
+                            ThemeMode { text: i18n.t("theme_light"); on: settingsPopup.themeMode === "light"; onClicked: settingsPopup.setThemeMode("light") }
+                            ThemeMode { text: i18n.t("theme_dark"); on: settingsPopup.themeMode === "dark"; onClicked: settingsPopup.setThemeMode("dark") }
+                            ThemeMode { text: i18n.t("theme_system"); on: settingsPopup.themeMode === "system"; onClicked: settingsPopup.setThemeMode("system") }
+                        }
+                    }
+
+                    // 2) Warna aksen — .acc-sw swatches (default ✕ + 6 warna)
+                    SettingsItem {
+                        icon: "theme"; name: i18n.t("accent_color"); topAlign: true; clickable: false
+                        extra: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 8; spacing: 8
+                            Repeater {
+                                model: ["", "#06b67f", "#5b6ef5", "#e5614e", "#f2a33c", "#9b59b6", "#e9418a"]
+                                // .acc-sw: 26x26 round, border 2px transparent; .on → border var(--text).
+                                Rectangle {
+                                    required property string modelData
+                                    width: 26; height: 26; radius: 13
+                                    color: modelData !== "" ? modelData : theme.accent
+                                    border.width: 2
+                                    border.color: (theme.accentOverride === modelData) ? theme.text : "transparent"
+                                    Text {
+                                        anchors.centerIn: parent; visible: parent.modelData === ""
+                                        text: "✕"; color: theme.text2; font.pixelSize: 12
+                                    }
+                                    TapHandler { onTapped: theme.accentOverride = parent.modelData }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
                         }
                     }
 
@@ -2146,14 +2224,57 @@ ApplicationWindow {
                         }
                     }
 
-                    // 4) Keep deleted (anti-delete)
+                    // 4) Bahasa terjemahan (lang-item) — Combo lokal translateLang
+                    SettingsItem {
+                        icon: "translate"; name: i18n.t("translate_lang"); desc: i18n.t("translate_lang_d")
+                        clickable: false
+                        trailing: Combo {
+                            implicitWidth: 140
+                            textRole: "label"; valueRole: "code"
+                            model: [
+                                { code: "en", label: "English" },
+                                { code: "id", label: "Indonesia" },
+                                { code: "es", label: "Español" },
+                                { code: "ar", label: "العربية" },
+                                { code: "ja", label: "日本語" },
+                                { code: "zh-CN", label: "中文" }
+                            ]
+                            currentIndex: { var c = settingsPopup.translateLang; return c === "id" ? 1 : c === "es" ? 2 : c === "ar" ? 3 : c === "ja" ? 4 : c === "zh-CN" ? 5 : 0 }
+                            onActivated: settingsPopup.translateLang = currentValue
+                        }
+                    }
+
+                    // 5) Suara notifikasi (switch)
+                    SettingsItem {
+                        icon: "speaker"; name: i18n.t("notif_sound")
+                        desc: settingsPopup.soundOn ? i18n.t("active") : i18n.t("off")
+                        onActivated: settingsPopup.soundOn = !settingsPopup.soundOn
+                        trailing: Tog { checked: settingsPopup.soundOn; onToggled: settingsPopup.soundOn = checked }
+                    }
+
+                    // 6) Virtualisasi daftar pesan (switch, eksperimental)
+                    SettingsItem {
+                        icon: "hamburger"; name: i18n.t("virt_list"); desc: i18n.t("virt_list_d")
+                        onActivated: settingsPopup.virtList = !settingsPopup.virtList
+                        trailing: Tog { checked: settingsPopup.virtList; onToggled: settingsPopup.virtList = checked }
+                    }
+
+                    // 7) Keep deleted (anti-delete)
                     SettingsItem {
                         icon: "trash"; name: i18n.t("keep_deleted"); desc: i18n.t("keep_deleted_sub")
                         clickable: false
                         trailing: Tog { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
                     }
 
-                    // 5) Retensi — chips 30/90/180/selamanya
+                    // 7b) Lihat pesan dihapus (conditional — tampil saat keep-deleted on)
+                    SettingsItem {
+                        visible: app.keepDeleted
+                        icon: "eyeoff"; name: i18n.t("show_deleted"); desc: i18n.t("show_deleted_d")
+                        onActivated: settingsPopup.showDeleted = !settingsPopup.showDeleted
+                        trailing: Tog { checked: settingsPopup.showDeleted; onToggled: settingsPopup.showDeleted = checked }
+                    }
+
+                    // 8) Retensi — chips 30/90/180/selamanya
                     SettingsItem {
                         icon: "disk"; name: i18n.t("retention"); desc: i18n.t("retention_d")
                         topAlign: true; clickable: false
@@ -2219,14 +2340,108 @@ ApplicationWindow {
                         onActivated: { settingsPopup.close(); activeView = "starred"; win.loadView("starred") }
                     }
 
-                    // 11) Jalan di latar belakang
+                    // 11) Kunci aplikasi (switch) — LOKAL (tak ada backend PIN di engine Qt)
+                    SettingsItem {
+                        icon: "lock"; name: i18n.t("applock")
+                        desc: settingsPopup.appLock ? i18n.t("active") : i18n.t("off")
+                        onActivated: settingsPopup.appLock = !settingsPopup.appLock
+                        trailing: Tog { checked: settingsPopup.appLock; onToggled: settingsPopup.appLock = checked }
+                    }
+
+                    // 11b) Kunci sekarang (conditional — tampil saat applock on)
+                    SettingsItem {
+                        visible: settingsPopup.appLock
+                        icon: "lock"; name: i18n.t("lock_now")
+                        onActivated: {} // LOKAL: tak ada lockNow di engine Qt
+                    }
+
+                    // 12) Jangan ganggu (switch + dua field jam saat on)
+                    SettingsItem {
+                        icon: "moon"; name: i18n.t("dnd"); desc: i18n.t("dnd_d")
+                        topAlign: true; clickable: false
+                        trailing: Tog { checked: settingsPopup.dndOn; onToggled: settingsPopup.dndOn = checked }
+                        extra: RowLayout {
+                            visible: settingsPopup.dndOn
+                            Layout.topMargin: 8; spacing: 8
+                            // Field jam (bg2, 1px line, radius 8, pad 4/8) per Svelte.
+                            Rectangle {
+                                implicitWidth: 70; implicitHeight: 26; radius: 8
+                                color: theme.bg2; border.color: theme.line; border.width: 1
+                                TextInput {
+                                    anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: settingsPopup.dndFrom; color: theme.text; font.pixelSize: 13
+                                    selectByMouse: true; onEditingFinished: settingsPopup.dndFrom = text
+                                }
+                            }
+                            Text { text: "–"; color: theme.text2; font.pixelSize: 13; Layout.alignment: Qt.AlignVCenter }
+                            Rectangle {
+                                implicitWidth: 70; implicitHeight: 26; radius: 8
+                                color: theme.bg2; border.color: theme.line; border.width: 1
+                                TextInput {
+                                    anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: settingsPopup.dndTo; color: theme.text; font.pixelSize: 13
+                                    selectByMouse: true; onEditingFinished: settingsPopup.dndTo = text
+                                }
+                            }
+                        }
+                    }
+
+                    // 13) Reaksi cepat kustom (.qre-sw) — klik = edit via prompt
+                    SettingsItem {
+                        icon: "emojiface"; name: i18n.t("quick_react")
+                        topAlign: true; clickable: false
+                        extra: RowLayout {
+                            Layout.topMargin: 8; spacing: 6
+                            Repeater {
+                                model: settingsPopup.quickReactions.length
+                                // .qre-sw: 36x32, bg2, radius 8, 18px emoji.
+                                Rectangle {
+                                    required property int index
+                                    width: 36; height: 32; radius: 8
+                                    color: qreHov.hovered ? theme.hover : theme.bg2
+                                    Text { anchors.centerIn: parent; text: settingsPopup.quickReactions[parent.index]; font.pixelSize: 18 }
+                                    HoverHandler { id: qreHov }
+                                    TapHandler {
+                                        onTapped: win.prompt(i18n.t("quick_react_edit"), settingsPopup.quickReactions[parent.index], function(v) {
+                                            if (!v) return
+                                            var arr = settingsPopup.quickReactions.slice()
+                                            arr[parent.index] = Array.from(v)[0] || arr[parent.index]
+                                            settingsPopup.quickReactions = arr
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 14) Ukuran tampilan (zoom UI) — slider 80–140 step 5, LOKAL
+                    SettingsItem {
+                        icon: "zoom"; name: i18n.t("ui_scale") + " · " + settingsPopup.uiScale + "%"
+                        topAlign: true; clickable: false
+                        extra: TSlider {
+                            Layout.fillWidth: true; Layout.topMargin: 8
+                            from: 80; to: 140; stepSize: 5; value: settingsPopup.uiScale
+                            onMoved: settingsPopup.uiScale = Math.round(value)
+                        }
+                    }
+
+                    // 15) Jalan di latar belakang
                     SettingsItem {
                         icon: "window"; name: i18n.t("bg_close"); desc: i18n.t("bg_run_d")
                         clickable: false
-                        trailing: Tog { onToggled: app.act("SetBackgroundClose", [checked]) }
+                        trailing: Tog { checked: settingsPopup.bgRun; onToggled: { settingsPopup.bgRun = checked; app.act("SetBackgroundClose", [checked]) } }
                     }
 
-                    // 12) Keluar (danger)
+                    // 15b) Keluar aplikasi (conditional danger — tampil saat bg-run on)
+                    SettingsItem {
+                        visible: settingsPopup.bgRun
+                        icon: "power"; name: i18n.t("quit_app"); danger: true
+                        onActivated: Qt.quit() // engine Qt tak punya app.quit → Qt.quit()
+                    }
+
+                    // 16) Keluar (danger)
                     SettingsItem {
                         icon: "logout"; name: i18n.t("logout"); danger: true
                         onActivated: { app.logout(); settingsPopup.close() }

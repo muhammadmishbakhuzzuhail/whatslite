@@ -1097,7 +1097,9 @@ ApplicationWindow {
                         color: stickerPopup.tab === modelData.k ? theme.accent : theme.bg2
                         Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 13; font.weight: Font.DemiBold
                             color: stickerPopup.tab === modelData.k ? "#ffffff" : theme.text2 }
-                        MouseArea { anchors.fill: parent; onClicked: stickerPopup.tab = modelData.k }
+                        MouseArea { anchors.fill: parent; onClicked: {
+                            stickerPopup.tab = modelData.k
+                            if (modelData.k === "online") app.searchOnline("SearchStickers", "", onlineStkModel) } }
                     }
                 }
             }
@@ -1110,7 +1112,7 @@ ApplicationWindow {
                     Icon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; svg: win.ico["search"]; color: theme.text2 }
                     TextInput { id: stkSearch; Layout.fillWidth: true; color: theme.text; font.pixelSize: 13
                         verticalAlignment: TextInput.AlignVCenter; clip: true
-                        onAccepted: app.act("SearchStickers", [text, ""]) }
+                        onAccepted: app.searchOnline("SearchStickers", text, onlineStkModel) }
                     Text { visible: stkSearch.text === ""; text: i18n.t("search") + " stiker"; color: theme.text2; font.pixelSize: 13
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 35 }
                 }
@@ -1154,9 +1156,27 @@ ApplicationWindow {
                     }
                 }
             }
-            // Empty state (tab non-pack).
+            // Grid hasil online (Tenor/Stickerly) — preview URL remote.
+            GridView {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                visible: stickerPopup.tab === "online"
+                cellWidth: 90; cellHeight: 90; clip: true
+                model: stickerPopup.tab === "online" ? onlineStkModel : 0
+                delegate: Item {
+                    width: 90; height: 90
+                    Rectangle {
+                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        Image {
+                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
+                            source: model.m.preview || ""; asynchronous: true
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: { app.sendOnline("sticker", model.m.mp4 || model.m.preview); stickerPopup.close() } }
+                    }
+                }
+            }
+            // Empty state (tab recents/create).
             Text {
-                Layout.fillWidth: true; Layout.fillHeight: true; visible: stickerPopup.tab !== "pack"
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: stickerPopup.tab === "recents" || stickerPopup.tab === "create"
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 text: "—"; color: theme.text2; font.pixelSize: 13
             }
@@ -1186,7 +1206,9 @@ ApplicationWindow {
                         color: gifPopup.tab === modelData.k ? theme.accent : theme.bg2
                         Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 13; font.weight: Font.DemiBold
                             color: gifPopup.tab === modelData.k ? "#ffffff" : theme.text2 }
-                        MouseArea { anchors.fill: parent; onClicked: gifPopup.tab = modelData.k }
+                        MouseArea { anchors.fill: parent; onClicked: {
+                            gifPopup.tab = modelData.k
+                            if (modelData.k === "online") app.searchOnline("SearchGifs", "", onlineGifModel) } }
                     }
                 }
             }
@@ -1199,7 +1221,7 @@ ApplicationWindow {
                     Icon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; svg: win.ico["search"]; color: theme.text2 }
                     TextInput { id: gifSearch; Layout.fillWidth: true; color: theme.text; font.pixelSize: 13
                         verticalAlignment: TextInput.AlignVCenter; clip: true
-                        onAccepted: app.act("SearchGifs", [text, ""]) }
+                        onAccepted: app.searchOnline("SearchGifs", text, onlineGifModel) }
                     Text { visible: gifSearch.text === ""; text: i18n.t("search") + " GIF"; color: theme.text2; font.pixelSize: 13
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 35 }
                 }
@@ -1239,8 +1261,25 @@ ApplicationWindow {
                     }
                 }
             }
+            // Grid hasil online (Tenor) — preview URL remote.
+            GridView {
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab === "online"
+                cellWidth: 158; cellHeight: 104; clip: true
+                model: gifPopup.tab === "online" ? onlineGifModel : 0
+                delegate: Item {
+                    width: 158; height: 104
+                    Rectangle {
+                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        Image {
+                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectCrop; clip: true
+                            source: model.m.preview || ""; asynchronous: true
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: { app.sendOnline("gif", model.m.mp4 || model.m.preview); gifPopup.close() } }
+                    }
+                }
+            }
             Text {
-                Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab !== "saved"
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab === "recents"
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 text: "—"; color: theme.text2; font.pixelSize: 13
             }
@@ -1991,6 +2030,8 @@ ApplicationWindow {
         interval: 1500; repeat: false
         onTriggered: {
             if (openPanel === "sticker") { app.loadStickers(); stickerPopup.open() }
+            else if (openPanel === "stkonline") { stickerPopup.tab = "online"; app.searchOnline("SearchStickers", "", onlineStkModel); stickerPopup.open() }
+            else if (openPanel === "gifonline") { gifPopup.tab = "online"; app.searchOnline("SearchGifs", "", onlineGifModel); gifPopup.open() }
             else if (openPanel === "gif") { app.loadGifs(); gifPopup.open() }
             else if (openPanel === "settings") settingsPopup.open()
             else if (openPanel === "search") { searchInput.text = "rapat"; app.search("rapat", searchModel) }

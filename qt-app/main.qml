@@ -500,6 +500,7 @@ ApplicationWindow {
                         delegate: ItemDelegate {
                             width: ListView.view.width; height: 60; clip: true
                             onClicked: { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
+                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 12
                                 Avatar {

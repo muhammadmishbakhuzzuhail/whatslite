@@ -1074,81 +1074,176 @@ ApplicationWindow {
         }
     }
 
-    // === Picker stiker (koleksi tersimpan, fitur CRUD #1) ===
+    // === Picker stiker (shell ala StickerPicker.svelte: tab + cari + grid) ===
     Popup {
         id: stickerPopup
-        width: 324; height: 360
-        x: win.width - width - 24
+        width: 520; height: 400
+        x: win.width - width - 16
         y: win.height - height - 70
-        padding: 8
-        background: Rectangle { color: theme.bg; radius: 12; border.color: theme.line }
-        GridView {
-            id: stickerGrid
-            anchors.fill: parent
-            cellWidth: 100; cellHeight: 100; clip: true
-            model: stickersModel
-            delegate: Item {
-                width: 100; height: 100
-                Rectangle {
-                    anchors.fill: parent; anchors.margins: 6; radius: 10
-                    color: theme.searchBg; border.color: theme.line
-                    Image {
-                        id: stkImg
-                        anchors.fill: parent; anchors.margins: 8
-                        fillMode: Image.PreserveAspectFit
-                        source: app.mediaBase ? (app.mediaBase + "/sticker/" + model.m.hash) : ""
-                        visible: status === Image.Ready
-                    }
-                    // Fallback (mock tanpa byte / belum termuat): label tipe.
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        visible: stkImg.status !== Image.Ready
-                        Text { Layout.alignment: Qt.AlignHCenter; text: "🏷️"; font.pixelSize: 30 }
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: model.m.animated ? "animasi" : "statis"
-                            color: theme.text2; font.pixelSize: 10
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: { app.sendSticker(model.m.hash); stickerPopup.close() }
+        padding: 10
+        property string tab: "pack"   // online|recents|pack|create
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 10
+            // .stk-tabs: 4 tab (aktif = accent).
+            RowLayout {
+                Layout.fillWidth: true; spacing: 6
+                Repeater {
+                    model: [{ k: "online", t: i18n.t("stk_online") }, { k: "recents", t: i18n.t("stk_recents") },
+                            { k: "pack", t: i18n.t("stk_pack") }, { k: "create", t: i18n.t("stk_create") }]
+                    delegate: Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 34; radius: 9
+                        color: stickerPopup.tab === modelData.k ? theme.accent : theme.bg2
+                        Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 13; font.weight: Font.DemiBold
+                            color: stickerPopup.tab === modelData.k ? "#ffffff" : theme.text2 }
+                        MouseArea { anchors.fill: parent; onClicked: stickerPopup.tab = modelData.k }
                     }
                 }
             }
+            // .pk-searchbox + .stk-search (tab online).
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 36; radius: 9; color: theme.bg2; border.color: theme.line
+                visible: stickerPopup.tab === "online"
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 8
+                    Icon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; svg: win.ico["search"]; color: theme.text2 }
+                    TextInput { id: stkSearch; Layout.fillWidth: true; color: theme.text; font.pixelSize: 13
+                        verticalAlignment: TextInput.AlignVCenter; clip: true
+                        onAccepted: app.act("SearchStickers", [text, ""]) }
+                    Text { visible: stkSearch.text === ""; text: i18n.t("search") + " stiker"; color: theme.text2; font.pixelSize: 13
+                        anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 35 }
+                }
+            }
+            // .gif-cats: kategori chip (tab online).
+            Flow {
+                Layout.fillWidth: true; spacing: 5; visible: stickerPopup.tab === "online"
+                Repeater {
+                    model: ["★", "trending", "love", "happy", "sad", "meme"]
+                    delegate: Rectangle {
+                        height: 24; radius: 12; width: cat.implicitWidth + 20
+                        color: index === 1 ? theme.accent : theme.bg2
+                        Text { id: cat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
+                            color: index === 1 ? "#ffffff" : theme.text2 }
+                    }
+                }
+            }
+            // .stk-grid: koleksi (tab pack) / empty (lainnya).
+            GridView {
+                id: stickerGrid
+                Layout.fillWidth: true; Layout.fillHeight: true
+                visible: stickerPopup.tab === "pack"
+                cellWidth: 90; cellHeight: 90; clip: true
+                model: stickerPopup.tab === "pack" ? stickersModel : 0
+                delegate: Item {
+                    width: 90; height: 90
+                    Rectangle {
+                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        Image {
+                            id: stkImg
+                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
+                            source: app.mediaBase ? (app.mediaBase + "/sticker/" + model.m.hash) : ""
+                            visible: status === Image.Ready
+                        }
+                        ColumnLayout {
+                            anchors.centerIn: parent; visible: stkImg.status !== Image.Ready
+                            Icon { Layout.alignment: Qt.AlignHCenter; width: 30; height: 30; svg: win.ico["sticker"]; color: theme.text2 }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: model.m.animated ? "animasi" : "statis"; color: theme.text2; font.pixelSize: 10 }
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: { app.sendSticker(model.m.hash); stickerPopup.close() } }
+                    }
+                }
+            }
+            // Empty state (tab non-pack).
+            Text {
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: stickerPopup.tab !== "pack"
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                text: "—"; color: theme.text2; font.pixelSize: 13
+            }
+            // .stk-credit.
+            Text { Layout.alignment: Qt.AlignHCenter; text: "Powered by Sticker.ly"; color: theme.text2; font.pixelSize: 10 }
         }
     }
 
-    // === Picker GIF (fitur #3) ===
+    // === Picker GIF (shell ala GifPicker.svelte: tab + cari + grid) ===
     Popup {
         id: gifPopup
-        width: 324; height: 320
-        x: win.width - width - 24
+        width: 520; height: 400
+        x: win.width - width - 16
         y: win.height - height - 70
-        padding: 8
-        background: Rectangle { color: theme.bg; radius: 12; border.color: theme.line }
-        GridView {
-            anchors.fill: parent
-            cellWidth: 150; cellHeight: 100; clip: true
-            model: gifsModel
-            delegate: Item {
-                width: 150; height: 100
-                Rectangle {
-                    anchors.fill: parent; anchors.margins: 6; radius: 10
-                    color: theme.searchBg; border.color: theme.line
-                    Image {
-                        id: gifImg
-                        anchors.fill: parent; anchors.margins: 8; fillMode: Image.PreserveAspectFit
-                        source: app.mediaBase ? (app.mediaBase + "/savedgif/" + model.m.hash) : ""
-                        visible: status === Image.Ready
+        padding: 10
+        property string tab: "saved"   // online|recents|saved
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 10
+            RowLayout {
+                Layout.fillWidth: true; spacing: 6
+                Repeater {
+                    model: [{ k: "online", t: i18n.t("gif_online") }, { k: "recents", t: i18n.t("gif_recents") },
+                            { k: "saved", t: i18n.t("a_gifs") }]
+                    delegate: Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 34; radius: 9
+                        color: gifPopup.tab === modelData.k ? theme.accent : theme.bg2
+                        Text { anchors.centerIn: parent; text: modelData.t; font.pixelSize: 13; font.weight: Font.DemiBold
+                            color: gifPopup.tab === modelData.k ? "#ffffff" : theme.text2 }
+                        MouseArea { anchors.fill: parent; onClicked: gifPopup.tab = modelData.k }
                     }
-                    Text {
-                        anchors.centerIn: parent; visible: gifImg.status !== Image.Ready
-                        text: "🎬 GIF"; color: theme.text2; font.pixelSize: 14
-                    }
-                    MouseArea { anchors.fill: parent; onClicked: { app.sendGif(model.m.hash); gifPopup.close() } }
                 }
             }
+            // Cari (tab online).
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 36; radius: 9; color: theme.bg2; border.color: theme.line
+                visible: gifPopup.tab === "online"
+                RowLayout {
+                    anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 8
+                    Icon { Layout.preferredWidth: 16; Layout.preferredHeight: 16; svg: win.ico["search"]; color: theme.text2 }
+                    TextInput { id: gifSearch; Layout.fillWidth: true; color: theme.text; font.pixelSize: 13
+                        verticalAlignment: TextInput.AlignVCenter; clip: true
+                        onAccepted: app.act("SearchGifs", [text, ""]) }
+                    Text { visible: gifSearch.text === ""; text: i18n.t("search") + " GIF"; color: theme.text2; font.pixelSize: 13
+                        anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 35 }
+                }
+            }
+            Flow {
+                Layout.fillWidth: true; spacing: 5; visible: gifPopup.tab === "online"
+                Repeater {
+                    model: ["★", "trending", "reactions", "love", "lol", "wow"]
+                    delegate: Rectangle {
+                        height: 24; radius: 12; width: gcat.implicitWidth + 20
+                        color: index === 1 ? theme.accent : theme.bg2
+                        Text { id: gcat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
+                            color: index === 1 ? "#ffffff" : theme.text2 }
+                    }
+                }
+            }
+            GridView {
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab === "saved"
+                cellWidth: 158; cellHeight: 104; clip: true
+                model: gifPopup.tab === "saved" ? gifsModel : 0
+                delegate: Item {
+                    width: 158; height: 104
+                    Rectangle {
+                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        Image {
+                            id: gifImg
+                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
+                            source: app.mediaBase ? (app.mediaBase + "/savedgif/" + model.m.hash) : ""
+                            visible: status === Image.Ready
+                        }
+                        ColumnLayout {
+                            anchors.centerIn: parent; visible: gifImg.status !== Image.Ready
+                            Icon { Layout.alignment: Qt.AlignHCenter; width: 30; height: 30; svg: win.ico["gifb"]; color: theme.text2 }
+                            Text { Layout.alignment: Qt.AlignHCenter; text: "GIF"; color: theme.text2; font.pixelSize: 11 }
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: { app.sendGif(model.m.hash); gifPopup.close() } }
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab !== "saved"
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                text: "—"; color: theme.text2; font.pixelSize: 13
+            }
+            Text { Layout.alignment: Qt.AlignHCenter; text: "Powered by Tenor"; color: theme.text2; font.pixelSize: 10 }
         }
     }
 

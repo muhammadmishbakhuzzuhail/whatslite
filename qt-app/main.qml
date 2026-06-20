@@ -953,7 +953,10 @@ ApplicationWindow {
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     lineHeight: 1.4; lineHeightMode: Text.ProportionalHeight  // .bubble line-height 1.4
-                                    Layout.maximumWidth: Math.min(timeline.width * 0.66, 560)  // .bubble max-width: min(66%, 560px)
+                                    // Caption media wrap ke lebar gambar (220) → bubble tak melebar
+                                    // melebihi gambar (tak ada ruang kosong di kanan). Else max-width bubble.
+                                    Layout.maximumWidth: (["image", "video", "gif"].indexOf(model.m.type) >= 0)
+                                                         ? 220 : Math.min(timeline.width * 0.66, 560)
                                 }
                                 // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).
                                 // Media gambar/video/gif pakai overlay di atas thumbnail → sembunyikan di sini.

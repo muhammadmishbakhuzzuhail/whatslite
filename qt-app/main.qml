@@ -698,20 +698,23 @@ ApplicationWindow {
                             visible: timeline.count > 0
                             onClicked: app.loadOlder()
                         }
-                        // Separator tanggal (ala WhatsApp) — pill terpusat.
+                        // Separator tanggal — .day-chip span: bg --in-bg, pad 6/12, radius 8, uppercase, ls .3.
                         Rectangle {
-                            Layout.alignment: Qt.AlignHCenter
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 8; Layout.bottomMargin: 8
                             visible: timeline.count > 0
-                            radius: 8; color: theme.dark ? "#182229" : "#ffffff"
-                            implicitWidth: dlbl.implicitWidth + 22; implicitHeight: 26
-                            Text { id: dlbl; anchors.centerIn: parent; text: "HARI INI"; color: theme.text2; font.pixelSize: 12; font.weight: Font.Medium }
+                            radius: 8; color: theme.inBg
+                            implicitWidth: dlbl.implicitWidth + 24; implicitHeight: 26
+                            Text { id: dlbl; anchors.centerIn: parent; text: "HARI INI"; color: theme.text2
+                                font.pixelSize: 13; font.weight: Font.Medium; font.letterSpacing: 0.3 }
                         }
-                        // Pembatas "belum dibaca" (ala WhatsApp).
+                        // Pembatas "belum dibaca" — .unread-divider span: pill TERPUSAT, color text2 (bukan accent).
                         Rectangle {
-                            Layout.fillWidth: true; Layout.bottomMargin: 6
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6; Layout.bottomMargin: 6
                             visible: (win.selectedChat.badge || 0) > 0
-                            color: theme.dark ? "#182229" : "#ffffff"; implicitHeight: 28
-                            Text { anchors.centerIn: parent; color: theme.accent; font.pixelSize: 12; font.weight: Font.Medium
+                            radius: 8; color: theme.inBg
+                            implicitWidth: udlbl.implicitWidth + 28; implicitHeight: 26
+                            Text { id: udlbl; anchors.centerIn: parent; color: theme.text2
+                                font.pixelSize: 12; font.weight: Font.Medium; font.letterSpacing: 0.3
                                 text: (win.selectedChat.badge || 0) + " PESAN BELUM DIBACA" }
                         }
                     }

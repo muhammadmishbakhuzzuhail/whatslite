@@ -237,6 +237,10 @@ type MessageDTO struct {
 	QuoteText   string        `json:"quoteText"` // balasan: preview teks dikutip
 	Mentions    []MentionDTO  `json:"mentions"`  // @tag dlm teks (render berwarna+klik)
 	Reactions   []ReactionDTO `json:"reactions"` // reaksi emoji teragregasi
+	// ReactionsJSON = Reactions ter-serialize sbg STRING. Frontend Qt/QML mem-parse
+	// string ini (JSON.parse) — array QVariantList nested di role model tak andal
+	// dibaca dari QML (beda dgn properti Q_PROPERTY). Pola sama dgn poll (thumb).
+	ReactionsJSON string `json:"reactionsJson"`
 
 	DocSize  int64  `json:"docSize"`  // document: ukuran byte (0 bila bukan/tak diketahui)
 	DocPages int    `json:"docPages"` // document: jumlah halaman (PDF; 0 bila tak ada)
@@ -293,6 +297,11 @@ func (a *App) attachReactions(out []MessageDTO, chat string) {
 		}
 		for _, e := range order {
 			out[i].Reactions = append(out[i].Reactions, *agg[e])
+		}
+		if len(out[i].Reactions) > 0 {
+			if b, err := json.Marshal(out[i].Reactions); err == nil {
+				out[i].ReactionsJSON = string(b)
+			}
 		}
 	}
 }

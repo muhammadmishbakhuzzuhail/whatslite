@@ -4,6 +4,8 @@
   "a_document": "Dokumen", "a_stickers": "Stiker", "a_gifs": "GIF",
   "poll_votes_n": "suara", "copy": "Salin",
   "t_photo": "Foto", "t_video": "Video", "t_sticker": "Stiker",
+  "info_group": "Info grup", "info_contact": "Info kontak", "info_groupdesc": "Deskripsi",
+  "about": "Tentang", "group_admin_settings": "Pengaturan grup", "member_admin": "admin",
   "search": "Cari pesan",
   "pick_conversation": "Pilih percakapan",
   "type_message": "Ketik pesan",

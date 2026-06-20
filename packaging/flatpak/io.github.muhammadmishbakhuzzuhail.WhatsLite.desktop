@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=WhatsLite
+GenericName=Messenger
+Comment=Lightweight desktop WhatsApp client for Linux (Qt6/QML, no Chromium)
+Exec=whatslite
+Icon=io.github.muhammadmishbakhuzzuhail.WhatsLite
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=whatsapp;chat;messaging;
+StartupWMClass=walite-qt
+StartupNotify=true

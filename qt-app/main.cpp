@@ -49,10 +49,15 @@ int main(int argc, char *argv[]) {
     ctx->setContextProperty("startDark", qEnvironmentVariableIsSet("WALITE_DARK"));
     ctx->setContextProperty("openPanel", qEnvironmentVariable("WALITE_OPEN"));
     ctx->setContextProperty("startLock", qEnvironmentVariableIsSet("WALITE_LOCK"));
-    ctx->setContextProperty("srcDir", QStringLiteral(SRCDIR)); // basis path i18n/<code>.json
+    // Basis resource (main.qml + i18n/ + assets/). Default = sumber (dev);
+    // override via WALITE_RESOURCE_DIR utk paket terpasang (mis. Flatpak /app/share).
+    const QString resDir = qEnvironmentVariableIsSet("WALITE_RESOURCE_DIR")
+                               ? qEnvironmentVariable("WALITE_RESOURCE_DIR")
+                               : QStringLiteral(SRCDIR);
+    ctx->setContextProperty("srcDir", resDir); // basis path i18n/<code>.json
     ctx->setContextProperty("startLang", qEnvironmentVariable("WALITE_LANG")); // bahasa awal (uji)
 
-    engine.load(QUrl::fromLocalFile(QStringLiteral(SRCDIR "/main.qml")));
+    engine.load(QUrl::fromLocalFile(resDir + QStringLiteral("/main.qml")));
     if (engine.rootObjects().isEmpty())
         return 1;
 

@@ -6,6 +6,8 @@
   "t_photo": "Photo", "t_video": "Video", "t_sticker": "Sticker",
   "info_group": "Group info", "info_contact": "Contact info", "info_groupdesc": "Description",
   "about": "About", "group_admin_settings": "Group settings", "member_admin": "admin",
+  "stk_online": "Online", "stk_recents": "Recents", "stk_pack": "Pack", "stk_create": "Create",
+  "gif_online": "Online", "gif_recents": "Recents",
   "search": "Search messages",
   "pick_conversation": "Select a conversation",
   "type_message": "Type a message",

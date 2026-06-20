@@ -6,6 +6,8 @@
   "t_photo": "Foto", "t_video": "Video", "t_sticker": "Stiker",
   "info_group": "Info grup", "info_contact": "Info kontak", "info_groupdesc": "Deskripsi",
   "about": "Tentang", "group_admin_settings": "Pengaturan grup", "member_admin": "admin",
+  "stk_online": "Online", "stk_recents": "Terkini", "stk_pack": "Paket", "stk_create": "Buat",
+  "gif_online": "Online", "gif_recents": "Terkini",
   "search": "Cari pesan",
   "pick_conversation": "Pilih percakapan",
   "type_message": "Ketik pesan",

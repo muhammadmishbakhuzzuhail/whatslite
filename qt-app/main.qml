@@ -21,6 +21,12 @@ ApplicationWindow {
     property string activeView: "chats" // chats | calls | starred
     property string myName: "Saya"   // nama profil sendiri (avatar rail, GetProfile)
     property string chatFilter: "Semua" // filter chip aktif
+    property string channelTab: "following" // ChannelsPane .ch-tabs: following | discover
+    property var commOpen: ({})       // CommunitiesPane: jid/nama komunitas → diperluas (chevron)
+    function commToggle(key) {         // toggle perluasan satu komunitas (delegate daur-ulang → simpan di win)
+        var o = win.commOpen; o[key] = !o[key]; win.commOpen = o
+        commOpenChanged()
+    }
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
     property string lightboxCaption: "" // keterangan media di lightbox (Lightbox.svelte .lb-cap)
     // Draf pratinjau media sebelum kirim (MediaPreviewModal.svelte). Engine Qt tak
@@ -168,6 +174,21 @@ ApplicationWindow {
         }
         return n
     }
+    // Huruf-awal utk pemisah abjad ContactsPane/StatusPane (.ct-letter): A–Z,
+    // selain itu "#". Dipakai delegate utk menyisipkan header huruf inline
+    // (model diasumsikan sudah terurut abjad dari engine — lihat LIMITATIONS).
+    function letterOf(name) {
+        var L = ((name || "#").trim().charAt(0) || "#").toUpperCase()
+        return /[A-Z]/.test(L) ? L : "#"
+    }
+    // True bila baris index i memulai grup huruf baru (i===0 atau huruf berbeda
+    // dari baris sebelumnya pada model m → render .ct-letter di atas baris).
+    function startsLetterGroup(mdl, i, name) {
+        if (i <= 0) return true
+        var prev = mdl.get(i - 1)
+        return letterOf(prev ? prev.name : "") !== letterOf(name)
+    }
+
     // Tinggi bar waveform voice (app.css: nth 3n→40%, odd→60%, even→95%). i 0-based.
     function barH(i) {
         var c = i + 1
@@ -667,6 +688,45 @@ ApplicationWindow {
                             onClicked: win.prompt(i18n.t("folder_new"), "", function(v){ if (v) { app.act("AddFolder", [v]); win.addFolder(v) } }) }
                     }
                 }
+                // .ch-tabs (ChannelsPane.svelte) — Diikuti / Jelajahi: dua tombol flex,
+                // aktif = accent + #fff, lainnya bg2/text2 13/600. padding 2/12 10.
+                RowLayout {
+                    Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12
+                    Layout.topMargin: 2; Layout.bottomMargin: 10; spacing: 6
+                    visible: activeView === "channels" && searchInput.text === ""
+                    Repeater {
+                        model: [{ k: "following", label: i18n.t("ch_following") },
+                                { k: "discover", label: i18n.t("ch_discover") }]
+                        delegate: Rectangle {
+                            property bool on: win.channelTab === modelData.k
+                            Layout.fillWidth: true; Layout.preferredHeight: 34   // .ch-tabs button pad 8
+                            radius: 9; color: on ? theme.accent : theme.bg2
+                            Text { anchors.centerIn: parent; text: modelData.label; font.pixelSize: 13; font.weight: Font.DemiBold
+                                color: on ? "#ffffff" : theme.text2 }
+                            MouseArea { anchors.fill: parent; onClicked: {
+                                win.channelTab = modelData.k
+                                if (modelData.k === "discover") app.loadIntoA("GetRecommendedChannels", [""], channelsModel)
+                                else win.loadView("channels")
+                            } }
+                        }
+                    }
+                }
+                // .ch-search — input cari pada tab Jelajahi (radius10 pad 9/14 bg2).
+                Rectangle {
+                    Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 8
+                    Layout.preferredHeight: 37; radius: 10; color: theme.bg2
+                    visible: activeView === "channels" && win.channelTab === "discover" && searchInput.text === ""
+                    TextInput {
+                        id: channelDiscSearch
+                        anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
+                        verticalAlignment: TextInput.AlignVCenter; clip: true
+                        color: theme.text; font.pixelSize: 14
+                        onTextChanged: app.loadIntoA("GetRecommendedChannels", [text], channelsModel)
+                    }
+                    Text { visible: channelDiscSearch.text === ""
+                        anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 14
+                        text: i18n.t("search"); color: theme.text2; font.pixelSize: 14 }
+                }
                 // Daftar (swap per activeView): chats / calls / starred
                 Item {
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -871,82 +931,191 @@ ApplicationWindow {
                             }
                         }
                     }
-                    // --- Status (StatusPane.svelte → .status-row: cincin 48px av + 2.5px pad
+                    // --- Status (StatusPane.svelte → 'My status' add row di atas, .ct-letter
+                    //     pemisah abjad, lalu .status-row: cincin 48px av + 2.5px pad
                     //     (accent belum-dilihat / --line sudah), nama 15/600, sub time[·N]). ---
                     ListView {
+                        id: statusList
                         anchors.fill: parent
                         visible: activeView === "status" && searchInput.text === ""
                         clip: true; model: statusModel
-                        delegate: ItemDelegate {
-                            width: ListView.view.width; height: 68; clip: true   // .status-row pad 10/14
-                            onClicked: { win.selectedChat = { name: model.m.name, id: model.m.id }; activeView = "chats"; app.openChat(model.m.id) }
-                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
+                        // 'My status' .status-row: status-av + '+' badge, nama + status_add_hint.
+                        header: Rectangle {
+                            width: ListView.view.width; height: 68
+                            color: myStMa.containsMouse ? theme.hover : "transparent"
+                            MouseArea { id: myStMa; anchors.fill: parent; hoverEnabled: true }
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 12; spacing: 14
-                                Rectangle {   // .ring — latar penuh (accent/--line), inset 2.5 → cincin
-                                    Layout.preferredWidth: 53; Layout.preferredHeight: 53; Layout.alignment: Qt.AlignVCenter
-                                    radius: width / 2
-                                    color: model.m.seen ? theme.line : theme.accent
-                                    Avatar {   // .status-av 48px
-                                        anchors.centerIn: parent; width: 48; height: 48; fontSize: 18
-                                        name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
+                                Item {   // .status-av-wrap + '+' badge
+                                    Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                                    Avatar {   // .status-av 48px (akun "me")
+                                        anchors.fill: parent; fontSize: 18
+                                        name: "?"; jid: "me"; base: app.mediaBase; accent: win.avatarColor("me")
+                                    }
+                                    Rectangle {   // .status-add 18px accent, '+' putih, border bg
+                                        width: 18; height: 18; radius: 9; color: theme.accent
+                                        border.width: 2; border.color: theme.sidebarBg
+                                        anchors.right: parent.right; anchors.bottom: parent.bottom
+                                        anchors.rightMargin: -2; anchors.bottomMargin: -2
+                                        Text { anchors.centerIn: parent; text: "+"; color: "#ffffff"; font.pixelSize: 13 }
                                     }
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                                    Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }   // .status-name 15/600
-                                    Text {   // .status-sub 12.5 — waktu, lalu ' · N' hanya bila count>1
-                                        text: (model.m.time || "") + ((model.m.count || 0) > 1 ? " · " + model.m.count : "")
-                                        color: theme.text2; font.pixelSize: 13
+                                    Text { text: i18n.t("my_status"); color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                    Text { text: i18n.t("status_add_hint"); color: theme.text2; font.pixelSize: 13 }
+                                }
+                            }
+                        }
+                        delegate: Column {
+                            width: ListView.view.width
+                            Item {   // .ct-letter pemisah abjad (accent 12/700, pad 5/16)
+                                width: parent.width
+                                height: win.startsLetterGroup(statusModel, index, model.m.name) ? 26 : 0
+                                visible: height > 0; clip: true
+                                Rectangle { anchors.fill: parent; color: theme.sidebarBg }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
+                                    text: win.letterOf(model.m.name); color: theme.accent; font.pixelSize: 12; font.weight: Font.Bold
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width; height: 68; clip: true   // .status-row pad 10/14
+                                color: stMa.containsMouse ? theme.hover : "transparent"
+                                MouseArea { id: stMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: { win.selectedChat = { name: model.m.name, id: model.m.id }; activeView = "chats"; app.openChat(model.m.id) } }
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 12; spacing: 14
+                                    Rectangle {   // .ring — latar penuh (accent/--line), inset 2.5 → cincin
+                                        Layout.preferredWidth: 53; Layout.preferredHeight: 53; Layout.alignment: Qt.AlignVCenter
+                                        radius: width / 2
+                                        color: model.m.seen ? theme.line : theme.accent
+                                        Avatar {   // .status-av 48px
+                                            anchors.centerIn: parent; width: 48; height: 48; fontSize: 18
+                                            name: model.m.name; jid: model.m.id; base: app.mediaBase; accent: win.avatarColor(model.m.name)
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                                        Text { text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }   // .status-name 15/600
+                                        Text {   // .status-sub 12.5 — waktu, lalu ' · N' hanya bila count>1
+                                            text: (model.m.time || "") + ((model.m.count || 0) > 1 ? " · " + model.m.count : "")
+                                            color: theme.text2; font.pixelSize: 13
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    // --- Kontak ---
+                    // --- Kontak (ContactsPane.svelte: .ct-top search+new, .ct-letter
+                    //     pemisah abjad, .ct-row av 40 + titik online + .ct-info). ---
                     ListView {
+                        id: contactsList
                         anchors.fill: parent
                         visible: activeView === "contacts" && searchInput.text === ""
                         clip: true; model: contactsModel
-                        delegate: ItemDelegate {
-                            id: ctRow
-                            width: ListView.view.width; height: 56; clip: true   // .ct-row pad 8/14 + 40 av
-                            onClicked: { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
-                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
+                        // .ct-top { display:flex; gap:8px; padding:6px 12px 10px } — search + tombol new accent.
+                        header: Item {
+                            width: ListView.view.width; height: 53   // 6+37(input)+10
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14; spacing: 12
-                                Item {   // .ct-av — pembungkus relatif utk titik online
-                                    Layout.preferredWidth: 40; Layout.preferredHeight: 40; Layout.alignment: Qt.AlignVCenter
-                                    Avatar {   // Avatar sm = 40px
-                                        anchors.fill: parent; fontSize: 16
-                                        name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: win.avatarColor(model.m.name)
+                                anchors.fill: parent
+                                anchors.leftMargin: 12; anchors.rightMargin: 12
+                                anchors.topMargin: 6; anchors.bottomMargin: 10; spacing: 8
+                                Rectangle {   // .ct-search flex:1 radius10 pad 9/14 bg2
+                                    Layout.fillWidth: true; Layout.fillHeight: true
+                                    radius: 10; color: theme.bg2
+                                    TextInput {
+                                        id: contactsSearch
+                                        anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
+                                        verticalAlignment: TextInput.AlignVCenter; clip: true
+                                        color: theme.text; font.pixelSize: 14
                                     }
-                                    Rectangle {   // .ct-dot — 12px hijau saat online (guard: model.m.online)
-                                        visible: model.m.online === true
-                                        width: 12; height: 12; radius: 6; color: "#28c840"
-                                        border.width: 2; border.color: theme.sidebarBg
-                                        anchors.right: parent.right; anchors.bottom: parent.bottom
-                                        anchors.rightMargin: -1; anchors.bottomMargin: -1
+                                    Text {
+                                        visible: contactsSearch.text === ""
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left; anchors.leftMargin: 14
+                                        text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
                                     }
                                 }
-                                ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }   // .ct-name 15 normal
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; visible: text !== ""
-                                        text: model.m.about || model.m.phone || ""; color: theme.text2; font.pixelSize: 13 }   // .ct-sub 12.5
-                                }
-                                ItemDelegate {   // .ct-info — tombol info 20px, hover bg2/accent
-                                    Layout.preferredWidth: 32; Layout.preferredHeight: 32; Layout.alignment: Qt.AlignVCenter
+                                ItemDelegate {   // .ct-new accent bg, #fff, radius10, pad 8/11, person+plus svg 17
+                                    Layout.fillHeight: true; Layout.preferredWidth: ctNewRow.implicitWidth + 22
                                     hoverEnabled: true
-                                    background: Rectangle { radius: width / 2; color: parent.hovered ? theme.bg2 : "transparent" }
-                                    onClicked: { win.ctxChat = { id: model.m.jid, name: model.m.name }; contactMenu.popup() }
-                                    Icon { anchors.centerIn: parent; width: 20; height: 20
-                                        svg: win.ico["ctInfo"]; color: parent.hovered ? theme.accent : theme.text2 }
+                                    background: Rectangle { radius: 10; color: parent.hovered ? theme.accentDeep : theme.accent }
+                                    onClicked: contactDialog.open()
+                                    Row {
+                                        id: ctNewRow; anchors.centerIn: parent; spacing: 6
+                                        Icon { anchors.verticalCenter: parent.verticalCenter; width: 17; height: 17
+                                            svg: win.ico["addmember"]; color: "#ffffff" }
+                                        Text { anchors.verticalCenter: parent.verticalCenter
+                                            text: i18n.t("contact_save_new"); color: "#ffffff"; font.pixelSize: 13 }
+                                    }
                                 }
                             }
-                            MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
-                                onClicked: { win.ctxChat = { id: model.m.jid, name: model.m.name }; contactMenu.popup() } }
+                        }
+                        delegate: Column {
+                            id: ctRow
+                            width: ListView.view.width
+                            // .ct-letter { color:accent; font 12/700; padding 5px 16px } — sebelum tiap grup huruf.
+                            Item {
+                                width: parent.width
+                                height: win.startsLetterGroup(contactsModel, index, model.m.name) ? 26 : 0
+                                visible: height > 0; clip: true
+                                Rectangle { anchors.fill: parent; color: theme.sidebarBg }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
+                                    text: win.letterOf(model.m.name); color: theme.accent; font.pixelSize: 12; font.weight: Font.Bold
+                                }
+                            }
+                            Rectangle {   // .ct-row pad 8/14 + 40 av
+                                width: parent.width; height: 56; clip: true
+                                color: ctMa.containsMouse ? theme.hover : "transparent"
+                                MouseArea {
+                                    id: ctMa; anchors.fill: parent; hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    onClicked: function(e) {
+                                        if (e.button === Qt.RightButton) { win.ctxChat = { id: model.m.jid, name: model.m.name }; contactMenu.popup() }
+                                        else { win.selectedChat = { name: model.m.name, id: model.m.jid }; activeView = "chats"; app.openChat(model.m.jid) }
+                                    }
+                                }
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14; spacing: 12
+                                    Item {   // .ct-av — pembungkus relatif utk titik online
+                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40; Layout.alignment: Qt.AlignVCenter
+                                        Avatar {   // Avatar sm = 40px
+                                            anchors.fill: parent; fontSize: 16
+                                            name: model.m.name; jid: model.m.jid; base: app.mediaBase; accent: win.avatarColor(model.m.name)
+                                        }
+                                        Rectangle {   // .ct-dot — 12px hijau saat online (guard: model.m.online)
+                                            visible: model.m.online === true
+                                            width: 12; height: 12; radius: 6; color: "#28c840"
+                                            border.width: 2; border.color: theme.sidebarBg
+                                            anchors.right: parent.right; anchors.bottom: parent.bottom
+                                            anchors.rightMargin: -1; anchors.bottomMargin: -1
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                                        RowLayout {   // .ct-name 15 + .ct-num inline (kontak belum disimpan)
+                                            Layout.fillWidth: true; spacing: 6
+                                            Text { elide: Text.ElideRight; maximumLineCount: 1; Layout.maximumWidth: parent.width - 60
+                                                text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
+                                            Text { visible: model.m.saved !== true && (model.m.phone || "") !== ""
+                                                text: model.m.phone || ""; color: theme.text2; font.pixelSize: 12 }   // .ct-num 12.5
+                                            Item { Layout.fillWidth: true }
+                                        }
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; visible: text !== ""
+                                            text: model.m.about || model.m.phone || ""; color: theme.text2; font.pixelSize: 13 }   // .ct-sub 12.5
+                                    }
+                                    ItemDelegate {   // .ct-info — tombol info 20px, hover bg2/accent
+                                        Layout.preferredWidth: 32; Layout.preferredHeight: 32; Layout.alignment: Qt.AlignVCenter
+                                        hoverEnabled: true
+                                        background: Rectangle { radius: width / 2; color: parent.hovered ? theme.bg2 : "transparent" }
+                                        onClicked: { win.ctxChat = { id: model.m.jid, name: model.m.name }; contactMenu.popup() }
+                                        Icon { anchors.centerIn: parent; width: 20; height: 20
+                                            svg: win.ico["ctInfo"]; color: parent.hovered ? theme.accent : theme.text2 }
+                                    }
+                                }
+                            }
                         }
                     }
                     // --- Channels / Communities / Archived / Scheduled (pola sama) ---
@@ -1004,36 +1173,100 @@ ApplicationWindow {
                                 onClicked: { win.ctxChat = { id: model.m.jid || model.m.id || "", name: model.m.name }; channelMenu.popup() } }
                         }
                     }
-                    // --- Komunitas (CommunitiesPane.svelte → .comm-head: av 46px persegi-bulat
-                    //     radius 16, nama 15/600, sub = N groups, tombol keluar + chevron). ---
+                    // --- Komunitas (CommunitiesPane.svelte → .comm: border-bottom line;
+                    //     .comm-head av 46 radius16, nama 15/600, sub = N grup, tombol keluar +
+                    //     chevron berputar; saat terbuka → .comm-groups (.comm-grow # 32px,
+                    //     nama 14, .comm-tag pengumuman). Default semua diperluas. ---
                     ListView {
                         anchors.fill: parent; visible: activeView === "communities" && searchInput.text === ""
                         clip: true; model: communitiesModel
-                        delegate: ItemDelegate {
-                            width: ListView.view.width; height: 68; clip: true   // .comm-head pad 11/14 + 46 av
-                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
-                            RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14; spacing: 13
-                                Rectangle {   // .comm-av 46px persegi-membulat berwarna + inisial
-                                    Layout.preferredWidth: 46; Layout.preferredHeight: 46; Layout.alignment: Qt.AlignVCenter
-                                    radius: 16; color: win.avatarColor(model.m.name)
-                                    Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 18; font.bold: true
-                                        text: (model.m.name || "?").charAt(0).toUpperCase() }
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                                    Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                        text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }   // .comm-name
-                                    Text {   // .comm-sub 12.5 — jumlah grup
-                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                        text: ((model.m.groups ? model.m.groups.length : (model.m.count || 0))) + " " + i18n.t("comm_groups")
-                                        color: theme.text2; font.pixelSize: 13
+                        delegate: Column {
+                            id: commCol
+                            width: ListView.view.width
+                            // kunci stabil per komunitas (delegate daur-ulang); default terbuka.
+                            property string commKey: model.m.jid || model.m.id || model.m.name || ""
+                            property bool isOpen: win.commOpen[commKey] === undefined ? true : win.commOpen[commKey]
+                            property var grps: model.m.groups || []
+                            Rectangle {   // .comm-head pad 11/14 + 46 av
+                                width: parent.width; height: 68; clip: true
+                                color: commHeadMa.containsMouse ? theme.hover : "transparent"
+                                MouseArea { id: commHeadMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: win.commToggle(commCol.commKey) }
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14; spacing: 13
+                                    Rectangle {   // .comm-av 46px persegi-membulat berwarna + inisial
+                                        Layout.preferredWidth: 46; Layout.preferredHeight: 46; Layout.alignment: Qt.AlignVCenter
+                                        radius: 16; color: win.avatarColor(model.m.name)
+                                        Text { anchors.centerIn: parent; color: "white"; font.pixelSize: 18; font.bold: true
+                                            text: (model.m.name || "?").charAt(0).toUpperCase() }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: model.m.name || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }   // .comm-name
+                                        Text {   // .comm-sub 12.5 — jumlah grup
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: ((model.m.groups ? model.m.groups.length : (model.m.count || 0))) + " " + i18n.t("comm_groups")
+                                            color: theme.text2; font.pixelSize: 13
+                                        }
+                                    }
+                                    ItemDelegate {   // .ch-act tombol keluar (leavegroup)
+                                        Layout.preferredWidth: 28; Layout.preferredHeight: 28; Layout.alignment: Qt.AlignVCenter
+                                        hoverEnabled: true; opacity: hovered ? 1 : 0.6
+                                        background: Rectangle { color: "transparent" }
+                                        onClicked: { win.ctxChat = { id: commCol.commKey, name: model.m.name }; commMenu.popup() }
+                                        Icon { anchors.centerIn: parent; width: 18; height: 18; svg: win.ico["leavegroup"]; color: theme.text2 }
+                                    }
+                                    Text {   // .comm-chev ▾ — berputar 180° saat terbuka
+                                        text: "▾"; color: theme.text2; font.pixelSize: 14; Layout.alignment: Qt.AlignVCenter
+                                        rotation: commCol.isOpen ? 180 : 0
+                                        Behavior on rotation { NumberAnimation { duration: 150 } }
                                     }
                                 }
-                                Text {   // .comm-chev ▾
-                                    text: "▾"; color: theme.text2; font.pixelSize: 14; Layout.alignment: Qt.AlignVCenter
+                            }
+                            // .comm-groups (pad 2/0 8/0) — daftar grup anggota saat terbuka.
+                            Column {
+                                width: parent.width
+                                visible: commCol.isOpen
+                                topPadding: 2; bottomPadding: 8
+                                Repeater {
+                                    model: commCol.grps
+                                    delegate: Rectangle {   // .comm-grow pad 8/14 8/26 — # ico + nama + tag
+                                        width: commCol.width; height: 48
+                                        color: cgMa.containsMouse ? theme.hover : "transparent"
+                                        MouseArea { id: cgMa; anchors.fill: parent; hoverEnabled: true
+                                            onClicked: { var gid = modelData.jid || modelData.id || ""; if (gid) { win.selectedChat = { name: modelData.name, id: gid }; activeView = "chats"; app.openChat(gid) } } }
+                                        RowLayout {
+                                            anchors.fill: parent; anchors.leftMargin: 26; anchors.rightMargin: 14; spacing: 12
+                                            Rectangle {   // .comm-gico 32px radius10 bg2 '#'
+                                                Layout.preferredWidth: 32; Layout.preferredHeight: 32; Layout.alignment: Qt.AlignVCenter
+                                                radius: 10; color: theme.bg2
+                                                Text { anchors.centerIn: parent; text: "#"; color: theme.text2; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                            }
+                                            Text {   // .comm-gname 14
+                                                Layout.fillWidth: false; elide: Text.ElideRight; maximumLineCount: 1
+                                                text: modelData.name || ""; color: theme.text; font.pixelSize: 14 }
+                                            Rectangle {   // .comm-tag pengumuman (accent pill 10px)
+                                                visible: modelData.isDefault === true
+                                                Layout.alignment: Qt.AlignVCenter
+                                                radius: 6; color: theme.accent
+                                                implicitWidth: commTag.implicitWidth + 12; implicitHeight: commTag.implicitHeight + 2
+                                                Text { id: commTag; anchors.centerIn: parent; text: i18n.t("comm_announce"); color: "#ffffff"; font.pixelSize: 10 }
+                                            }
+                                            Item { Layout.fillWidth: true }
+                                        }
+                                    }
+                                }
+                                // Kosong → "Belum ada grup" (mock tak memuat field groups → NOTE limitasi).
+                                Item {
+                                    width: parent.width; height: commCol.grps.length === 0 ? 34 : 0
+                                    visible: height > 0
+                                    Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
+                                        text: i18n.t("comm_no_groups"); color: theme.text2; font.pixelSize: 13 }
                                 }
                             }
+                            // .comm border-bottom 1px var(--line)
+                            Rectangle { width: parent.width; height: 1; color: theme.line }
                         }
                     }
                     // --- Diarsipkan (ArchivedPane.svelte → <ChatRow>: sama dgn baris chat,
@@ -1068,46 +1301,89 @@ ApplicationWindow {
                                 onClicked: { win.ctxChat = model.m; chatMenu.popup() } }
                         }
                     }
-                    // --- Terjadwal (ScheduledPane.svelte → .sc-row: nama 14/600, teks 13,
-                    //     'jam' accent 12 + ikon jam, tombol ✕ batal 30px). ---
+                    // --- Terjadwal (ScheduledPane.svelte → .sc-sec header bagian (12/700
+                    //     uppercase, letter-spacing .4), lalu .sc-row: nama 14/600, teks 13,
+                    //     'jam' accent 12 + ikon jam, tombol ✕ batal 30px).
+                    //     NOTE: scheduledModel = SATU daftar datar tanpa field 'kind' →
+                    //     pemisahan Terjadwal/Pengingat diturunkan dari model.m.kind bila ada
+                    //     (lights up saat backend isi); jika tidak, semua di bawah 'Terjadwal'
+                    //     dan header 'Pengingat (0)' tampil kosong. Tidak menebak backend. ---
                     ListView {
+                        id: schedList
                         anchors.fill: parent; visible: activeView === "scheduled" && searchInput.text === ""
                         clip: true; model: scheduledModel
-                        delegate: ItemDelegate {
-                            width: ListView.view.width; height: 66; clip: true   // .sc-row pad 6/12 + 3 baris
-                            onClicked: { win.selectedChat = { name: model.m.chatName, id: model.m.chatJid || model.m.id }; activeView = "chats"; app.openChat(model.m.chatJid || model.m.id) }
-                            background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
-                            RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 8
-                                ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                                    Text {   // .sc-name 14/600
-                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                        text: model.m.chatName || (model.m.chatJid ? model.m.chatJid.split("@")[0] : "")
-                                        color: theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
-                                    }
-                                    Text {   // .sc-text 13 text2
-                                        Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                        text: model.m.text || ""; color: theme.text2; font.pixelSize: 13
-                                    }
-                                    RowLayout {   // .sc-when accent 12 + ikon jam
-                                        Layout.fillWidth: true; spacing: 5
-                                        Icon { Layout.preferredWidth: 13; Layout.preferredHeight: 13; Layout.alignment: Qt.AlignVCenter
-                                            svg: win.ico["clock"]; color: theme.accent }
-                                        Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
-                                            text: model.m.time || ""; color: theme.accent; font.pixelSize: 12 }
-                                    }
-                                }
-                                ItemDelegate {   // .sc-x — ✕ batal, lingkaran bg2 30px
-                                    Layout.preferredWidth: 30; Layout.preferredHeight: 30; Layout.alignment: Qt.AlignVCenter
-                                    hoverEnabled: true
-                                    background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : theme.bg2 }
-                                    onClicked: { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() }
-                                    Icon { anchors.centerIn: parent; width: 14; height: 14; svg: win.ico["close"]; color: theme.text2 }
+                        // header 'Terjadwal (N)' — .sc-sec uppercase 12/700.
+                        header: Column {
+                            width: ListView.view.width
+                            Item {
+                                width: parent.width; height: 34   // .sc-sec pad 14/16 6
+                                Text {
+                                    anchors.left: parent.left; anchors.leftMargin: 16; anchors.bottom: parent.bottom; anchors.bottomMargin: 6
+                                    text: i18n.t("sc_scheduled").toUpperCase() + " (" + schedList.count + ")"
+                                    color: theme.text2; font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 0.4
                                 }
                             }
-                            MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
-                                onClicked: { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() } }
+                        }
+                        delegate: Column {
+                            width: ListView.view.width
+                            // Pisah bagian 'Pengingat' saat baris ini reminder & sebelumnya bukan (model.m.kind).
+                            property bool isReminder: (model.m.kind === "reminder") || (model.m.remindAt !== undefined)
+                            property bool startReminders: {
+                                if (!isReminder) return false
+                                if (index === 0) return true
+                                var prev = scheduledModel.get(index - 1)
+                                var pr = prev && ((prev.kind === "reminder") || (prev.remindAt !== undefined))
+                                return !pr
+                            }
+                            Item {   // .sc-sec 'PENGINGAT' — hanya saat awal grup reminder
+                                width: parent.width; height: startReminders ? 34 : 0
+                                visible: height > 0; clip: true
+                                Text {
+                                    anchors.left: parent.left; anchors.leftMargin: 16; anchors.bottom: parent.bottom; anchors.bottomMargin: 6
+                                    text: i18n.t("sc_reminders").toUpperCase()
+                                    color: theme.text2; font.pixelSize: 12; font.weight: Font.Bold; font.letterSpacing: 0.4
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width; height: 66; clip: true   // .sc-row pad 6/12 + 3 baris
+                                color: scMa.containsMouse ? theme.hover : "transparent"
+                                MouseArea { id: scMa; anchors.fill: parent; hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    onClicked: function(e) {
+                                        if (e.button === Qt.RightButton) { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() }
+                                        else { win.selectedChat = { name: model.m.chatName, id: model.m.chatJid || model.m.id }; activeView = "chats"; app.openChat(model.m.chatJid || model.m.id) }
+                                    }
+                                }
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12; spacing: 8
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                                        Text {   // .sc-name 14/600
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: model.m.chatName || (model.m.chatJid ? model.m.chatJid.split("@")[0] : "")
+                                            color: theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
+                                        }
+                                        Text {   // .sc-text 13 text2
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                            text: model.m.text || model.m.note || ""; color: theme.text2; font.pixelSize: 13
+                                        }
+                                        RowLayout {   // .sc-when accent 12 + ikon jam/lonceng
+                                            Layout.fillWidth: true; spacing: 5
+                                            Icon { Layout.preferredWidth: 13; Layout.preferredHeight: 13; Layout.alignment: Qt.AlignVCenter
+                                                svg: isReminder ? win.ico["bell"] : win.ico["clock"]; color: theme.accent }
+                                            Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                                text: model.m.time || ""; color: theme.accent; font.pixelSize: 12 }
+                                        }
+                                    }
+                                    ItemDelegate {   // .sc-x — ✕ batal, lingkaran bg2 30px
+                                        Layout.preferredWidth: 30; Layout.preferredHeight: 30; Layout.alignment: Qt.AlignVCenter
+                                        hoverEnabled: true
+                                        background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : theme.bg2 }
+                                        onClicked: { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() }
+                                        Icon { anchors.centerIn: parent; width: 14; height: 14; svg: win.ico["close"]; color: theme.text2 }
+                                    }
+                                }
+                            }
                         }
                     }
                     // --- Hasil pencarian (override semua view saat mengetik) ---
@@ -3822,6 +4098,12 @@ ApplicationWindow {
         TMenuItem { text: "💬  " + i18n.t("ch_messages"); onTriggered: app.loadIntoA("GetChannelMessages", [win.ctxChat.id || ""], msgsModel) }
         TMenuItem { text: "🔎  " + i18n.t("ch_recommend"); onTriggered: app.loadIntoA("GetRecommendedChannels", [""], channelsModel) }
         TMenuItem { text: "✨  " + i18n.t("ch_create"); onTriggered: win.prompt(i18n.t("ch_create"), "", function(v){ app.act("CreateChannel", [v, ""]) }) }
+    }
+
+    // === Aksi komunitas (tombol keluar baris .comm-head) ===
+    TMenu {
+        id: commMenu
+        TMenuItem { text: "⎋  " + i18n.t("comm_leave"); onTriggered: { app.act("LeaveCommunity", [win.ctxChat.id || ""]); app.loadInto("GetCommunities", communitiesModel) } }
     }
 
     // === Aksi kontak (klik-kanan baris kontak) ===

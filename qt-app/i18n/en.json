@@ -163,6 +163,8 @@
   "my_status": "My status", "status_add_hint": "Tap to add a status update",
   "ch_subs": "subscribers", "comm_groups": "groups",
   "sc_scheduled": "Scheduled", "sc_reminders": "Reminders",
+  "contact_save_new": "New contact", "ch_following": "Following", "ch_discover": "Discover",
+  "comm_leave": "Leave", "comm_announce": "Announcements", "comm_no_groups": "No groups yet",
   "splash_title": "WhatsLite for Desktop",
   "splash_sub": "Send & receive messages without keeping your phone online.",
   "splash_enc": "End-to-end encrypted",

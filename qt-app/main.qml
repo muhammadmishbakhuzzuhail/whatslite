@@ -1544,11 +1544,12 @@ ApplicationWindow {
                 delegate: ItemDelegate {
                     width: ListView.view.width; height: 56; clip: true
                     onClicked: { app.forwardMsg(win.ctxMsg.id, model.m.id); forwardPopup.close() }
+                    background: Rectangle { radius: theme.r; color: hovered ? theme.hover : "transparent" }
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 8; spacing: 10
-                        Rectangle { width: 38; height: 38; radius: 19; color: theme.accent
-                            Text { anchors.centerIn: parent; color: "white"; font.bold: true
-                                text: (model.m.name || "?").charAt(0).toUpperCase() } }
+                        Avatar { Layout.preferredWidth: 38; Layout.preferredHeight: 38; fontSize: 15
+                            name: model.m.name || ""; jid: model.m.id; base: app.mediaBase
+                            accent: win.avatarColor(model.m.name || "?"); group: model.m.group === true }
                         Text { Layout.fillWidth: true; text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
                     }
                 }

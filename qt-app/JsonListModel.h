@@ -14,7 +14,7 @@
 class JsonListModel : public QAbstractListModel {
     Q_OBJECT
 public:
-    enum Roles { ItemRole = Qt::UserRole + 1, SecRole };
+    enum Roles { ItemRole = Qt::UserRole + 1, SecRole, RxnRole };
     explicit JsonListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
 
     void setItems(const QJsonArray &a) {
@@ -49,9 +49,11 @@ public:
             return m_items.at(idx.row()).toObject().toVariantMap();
         if (role == SecRole) // utk ListView.section (chat: pinned → section)
             return m_items.at(idx.row()).toObject().value("pinned").toBool() ? "pin" : "all";
+        if (role == RxnRole) // reaksi sbg QVariantList LANGSUNG (first-class model Repeater).
+            return m_items.at(idx.row()).toObject().value("reactions").toArray().toVariantList();
         return {};
     }
-    QHash<int, QByteArray> roleNames() const override { return {{ItemRole, "m"}, {SecRole, "sec"}}; }
+    QHash<int, QByteArray> roleNames() const override { return {{ItemRole, "m"}, {SecRole, "sec"}, {RxnRole, "rxn"}}; }
 
 private:
     QJsonArray m_items;

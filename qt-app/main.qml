@@ -781,10 +781,12 @@ ApplicationWindow {
             // Header conv
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 60
-                color: theme.headBg; border.color: theme.line
+                color: theme.headBg
+                // .conv-head border-bottom 1px divider (bukan border 4-sisi).
+                Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: theme.divider }
                 RowLayout {
-                    anchors.left: parent.left; anchors.leftMargin: 16; anchors.right: parent.right; anchors.rightMargin: 54
-                    anchors.verticalCenter: parent.verticalCenter; spacing: 12
+                    anchors.left: parent.left; anchors.leftMargin: 18; anchors.right: parent.right; anchors.rightMargin: 54
+                    anchors.verticalCenter: parent.verticalCenter; spacing: 13
                     Avatar {
                         visible: win.selectedChat.id !== undefined
                         Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
@@ -795,10 +797,10 @@ ApplicationWindow {
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 0
                         Text { Layout.fillWidth: true; elide: Text.ElideRight
-                            text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.bold: true; color: theme.text }
+                            text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.weight: Font.Medium; color: theme.text }
                         Text { visible: win.selectedChat.id !== undefined
                             text: app.typing ? i18n.t("typing") : (win.selectedChat.status || (win.selectedChat.group ? "klik utk info grup" : "online"))
-                            color: app.typing ? theme.accent : theme.text2; font.pixelSize: 12 }
+                            color: app.typing ? theme.accent : theme.text2; font.pixelSize: 13 }
                     }
                 }
                 MouseArea {
@@ -815,9 +817,10 @@ ApplicationWindow {
                     id: convSearchBtn
                     anchors.right: convOverflow.left; anchors.rightMargin: 2
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 36; height: 36; radius: 18; color: searchHov.hovered ? theme.hover : "transparent"
+                    width: 40; height: 40; radius: 20
+                    color: searchHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
                     visible: win.selectedChat.id !== undefined
-                    Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["search"]; color: theme.railIco }
+                    Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["search"]; color: theme.railIco }
                     HoverHandler { id: searchHov }
                     MouseArea { anchors.fill: parent; onClicked: { activeView = "chats"; searchInput.forceActiveFocus() } }
                 }
@@ -826,8 +829,10 @@ ApplicationWindow {
                     id: convOverflow
                     anchors.right: parent.right; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 36; height: 36; radius: 18; color: "transparent"
+                    width: 40; height: 40; radius: 20
+                    color: ovHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
                     Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["overflow"]; color: theme.railIco }
+                    HoverHandler { id: ovHov }
                     MouseArea { anchors.fill: parent; onClicked: overflowMenu.popup() }
                 }
             }
@@ -1253,29 +1258,32 @@ ApplicationWindow {
                     }
                 }
             }
-            // Composer
+            // Composer (.composer: bg head-bg, min-height 64, pad 9/16, gap 10, border-top divider)
             Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 56
-                color: theme.bg2
+                Layout.fillWidth: true; Layout.minimumHeight: 64; Layout.preferredHeight: 64
+                color: theme.headBg
+                Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 1; color: theme.divider }
                 RowLayout {
-                    anchors.fill: parent; anchors.margins: 8; spacing: 6
+                    anchors.fill: parent
+                    anchors.leftMargin: 16; anchors.rightMargin: 16; anchors.topMargin: 9; anchors.bottomMargin: 9
+                    spacing: 10
                     // Emoji (placeholder picker) — kiri, ala Composer.svelte.
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: emojiHov.hovered ? theme.hover : "transparent"
-                        Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["emoji"]; color: theme.railIco }
+                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["emoji"]; color: theme.railIco }
                         HoverHandler { id: emojiHov }
                         MouseArea { anchors.fill: parent; onClicked: emojiMenu.popup() }
                     }
                     // Lampiran (+) → menu: dokumen/stiker/gif/gambar/video/lokasi/polling/kontak/mention.
                     Rectangle {
                         width: 40; height: 40; radius: 20; color: attachHov.hovered ? theme.hover : "transparent"
-                        Icon { anchors.centerIn: parent; width: 26; height: 26; svg: win.ico["plus"]; color: theme.railIco }
+                        Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["plus"]; color: theme.railIco }
                         HoverHandler { id: attachHov }
                         MouseArea { anchors.fill: parent; onClicked: attachMenu.popup() }
                     }
                     Rectangle {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        radius: 18; color: theme.headBg; border.color: theme.line
+                        radius: 22; color: theme.searchBg
                         function send() {
                             if (composerInput.text.trim() === "") return
                             if (win.replyTo && win.replyTo.id)
@@ -1287,9 +1295,9 @@ ApplicationWindow {
                         }
                         TextInput {
                             id: composerInput
-                            anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
+                            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16
                             verticalAlignment: TextInput.AlignVCenter
-                            color: theme.text; font.pixelSize: 14; clip: true
+                            color: theme.text; font.pixelSize: 15; clip: true
                             onTextChanged: app.sendTyping(text.length > 0)
                             Keys.onReturnPressed: parent.send()
                             Keys.onEnterPressed: parent.send()
@@ -1297,19 +1305,21 @@ ApplicationWindow {
                         Text {
                             visible: composerInput.text === ""
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left; anchors.leftMargin: 14
-                            text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 14
+                            anchors.left: parent.left; anchors.leftMargin: 16
+                            text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 15
                         }
                     }
-                    // Kosong → mic (transparan); ada teks → tombol kirim (accent).
+                    // Kosong → mic; ada teks → kirim. Keduanya .icon-btn transparan (text2),
+                    // tanpa lingkaran accent (app.css: hanya state rekam yg ber-fill).
                     Rectangle {
                         id: sendBtn
                         property bool hasText: composerInput.text.trim() !== ""
                         width: 40; height: 40; radius: 20
-                        color: hasText ? theme.accent : "transparent"
+                        color: sendHov.hovered ? theme.hover : "transparent"
                         Icon { anchors.centerIn: parent; width: 22; height: 22
                             svg: sendBtn.hasText ? win.ico["send"] : win.ico["mic"]
-                            color: sendBtn.hasText ? "white" : theme.railIco }
+                            color: theme.railIco }
+                        HoverHandler { id: sendHov }
                         MouseArea { anchors.fill: parent; onClicked: if (sendBtn.hasText) composerInput.parent.send() }
                     }
                 }

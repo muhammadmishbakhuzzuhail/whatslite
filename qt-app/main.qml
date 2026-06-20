@@ -54,7 +54,17 @@ ApplicationWindow {
         "pin": '<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>',
         "mute": '<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>',
         "check": '<path d="M3 7.5l3.5 3.5L14 4"/>',
-        "checks": '<path d="M1 7.5l3.2 3.2L10 4"/><path d="M7 10.7L12.8 4"/>'
+        "checks": '<path d="M1 7.5l3.2 3.2L10 4"/><path d="M7 10.7L12.8 4"/>',
+        // --- Ikon Setelan (disalin dari SettingsPane.svelte icons/inline svg) ---
+        "theme": '<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+        "globe": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3C9.5 5.5 9.5 18.5 12 21"/>',
+        "globe2": '<path d="M4 12h16M12 4a15 15 0 0 1 0 16M12 4a15 15 0 0 0 0 16"/><circle cx="12" cy="12" r="9"/>',
+        "disk": '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v6h8V4M8 16h.01"/>',
+        "lock": '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+        "trash": '<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>',
+        "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+        "star2": '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>',
+        "window": '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>'
     })
     // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
     readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
@@ -181,6 +191,85 @@ ApplicationWindow {
                 color: theme.text; font.pixelSize: 13; verticalAlignment: Text.AlignVCenter }
             background: Rectangle { color: hovered ? theme.hover : "transparent" }
         }
+    }
+
+    // .settings-item: flex, align center, gap 20, padding 14 20, border-bottom 1px
+    // divider, hover bg hover; leading svg 24x24 text2; .si-name 16; .si-desc 13
+    // text2 mt 2; .grow flex:1. danger → #e35d6a. `extra` = blok di bawah teks
+    // (theme-modes / input); `trailing` = kontrol kanan (Tog / Combo).
+    component SettingsItem: Rectangle {
+        id: _si
+        property string icon: ""
+        property string name: ""
+        property string desc: ""
+        property bool danger: false
+        property bool clickable: true     // false utk lang-item & baris extra/toggle
+        property bool topAlign: false     // align-items:flex-start utk baris ber-extra
+        property Item extra: null         // slot blok di bawah (theme-modes/input)
+        property Item trailing: null      // slot kontrol kanan (Tog/Combo)
+        signal activated()
+        readonly property color icoColor: danger ? "#e35d6a" : theme.text2
+        readonly property color nameColor: danger ? "#e35d6a" : theme.text
+
+        Layout.fillWidth: true
+        implicitHeight: _row.implicitHeight + 28 // padding 14 atas + 14 bawah
+        color: (_si.clickable && _siHov.hovered) ? theme.hover : "transparent"
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.divider }
+        HoverHandler { id: _siHov; enabled: _si.clickable }
+        TapHandler { enabled: _si.clickable; onTapped: _si.activated() }
+
+        // Re-parent slot extra → kolom .grow; trailing → ujung RowLayout. Slot
+        // di-instantiate di scope pemanggil; di sini cukup di-pasang ke layout.
+        Component.onCompleted: {
+            if (_si.extra) { _si.extra.parent = _grow; }
+            if (_si.trailing) { _si.trailing.parent = _row; }
+        }
+
+        RowLayout {
+            id: _row
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 20; anchors.rightMargin: 20
+            anchors.verticalCenter: _si.topAlign ? undefined : parent.verticalCenter
+            anchors.top: _si.topAlign ? parent.top : undefined
+            anchors.topMargin: _si.topAlign ? 14 : 0
+            spacing: 20
+            Icon {
+                Layout.alignment: _si.topAlign ? Qt.AlignTop : Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24
+                svg: win.ico[_si.icon] || ""; color: _si.icoColor
+            }
+            ColumnLayout {
+                id: _grow
+                Layout.fillWidth: true; spacing: 0
+                Text { text: _si.name; color: _si.nameColor; font.pixelSize: 16 }
+                Text {
+                    visible: _si.desc !== ""; text: _si.desc
+                    color: theme.text2; font.pixelSize: 13; Layout.topMargin: 2
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                }
+            }
+        }
+    }
+
+    // .theme-mode: flex:1, padding 7 4, radius 9, border 1px line, bg bg2;
+    // .on → border accent + bg color-mix(accent 12%) + color text.
+    component ThemeMode: Rectangle {
+        id: _tm
+        property string text: ""
+        property bool on: false
+        signal clicked()
+        Layout.fillWidth: true
+        implicitHeight: 30 // 7+16+7
+        radius: 9
+        color: _tm.on ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.12) : theme.bg2
+        border.width: 1
+        border.color: _tm.on ? theme.accent : theme.line
+        Text {
+            anchors.centerIn: parent
+            text: _tm.text; font.pixelSize: 13
+            color: _tm.on ? theme.text : theme.text2
+        }
+        TapHandler { onTapped: _tm.clicked() }
     }
 
     // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
@@ -1504,75 +1593,195 @@ ApplicationWindow {
         }
     }
 
-    // === Setelan (gear rail) — anti-delete (fitur #2) ===
+    // === Setelan (gear rail) — PANE kiri full-height (parity SettingsPane.svelte) ===
     Popup {
         id: settingsPopup
-        width: 380; height: 560; modal: true
-        anchors.centerIn: Overlay.overlay
-        padding: 16
+        x: 0; y: 0; width: 400; height: win.height; modal: true
+        padding: 0
+        // State lokal: tak ada getter binding utk retensi/disappearing → default
+        // app.css/Svelte (retDays 90, defDis 0) + update saat klik.
+        property int retDays: 90
+        property int defDis: 0
         onOpened: { app.act("GetProxy", []); app.act("GetRetention", []); app.act("GetBackgroundClose", []) }
-        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        background: Rectangle { color: theme.sidebarBg }
+
+        // Komponen baris .settings-item (ikon + grow + trailing slot) — reusable.
         ColumnLayout {
-            anchors.fill: parent; spacing: 14
-            Text { text: i18n.t("settings"); font.pixelSize: 18; font.bold: true; color: theme.text }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: i18n.t("language"); color: theme.text; font.pixelSize: 14 }
-                ComboBox {
-                    implicitWidth: 150
-                    textRole: "label"; valueRole: "code"
-                    model: [
-                        { code: "en", label: "English" },
-                        { code: "id", label: "Indonesia" },
-                        { code: "es", label: "Español" },
-                        { code: "ar", label: "العربية" },
-                        { code: "ja", label: "日本語" },
-                        { code: "zh-CN", label: "中文" }
-                    ]
-                    currentIndex: { var c = i18n.lang; return c === "id" ? 1 : c === "es" ? 2 : c === "ar" ? 3 : c === "ja" ? 4 : c === "zh-CN" ? 5 : 0 }
-                    onActivated: i18n.setLang(currentValue)
+            anchors.fill: parent; spacing: 0
+
+            // .pane-head (height 56, padding 0 16, bg head-bg; h2 19/600)
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 56
+                color: theme.headBg
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left; anchors.leftMargin: 16
+                    text: i18n.t("settings"); color: theme.text
+                    font.pixelSize: 19; font.weight: Font.DemiBold
                 }
             }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 10
+
+            // Konten yang dapat di-scroll
+            ScrollView {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                contentWidth: availableWidth
+
                 ColumnLayout {
-                    Layout.fillWidth: true; spacing: 2
-                    Text { text: i18n.t("keep_deleted"); color: theme.text; font.pixelSize: 14 }
-                    Text { text: i18n.t("keep_deleted_sub"); color: theme.text2; font.pixelSize: 11 }
+                    width: settingsPopup.width
+                    spacing: 0
+
+                    // ---- .settings-profile (gap 16, pad 18 16, border-bottom) ----
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: profRow.implicitHeight + 36 // 18 atas + 18 bawah
+                        color: profHov.hovered ? theme.hover : "transparent"
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.divider }
+                        HoverHandler { id: profHov }
+                        RowLayout {
+                            id: profRow
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 16; anchors.rightMargin: 16
+                            spacing: 16
+                            Avatar {
+                                Layout.preferredWidth: 49; Layout.preferredHeight: 49
+                                fontSize: 19; name: "Saya"; accent: win.avatarColor("Saya")
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 0
+                                Text { text: "Saya"; color: theme.text; font.pixelSize: 18; font.weight: Font.Medium }
+                                Text { text: i18n.t("about"); color: theme.text2; font.pixelSize: 14 }
+                            }
+                        }
+                    }
+
+                    // ===== .settings-list =====
+
+                    // 2) Tema — .theme-modes (Light / Dark)
+                    SettingsItem {
+                        icon: "theme"; name: i18n.t("theme"); topAlign: true; clickable: false
+                        extra: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 8; spacing: 6
+                            ThemeMode { text: i18n.t("theme_light"); on: !theme.dark; onClicked: theme.dark = false }
+                            ThemeMode { text: i18n.t("theme_dark"); on: theme.dark; onClicked: theme.dark = true }
+                        }
+                    }
+
+                    // 3) Bahasa (lang-item, cursor default)
+                    SettingsItem {
+                        icon: "globe"; name: i18n.t("language"); desc: i18n.t("language_d")
+                        clickable: false
+                        trailing: Combo {
+                            implicitWidth: 140
+                            textRole: "label"; valueRole: "code"
+                            model: [
+                                { code: "en", label: "English" },
+                                { code: "id", label: "Indonesia" },
+                                { code: "es", label: "Español" },
+                                { code: "ar", label: "العربية" },
+                                { code: "ja", label: "日本語" },
+                                { code: "zh-CN", label: "中文" }
+                            ]
+                            currentIndex: { var c = i18n.lang; return c === "id" ? 1 : c === "es" ? 2 : c === "ar" ? 3 : c === "ja" ? 4 : c === "zh-CN" ? 5 : 0 }
+                            onActivated: i18n.setLang(currentValue)
+                        }
+                    }
+
+                    // 4) Keep deleted (anti-delete)
+                    SettingsItem {
+                        icon: "trash"; name: i18n.t("keep_deleted"); desc: i18n.t("keep_deleted_sub")
+                        clickable: false
+                        trailing: Tog { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
+                    }
+
+                    // 5) Retensi — chips 30/90/180/selamanya
+                    SettingsItem {
+                        icon: "disk"; name: i18n.t("retention"); desc: i18n.t("retention_d")
+                        topAlign: true; clickable: false
+                        extra: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 8; spacing: 6
+                            ThemeMode { text: i18n.t("retention_days_30"); on: settingsPopup.retDays === 30; onClicked: { settingsPopup.retDays = 30; app.act("SetRetention", [30]) } }
+                            ThemeMode { text: i18n.t("retention_days_90"); on: settingsPopup.retDays === 90; onClicked: { settingsPopup.retDays = 90; app.act("SetRetention", [90]) } }
+                            ThemeMode { text: i18n.t("retention_days_180"); on: settingsPopup.retDays === 180; onClicked: { settingsPopup.retDays = 180; app.act("SetRetention", [180]) } }
+                            ThemeMode { text: i18n.t("retention_forever"); on: settingsPopup.retDays === 0; onClicked: { settingsPopup.retDays = 0; app.act("SetRetention", [0]) } }
+                        }
+                    }
+
+                    // 6) Timer hilang-otomatis default — chips Off/24h/7d/90d
+                    SettingsItem {
+                        icon: "clock"; name: i18n.t("default_disappearing"); desc: i18n.t("default_disappearing_d")
+                        topAlign: true; clickable: false
+                        extra: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 8; spacing: 6
+                            ThemeMode { text: i18n.t("disappearing_off"); on: settingsPopup.defDis === 0; onClicked: { settingsPopup.defDis = 0; app.act("SetDefaultDisappearing", [0]) } }
+                            ThemeMode { text: i18n.t("disappearing_24h"); on: settingsPopup.defDis === 86400; onClicked: { settingsPopup.defDis = 86400; app.act("SetDefaultDisappearing", [86400]) } }
+                            ThemeMode { text: i18n.t("disappearing_7d"); on: settingsPopup.defDis === 604800; onClicked: { settingsPopup.defDis = 604800; app.act("SetDefaultDisappearing", [604800]) } }
+                            ThemeMode { text: i18n.t("disappearing_90d"); on: settingsPopup.defDis === 7776000; onClicked: { settingsPopup.defDis = 7776000; app.act("SetDefaultDisappearing", [7776000]) } }
+                        }
+                    }
+
+                    // 7) Proxy — input di bawah deskripsi
+                    SettingsItem {
+                        icon: "globe2"; name: i18n.t("proxy"); desc: i18n.t("proxy_d")
+                        topAlign: true; clickable: false
+                        extra: Rectangle {
+                            Layout.fillWidth: true; Layout.topMargin: 6; implicitHeight: 34
+                            radius: 8; color: theme.bg2; border.color: theme.line; border.width: 1
+                            TextInput {
+                                id: proxyInput
+                                anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: theme.text; font.pixelSize: 13; clip: true; selectByMouse: true
+                                onEditingFinished: app.act("SetProxy", [proxyInput.text])
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: proxyInput.text === "" && !proxyInput.activeFocus
+                                    text: "socks5://127.0.0.1:9050"; color: theme.text2; font.pixelSize: 13
+                                }
+                            }
+                        }
+                    }
+
+                    // 8) Penyimpanan (link)
+                    SettingsItem {
+                        icon: "disk"; name: i18n.t("storage"); desc: i18n.t("storage_d")
+                        onActivated: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() }
+                    }
+
+                    // 9) Privasi (link)
+                    SettingsItem {
+                        icon: "lock"; name: i18n.t("privacy"); desc: i18n.t("privacy_d")
+                        onActivated: { app.loadDetail("GetPrivacy", ""); settingsPopup.close(); privacyPopup.open() }
+                    }
+
+                    // 10) Pesan berbintang (link)
+                    SettingsItem {
+                        icon: "star2"; name: i18n.t("starred_msg")
+                        onActivated: { settingsPopup.close(); activeView = "starred"; win.loadView("starred") }
+                    }
+
+                    // 11) Jalan di latar belakang
+                    SettingsItem {
+                        icon: "window"; name: i18n.t("bg_close"); desc: i18n.t("bg_run_d")
+                        clickable: false
+                        trailing: Tog { onToggled: app.act("SetBackgroundClose", [checked]) }
+                    }
+
+                    // 12) Keluar (danger)
+                    SettingsItem {
+                        icon: "logout"; name: i18n.t("logout"); danger: true
+                        onActivated: { app.logout(); settingsPopup.close() }
+                    }
+
+                    // 13) Footer .settings-foot (pad 18 0 8, 12px, opacity .45)
+                    Text {
+                        Layout.fillWidth: true; Layout.topMargin: 18; Layout.bottomMargin: 8
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "WhatsLite dev"; color: theme.text; opacity: 0.45; font.pixelSize: 12
+                    }
                 }
-                Switch { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
             }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: i18n.t("proxy"); color: theme.text; font.pixelSize: 14 }
-                Rectangle { width: 150; height: 34; radius: 8; color: theme.searchBg; border.color: theme.line
-                    TextInput { id: proxyInput; anchors.fill: parent; anchors.margins: 8; color: theme.text; font.pixelSize: 13; clip: true } }
-                Button { text: i18n.t("set"); onClicked: app.act("SetProxy", [proxyInput.text]) }
-            }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: i18n.t("retention"); color: theme.text; font.pixelSize: 14 }
-                SpinBox { id: retSpin; from: 0; to: 3650; value: 90; editable: true }
-                Button { text: i18n.t("set"); onClicked: app.act("SetRetention", [retSpin.value]) }
-            }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 8
-                Text { Layout.fillWidth: true; text: i18n.t("bg_close"); color: theme.text; font.pixelSize: 14 }
-                Switch { onToggled: app.act("SetBackgroundClose", [checked]) }
-            }
-            Button { Layout.fillWidth: true; text: i18n.t("disappearing_7d"); onClicked: app.act("SetDefaultDisappearing", [604800]) }
-            Button { Layout.fillWidth: true; text: i18n.t("storage"); onClicked: { app.loadDetail("GetStorageUsage", ""); settingsPopup.close(); detailPopup.open() } }
-            Button { Layout.fillWidth: true; text: i18n.t("translate_example"); onClicked: app.fetchStr("Translate", ["Hello world", "id"]) }
-            Button {
-                Layout.fillWidth: true; text: i18n.t("privacy")
-                onClicked: { app.loadDetail("GetPrivacy", ""); settingsPopup.close(); privacyPopup.open() }
-            }
-            Button {
-                Layout.fillWidth: true; text: i18n.t("logout")
-                onClicked: { app.logout(); settingsPopup.close() }
-            }
-            Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: settingsPopup.close() }
         }
     }
 

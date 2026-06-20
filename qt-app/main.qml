@@ -73,7 +73,20 @@ ApplicationWindow {
         "trash": '<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>',
         "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
         "star2": '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>',
-        "window": '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>'
+        "window": '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/>',
+        // --- Ikon panel info/profil (disalin dari InfoPanel.svelte & ContactProfile.svelte) ---
+        "editpen": '<path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+        "addmember": '<circle cx="9" cy="8" r="4"/><path d="M2 20c0-3.5 3-6 7-6M18 11v6M15 14h6"/>',
+        "invitelink": '<path d="M9 15l6-6M8 13l-2 2a3 3 0 0 0 4 4l2-2M16 11l2-2a3 3 0 0 0-4-4l-2 2"/>',
+        "resetlink": '<path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M18 4v5h-5M6 20v-5h5"/>',
+        "wallpaperico": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>',
+        "clearchat": '<path d="M10 3h4l1 4h5v3H4V7h5z"/><path d="M6 10v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-9"/>',
+        "block": '<circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/>',
+        "message": '<path d="M4 5h16v11H8l-4 4z"/>',
+        "removelabel": '<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
+        "commongroup": '<circle cx="9" cy="9" r="3"/><path d="M2 20c0-3 3-5 7-5M16 8a3 3 0 0 1 0 6M15 20c0-2 2-4 5-4"/>',
+        "herophoto": '<path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/>',
+        "leavegroup": '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>'
     })
     // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
     readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
@@ -2069,7 +2082,18 @@ ApplicationWindow {
         width: 400
         height: parent ? parent.height : 600
         // Panel info dok-kanan (app.css .info-panel: 400px, sidebar-bg, border-left).
-        property bool isGroup: !!app.detail.members
+        // Grup bila engine kirim participants (real) atau members (mock).
+        property bool isGroup: app.detail.participants !== undefined || app.detail.members !== undefined
+        // Daftar anggota: real engine→participants, mock→members.
+        property var memberList: app.detail.participants || app.detail.members || []
+        // Topik/deskripsi grup: real→topic, mock→desc.
+        property string groupDesc: app.detail.topic || app.detail.desc || ""
+        // Saya admin? real→amAdmin. Mock tak set field → tampilkan UI admin (members ada).
+        property bool amAdmin: app.detail.amAdmin === true || (app.detail.amAdmin === undefined && app.detail.members !== undefined)
+        // Wallpaper per-chat: LOKAL/visual saja (engine Qt belum punya store wallpaper).
+        property string wallpaperSel: ""
+        // Reset state UI sementara tiap buka (deskripsi klem, filter anggota).
+        onOpened: { infoCol.descOpen = false; infoCol.memberQ = ""; wallpaperSel = "" }
         background: Rectangle {
             color: theme.sidebarBg
             Rectangle { width: 1; height: parent.height; color: theme.divider } // border-left
@@ -2098,111 +2122,354 @@ ApplicationWindow {
                 ScrollBar.vertical: ScrollBar {}
                 ColumnLayout {
                     id: infoCol; width: parent.width; spacing: 0
-                    // .info-hero: avatar besar + nama + sub.
+                    property bool descOpen: false
+                    property string memberQ: ""
+
+                    // Pemisah antar-bagian: bar 6px warna wallpaper (app.css border-bottom 6px wallpaper).
+                    component InfoSep: Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 6; color: theme.wallpaper }
+
+                    // .info-hero: avatar 200, nama (24/500), sub (15 text2). padding 28/24, border-bottom 6px.
                     ColumnLayout {
-                        Layout.fillWidth: true; Layout.topMargin: 28; Layout.bottomMargin: 28; spacing: 6
-                        Avatar {
-                            Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 150; Layout.preferredHeight: 150; fontSize: 64
-                            name: app.detail.name || ""; jid: win.selectedChat.id || ""; base: app.mediaBase
-                            accent: win.avatarColor(app.detail.name || "?"); group: detailPopup.isGroup
+                        Layout.fillWidth: true; Layout.topMargin: 28; Layout.bottomMargin: 28
+                        Layout.leftMargin: 24; Layout.rightMargin: 24; spacing: 0
+                        Item {
+                            Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 200; Layout.preferredHeight: 200
+                            Layout.bottomMargin: 16
+                            Avatar {
+                                anchors.fill: parent; fontSize: 80
+                                name: app.detail.name || ""; jid: win.selectedChat.id || ""; base: app.mediaBase
+                                accent: win.avatarColor(app.detail.name || "?"); group: detailPopup.isGroup
+                            }
+                            // Tombol ganti foto grup (admin) — overlay tengah avatar.
+                            Rectangle {
+                                anchors.centerIn: parent; width: 40; height: 40; radius: 20
+                                visible: detailPopup.isGroup && detailPopup.amAdmin
+                                color: heroPhotoHov.hovered ? "#66000000" : "#55000000"
+                                Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["herophoto"]; color: "#ffffff" }
+                                HoverHandler { id: heroPhotoHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: app.act("SetGroupPhoto", [win.selectedChat.id, ""]) }
+                            }
                         }
-                        Text { Layout.alignment: Qt.AlignHCenter; text: app.detail.name || ""; color: theme.text; font.pixelSize: 24; font.weight: Font.Medium }
+                        // Nama + pensil edit (admin).
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter; spacing: 8
+                            Text { text: app.detail.name || ""; color: theme.text; font.pixelSize: 24; font.weight: Font.Medium }
+                            Icon {
+                                visible: detailPopup.isGroup && detailPopup.amAdmin
+                                Layout.preferredWidth: 16; Layout.preferredHeight: 16
+                                svg: win.ico["editpen"]; color: penHov.hovered ? theme.accent : theme.text2
+                                HoverHandler { id: penHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: win.prompt(i18n.t("group_edit_name"), app.detail.name || "", function(v){ if (v && v.trim()) app.act("SetGroupSubject", [win.selectedChat.id, v.trim()]) }) }
+                            }
+                        }
+                        // Sub (jumlah anggota / nomor / about).
                         Text {
-                            Layout.alignment: Qt.AlignHCenter; color: theme.text2; font.pixelSize: 15
-                            text: detailPopup.isGroup ? ((app.detail.count || 0) + " " + i18n.t("members")) : (app.detail.phone || app.detail.about || "")
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 4; color: theme.text2; font.pixelSize: 15
+                            text: detailPopup.isGroup ? (detailPopup.memberList.length + " " + i18n.t("members_n"))
+                                                       : (app.detail.phone || app.detail.about || "")
+                        }
+                        // Chip "kontak tersimpan" / akun bisnis (kontak).
+                        Text {
+                            visible: !detailPopup.isGroup && app.detail.saved === true
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6
+                            text: i18n.t("contact_saved_chip"); color: theme.accent; font.pixelSize: 12
+                        }
+                        Rectangle {
+                            visible: !detailPopup.isGroup && app.detail.isBiz === true
+                            Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6
+                            implicitWidth: bizT.implicitWidth + 20; implicitHeight: 24; radius: 12
+                            color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.15)
+                            Text { id: bizT; anchors.centerIn: parent; text: "✔ " + i18n.t("business_account")
+                                color: theme.accent; font.pixelSize: 12; font.weight: Font.DemiBold }
                         }
                     }
-                    // .info-block deskripsi (grup) / about (kontak).
+                    InfoSep {}
+
+                    // .info-block deskripsi (grup) — klem 5 baris + baca selengkapnya (>140 char).
                     ColumnLayout {
-                        Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 14; spacing: 5
-                        visible: (app.detail.desc || app.detail.about || "") !== ""
-                        Text { text: detailPopup.isGroup ? i18n.t("info_groupdesc") : i18n.t("about"); color: theme.accent; font.pixelSize: 13 }
-                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: app.detail.desc || app.detail.about || "—"; color: theme.text; font.pixelSize: 15 }
+                        Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24
+                        Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 5
+                        visible: detailPopup.isGroup && detailPopup.groupDesc !== ""
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: 8
+                            Text { text: i18n.t("info_groupdesc"); color: theme.accent; font.pixelSize: 13 }
+                            Item { Layout.fillWidth: true }
+                            Icon {
+                                visible: detailPopup.amAdmin
+                                Layout.preferredWidth: 16; Layout.preferredHeight: 16
+                                svg: win.ico["editpen"]; color: descPenHov.hovered ? theme.accent : theme.text2
+                                HoverHandler { id: descPenHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: win.prompt(i18n.t("group_edit_desc"), detailPopup.groupDesc, function(v){ if (v != null) app.act("SetGroupDescription", [win.selectedChat.id, v.trim()]) }) }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; text: detailPopup.groupDesc || "—"
+                            color: theme.text; font.pixelSize: 15
+                            maximumLineCount: infoCol.descOpen ? 0 : 5; elide: infoCol.descOpen ? Text.ElideNone : Text.ElideRight
+                        }
+                        Text {
+                            visible: detailPopup.groupDesc.length > 140
+                            text: infoCol.descOpen ? i18n.t("read_less") : i18n.t("read_more")
+                            color: theme.accent; font.pixelSize: 13; font.weight: Font.DemiBold
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: infoCol.descOpen = !infoCol.descOpen }
+                        }
                     }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.divider }
-                    // Pengaturan admin (grup): baris + switch.
+                    InfoSep { visible: detailPopup.isGroup && detailPopup.groupDesc !== "" }
+
+                    // About (kontak).
                     ColumnLayout {
-                        Layout.fillWidth: true; visible: detailPopup.isGroup; spacing: 0
-                        Text { Layout.leftMargin: 24; Layout.topMargin: 14; text: i18n.t("group_admin_settings"); color: theme.accent; font.pixelSize: 13 }
+                        Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24
+                        Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 5
+                        visible: !detailPopup.isGroup && (app.detail.about || "") !== ""
+                        Text { text: i18n.t("info_about"); color: theme.accent; font.pixelSize: 13 }
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: app.detail.about || "—"; color: theme.text; font.pixelSize: 15 }
+                    }
+                    InfoSep { visible: !detailPopup.isGroup && (app.detail.about || "") !== "" }
+
+                    // Aksi admin grup (info-row): tambah anggota, link undangan, reset link.
+                    ColumnLayout {
+                        Layout.fillWidth: true; visible: detailPopup.isGroup && detailPopup.amAdmin; spacing: 0
                         Repeater {
-                            model: [{ k: "announce", a: "SetGroupAnnounce", t: i18n.t("g_announce") },
-                                    { k: "locked", a: "SetGroupLocked", t: i18n.t("g_lock") },
-                                    { k: "joinApproval", a: "SetGroupJoinApproval", t: i18n.t("g_approval") },
-                                    { k: "adminAdd", a: "SetGroupAddMode", t: i18n.t("g_addmode") }]
+                            model: [{ icon: "addmember", t: i18n.t("group_add_member"), a: "add" },
+                                    { icon: "invitelink", t: i18n.t("invite_link"), a: "invite" },
+                                    { icon: "resetlink", t: i18n.t("invite_reset"), a: "reset" }]
+                            delegate: Rectangle {
+                                Layout.fillWidth: true; implicitHeight: 50; color: gActHov.hovered ? theme.hover : "transparent"
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                    Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico[modelData.icon]; color: theme.text2 }
+                                    Text { Layout.fillWidth: true; text: modelData.t; color: theme.text; font.pixelSize: 15 }
+                                }
+                                HoverHandler { id: gActHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
+                                    if (modelData.a === "add") win.prompt(i18n.t("group_add_member"), "62812", function(v){ var d = (v||"").replace(/[^0-9]/g, ""); if (d.length >= 6) app.act("UpdateGroupParticipants", [win.selectedChat.id, [d + "@s.whatsapp.net"], "add"]) })
+                                    else if (modelData.a === "invite") app.fetchStr("GroupInviteLink", [win.selectedChat.id, false])
+                                    else app.fetchStr("GroupInviteLink", [win.selectedChat.id, true]) } }
+                            }
+                        }
+                    }
+                    InfoSep { visible: detailPopup.isGroup && detailPopup.amAdmin }
+
+                    // Pengaturan admin grup (info-block + .switch via Tog).
+                    ColumnLayout {
+                        Layout.fillWidth: true; visible: detailPopup.isGroup && detailPopup.amAdmin; spacing: 0
+                        Text { Layout.leftMargin: 24; Layout.topMargin: 14; Layout.bottomMargin: 5
+                            text: i18n.t("group_admin_settings"); color: theme.accent; font.pixelSize: 13 }
+                        Repeater {
+                            model: [{ k: "announce", a: "SetGroupAnnounce", t: i18n.t("group_announce") },
+                                    { k: "locked", a: "SetGroupLocked", t: i18n.t("group_locked") },
+                                    { k: "joinApproval", a: "SetGroupJoinApproval", t: i18n.t("group_join_approval") },
+                                    { k: "adminAddOnly", a: "SetGroupAddMode", t: i18n.t("group_admin_add") }]
                             delegate: Rectangle {
                                 id: setRow
                                 Layout.fillWidth: true; implicitHeight: 46; color: rowHov.hovered ? theme.hover : "transparent"
-                                property bool on: app.detail[modelData.k] === true
+                                // real engine: adminAddOnly. mock: adminAdd.
+                                property bool on: app.detail[modelData.k] === true || (modelData.k === "adminAddOnly" && app.detail.adminAdd === true)
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
                                     Text { Layout.fillWidth: true; text: modelData.t; color: theme.text; font.pixelSize: 15 }
-                                    // .switch (38x22, knob putih).
-                                    Rectangle {
-                                        width: 38; height: 22; radius: 11; color: setRow.on ? theme.accent : theme.text2
-                                        Rectangle { width: 18; height: 18; radius: 9; color: "white"; y: 2
-                                            x: setRow.on ? parent.width - 20 : 2
-                                            Behavior on x { NumberAnimation { duration: 120 } } }
-                                    }
+                                    Tog { checked: setRow.on; onClicked: app.act(modelData.a, [win.selectedChat.id, !setRow.on]) }
                                 }
                                 HoverHandler { id: rowHov }
                                 MouseArea { anchors.fill: parent; onClicked: app.act(modelData.a, [win.selectedChat.id, !setRow.on]) }
                             }
                         }
                     }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.divider; visible: detailPopup.isGroup }
-                    // Aksi grup (info-row).
-                    ColumnLayout {
-                        Layout.fillWidth: true; visible: detailPopup.isGroup; spacing: 0
-                        Repeater {
-                            model: [{ icon: "contacts", t: i18n.t("g_add_member"), danger: false },
-                                    { icon: "newchat", t: i18n.t("g_invite"), danger: false }]
-                            delegate: Rectangle {
-                                Layout.fillWidth: true; implicitHeight: 50; color: actHov.hovered ? theme.hover : "transparent"
-                                RowLayout {
-                                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
-                                    Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico[modelData.icon]; color: theme.text2 }
-                                    Text { Layout.fillWidth: true; text: modelData.t; color: theme.text; font.pixelSize: 15 }
-                                }
-                                HoverHandler { id: actHov }
-                                MouseArea { anchors.fill: parent; onClicked: {
-                                    if (index === 0) app.act("UpdateGroupParticipants", [win.selectedChat.id, [], "add"])
-                                    else app.fetchStr("GroupInviteLink", [win.selectedChat.id, false]) } }
-                            }
-                        }
-                    }
-                    // Daftar anggota (grup).
+                    InfoSep { visible: detailPopup.isGroup && detailPopup.amAdmin }
+
+                    // Daftar anggota (grup) + pencarian (>8 anggota).
                     ColumnLayout {
                         Layout.fillWidth: true; visible: detailPopup.isGroup; spacing: 0
                         Text { Layout.leftMargin: 24; Layout.topMargin: 14; Layout.bottomMargin: 6
-                            text: (app.detail.count || 0) + " " + i18n.t("members"); color: theme.accent; font.pixelSize: 13 }
+                            text: detailPopup.memberList.length + " " + i18n.t("members_n"); color: theme.accent; font.pixelSize: 13 }
+                        // .member-search: bg2, border line, radius 9, pad 7/11.
+                        Rectangle {
+                            visible: detailPopup.memberList.length > 8
+                            Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 8
+                            implicitHeight: 34; radius: 9; color: theme.bg2; border.color: theme.line; border.width: 1
+                            TextInput {
+                                anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11
+                                verticalAlignment: TextInput.AlignVCenter; color: theme.text; font.pixelSize: 14; clip: true
+                                onTextChanged: infoCol.memberQ = text
+                                Text { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; visible: parent.text === ""
+                                    text: i18n.t("search"); color: theme.text2; font.pixelSize: 14 }
+                            }
+                        }
                         Repeater {
-                            model: app.detail.members || []
+                            model: detailPopup.memberList
                             delegate: Rectangle {
-                                Layout.fillWidth: true; implicitHeight: 52; color: memHov.hovered ? theme.hover : "transparent"
+                                property bool isAdm: modelData.isAdmin === true || modelData.admin === true
+                                visible: infoCol.memberQ.trim() === "" || (modelData.name || "").toLowerCase().indexOf(infoCol.memberQ.trim().toLowerCase()) >= 0
+                                Layout.fillWidth: true; implicitHeight: visible ? 52 : 0; color: memHov.hovered ? theme.hover : "transparent"
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 12
                                     Avatar { Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
                                         name: modelData.name || ""; accent: win.avatarColor(modelData.name || "?") }
                                     Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 15; elide: Text.ElideRight }
-                                    Rectangle { visible: modelData.admin === true; implicitWidth: adm.implicitWidth + 12; implicitHeight: 18
+                                    Rectangle { visible: parent.parent.isAdm; implicitWidth: adm.implicitWidth + 12; implicitHeight: 18
                                         radius: 8; color: "transparent"; border.width: 1; border.color: theme.accent
                                         Text { id: adm; anchors.centerIn: parent; text: i18n.t("member_admin"); color: theme.accent; font.pixelSize: 11 } }
                                 }
                                 HoverHandler { id: memHov }
                             }
                         }
+                        Item { Layout.preferredHeight: 8 }
                     }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.divider }
-                    // Keluar grup (danger).
+                    InfoSep { visible: detailPopup.isGroup }
+
+                    // Aksi kontak (info-row): Pesan, Simpan/Ganti nama.
+                    ColumnLayout {
+                        Layout.fillWidth: true; visible: !detailPopup.isGroup; spacing: 0
+                        Repeater {
+                            model: [{ icon: "message", t: i18n.t("message_action") },
+                                    { icon: "addmember", t: app.detail.saved === true ? i18n.t("rename_contact") : i18n.t("save_contact") }]
+                            delegate: Rectangle {
+                                Layout.fillWidth: true; implicitHeight: 50; color: ctActHov.hovered ? theme.hover : "transparent"
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                    Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico[modelData.icon]; color: theme.text2 }
+                                    Text { Layout.fillWidth: true; text: modelData.t; color: theme.text; font.pixelSize: 15 }
+                                }
+                                HoverHandler { id: ctActHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
+                                    if (index === 0) { app.openChat(win.selectedChat.id); detailPopup.close() }
+                                    else win.prompt(i18n.t("save_contact"), app.detail.name || "", function(v){ if (v && v.trim()) app.act("SaveContactLabel", [win.selectedChat.id, v.trim()]) }) } }
+                            }
+                        }
+                    }
+                    InfoSep { visible: !detailPopup.isGroup }
+
+                    // Wallpaper per-chat (swatch). LOKAL/visual — engine Qt belum punya store wallpaper. NOTE.
+                    ColumnLayout {
+                        Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24
+                        Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 0
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: 18
+                            Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; Layout.alignment: Qt.AlignTop
+                                svg: win.ico["wallpaperico"]; color: theme.text2 }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 8
+                                Text { text: i18n.t("wallpaper"); color: theme.text; font.pixelSize: 15 }
+                                Flow {
+                                    Layout.fillWidth: true; spacing: 6
+                                    // .wp-sw.none (bg2, ✕)
+                                    Rectangle {
+                                        width: 26; height: 26; radius: 7; color: theme.bg2
+                                        border.width: 2; border.color: detailPopup.wallpaperSel === "" ? theme.accent : "transparent"
+                                        Text { anchors.centerIn: parent; text: "✕"; color: theme.text2; font.pixelSize: 12 }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: detailPopup.wallpaperSel = "" }
+                                    }
+                                    Repeater {
+                                        model: ["#0b141a", "#111b21", "#1d2b22", "#2a2233", "#11212b", "#e7ddd0", "#d9e4dd", "#efe7da"]
+                                        delegate: Rectangle {
+                                            width: 26; height: 26; radius: 7; color: modelData
+                                            border.width: 2; border.color: detailPopup.wallpaperSel === modelData ? theme.accent : "transparent"
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: detailPopup.wallpaperSel = modelData }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    InfoSep {}
+
+                    // Pesan sementara (disappearing) — select. NOTE: backing SetDisappearing.
                     Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 50; visible: detailPopup.isGroup; color: leaveHov.hovered ? theme.hover : "transparent"
+                        Layout.fillWidth: true; implicitHeight: 56; color: disHov.hovered ? theme.hover : "transparent"
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
-                            Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["logout"]; color: "#e35d6a" }
-                            Text { Layout.fillWidth: true; text: i18n.t("g_leave"); color: "#e35d6a"; font.pixelSize: 15 }
+                            Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["clock"]; color: theme.text2 }
+                            Text { Layout.fillWidth: true; text: i18n.t("disappearing_msg"); color: theme.text; font.pixelSize: 15 }
+                            Combo {
+                                implicitWidth: 120
+                                textRole: "label"
+                                model: [{ label: i18n.t("disappearing_off"), v: 0 },
+                                        { label: i18n.t("disappearing_24h"), v: 86400 },
+                                        { label: i18n.t("disappearing_7d"), v: 604800 },
+                                        { label: i18n.t("disappearing_90d"), v: 7776000 }]
+                                onActivated: app.act("SetDisappearing", [win.selectedChat.id, model[currentIndex].v])
+                            }
                         }
-                        HoverHandler { id: leaveHov }
-                        MouseArea { anchors.fill: parent; onClicked: { app.act("LeaveGroup", [win.selectedChat.id]); detailPopup.close() } }
+                        HoverHandler { id: disHov }
+                    }
+                    InfoSep {}
+
+                    // Enkripsi (info-row dengan sub).
+                    Rectangle {
+                        Layout.fillWidth: true; implicitHeight: encCol.implicitHeight + 28; color: "transparent"
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                            Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; Layout.alignment: Qt.AlignTop; svg: win.ico["lock"]; color: theme.text2 }
+                            ColumnLayout {
+                                id: encCol; Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                                Text { text: i18n.t("info_enc"); color: theme.text; font.pixelSize: 15 }
+                                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: i18n.t("info_enc_sub"); color: theme.text2; font.pixelSize: 13 }
+                            }
+                        }
+                    }
+                    InfoSep {}
+
+                    // Grup aksi danger (export / clear / exit / block / report).
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 0
+                        // Export chat (netral).
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 50; color: expHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["download"]; color: theme.text2 }
+                                Text { Layout.fillWidth: true; text: i18n.t("export_chat"); color: theme.text; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: expHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: app.fetchStr("ExportChat", [win.selectedChat.id]) }
+                        }
+                        // Clear chat (danger).
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 50; color: clrHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["clearchat"]; color: "#e35d6a" }
+                                Text { Layout.fillWidth: true; text: i18n.t("clear_chat"); color: "#e35d6a"; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: clrHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: app.act("ClearChatMessages", [win.selectedChat.id]) }
+                        }
+                        // Keluar grup (danger).
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 50; visible: detailPopup.isGroup; color: leaveHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["leavegroup"]; color: "#e35d6a" }
+                                Text { Layout.fillWidth: true; text: i18n.t("leave_group"); color: "#e35d6a"; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: leaveHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { app.act("LeaveGroup", [win.selectedChat.id]); detailPopup.close() } }
+                        }
+                        // Blokir kontak (danger).
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 50; visible: !detailPopup.isGroup; color: blkHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["block"]; color: "#e35d6a" }
+                                Text { Layout.fillWidth: true; text: i18n.t("block"); color: "#e35d6a"; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: blkHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: app.act("Block", [win.selectedChat.id, true]) }
+                        }
+                        // Laporkan kontak (danger).
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 50; visible: !detailPopup.isGroup; color: rptHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["clearchat"]; color: "#e35d6a" }
+                                Text { Layout.fillWidth: true; text: i18n.t("report"); color: "#e35d6a"; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: rptHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { app.act("Block", [win.selectedChat.id, true]); detailPopup.close() } }
+                        }
                     }
                 }
             }
@@ -2675,6 +2942,7 @@ ApplicationWindow {
             else if (openPanel === "settings") settingsPopup.open()
             else if (openPanel === "search") { searchInput.text = "rapat"; app.search("rapat", searchModel) }
             else if (openPanel === "detail") { app.loadDetail("GetGroupInfo", "g"); detailPopup.open() }
+            else if (openPanel === "detailc") { app.loadDetail("GetContactProfile", "c"); detailPopup.open() }
             else if (openPanel === "forward") { win.ctxMsg = { id: "m1" }; forwardPopup.open() }
             else if (openPanel === "privacy") { app.loadDetail("GetPrivacy", ""); privacyPopup.open() }
             else if (openPanel === "msginfo") { app.loadDetailA("GetMessageInfo", ["c", "m1"]); msgInfoPopup.open() }

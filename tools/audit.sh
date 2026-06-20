@@ -1,25 +1,40 @@
 #!/usr/bin/env bash
-# Audit visual: render Svelte + QML, potong per-region (sidebar/conversation)
-# biar terbaca jelas, + montase berlabel. Opsi: arg1 = gambar referensi WhatsApp.
-#   tools/audit.sh [whatsapp_ref.png]
+# Objective visual audit: render Svelte + QML with the SAME mock scenario and
+# language, then compare with NUMBERS — not eyeballing a side-by-side.
+#
+#   tools/audit.sh [theme]      # dark (default) | light
+#
+# Why the pieces:
+#  - The QML mock engine mirrors frontend/src/lib/data/mock.js, so both sides
+#    show identical chats → the diff measures rendering fidelity, not content.
+#  - DSSIM (tools/diff.sh) gives a perceptual distance + a red heatmap.
+#  - The RGB overlay reveals positional drift (red = Svelte-only, cyan = QML-only).
+#  - probe.py measures row pitch in px (catches "off by N px" the eye misses).
+#
+#  KNOWN LIMITATION: Svelte's conversation pane renders empty under headless
+#  Chrome (messages don't paint), so only the SIDEBAR is pixel-comparable here.
+#  Conversation parity is verified via the app.css spec + probe geometry instead.
 set -e
 cd "$(dirname "$0")/.."
-REF="${1:-}"
-./tools/snap-svelte.sh /tmp/aud_svelte.png >/dev/null
-./tools/snap-qml.sh    /tmp/aud_qml.png   >/dev/null
-lbl(){ magick "$2" -resize 460x740 -gravity North -background '#2a2a2a' -splice 0x26 \
-        -fill white -pointsize 18 -annotate +0+4 "$1" "$3"; }
-# crop sidebar (kiri) + conversation (kanan) tiap render → resize seragam → label
-for n in svelte qml; do
-  magick /tmp/aud_$n.png -crop 460x740+0+0   +repage /tmp/aud_${n}_side_raw.png
-  magick /tmp/aud_$n.png -crop 640x740+460+0 +repage /tmp/aud_${n}_conv_raw.png
-  lbl "${n^^} sidebar" /tmp/aud_${n}_side_raw.png /tmp/aud_${n}_side.png
-done
-# side-by-side sidebar (≈920 lebar → terbaca)
-magick /tmp/aud_svelte_side.png /tmp/aud_qml_side.png +append /tmp/audit_sidebar.png
-echo "sidebar compare → /tmp/audit_sidebar.png"
-if [ -n "$REF" ] && [ -f "$REF" ]; then
-  lbl "WHATSAPP ref" "$REF" /tmp/aud_ref_side.png
-  magick /tmp/aud_ref_side.png /tmp/aud_svelte_side.png /tmp/aud_qml_side.png +append /tmp/audit_3way.png
-  echo "3-way compare → /tmp/audit_3way.png"
-fi
+THEME="${1:-dark}"
+./tools/snap-svelte.sh /tmp/au_sv.png  "$THEME"        >/dev/null
+./tools/snap-qml.sh    /tmp/au_qml.png "$THEME" "" id  >/dev/null
+
+# Sidebar = left 460px (rail + chat list), the region both engines render.
+magick /tmp/au_sv.png  -crop 460x740+0+0 +repage /tmp/au_sv_sb.png
+magick /tmp/au_qml.png -crop 460x740+0+0 +repage /tmp/au_qml_sb.png
+
+echo "── sidebar DSSIM (lower = closer) ──"
+./tools/diff.sh /tmp/au_sv_sb.png /tmp/au_qml_sb.png /tmp/au_sb | grep -E 'DSSIM|heatmap'
+
+echo "── row-pitch geometry ──"
+python3 tools/probe.py /tmp/au_sv_sb.png  | sed 's/^/  svelte /'
+python3 tools/probe.py /tmp/au_qml_sb.png | sed 's/^/  qml    /'
+
+# RGB overlay: R=svelte, G/B=qml → drift shows as red/cyan fringes.
+magick /tmp/au_sv_sb.png  -colorspace Gray /tmp/au_gs.png
+magick /tmp/au_qml_sb.png -colorspace Gray /tmp/au_gq.png
+magick /tmp/au_gs.png /tmp/au_gq.png /tmp/au_gq.png -combine /tmp/au_overlay.png
+echo "── artifacts ──"
+echo "  heatmap : /tmp/au_sb-heat.png    montage : /tmp/au_sb-sxs.png"
+echo "  overlay : /tmp/au_overlay.png    (red=svelte-only, cyan=qml-only, grey=match)"

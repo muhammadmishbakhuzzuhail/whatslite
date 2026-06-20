@@ -37,36 +37,41 @@ func main() {
 	srv.SetHandler(func(method string, args []json.RawMessage) (any, error) {
 		switch method {
 		case "GetChats":
+			// Skenario IDENTIK dgn frontend/src/lib/data/mock.js → render Svelte &
+			// QML bisa di-DSSIM apple-to-apple (tools/diff.sh). Jangan diubah lepas
+			// dari mock.js; itu yang bikin perbandingan objektif.
 			return []map[string]any{
-				{"id": "c@g.us", "name": "Grup Kerja", "preview": "Budi: oke siap", "time": "11/06", "badge": 5, "unread": true, "group": true, "pinned": true},
-				{"id": "a@s.whatsapp.net", "name": "Alice", "preview": "hi", "time": "09.12", "badge": 0, "sent": true, "status": "read", "pinned": true},
-				{"id": "b@s.whatsapp.net", "name": "Bob", "preview": "yo, ketemu nanti?", "time": "Kemarin", "badge": 2, "unread": true},
-				{"id": "120363218333204381@g.us", "name": "120363218333204381", "preview": "🚨 WE'RE GOING TO GRAND FINALS 🚨 ONIC ID berhasil mengamankan slot ke GRAND FINAL", "time": "18.40", "badge": 99},
-				{"id": "d@g.us", "name": "PANITIA ISC 2025 — Pagelaran Wayang Orang Nusantara", "preview": "Karya mahasiswa Pendidikan Seni UNNES yang melegenda, jangan sampai ketinggalan", "time": "Senin", "badge": 0},
-				{"id": "e@g.us", "name": "IMAKU UNNES 2023", "preview": "Minggu, 14 Juni 2026 · 18.00 WIB · Gedung Auditorium", "time": "13/06", "badge": 0, "muted": true},
+				{"id": "1", "name": "Andi Pratama", "preview": "Mantap! Sampai nanti malam 🙌", "time": "19.08", "sent": true, "status": "sent", "pinned": true},
+				{"id": "6", "name": "Mama", "preview": "Sudah sampai rumah?", "time": "12.30", "sent": true, "status": "sent", "pinned": true},
+				{"id": "2", "name": "Keluarga 👨‍👩‍👧", "preview": "Ibu: Jangan lupa makan ya nak", "time": "18.41", "badge": 2, "unread": true, "group": true},
+				{"id": "3", "name": "Sarah", "preview": "Oke besok aku kabarin lagi", "time": "17.55", "sent": true, "status": "sent"},
+				{"id": "4", "name": "Tim Proyek X", "preview": "Budi: file-nya udah aku upload", "time": "16.20", "badge": 12, "unread": true, "group": true},
+				{"id": "5", "name": "Rian", "preview": "Haha iya bener banget 😂", "time": "14.03", "muted": true},
+				{"id": "7", "name": "Info Kampus", "preview": "Pengumuman: jadwal UAS telah...", "time": "Kemarin", "muted": true, "group": true},
+				{"id": "8", "name": "Dimas", "preview": "Nanti aku telpon ya", "time": "Kemarin", "sent": true, "status": "sent"},
+				{"id": "9", "name": "Grup Futsal", "preview": "Anto: yang ikut absen dong", "time": "Kemarin", "badge": 5, "unread": true, "group": true},
+				{"id": "10", "name": "Nadia", "preview": "Makasih banyak ya 🙏", "time": "Senin", "sent": true, "status": "sent"},
+				{"id": "11", "name": "Kerja Kelompok", "preview": "Kamu: oke aku kerjain bagian 2", "time": "Senin", "sent": true, "status": "sent", "group": true},
+				{"id": "12", "name": "Bayu", "preview": "📷 Foto", "time": "Minggu", "muted": true},
 			}, nil
 		case "GetMessages":
 			var chatID string
 			if len(args) > 0 {
 				_ = json.Unmarshal(args[0], &chatID)
 			}
+			// Pesan chat "Andi Pratama" (mock.js messagesByChat[1]) — chat pertama
+			// yang auto-dipilih → render percakapan setara Svelte utk DSSIM.
 			base := []map[string]any{
-				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Apa kabar?", "time": "09:00", "ts": 100, "sender": "Budi"},
-				{"id": "m2", "dir": "out", "type": "text", "text": "Baik dong, kamu gimana?", "time": "09:01", "status": "read"},
-				{"id": "m3", "dir": "in", "type": "text", "text": "Sehat. Nanti jadi ketemu jam 3 ya", "time": "09:02", "sender": "Citra",
-					"reactions": []map[string]any{{"emoji": "👍", "count": 2, "who": []string{"Alice", "Bob"}}, {"emoji": "❤️", "count": 1, "who": []string{"Citra"}}}},
-				{"id": "m4", "dir": "out", "type": "sticker", "text": "", "time": "09:03"},
-				{"id": "m5", "dir": "in", "type": "document", "text": "Proposal-Kerja.pdf",
-					"time": "09:05", "docSize": 1887436, "docMime": "application/pdf", "docPages": 12},
-				{"id": "m6", "dir": "in", "type": "poll", "text": "Makan siang apa?",
-					"thumb": `["Nasi", "Mie", "Roti"]`, "time": "09:06"},
-				{"id": "m7", "dir": "in", "type": "image", "text": "Foto liburan",
-					"thumb": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "time": "09:07"},
-				{"id": "mc", "dir": "in", "type": "contact", "text": "👤 Budi Santoso", "thumb": "+62 812-3456-7890", "time": "09:07", "sender": "Citra"},
-				{"id": "ml", "dir": "out", "type": "location", "text": "Monas, Jakarta Pusat", "time": "09:08", "status": "read"},
-				{"id": "m8", "dir": "out", "type": "voice", "text": "0:12", "time": "09:08", "status": "delivered"},
-				{"id": "m9", "dir": "out", "type": "text", "text": "Setuju, jam 3 di kantor ya", "time": "09:09", "status": "read",
-					"quoteId": "m3", "quoteName": "Citra", "quoteText": "Sehat. Nanti jadi ketemu jam 3 ya"},
+				{"id": "m1", "dir": "in", "type": "text", "text": "Halo! Jadi nanti malam ngumpul jam berapa?", "time": "19.02",
+					"reactions": []map[string]any{{"emoji": "👍", "count": 1}}},
+				{"id": "m2", "dir": "out", "type": "text", "text": "Jam 8 ya, di tempat biasa 👌", "time": "19.03", "status": "read"},
+				{"id": "m3", "dir": "in", "type": "text", "text": "Oke sip. Oh iya aku bawa kamera, sekalian foto-foto. Kamu bawa speaker yang kemarin gak?", "time": "19.04"},
+				{"id": "m4", "dir": "out", "type": "text", "text": "Bawa dong, udah aku charge full 🔋", "time": "19.05", "status": "read",
+					"quoteId": "m3", "quoteName": "Andi Pratama", "quoteText": "Kamu bawa speaker yang kemarin gak?"},
+				{"id": "m5", "dir": "in", "type": "image", "text": "Spot kemarin, bagus banget buat sunset 🌅", "time": "19.06",
+					"thumb": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(255,176,99)'/%3E%3Cstop offset='0.45' stop-color='rgb(255,118,92)'/%3E%3Cstop offset='1' stop-color='rgb(108,58,128)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='320' height='240' fill='url(%23s)'/%3E%3Ccircle cx='160' cy='128' r='38' fill='rgb(255,228,158)'/%3E%3C/svg%3E"},
+				{"id": "m6", "dir": "in", "type": "voice", "text": "0:12", "time": "19.07"},
+				{"id": "m7", "dir": "out", "type": "text", "text": "Mantap! Sampai nanti malam 🙌", "time": "19.08", "status": "sending"},
 			}
 			mu.Lock()
 			base = append(base, sent[chatID]...)

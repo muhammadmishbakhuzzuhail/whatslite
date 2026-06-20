@@ -290,7 +290,7 @@ ApplicationWindow {
                         visible: searchInput.text === ""
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 44
-                        text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
+                        text: i18n.t("search_placeholder"); color: theme.text2; font.pixelSize: 14
                     }
                 }
                 // Filter chips (Semua / Belum dibaca N / Favorit / Grup N / +) — ala WhatsApp.
@@ -346,7 +346,7 @@ ApplicationWindow {
                             }
                         }
                         header: ItemDelegate {
-                            width: chatList.width; height: 54
+                            width: chatList.width; height: 48  // = Svelte .archived (icon 22 + 2×12 pad)
                             onClicked: { activeView = "archived"; app.loadInto("GetArchivedChats", archivedModel) }
                             background: Rectangle { anchors.margins: 3; radius: theme.r; color: hovered ? theme.hover : "transparent" }
                             RowLayout {
@@ -356,7 +356,7 @@ ApplicationWindow {
                             }
                         }
                         delegate: ItemDelegate {
-                            width: chatList.width; height: 68; clip: true
+                            width: chatList.width; height: 70; clip: true  // = Svelte .chat-row (49 avatar + 2×10 pad + 1 mb)
                             property bool isActive: (win.selectedChat.id !== undefined) && win.selectedChat.id === model.m.id
                             onClicked: { win.selectedChat = model.m; app.openChat(model.m.id) }
                             background: Rectangle { anchors.margins: 3; radius: theme.r

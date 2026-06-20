@@ -718,15 +718,17 @@ ApplicationWindow {
                         property bool out: (model.m.dir === "out")
                         Rectangle {
                             id: bubble
+                            // Stiker: tanpa latar bubble (app.css .bubble.sticker-bubble transparan).
+                            property bool bare: model.m.type === "sticker"
                             x: parent.out ? parent.width - width - 4 : 4
-                            width: content.implicitWidth + 16
-                            implicitHeight: content.implicitHeight + 16
+                            width: content.implicitWidth + (bare ? 0 : 16)
+                            implicitHeight: content.implicitHeight + (bare ? 0 : 16)
                             // Tail ala WhatsApp (app.css): sudut atas dekat pengirim 6px, lainnya r.
-                            radius: theme.r
-                            topLeftRadius: parent.out ? theme.r : 6
-                            topRightRadius: parent.out ? 6 : theme.r
-                            color: parent.out ? theme.outBg : theme.inBg
-                            border.color: theme.line
+                            radius: bare ? 0 : theme.r
+                            topLeftRadius: bare ? 0 : (parent.out ? theme.r : 6)
+                            topRightRadius: bare ? 0 : (parent.out ? 6 : theme.r)
+                            color: bare ? "transparent" : (parent.out ? theme.outBg : theme.inBg)
+                            border.color: bare ? "transparent" : theme.line
                             ColumnLayout {
                                 id: content
                                 property var pmsg: model.m // tangkap pesan (hindari shadowing Repeater)
@@ -861,6 +863,20 @@ ApplicationWindow {
                                         anchors.centerIn: parent; width: 54; height: 54; radius: 27; color: "#00000066"
                                         Text { anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 24 }
                                     }
+                                    // Meta overlay (.mtime): waktu + ticks pojok kanan-bawah DI ATAS gambar.
+                                    Rectangle {
+                                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 6
+                                        radius: 8; color: "#00000059"; implicitWidth: ovRow.implicitWidth + 12; implicitHeight: 20
+                                        RowLayout {
+                                            id: ovRow; anchors.centerIn: parent; spacing: 4
+                                            Text { text: model.m.time || ""; color: "#ffffff"; font.pixelSize: 11 }
+                                            Icon {
+                                                visible: content.pmsg.dir === "out"
+                                                vbox: "0 0 18 14"; Layout.preferredWidth: 16; Layout.preferredHeight: 12
+                                                svg: win.ico["checks"]; color: content.pmsg.status === "read" ? theme.tick : "#ffffff"
+                                            }
+                                        }
+                                    }
                                 }
                                 // Voice note — play + waveform + durasi (app.css .play/.wave/.vtime).
                                 RowLayout {
@@ -931,7 +947,9 @@ ApplicationWindow {
                                     Layout.maximumWidth: timeline.width * 0.66
                                 }
                                 // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).
+                                // Media gambar/video/gif pakai overlay di atas thumbnail → sembunyikan di sini.
                                 RowLayout {
+                                    visible: ["image", "video", "gif"].indexOf(model.m.type) < 0
                                     Layout.alignment: Qt.AlignRight; spacing: 4
                                     Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 11 }
                                     Icon {

@@ -111,5 +111,9 @@
   "a_image": "Image", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Create poll", "poll_question": "Question", "poll_option": "Option",
   "send_contact": "Send contact", "contact_name": "Name", "contact_phone": "Phone",
-  "result": "Result", "typing": "typing…", "voice": "Voice note"
+  "result": "Result", "typing": "typing…", "voice": "Voice note",
+  "rec_voice": "recording audio…", "draft": "Draft",
+  "splash_title": "WhatsLite for Desktop",
+  "splash_sub": "Send & receive messages without keeping your phone online.",
+  "splash_enc": "End-to-end encrypted"
 }

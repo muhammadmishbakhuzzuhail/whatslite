@@ -952,6 +952,7 @@ ApplicationWindow {
                                     visible: ["document", "sticker", "gif", "poll", "voice", "contact", "location"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
+                                    lineHeight: 1.4; lineHeightMode: Text.ProportionalHeight  // .bubble line-height 1.4
                                     Layout.maximumWidth: Math.min(timeline.width * 0.66, 560)  // .bubble max-width: min(66%, 560px)
                                 }
                                 // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).

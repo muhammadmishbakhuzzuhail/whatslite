@@ -4,6 +4,8 @@
   "a_document": "Document", "a_stickers": "Stickers", "a_gifs": "GIFs",
   "poll_votes_n": "votes", "copy": "Copy",
   "t_photo": "Photo", "t_video": "Video", "t_sticker": "Sticker",
+  "info_group": "Group info", "info_contact": "Contact info", "info_groupdesc": "Description",
+  "about": "About", "group_admin_settings": "Group settings", "member_admin": "admin",
   "search": "Search messages",
   "pick_conversation": "Select a conversation",
   "type_message": "Type a message",

@@ -145,6 +145,37 @@ public:
                   [this](const QJsonValue &, const QString &e) { if (e.isEmpty()) reloadMessages(); });
     }
 
+    // --- Pencarian online (Tenor/Stickerly via engine): SearchStickers/SearchGifs
+    //     balas GifPage{items,next} → ekstrak "items" ke model online. ---
+    Q_INVOKABLE void searchOnline(const QString &method, const QString &q, QObject *model) {
+        auto *m = qobject_cast<JsonListModel *>(model);
+        if (!m)
+            return;
+        m_c->call(method, QJsonArray{q, QString()}, [m](const QJsonValue &r, const QString &e) {
+            if (e.isEmpty())
+                m->setItems(r.toObject().value(QStringLiteral("items")).toArray());
+        });
+    }
+
+    // sendOnline: unduh media remote (FetchRemoteMedia → data-URI) lalu kirim
+    // sbg stiker/gif ke chat aktif. kind = "sticker" | "gif".
+    Q_INVOKABLE void sendOnline(const QString &kind, const QString &url) {
+        if (m_cur.isEmpty() || url.isEmpty())
+            return;
+        const QString sendMethod = (kind == QStringLiteral("gif")) ? QStringLiteral("SendGif")
+                                                                    : QStringLiteral("SendSticker");
+        m_c->call(QStringLiteral("FetchRemoteMedia"), QJsonArray{url},
+                  [this, sendMethod](const QJsonValue &r, const QString &e) {
+                      if (!e.isEmpty())
+                          return;
+                      const QString dataURI = r.toString();
+                      if (dataURI.isEmpty())
+                          return;
+                      m_c->call(sendMethod, QJsonArray{m_cur, dataURI},
+                                [this](const QJsonValue &, const QString &e2) { if (e2.isEmpty()) reloadMessages(); });
+                  });
+    }
+
     // --- Aksi pesan (context menu) ---
     Q_INVOKABLE void react(const QString &msgId, const QString &sender, bool fromMe, const QString &emoji) {
         m_c->call(QStringLiteral("React"), QJsonArray{m_cur, msgId, sender, emoji, fromMe},

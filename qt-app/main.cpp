@@ -35,9 +35,12 @@ int main(int argc, char *argv[]) {
     // Pane generik (diisi via app.loadInto / app.search).
     static JsonListModel statusModel, contactsModel, searchModel;
     static JsonListModel channelsModel, communitiesModel, archivedModel, scheduledModel;
+    static JsonListModel onlineStkModel, onlineGifModel; // hasil pencarian Tenor/Stickerly
     ctx->setContextProperty("statusModel", &statusModel);
     ctx->setContextProperty("contactsModel", &contactsModel);
     ctx->setContextProperty("searchModel", &searchModel);
+    ctx->setContextProperty("onlineStkModel", &onlineStkModel);
+    ctx->setContextProperty("onlineGifModel", &onlineGifModel);
     ctx->setContextProperty("channelsModel", &channelsModel);
     ctx->setContextProperty("communitiesModel", &communitiesModel);
     ctx->setContextProperty("archivedModel", &archivedModel);

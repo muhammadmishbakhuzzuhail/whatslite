@@ -724,8 +724,10 @@ ApplicationWindow {
                         property bool out: (model.m.dir === "out")
                         Rectangle {
                             id: bubble
-                            // Stiker: tanpa latar bubble (app.css .bubble.sticker-bubble transparan).
-                            property bool bare: model.m.type === "sticker"
+                            // Stiker + media (foto/video/gif): tanpa kartu bubble.
+                            // app.css .bubble.media { background:transparent; padding:0 } → gambar flat,
+                            // reply/sender jadi pill di atas, caption/waktu jadi pill di bawah.
+                            property bool bare: model.m.type === "sticker" || content.media
                             x: parent.out ? parent.width - width - 4 : 4
                             // .bubble: padding 8px 13px → +26 lebar (13×2), +16 tinggi (8×2).
                             width: content.implicitWidth + (bare ? 0 : 26)
@@ -739,21 +741,60 @@ ApplicationWindow {
                             ColumnLayout {
                                 id: content
                                 property var pmsg: model.m // tangkap pesan (hindari shadowing Repeater)
+                                // Media (foto/video/gif): bubble transparan padding:0 (Discord-style).
+                                property bool media: ["image", "video", "gif"].indexOf(model.m.type) >= 0
                                 anchors.left: parent.left
                                 anchors.top: parent.top
-                                anchors.leftMargin: 13; anchors.rightMargin: 13   // .bubble padding-x
-                                anchors.topMargin: 8; anchors.bottomMargin: 8      // .bubble padding-y
+                                // .bubble padding 8px 13px; bare (stiker/media) padding 0.
+                                anchors.leftMargin: bubble.bare ? 0 : 13; anchors.rightMargin: bubble.bare ? 0 : 13
+                                anchors.topMargin: bubble.bare ? 0 : 8; anchors.bottomMargin: bubble.bare ? 0 : 8
                                 spacing: 3
                                 // Nama pengirim (grup, pesan masuk) — warna per-pengirim.
+                                // Media: nama masuk pill .head (lihat di bawah) → sembunyikan plain di sini.
                                 Text {
-                                    visible: win.selectedChat.group === true && content.pmsg.dir === "in" && (content.pmsg.sender || "") !== ""
+                                    visible: !content.media && win.selectedChat.group === true && content.pmsg.dir === "in" && (content.pmsg.sender || "") !== ""
                                     text: content.pmsg.sender || ""
                                     color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.DemiBold
                                 }
-                                // Blok kutipan balasan (bar warna + nama + teks).
+                                // Media HEAD pill (.bubble.media .head): nama + kutipan balasan dalam
+                                // satu pill bg in/out di ATAS foto flat (app.css). Hanya saat media.
+                                Rectangle {
+                                    readonly property bool hasSender: win.selectedChat.group === true && content.pmsg.dir === "in" && (content.pmsg.sender || "") !== ""
+                                    readonly property bool hasQuote: (content.pmsg.quoteId || "") !== ""
+                                    visible: content.media && (hasSender || hasQuote)
+                                    Layout.bottomMargin: 2
+                                    implicitWidth: Math.min(headCol.implicitWidth + 20, 360)
+                                    implicitHeight: headCol.implicitHeight + 10
+                                    radius: 11; color: content.pmsg.dir === "out" ? theme.outBg : theme.inBg
+                                    border.width: 1; border.color: theme.line
+                                    ColumnLayout {
+                                        id: headCol
+                                        anchors.left: parent.left; anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.leftMargin: 10; anchors.rightMargin: 10; spacing: 2
+                                        Text {
+                                            visible: parent.parent.hasSender
+                                            text: content.pmsg.sender || ""
+                                            color: win.avatarColor(content.pmsg.sender || ""); font.pixelSize: 13; font.weight: Font.DemiBold
+                                        }
+                                        // .head .quote: bar kiri 3px, tanpa bg, padding 1px 0 1px 8px.
+                                        RowLayout {
+                                            visible: parent.parent.hasQuote; spacing: 8
+                                            Rectangle { Layout.preferredWidth: 3; Layout.fillHeight: true; color: theme.quoteBar }
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 1
+                                                Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                                    text: content.pmsg.quoteName || ""; color: theme.quoteBar; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                                Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
+                                                    text: content.pmsg.quoteText || ""; color: theme.text2; font.pixelSize: 13 }
+                                            }
+                                        }
+                                    }
+                                }
+                                // Blok kutipan balasan (bar warna + nama + teks) — NON-media.
                                 // .quote: bar 4px --quote-bar, bg --quote-bg, radius 4, padding 5/9, mb 5.
                                 Rectangle {
-                                    visible: (content.pmsg.quoteId || "") !== ""
+                                    visible: !content.media && (content.pmsg.quoteId || "") !== ""
                                     Layout.fillWidth: true; Layout.bottomMargin: 5; radius: 4
                                     color: theme.quoteBg
                                     implicitHeight: qcol.implicitHeight + 10
@@ -834,10 +875,11 @@ ApplicationWindow {
                                     Text { text: "0 " + i18n.t("poll_votes_n"); color: theme.text2; font.pixelSize: 12 }
                                 }
                                 // Gambar/video/GIF: thumbnail bila ada, else placeholder (.img-ph).
+                                // .media-box.card: flat (transparan), rounded 14, RATA-KIRI. Tanpa kartu/scrim.
                                 Rectangle {
-                                    visible: model.m.type === "image" || model.m.type === "video" || model.m.type === "gif"
+                                    visible: content.media
                                     Layout.preferredWidth: 220; Layout.preferredHeight: 160
-                                    radius: 14; clip: true; color: theme.bg2
+                                    radius: 14; clip: true; color: "transparent"
                                     property bool hasMedia: imgM.status === Image.Ready && imgM.sourceSize.width > 2
                                     Image {
                                         id: imgM; anchors.fill: parent; fillMode: Image.PreserveAspectCrop
@@ -870,20 +912,6 @@ ApplicationWindow {
                                         visible: model.m.type === "video" && parent.hasMedia
                                         anchors.centerIn: parent; width: 54; height: 54; radius: 27; color: "#00000066"
                                         Text { anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 24 }
-                                    }
-                                    // Meta overlay (.mtime): waktu + ticks pojok kanan-bawah DI ATAS gambar.
-                                    Rectangle {
-                                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 6
-                                        radius: 8; color: "#00000059"; implicitWidth: ovRow.implicitWidth + 12; implicitHeight: 20
-                                        RowLayout {
-                                            id: ovRow; anchors.centerIn: parent; spacing: 4
-                                            Text { text: model.m.time || ""; color: "#ffffff"; font.pixelSize: 11 }
-                                            Icon {
-                                                visible: content.pmsg.dir === "out"
-                                                vbox: "0 0 18 14"; Layout.preferredWidth: 16; Layout.preferredHeight: 12
-                                                svg: win.ico["checks"]; color: content.pmsg.status === "read" ? theme.tick : "#ffffff"
-                                            }
-                                        }
                                     }
                                 }
                                 // Voice note — play + waveform + durasi (app.css .play/.wave/.vtime).
@@ -947,21 +975,63 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                // Teks biasa
+                                // Teks biasa (NON-media). Caption media pakai pill .mcap di bawah.
                                 Text {
-                                    visible: ["document", "sticker", "gif", "poll", "voice", "contact", "location"].indexOf(model.m.type) < 0
+                                    visible: !content.media && ["document", "sticker", "gif", "poll", "voice", "contact", "location"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
                                     lineHeight: 1.4; lineHeightMode: Text.ProportionalHeight  // .bubble line-height 1.4
-                                    // Caption media wrap ke lebar gambar (220) → bubble tak melebar
-                                    // melebihi gambar (tak ada ruang kosong di kanan). Else max-width bubble.
-                                    Layout.maximumWidth: (["image", "video", "gif"].indexOf(model.m.type) >= 0)
-                                                         ? 220 : Math.min(timeline.width * 0.66, 560)
+                                    Layout.maximumWidth: Math.min(timeline.width * 0.66, 560)
                                 }
-                                // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).
-                                // Media gambar/video/gif pakai overlay di atas thumbnail → sembunyikan di sini.
+                                // Media .mcap: caption + waktu/ticks dlm SATU pill bg in/out di bawah foto.
+                                Rectangle {
+                                    visible: content.media && (model.m.text || "") !== ""
+                                    Layout.topMargin: 2
+                                    implicitWidth: Math.min(mcapCol.implicitWidth + 22, 360)
+                                    implicitHeight: mcapCol.implicitHeight + 12
+                                    radius: 11; color: content.pmsg.dir === "out" ? theme.outBg : theme.inBg
+                                    border.width: 1; border.color: theme.line
+                                    ColumnLayout {
+                                        id: mcapCol
+                                        anchors.left: parent.left; anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 1
+                                        Text {
+                                            Layout.fillWidth: true; Layout.maximumWidth: 320
+                                            text: model.m.text || ""; wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
+                                            lineHeight: 1.4; lineHeightMode: Text.ProportionalHeight
+                                        }
+                                        RowLayout {
+                                            Layout.alignment: Qt.AlignRight; spacing: 3
+                                            Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 11 }
+                                            Icon {
+                                                visible: content.pmsg.dir === "out"
+                                                vbox: "0 0 18 14"; width: 16; height: 12
+                                                svg: win.ico["checks"]; color: content.pmsg.status === "read" ? theme.tick : theme.text2
+                                            }
+                                        }
+                                    }
+                                }
+                                // Media .mtime: TANPA caption → pill waktu saja, rata kanan, bg in/out.
+                                Rectangle {
+                                    visible: content.media && (model.m.text || "") === ""
+                                    Layout.topMargin: 2; Layout.alignment: Qt.AlignRight
+                                    implicitWidth: mtimeRow.implicitWidth + 16; implicitHeight: 22
+                                    radius: 10; color: content.pmsg.dir === "out" ? theme.outBg : theme.inBg
+                                    border.width: 1; border.color: theme.line
+                                    RowLayout {
+                                        id: mtimeRow; anchors.centerIn: parent; spacing: 3
+                                        Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 11 }
+                                        Icon {
+                                            visible: content.pmsg.dir === "out"
+                                            vbox: "0 0 18 14"; width: 16; height: 12
+                                            svg: win.ico["checks"]; color: content.pmsg.status === "read" ? theme.tick : theme.text2
+                                        }
+                                    }
+                                }
+                                // Waktu + ticks pojok kanan-bawah bubble (NON-media, ala WhatsApp).
                                 RowLayout {
-                                    visible: ["image", "video", "gif"].indexOf(model.m.type) < 0
+                                    visible: !content.media
                                     Layout.alignment: Qt.AlignRight; spacing: 4
                                     Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 11 }
                                     Icon {

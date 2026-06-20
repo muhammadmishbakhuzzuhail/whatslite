@@ -14,13 +14,20 @@
 class JsonListModel : public QAbstractListModel {
     Q_OBJECT
 public:
-    enum Roles { ItemRole = Qt::UserRole + 1, SecRole, RxnRole };
+    enum Roles { ItemRole = Qt::UserRole + 1, SecRole };
     explicit JsonListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
 
     void setItems(const QJsonArray &a) {
         beginResetModel();
         m_items = a;
+        rebuildCache();
         endResetModel();
+    }
+    void rebuildCache() {
+        m_cache.clear();
+        m_cache.reserve(m_items.size());
+        for (const auto &v : m_items)
+            m_cache.append(v.toObject().toVariantMap());
     }
     QJsonObject itemAt(int i) const {
         return (i >= 0 && i < m_items.size()) ? m_items.at(i).toObject() : QJsonObject();
@@ -38,6 +45,7 @@ public:
         for (const auto &v : m_items)
             merged.append(v);
         m_items = merged;
+        rebuildCache();
         endInsertRows();
     }
 
@@ -46,15 +54,14 @@ public:
         if (!idx.isValid() || idx.row() >= m_items.size())
             return {};
         if (role == ItemRole)
-            return m_items.at(idx.row()).toObject().toVariantMap();
+            return idx.row() < m_cache.size() ? m_cache.at(idx.row()) : m_items.at(idx.row()).toObject().toVariantMap();
         if (role == SecRole) // utk ListView.section (chat: pinned → section)
             return m_items.at(idx.row()).toObject().value("pinned").toBool() ? "pin" : "all";
-        if (role == RxnRole) // reaksi sbg QVariantList LANGSUNG (first-class model Repeater).
-            return m_items.at(idx.row()).toObject().value("reactions").toArray().toVariantList();
         return {};
     }
-    QHash<int, QByteArray> roleNames() const override { return {{ItemRole, "m"}, {SecRole, "sec"}, {RxnRole, "rxn"}}; }
+    QHash<int, QByteArray> roleNames() const override { return {{ItemRole, "m"}, {SecRole, "sec"}}; }
 
 private:
     QJsonArray m_items;
+    QVector<QVariantMap> m_cache;  // stabil per-row (hindari QVariantMap fresh tiap data())
 };

@@ -111,5 +111,9 @@
   "a_image": "Imagen", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Crear encuesta", "poll_question": "Pregunta", "poll_option": "Opción",
   "send_contact": "Enviar contacto", "contact_name": "Nombre", "contact_phone": "Teléfono",
-  "result": "Resultado", "typing": "escribiendo…", "voice": "Nota de voz"
+  "result": "Resultado", "typing": "escribiendo…", "voice": "Nota de voz",
+  "rec_voice": "grabando audio…", "draft": "Borrador",
+  "splash_title": "WhatsLite para Escritorio",
+  "splash_sub": "Envía y recibe mensajes sin mantener tu teléfono en línea.",
+  "splash_enc": "Cifrado de extremo a extremo"
 }

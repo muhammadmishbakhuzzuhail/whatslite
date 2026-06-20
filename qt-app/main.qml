@@ -549,14 +549,38 @@ ApplicationWindow {
                                     // Baris 2: preview (kiri) + badge unread (kanan)
                                     RowLayout {
                                         Layout.fillWidth: true; spacing: 4
-                                        // Ticks preview (pesan terakhir keluar).
+                                        // State preview (ChatRow.svelte): typing > draft > ticks+preview.
+                                        readonly property bool rowTyping: !!model.m.typing
+                                        readonly property bool rowDraft: !rowTyping && !!model.m.draft && !isActive
+                                        // Mengetik… (.row-preview .typing: accent + italic).
+                                        Text {
+                                            visible: parent.rowTyping
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                            text: (model.m.typing && model.m.typing.name ? model.m.typing.name + " " : "")
+                                                  + i18n.t((model.m.typing && model.m.typing.rec) ? "rec_voice" : "typing")
+                                            color: theme.accent; font.italic: true; font.pixelSize: 14
+                                        }
+                                        // Draf: … (.row-preview .draft: #ef5350 weight 600 untuk label).
+                                        Text {
+                                            visible: parent.rowDraft
+                                            text: i18n.t("draft") + ":"
+                                            color: "#ef5350"; font.weight: Font.DemiBold; font.pixelSize: 14
+                                        }
+                                        Text {
+                                            visible: parent.rowDraft
+                                            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
+                                            text: model.m.draft || ""; color: theme.text2; font.pixelSize: 14
+                                        }
+                                        // Ticks preview (pesan terakhir keluar): "sent" → centang tunggal, "delivered"/"read" → ganda.
                                         Icon {
-                                            visible: model.m.sent === true
+                                            visible: !parent.rowTyping && !parent.rowDraft && model.m.sent === true
                                             Layout.preferredWidth: 16; Layout.preferredHeight: 12; Layout.alignment: Qt.AlignVCenter
-                                            vbox: "0 0 18 14"; svg: win.ico["checks"]
+                                            vbox: "0 0 18 14"
+                                            svg: model.m.status === "sent" ? win.ico["check"] : win.ico["checks"]
                                             color: model.m.status === "read" ? theme.tick : theme.text2
                                         }
                                         Text {
+                                            visible: !parent.rowTyping && !parent.rowDraft
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                             text: model.m.preview || ""; font.pixelSize: 14
                                             // Unread → preview lebih terang + medium (app.css .chat-row.unread .row-preview).
@@ -759,13 +783,46 @@ ApplicationWindow {
                         visible: searchInput.text !== ""
                         clip: true; model: searchModel
                         delegate: Item {
-                            width: ListView.view.width; height: 62; clip: true
-                            ColumnLayout {
-                                anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 12
-                                anchors.topMargin: 8; anchors.bottomMargin: 8; spacing: 2
-                                Text { text: "🔍 " + (model.m.chatName || ""); color: theme.text; font.pixelSize: 13; font.weight: Font.Medium }
-                                Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                    text: model.m.text || ""; color: theme.text2; font.pixelSize: 13 }
+                            width: ListView.view.width; implicitHeight: hitRow.height
+                            // .hit-row: radius var(--r)=14, padding 9/12, hover → theme.hover.
+                            Rectangle {
+                                id: hitRow
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.margins: 3
+                                height: hitContent.implicitHeight + 18   // 2×9 padding vertikal
+                                radius: theme.r
+                                color: hitHov.hovered ? theme.hover : "transparent"
+                                RowLayout {
+                                    id: hitContent
+                                    anchors.left: parent.left; anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: 12; anchors.rightMargin: 12
+                                    spacing: 12
+                                    // .hit-av: 40×40 lingkaran, inisial putih (Avatar component).
+                                    Avatar {
+                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
+                                        name: model.m.chatName || ""; jid: model.m.chatId || model.m.id || ""
+                                        base: app.mediaBase; accent: win.avatarColor(model.m.chatName || "?")
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 2
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                            text: model.m.chatName || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                        Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                            text: model.m.text || ""; color: theme.text2; font.pixelSize: 13 }
+                                    }
+                                }
+                                HoverHandler { id: hitHov }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        var cid = model.m.chatId || model.m.id || ""
+                                        if (cid !== "") {
+                                            win.selectedChat = { name: model.m.chatName || "", id: cid }
+                                            activeView = "chats"; searchInput.text = ""; app.openChat(cid)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -778,8 +835,9 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-            // Header conv
+            // Header conv — hanya saat ada chat terpilih (Svelte: {#if chat} … {:else} splash).
             Rectangle {
+                visible: win.selectedChat.id !== undefined
                 Layout.fillWidth: true; Layout.preferredHeight: 60
                 color: theme.headBg
                 // .conv-head border-bottom 1px divider (bukan border 4-sisi).
@@ -838,6 +896,7 @@ ApplicationWindow {
             }
             // Timeline — pola tervalidasi (ListView + reuseItems), bubble in/out
             Rectangle {
+                visible: win.selectedChat.id !== undefined
                 Layout.fillWidth: true; Layout.fillHeight: true
                 color: theme.wallpaper
                 // Doodle wallpaper WhatsApp (di-tile) + wash di atasnya (app.css).
@@ -1260,6 +1319,7 @@ ApplicationWindow {
             }
             // Composer (.composer: bg head-bg, min-height 64, pad 9/16, gap 10, border-top divider)
             Rectangle {
+                visible: win.selectedChat.id !== undefined
                 Layout.fillWidth: true; Layout.minimumHeight: 64; Layout.preferredHeight: 64
                 color: theme.headBg
                 Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 1; color: theme.divider }
@@ -1321,6 +1381,52 @@ ApplicationWindow {
                             color: theme.railIco }
                         HoverHandler { id: sendHov }
                         MouseArea { anchors.fill: parent; onClicked: if (sendBtn.hasText) composerInput.parent.send() }
+                    }
+                }
+            }
+            // Splash kosong (.conv-splash) — saat belum ada chat terpilih ({:else} di Conversation.svelte).
+            Item {
+                visible: win.selectedChat.id === undefined
+                Layout.fillWidth: true; Layout.fillHeight: true
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 48, 420)
+                    spacing: 0
+                    // .splash-logo: 200×200 lingkaran head-bg, ikon 96×96 text2 opacity .45, margin-bottom 20.
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 200; Layout.preferredHeight: 200
+                        Layout.bottomMargin: 20
+                        radius: 100; color: theme.headBg
+                        Icon {
+                            anchors.centerIn: parent; width: 96; height: 96
+                            svg: win.ico["chats"]; color: theme.text2; opacity: 0.45
+                        }
+                    }
+                    // h2: font 28, weight Light, text, margin-bottom 8.
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.bottomMargin: 8
+                        text: i18n.t("splash_title")
+                        font.pixelSize: 28; font.weight: Font.Light; color: theme.text
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    // p: text2, font 14, line-height 1.5, max-width 420, centered, wrap.
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.maximumWidth: 420
+                        text: i18n.t("splash_sub")
+                        color: theme.text2; font.pixelSize: 14
+                        lineHeight: 1.5; lineHeightMode: Text.ProportionalHeight
+                        wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
+                    }
+                    // .splash-enc: margin-top 34, gap 6, lock 14×14 + teks, semuanya text2 font 13.
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 34
+                        spacing: 6
+                        Icon { Layout.preferredWidth: 14; Layout.preferredHeight: 14; svg: win.ico["lock"]; color: theme.text2 }
+                        Text { text: i18n.t("splash_enc"); color: theme.text2; font.pixelSize: 13 }
                     }
                 }
             }

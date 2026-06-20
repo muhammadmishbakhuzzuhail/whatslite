@@ -20,6 +20,13 @@ ApplicationWindow {
     property string activeView: "chats" // chats | calls | starred
     property string chatFilter: "Semua" // filter chip aktif
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
+    property string lightboxCaption: "" // keterangan media di lightbox (Lightbox.svelte .lb-cap)
+    // Draf pratinjau media sebelum kirim (MediaPreviewModal.svelte). Engine Qt tak
+    // punya store mediaDraft → diisi lokal saat pilih gambar; null = tutup.
+    // Bentuk: { chatId, items:[{kind, url, name}] }. items kosong = popup tutup.
+    property var mediaDraft: null
+    property int mediaDraftIdx: 0
+    property bool mediaDraftOnce: false
     property bool locked: (typeof startLock !== "undefined") && startLock // app-lock PIN
     property var replyTo: null        // pesan yang sedang dibalas (banner composer)
     property var ctxChat: ({})        // chat target context-menu baris
@@ -86,7 +93,12 @@ ApplicationWindow {
         "removelabel": '<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
         "commongroup": '<circle cx="9" cy="9" r="3"/><path d="M2 20c0-3 3-5 7-5M16 8a3 3 0 0 1 0 6M15 20c0-2 2-4 5-4"/>',
         "herophoto": '<path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/>',
-        "leavegroup": '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>'
+        "leavegroup": '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
+        // --- Ikon pratinjau media (MediaPreviewModal.svelte inline svg) ---
+        "rotate": '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+        "crop": '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/>',
+        // Sekali-lihat (view-once): lingkaran dgn "1" — Composer/MediaPreview.
+        "viewonce": '<circle cx="12" cy="12" r="9"/>'
     })
     // Palet warna avatar per-kontak (dari mock.js Svelte) + hash nama → stabil.
     readonly property var avPalette: ["#6a9e3d", "#c95a8b", "#e0794f", "#b86ac9", "#3d8bd3", "#2aa89e", "#5a6ac9", "#d8902a"]
@@ -1462,8 +1474,10 @@ ApplicationWindow {
                                 acceptedButtons: Qt.RightButton | Qt.LeftButton
                                 onClicked: (mouse) => {
                                     if (mouse.button === Qt.RightButton) { win.ctxMsg = model.m; msgMenu.popup() }
-                                    else if (["image", "sticker", "gif"].indexOf(model.m.type) >= 0)
+                                    else if (["image", "sticker", "gif"].indexOf(model.m.type) >= 0) {
+                                        win.lightboxCaption = model.m.caption || model.m.text || ""
                                         win.lightboxSrc = (app.mediaBase || "") + "/media/" + (win.selectedChat.id || "") + "/" + model.m.id
+                                    }
                                 }
                             }
                         }
@@ -1823,6 +1837,7 @@ ApplicationWindow {
     Menu {
         id: msgMenu
         MenuItem { text: "👍  " + i18n.t("m_like"); onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
+        MenuItem { text: "😀  " + i18n.t("m_react"); onTriggered: reactionPopup.open() }
         MenuItem { text: "↩️  " + i18n.t("m_reply"); onTriggered: win.replyTo = win.ctxMsg }
         MenuItem {
             text: "✏️  " + i18n.t("m_edit"); visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
@@ -1843,7 +1858,7 @@ ApplicationWindow {
             text: "😀  " + i18n.t("m_reactions")
             visible: win.ctxMsg.reactions && win.ctxMsg.reactions.length > 0
             height: visible ? implicitHeight : 0
-            onTriggered: reactionPopup.open()
+            onTriggered: reactionDetailPopup.open()
         }
         MenuItem {
             text: "ℹ️  " + i18n.t("m_info")
@@ -2476,42 +2491,245 @@ ApplicationWindow {
         }
     }
 
-    // === Teruskan pesan (pilih chat tujuan) ===
+    // === Teruskan pesan (pilih chat tujuan) — .fwd-modal/.fwd-* (app.css) ===
     Popup {
         id: forwardPopup
-        width: 360; height: 440; modal: true
-        anchors.centerIn: Overlay.overlay; padding: 12
-        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        // .fwd-modal: width 380, max-height 70vh, sidebar-bg, radius 12.
+        width: 380; height: Math.min(win.height * 0.70, 520); modal: true
+        anchors.centerIn: Overlay.overlay; padding: 0
+        onOpened: fwdSearch.text = ""
+        // .modal-backdrop: rgba(0,0,0,.4)
+        Overlay.modal: Rectangle { color: "#66000000" }
+        background: Rectangle {
+            color: theme.sidebarBg; radius: 12; border.width: 0
+            // box-shadow: 0 8px 30px rgba(0,0,0,.4) — approx via layer drop shadow tak ada → border halus.
+        }
         ColumnLayout {
-            anchors.fill: parent; spacing: 8
-            Text { text: i18n.t("forward_to"); color: theme.text; font.pixelSize: 16; font.bold: true }
+            anchors.fill: parent; spacing: 0
+            // .fwd-head: padding 16, font 17, w600
+            Text {
+                Layout.fillWidth: true; leftPadding: 16; rightPadding: 16; topPadding: 16; bottomPadding: 16
+                text: i18n.t("forward_action"); color: theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
+            }
+            // .fwd-search: margin 0 12 10, padding 8/12, radius 8, search-bg
+            Rectangle {
+                Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 10
+                height: 36; radius: 8; color: theme.searchBg
+                TextInput {
+                    id: fwdSearch
+                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
+                    verticalAlignment: TextInput.AlignVCenter; clip: true
+                    font.pixelSize: 14; color: theme.text
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !fwdSearch.text && !fwdSearch.activeFocus
+                        text: i18n.t("search"); color: theme.text2; font.pixelSize: 14
+                    }
+                }
+            }
+            // .fwd-list
             ListView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: chatsModel
                 delegate: ItemDelegate {
-                    width: ListView.view.width; height: 56; clip: true
+                    width: ListView.view.width; clip: true
+                    // filter .fwd-row: case-insensitive name contains query
+                    visible: !fwdSearch.text || (model.m.name || "").toLowerCase().indexOf(fwdSearch.text.toLowerCase()) >= 0
+                    height: visible ? 54 : 0
                     onClicked: { app.forwardMsg(win.ctxMsg.id, model.m.id); forwardPopup.close() }
-                    background: Rectangle { radius: theme.r; color: hovered ? theme.hover : "transparent" }
+                    background: Rectangle { color: hovered ? theme.hover : "transparent" }
                     RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 8; spacing: 10
+                        anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
                         Avatar { Layout.preferredWidth: 38; Layout.preferredHeight: 38; fontSize: 15
                             name: model.m.name || ""; jid: model.m.id; base: app.mediaBase
                             accent: win.avatarColor(model.m.name || "?"); group: model.m.group === true }
-                        Text { Layout.fillWidth: true; text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
+                        Text { Layout.fillWidth: true; text: model.m.name || ""; color: theme.text; font.pixelSize: 15; elide: Text.ElideRight }
                     }
                 }
             }
         }
     }
 
-    // === Lightbox media (klik foto/stiker) ===
+    // === Lightbox media (Lightbox.svelte) — fullscreen gambar + simpan/tutup/caption ===
     Rectangle {
-        anchors.fill: parent; z: 150; visible: lightboxSrc !== ""; color: "#e6000000"
+        id: lightbox
+        anchors.fill: parent; z: 150; visible: lightboxSrc !== ""
+        color: "#eb000000"   // rgba(0,0,0,.92)
+        function close() { win.lightboxSrc = ""; win.lightboxCaption = "" }
+        // Klik backdrop → tutup (.lb on:click|self)
+        MouseArea { anchors.fill: parent; onClicked: lightbox.close() }
+        // .lb-media: max 94vw/90vh, radius 6
         Image {
-            anchors.centerIn: parent; width: parent.width * 0.8; height: parent.height * 0.8
-            fillMode: Image.PreserveAspectFit; source: lightboxSrc
+            id: lbImg
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width * 0.94)
+            height: Math.min(implicitHeight, parent.height * 0.90)
+            fillMode: Image.PreserveAspectFit; source: lightboxSrc; smooth: true
         }
-        Text { anchors.centerIn: parent; visible: parent.visible; text: "🖼️ (media dimuat dari engine)"; color: "#cccccc"; opacity: 0.5 }
-        MouseArea { anchors.fill: parent; onClicked: win.lightboxSrc = "" }
+        // Placeholder bila media tak tersedia dari engine (guarded).
+        Text {
+            anchors.centerIn: parent
+            visible: lightbox.visible && lbImg.status !== Image.Ready
+            text: "🖼️"; color: "#cccccc"; opacity: 0.5; font.pixelSize: 48
+        }
+        // .lb-save: lingkaran 38, rgba(255,255,255,.12), kiri tombol-tutup (right:70)
+        Rectangle {
+            anchors.top: parent.top; anchors.topMargin: 18
+            anchors.right: parent.right; anchors.rightMargin: 70
+            width: 38; height: 38; radius: 19
+            color: saveMa.containsMouse ? "#38ffffff" : "#1fffffff"
+            Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["download"]; color: "#ffffff" }
+            MouseArea { id: saveMa; anchors.fill: parent; hoverEnabled: true
+                onClicked: if (typeof app.saveMedia === "function") app.saveMedia(lightboxSrc) }
+        }
+        // .lb-x: lingkaran 38, rgba(255,255,255,.12), pojok kanan-atas (right:22)
+        Rectangle {
+            anchors.top: parent.top; anchors.topMargin: 18
+            anchors.right: parent.right; anchors.rightMargin: 22
+            width: 38; height: 38; radius: 19
+            color: xMa.containsMouse ? "#38ffffff" : "#1fffffff"
+            Icon { anchors.centerIn: parent; width: 16; height: 16; svg: win.ico["close"]; color: "#ffffff" }
+            MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; onClicked: lightbox.close() }
+        }
+        // .lb-cap: caption bawah, terpusat, #fff
+        Text {
+            visible: win.lightboxCaption !== ""
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 26
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 24; anchors.rightMargin: 24
+            horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+            text: win.lightboxCaption; color: "#ffffff"; font.pixelSize: 14
+        }
+    }
+
+    // === Pratinjau media sebelum kirim (MediaPreviewModal.svelte / .mp-*) ===
+    // CATATAN: engine Qt mengirim media langsung (sendMediaFile, tanpa caption/
+    // view-once param yg sampai backend). Shell visual ini faithful; caption +
+    // view-once + edit (rotate/crop) belum ter-wire ke backend → guarded/visual.
+    Popup {
+        id: mediaPreviewPopup
+        parent: Overlay.overlay
+        width: parent ? parent.width : 0; height: parent ? parent.height : 0
+        modal: true; padding: 0; closePolicy: Popup.CloseOnEscape
+        background: Rectangle { color: "#f70b141a" }   // rgba(11,20,26,.97)
+        readonly property var items: (win.mediaDraft && win.mediaDraft.items) ? win.mediaDraft.items : []
+        readonly property var cur: items.length > win.mediaDraftIdx ? items[win.mediaDraftIdx] : null
+        function doSend() {
+            var d = win.mediaDraft
+            if (d && d.items) {
+                for (var i = 0; i < d.items.length; i++) {
+                    // Caption + view-once tak diteruskan engine (sendMediaFile param tetap).
+                    app.sendMediaFile(d.items[i].kind, d.items[i].url)
+                }
+            }
+            mpCaption.text = ""
+            mediaPreviewPopup.close()
+        }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 0
+            // Header: tombol ✕ kiri-atas (.mp-x)
+            Item {
+                Layout.fillWidth: true; Layout.preferredHeight: 0; z: 2
+                Rectangle {
+                    x: 18; y: 16; width: 30; height: 30; radius: 15; color: "transparent"
+                    Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["close"]; color: "#ffffff" }
+                    MouseArea { anchors.fill: parent; onClicked: mediaPreviewPopup.close() }
+                }
+            }
+            // .mp-stage: media terpusat
+            Item {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                Image {
+                    anchors.centerIn: parent
+                    width: Math.min(implicitWidth, parent.width * 0.94)
+                    height: Math.min(implicitHeight, parent.height * 0.80)
+                    fillMode: Image.PreserveAspectFit; smooth: true
+                    source: mediaPreviewPopup.cur && mediaPreviewPopup.cur.kind === "image" ? mediaPreviewPopup.cur.url : ""
+                    visible: mediaPreviewPopup.cur && mediaPreviewPopup.cur.kind === "image"
+                }
+                // Video: placeholder (tak ada MediaPlayer di shell ini → guarded).
+                ColumnLayout {
+                    anchors.centerIn: parent; spacing: 8
+                    visible: mediaPreviewPopup.cur && mediaPreviewPopup.cur.kind === "video"
+                    Icon { Layout.alignment: Qt.AlignHCenter; width: 64; height: 64; svg: win.ico["play"]; color: "#ffffff" }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: mediaPreviewPopup.cur ? (mediaPreviewPopup.cur.name || "video") : ""
+                        color: "#ffffff"; font.pixelSize: 14 }
+                }
+            }
+            // .mp-edit: rotate/rotate/crop (hanya image). Visual; belum bake ke backend.
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6; spacing: 10
+                visible: mediaPreviewPopup.cur && mediaPreviewPopup.cur.kind === "image"
+                Repeater {
+                    model: [ {ic: "rotate", tip: "rotate", flip: false},
+                             {ic: "rotate", tip: "rotate", flip: true},
+                             {ic: "crop", tip: "crop", flip: false} ]
+                    delegate: Rectangle {
+                        Layout.preferredWidth: 44; Layout.preferredHeight: 38; radius: 19
+                        color: ebMa.containsMouse ? "#2effffff" : "#24ffffff"
+                        Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico[modelData.ic]; color: "#ffffff"
+                            transform: Scale { origin.x: 10; xScale: modelData.flip ? -1 : 1 } }
+                        MouseArea { id: ebMa; anchors.fill: parent; hoverEnabled: true }
+                    }
+                }
+            }
+            // .mp-strip: thumbnail (hanya bila >1 item)
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6; Layout.bottomMargin: 6; spacing: 8
+                visible: mediaPreviewPopup.items.length > 1
+                Repeater {
+                    model: mediaPreviewPopup.items
+                    delegate: Rectangle {
+                        Layout.preferredWidth: 54; Layout.preferredHeight: 54; radius: 8; clip: true
+                        color: "#1fffffff"
+                        border.width: index === win.mediaDraftIdx ? 2 : 0; border.color: theme.accent
+                        Image { anchors.fill: parent; anchors.margins: 2; fillMode: Image.PreserveAspectCrop
+                            source: modelData.kind === "image" ? modelData.url : "" }
+                        MouseArea { anchors.fill: parent; onClicked: win.mediaDraftIdx = index }
+                    }
+                }
+            }
+            // .mp-bar: caption + view-once + send
+            RowLayout {
+                Layout.fillWidth: true; Layout.maximumWidth: 760; Layout.alignment: Qt.AlignHCenter
+                Layout.leftMargin: 18; Layout.rightMargin: 18; Layout.topMargin: 14; Layout.bottomMargin: 22
+                spacing: 10
+                // .mp-caption: pill bg2, radius 22
+                Rectangle {
+                    Layout.fillWidth: true; height: 46; radius: 22; color: theme.bg2
+                    TextInput {
+                        id: mpCaption
+                        anchors.fill: parent; anchors.leftMargin: 18; anchors.rightMargin: 18
+                        verticalAlignment: TextInput.AlignVCenter; clip: true
+                        font.pixelSize: 14; color: theme.text
+                        Text { anchors.verticalCenter: parent.verticalCenter
+                            visible: !mpCaption.text && !mpCaption.activeFocus
+                            text: i18n.t("add_caption"); color: theme.text2; font.pixelSize: 14 }
+                    }
+                }
+                // .mp-once: lingkaran 48, toggle view-once
+                Rectangle {
+                    Layout.preferredWidth: 48; Layout.preferredHeight: 48; radius: 24
+                    color: win.mediaDraftOnce ? theme.accent : "#24ffffff"
+                    Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["viewonce"]; color: "#ffffff" }
+                    Text { anchors.centerIn: parent; text: "1"; color: "#ffffff"; font.pixelSize: 11; font.bold: true }
+                    MouseArea { anchors.fill: parent; onClicked: win.mediaDraftOnce = !win.mediaDraftOnce }
+                }
+                // .mp-send: lingkaran 48 accent
+                Rectangle {
+                    Layout.preferredWidth: 48; Layout.preferredHeight: 48; radius: 24; color: theme.accent
+                    Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["send"]; color: "#ffffff"; fill: "currentColor" }
+                    Rectangle {
+                        visible: mediaPreviewPopup.items.length > 1
+                        anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -4; anchors.rightMargin: -4
+                        width: 18; height: 18; radius: 9; color: "#ffffff"
+                        Text { anchors.centerIn: parent; text: mediaPreviewPopup.items.length; color: theme.accent; font.pixelSize: 11; font.bold: true }
+                    }
+                    MouseArea { anchors.fill: parent; onClicked: mediaPreviewPopup.doSend() }
+                }
+            }
+        }
+        // Esc / tutup → buang draf.
+        onClosed: { win.mediaDraft = null; win.mediaDraftIdx = 0; win.mediaDraftOnce = false }
     }
 
     // === App-lock (PIN) ===
@@ -2535,9 +2753,71 @@ ApplicationWindow {
         }
     }
 
-    // === Detail reaksi (siapa react apa) ===
+    // === Pemilih reaksi emoji (ReactionPicker.svelte / .rp-pop) ===
+    // Svelte memakai <emoji-picker> 352×400 (grid emoji penuh) → di Qt direplikasi
+    // sbg grid emoji bertema. Pilih → app.react(...). Bukan menu daftar siapa-react
+    // (itu reactionDetailPopup). Quick-reaction row di atas + grid kategori di bawah.
     Popup {
         id: reactionPopup
+        // .rp-pop: width min(352,92vw), height 400, radius 14, bg --bg
+        width: Math.min(352, win.width * 0.92); height: 400; modal: true
+        anchors.centerIn: Overlay.overlay; padding: 0
+        Overlay.modal: Rectangle { color: "transparent" }  // .rp-backdrop transparan
+        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line; clip: true }
+        // Daftar emoji ala WhatsApp quick-react + kategori umum.
+        readonly property var quick: ["👍","❤️","😂","😮","😢","🙏"]
+        readonly property var grid: [
+            "👍","❤️","😂","😮","😢","🙏","🔥","🎉","👏","😍","😅","😎",
+            "😭","😡","🥳","🤔","😴","🤗","😘","😜","🙄","😱","🤩","😏",
+            "👌","✌️","🤝","💪","🙌","👀","💯","✨","⭐","🌟","💔","💕",
+            "😊","😉","😋","😇","🤣","😆","🥰","😻","🤤","😬","😤","😩"
+        ]
+        function send(em) {
+            app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", em)
+            reactionPopup.close()
+        }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 0
+            // Baris reaksi-cepat (quick-reaction emojis + add).
+            RowLayout {
+                Layout.fillWidth: true; Layout.margins: 10; spacing: 6
+                Repeater {
+                    model: reactionPopup.quick
+                    delegate: ItemDelegate {
+                        Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                        background: Rectangle { radius: 20; color: hovered ? theme.hover : "transparent" }
+                        contentItem: Text { text: modelData; font.pixelSize: 24
+                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        onClicked: reactionPopup.send(modelData)
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                // "+" add — buka grid penuh (sudah tampil di bawah; ini penanda).
+                Rectangle {
+                    Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 18; color: theme.bg2
+                    Icon { anchors.centerIn: parent; width: 18; height: 18; svg: win.ico["plus"]; color: theme.text2 }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: theme.divider }
+            // Grid emoji penuh (pengganti <emoji-picker>).
+            GridView {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                cellWidth: width / 6; cellHeight: 44; model: reactionPopup.grid
+                delegate: ItemDelegate {
+                    width: GridView.view.cellWidth; height: 44
+                    background: Rectangle { color: hovered ? theme.hover : "transparent" }
+                    contentItem: Text { text: modelData; font.pixelSize: 22
+                        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    onClicked: reactionPopup.send(modelData)
+                }
+                ScrollIndicator.vertical: ScrollIndicator {}
+            }
+        }
+    }
+
+    // === Detail reaksi (siapa react apa) — daftar dari menu "Reaksi" ===
+    Popup {
+        id: reactionDetailPopup
         width: 300; height: 280; modal: true; anchors.centerIn: Overlay.overlay; padding: 12
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
@@ -2556,34 +2836,105 @@ ApplicationWindow {
         }
     }
 
-    // === Info pesan (tanda terima per-penerima) ===
+    // === Info pesan (MessageInfoModal.svelte / .nc-card + .mi-*) ===
+    // .nc-card: sidebar-bg, radius 14, padding 18, max-width 380.
+    // Grid status/type/sent/from/ID: field2 tak ada di mock engine (hanya readBy/
+    // deliveredTo) → dibungkus guard; muncul hanya bila app.detail menyediakannya.
     Popup {
         id: msgInfoPopup
-        width: 330; height: 340; modal: true; anchors.centerIn: Overlay.overlay; padding: 14
-        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
+        width: 380; height: Math.min(win.height * 0.84, 480); modal: true
+        anchors.centerIn: Overlay.overlay; padding: 18
+        Overlay.modal: Rectangle { color: "#66000000" }   // .nc-overlay rgba(0,0,0,.4)
+        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0 }
+        // Peta status → dot color (app.css .mi-dot.delivered #3d8bd3 / .read accent).
+        function statusLabel(s) {
+            return s === "read" ? i18n.t("status_read")
+                 : s === "delivered" ? i18n.t("status_delivered") : i18n.t("status_sent")
+        }
+        function typeLabel(t) {
+            var m = { text:"t_text", image:"t_photo", video:"t_video", sticker:"t_sticker", voice:"t_voice" }
+            return m[t] ? i18n.t(m[t]) : (t || "")
+        }
         ColumnLayout {
-            anchors.fill: parent; spacing: 6
-            Text { text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 16; font.bold: true }
-            Text { text: i18n.t("read") + " ✓✓"; color: theme.accent; font.pixelSize: 13; font.bold: true }
-            Repeater {
-                model: app.detail.readBy || []
-                delegate: RowLayout {
-                    Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 13 }
-                    Text { text: modelData.time || ""; color: theme.text2; font.pixelSize: 12 }
+            anchors.fill: parent; spacing: 0
+            // h3 judul (margin 0 0 14)
+            Text {
+                Layout.fillWidth: true; bottomPadding: 14
+                text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 16; font.weight: Font.DemiBold
+            }
+            Flickable {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                contentHeight: miCol.implicitHeight; flickableDirection: Flickable.VerticalFlick
+                ColumnLayout {
+                    id: miCol; width: parent.width; spacing: 0
+                    // .mi-grid (2 kolom auto/1fr, gap 8 16). Field di-guard pada app.detail.
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 2; columnSpacing: 16; rowSpacing: 8
+                        // Status (dengan dot)
+                        Text { visible: !!app.detail.status; text: i18n.t("mi_status"); color: theme.text2; font.pixelSize: 13 }
+                        RowLayout { visible: !!app.detail.status; spacing: 7
+                            Rectangle { width: 8; height: 8; radius: 4
+                                color: app.detail.status === "read" ? theme.accent
+                                     : app.detail.status === "delivered" ? "#3d8bd3" : theme.text2 }
+                            Text { text: msgInfoPopup.statusLabel(app.detail.status); color: theme.text; font.pixelSize: 14 }
+                        }
+                        // Tipe
+                        Text { visible: !!app.detail.type; text: i18n.t("mi_type"); color: theme.text2; font.pixelSize: 13 }
+                        Text { visible: !!app.detail.type; text: msgInfoPopup.typeLabel(app.detail.type); color: theme.text; font.pixelSize: 14 }
+                        // Terkirim (waktu)
+                        Text { visible: !!app.detail.sent; text: i18n.t("mi_sent"); color: theme.text2; font.pixelSize: 13 }
+                        Text { visible: !!app.detail.sent; text: app.detail.sent || ""; color: theme.text; font.pixelSize: 14 }
+                        // Dari (pengirim, bila bukan dari-saya)
+                        Text { visible: !!app.detail.sender && !app.detail.fromMe; text: i18n.t("mi_from"); color: theme.text2; font.pixelSize: 13 }
+                        Text { visible: !!app.detail.sender && !app.detail.fromMe; text: app.detail.sender || ""; color: theme.text; font.pixelSize: 14 }
+                        // ID
+                        Text { visible: !!app.detail.id; text: "ID"; color: theme.text2; font.pixelSize: 13 }
+                        Text { visible: !!app.detail.id; Layout.fillWidth: true; text: app.detail.id || ""
+                            color: theme.text; font.pixelSize: 11; font.family: "monospace"; wrapMode: Text.WrapAnywhere }
+                    }
+                    // .mi-sec Dibaca oleh (dot accent)
+                    RowLayout {
+                        visible: (app.detail.readBy || []).length > 0
+                        Layout.topMargin: 14; Layout.bottomMargin: 6; spacing: 7
+                        Rectangle { width: 8; height: 8; radius: 4; color: theme.accent }
+                        Text { text: i18n.t("mi_read_by").toUpperCase(); color: theme.text2
+                            font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 0.4 }
+                    }
+                    Repeater {
+                        model: app.detail.readBy || []
+                        delegate: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 3; Layout.bottomMargin: 3
+                            Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 14 }
+                            Text { text: modelData.time || ""; color: theme.text2; font.pixelSize: 12 }
+                        }
+                    }
+                    // .mi-sec Terkirim ke (dot #3d8bd3)
+                    RowLayout {
+                        visible: (app.detail.deliveredTo || []).length > 0
+                        Layout.topMargin: 14; Layout.bottomMargin: 6; spacing: 7
+                        Rectangle { width: 8; height: 8; radius: 4; color: "#3d8bd3" }
+                        Text { text: i18n.t("mi_delivered_to").toUpperCase(); color: theme.text2
+                            font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 0.4 }
+                    }
+                    Repeater {
+                        model: app.detail.deliveredTo || []
+                        delegate: RowLayout {
+                            Layout.fillWidth: true; Layout.topMargin: 3; Layout.bottomMargin: 3
+                            Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 14 }
+                            Text { text: modelData.time || ""; color: theme.text2; font.pixelSize: 12 }
+                        }
+                    }
+                    // .mi-note bila tak ada penerima yg baca/terkirim
+                    Text {
+                        visible: (app.detail.readBy || []).length === 0 && (app.detail.deliveredTo || []).length === 0
+                        Layout.fillWidth: true; Layout.topMargin: 14
+                        text: i18n.t("mi_note"); color: theme.text2; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.5
+                    }
                 }
             }
-            Text { text: i18n.t("delivered") + " ✓"; color: theme.text2; font.pixelSize: 13; font.bold: true }
-            Repeater {
-                model: app.detail.deliveredTo || []
-                delegate: RowLayout {
-                    Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: modelData.name || ""; color: theme.text; font.pixelSize: 13 }
-                    Text { text: modelData.time || ""; color: theme.text2; font.pixelSize: 12 }
-                }
-            }
-            Item { Layout.fillHeight: true }
-            Btn { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: msgInfoPopup.close() }
+            // .btn-accent close, justify flex-end, margin-top 16
+            Btn { Layout.alignment: Qt.AlignRight; Layout.topMargin: 16; accent: true
+                text: i18n.t("close"); onClicked: msgInfoPopup.close() }
         }
     }
 
@@ -2679,10 +3030,21 @@ ApplicationWindow {
     }
 
     // FileDialog media (gambar/video/audio/sticker/gif) → kirim file nyata.
+    // Untuk gambar/video: tampilkan pratinjau (MediaPreviewModal) dulu; lainnya
+    // langsung kirim (tak ada langkah caption di flow itu).
     FileDialog {
         id: mediaDialog
         property string kind: "image"
-        onAccepted: app.sendMediaFile(kind, selectedFile)
+        onAccepted: {
+            if (kind === "image" || kind === "video") {
+                win.mediaDraftIdx = 0; win.mediaDraftOnce = false
+                win.mediaDraft = { chatId: win.selectedChat.id || "",
+                    items: [{ kind: kind, url: selectedFile.toString(), name: "" }] }
+                mediaPreviewPopup.open()
+            } else {
+                app.sendMediaFile(kind, selectedFile)
+            }
+        }
     }
 
     // Dialog polling (pertanyaan + opsi).
@@ -2946,7 +3308,10 @@ ApplicationWindow {
             else if (openPanel === "forward") { win.ctxMsg = { id: "m1" }; forwardPopup.open() }
             else if (openPanel === "privacy") { app.loadDetail("GetPrivacy", ""); privacyPopup.open() }
             else if (openPanel === "msginfo") { app.loadDetailA("GetMessageInfo", ["c", "m1"]); msgInfoPopup.open() }
-            else if (openPanel === "reaction") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionPopup.open() }
+            else if (openPanel === "reaction") { win.ctxMsg = { id: "m1", senderId: "", dir: "in" }; reactionPopup.open() }
+            else if (openPanel === "reactiondetail") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionDetailPopup.open() }
+            else if (openPanel === "mediapreview") { win.mediaDraftIdx = 0; win.mediaDraftOnce = false; win.mediaDraft = { chatId: "c", items: [{ kind: "image", url: (app.mediaBase || "") + "/media/c/m1", name: "" }] }; mediaPreviewPopup.open() }
+            else if (openPanel === "lightbox") { win.lightboxCaption = "Sunset di pantai 🌅"; win.lightboxSrc = (app.mediaBase || "") + "/media/c/m1" }
             else if (openPanel === "poll") pollDialog.open()
             else if (openPanel === "contact") contactDialog.open()
             else { activeView = openPanel; win.loadView(openPanel) } // calls/starred/status/contacts/channels/communities/archived/scheduled

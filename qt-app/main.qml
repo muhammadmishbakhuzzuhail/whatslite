@@ -115,6 +115,74 @@ ApplicationWindow {
         readonly property real rLg: 18
     }
 
+    // --- Kontrol bertema (app.css). QtQuick Controls Basic = chrome putih → tak
+    // cocok tema gelap. Inline component override agar baca token theme. ---
+    // .btn-ghost (bg2/text) & .btn-accent (accent/#fff): radius 10, pad 9/16, w600.
+    component Btn: Button {
+        id: _btn
+        property bool accent: false
+        property bool danger: false
+        leftPadding: 16; rightPadding: 16; topPadding: 9; bottomPadding: 9
+        font.pixelSize: 14; font.weight: Font.DemiBold
+        background: Rectangle {
+            radius: 10
+            color: _btn.accent ? (_btn.down || _btn.hovered ? theme.accentDeep : theme.accent)
+                               : (_btn.hovered ? theme.hover : theme.bg2)
+            opacity: _btn.enabled ? 1 : 0.5
+        }
+        contentItem: Text {
+            text: _btn.text; font: _btn.font
+            color: _btn.accent ? "#ffffff" : (_btn.danger ? "#e35d6a" : theme.text)
+            opacity: _btn.enabled ? 1 : 0.5
+            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+        }
+    }
+    // .switch: 38x22 radius12; track accent(on)/text2(off); knob 18x18 #fff inset 2.
+    component Tog: Switch {
+        id: _sw
+        implicitWidth: 38; implicitHeight: 22
+        indicator: Rectangle {
+            implicitWidth: 38; implicitHeight: 22; radius: 12
+            color: _sw.checked ? theme.accent : theme.text2
+            Behavior on color { ColorAnimation { duration: 120 } }
+            Rectangle {
+                width: 18; height: 18; radius: 9; color: "#ffffff"; y: 2
+                x: _sw.checked ? parent.width - width - 2 : 2
+                Behavior on x { NumberAnimation { duration: 120 } }
+            }
+        }
+        contentItem: Item {}
+    }
+    // Combo bertema: field bg2, popup gelap (app.css surface input).
+    component Combo: ComboBox {
+        id: _cb
+        font.pixelSize: 13
+        implicitHeight: 34
+        background: Rectangle { radius: 8; color: theme.bg2; border.color: theme.line; border.width: 1 }
+        contentItem: Text {
+            leftPadding: 10; rightPadding: 28; text: _cb.displayText; font: _cb.font
+            color: theme.text; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+        }
+        indicator: Text {
+            x: _cb.width - 20; y: (_cb.height - height) / 2; text: "▾"; color: theme.text2; font.pixelSize: 11
+        }
+        popup: Popup {
+            y: _cb.height + 2; width: _cb.width; padding: 1
+            background: Rectangle { color: theme.bg2; radius: 8; border.color: theme.line }
+            contentItem: ListView {
+                clip: true; implicitHeight: contentHeight; model: _cb.popup.visible ? _cb.delegateModel : null
+                currentIndex: _cb.highlightedIndex
+                ScrollIndicator.vertical: ScrollIndicator {}
+            }
+        }
+        delegate: ItemDelegate {
+            width: _cb.width
+            contentItem: Text { text: _cb.textRole ? (Array.isArray(_cb.model) ? modelData[_cb.textRole] : model[_cb.textRole]) : modelData
+                color: theme.text; font.pixelSize: 13; verticalAlignment: Text.AlignVCenter }
+            background: Rectangle { color: hovered ? theme.hover : "transparent" }
+        }
+    }
+
     // --- i18n: default English, dapat ganti runtime. Kamus JSON per bahasa di
     // i18n/<code>.json (en/id ditulis tangan; bahasa lain tinggal tambah file).
     // Kunci hilang → fallback en → fallback kunci. Pola sama dgn FE Svelte. ---
@@ -698,7 +766,7 @@ ApplicationWindow {
                     spacing: 6
                     header: ColumnLayout {
                         width: timeline.width; spacing: 6
-                        Button {
+                        Btn {
                             Layout.alignment: Qt.AlignHCenter; flat: true; text: "↑ " + i18n.t("load_older")
                             visible: timeline.count > 0
                             onClicked: app.loadOlder()
@@ -1430,8 +1498,8 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("cancel"); onClicked: editPopup.close() }
-                Button { text: i18n.t("save"); onClicked: { app.editMessage(win.ctxMsg.id, editInput.text); editPopup.close() } }
+                Btn { text: i18n.t("cancel"); onClicked: editPopup.close() }
+                Btn { accent: true; text: i18n.t("save"); onClicked: { app.editMessage(win.ctxMsg.id, editInput.text); editPopup.close() } }
             }
         }
     }
@@ -1762,7 +1830,7 @@ ApplicationWindow {
                 }
             }
             Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: msgInfoPopup.close() }
+            Btn { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: msgInfoPopup.close() }
         }
     }
 
@@ -1786,7 +1854,7 @@ ApplicationWindow {
                 delegate: RowLayout {
                     Layout.fillWidth: true; spacing: 10
                     Text { Layout.fillWidth: true; text: modelData.label; color: theme.text; font.pixelSize: 14 }
-                    ComboBox {
+                    Combo {
                         implicitWidth: 130
                         model: ["everyone", "contacts", "nobody"]
                         currentIndex: Math.max(0, model.indexOf(app.detail[modelData.key] || "everyone"))
@@ -1795,7 +1863,7 @@ ApplicationWindow {
                 }
             }
             Item { Layout.fillHeight: true }
-            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: privacyPopup.close() }
+            Btn { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: privacyPopup.close() }
         }
     }
 
@@ -1821,8 +1889,8 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("cancel"); onClicked: docPopup.close() }
-                Button {
+                Btn { text: i18n.t("cancel"); onClicked: docPopup.close() }
+                Btn { accent: true;
                     text: i18n.t("send")
                     onClicked: { app.sendDocument(docDialog.picked, docName.text); docPopup.close() }
                 }
@@ -1885,8 +1953,8 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("cancel"); onClicked: pollDialog.close() }
-                Button {
+                Btn { text: i18n.t("cancel"); onClicked: pollDialog.close() }
+                Btn { accent: true;
                     text: i18n.t("send")
                     onClicked: {
                         var q = pollFields.itemAt(0).value
@@ -1917,8 +1985,8 @@ ApplicationWindow {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("cancel"); onClicked: contactDialog.close() }
-                Button { text: i18n.t("send"); onClicked: { if (ctName.text !== "" && ctPhone.text !== "") app.act("SendContact", [win.selectedChat.id, ctName.text, ctPhone.text]); contactDialog.close() } }
+                Btn { text: i18n.t("cancel"); onClicked: contactDialog.close() }
+                Btn { accent: true; text: i18n.t("send"); onClicked: { if (ctName.text !== "" && ctPhone.text !== "") app.act("SendContact", [win.selectedChat.id, ctName.text, ctPhone.text]); contactDialog.close() } }
             }
         }
     }
@@ -1932,7 +2000,7 @@ ApplicationWindow {
             anchors.fill: parent; spacing: 12
             Text { text: i18n.t("result"); color: theme.text; font.pixelSize: 16; font.bold: true }
             TextEdit { Layout.fillWidth: true; Layout.fillHeight: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: theme.text; font.pixelSize: 13; text: app.lastResult }
-            Button { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: resultPopup.close() }
+            Btn { Layout.alignment: Qt.AlignRight; text: i18n.t("close"); onClicked: resultPopup.close() }
         }
     }
     Connections {
@@ -1960,8 +2028,8 @@ ApplicationWindow {
                 TextInput { id: statusInput; anchors.fill: parent; anchors.margins: 10; color: theme.text; font.pixelSize: 14; wrapMode: TextInput.Wrap; clip: true } }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("photo_video"); onClicked: { app.act("PostMediaStatus", ["image", statusInput.text, ""]); statusPostPopup.close() } }
-                Button { text: i18n.t("send_text"); onClicked: { app.act("PostTextStatus", [statusInput.text, 0, 0]); statusInput.text = ""; statusPostPopup.close() } }
+                Btn { text: i18n.t("photo_video"); onClicked: { app.act("PostMediaStatus", ["image", statusInput.text, ""]); statusPostPopup.close() } }
+                Btn { accent: true; text: i18n.t("send_text"); onClicked: { app.act("PostTextStatus", [statusInput.text, 0, 0]); statusInput.text = ""; statusPostPopup.close() } }
             }
         }
     }
@@ -2059,8 +2127,8 @@ ApplicationWindow {
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight; spacing: 8
-                Button { text: i18n.t("cancel"); onClicked: promptDialog.close() }
-                Button { text: i18n.t("save"); onClicked: { if (promptDialog.cb) promptDialog.cb(promptInput.text); promptDialog.close() } }
+                Btn { text: i18n.t("cancel"); onClicked: promptDialog.close() }
+                Btn { accent: true; text: i18n.t("save"); onClicked: { if (promptDialog.cb) promptDialog.cb(promptInput.text); promptDialog.close() } }
             }
         }
     }

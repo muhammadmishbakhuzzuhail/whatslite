@@ -724,12 +724,13 @@ ApplicationWindow {
                             // Stiker: tanpa latar bubble (app.css .bubble.sticker-bubble transparan).
                             property bool bare: model.m.type === "sticker"
                             x: parent.out ? parent.width - width - 4 : 4
-                            width: content.implicitWidth + (bare ? 0 : 16)
+                            // .bubble: padding 8px 13px → +26 lebar (13×2), +16 tinggi (8×2).
+                            width: content.implicitWidth + (bare ? 0 : 26)
                             implicitHeight: content.implicitHeight + (bare ? 0 : 16)
-                            // Tail ala WhatsApp (app.css): sudut atas dekat pengirim 6px, lainnya r.
-                            radius: bare ? 0 : theme.r
-                            topLeftRadius: bare ? 0 : (parent.out ? theme.r : 6)
-                            topRightRadius: bare ? 0 : (parent.out ? 6 : theme.r)
+                            // Tail ala WhatsApp (app.css): radius --r-lg (18); sudut atas dekat pengirim 6px.
+                            radius: bare ? 0 : theme.rLg
+                            topLeftRadius: bare ? 0 : (parent.out ? theme.rLg : 6)
+                            topRightRadius: bare ? 0 : (parent.out ? 6 : theme.rLg)
                             color: bare ? "transparent" : (parent.out ? theme.outBg : theme.inBg)
                             border.color: bare ? "transparent" : theme.line
                             ColumnLayout {
@@ -737,7 +738,8 @@ ApplicationWindow {
                                 property var pmsg: model.m // tangkap pesan (hindari shadowing Repeater)
                                 anchors.left: parent.left
                                 anchors.top: parent.top
-                                anchors.margins: 8
+                                anchors.leftMargin: 13; anchors.rightMargin: 13   // .bubble padding-x
+                                anchors.topMargin: 8; anchors.bottomMargin: 8      // .bubble padding-y
                                 spacing: 3
                                 // Nama pengirim (grup, pesan masuk) — warna per-pengirim.
                                 Text {
@@ -947,7 +949,7 @@ ApplicationWindow {
                                     visible: ["document", "sticker", "gif", "poll", "voice", "contact", "location"].indexOf(model.m.type) < 0
                                     text: model.m.text || ""
                                     wrapMode: Text.WordWrap; color: theme.text; font.pixelSize: 15
-                                    Layout.maximumWidth: timeline.width * 0.66
+                                    Layout.maximumWidth: Math.min(timeline.width * 0.66, 560)  // .bubble max-width: min(66%, 560px)
                                 }
                                 // Waktu + ticks di pojok kanan-bawah bubble (ala WhatsApp).
                                 // Media gambar/video/gif pakai overlay di atas thumbnail → sembunyikan di sini.

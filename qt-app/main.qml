@@ -273,7 +273,9 @@ ApplicationWindow {
                 // Search (FTS pesan)
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38  // = Svelte .search (pad 9 + icon 18)
-                    Layout.margins: 8; radius: 19; color: theme.searchBg
+                    // .search-wrap padding 8px 12px.
+                    Layout.topMargin: 8; Layout.bottomMargin: 8; Layout.leftMargin: 12; Layout.rightMargin: 12
+                    radius: 19; color: theme.searchBg
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left; anchors.leftMargin: 14
@@ -295,7 +297,8 @@ ApplicationWindow {
                 }
                 // Filter chips (Semua / Belum dibaca N / Favorit / Grup N / +) — ala WhatsApp.
                 Flow {
-                    Layout.fillWidth: true; Layout.leftMargin: 14; Layout.rightMargin: 14; Layout.bottomMargin: 6; spacing: 8
+                    // .filters padding 4px 16px 10px.
+                    Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16; Layout.topMargin: 4; Layout.bottomMargin: 10; spacing: 8
                     visible: activeView === "chats" && searchInput.text === ""
                     Repeater {
                         // f = field pencacah (chip-n WhatsApp: Unread/Groups bawa jumlah).
@@ -333,6 +336,8 @@ ApplicationWindow {
                     ListView {
                         id: chatList
                         anchors.fill: parent
+                        // .chat-list padding 4px 8px → row inset 8 + .chat-row pad 12 = avatar @20px.
+                        anchors.leftMargin: 8; anchors.rightMargin: 8; anchors.topMargin: 4
                         visible: activeView === "chats" && searchInput.text === ""
                         clip: true; model: chatsModel; reuseItems: true
                         section.property: "sec"

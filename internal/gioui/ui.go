@@ -56,9 +56,10 @@ type UI struct {
 	ctxIdx      int                 // index pesan utk context-menu
 	ctxItems    [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
 
-	// OnPlayVoice: hook putar voice note (di-set cmd/whatslite-gio → internal/voice).
-	// gioui sendiri TETAP bebas-cgo (gio-shot ringan); voice cuma di binding app.
+	// OnPlayVoice/OnPlayVideo: hook media (di-set cmd/whatslite-gio → internal/
+	// voice + internal/video). gioui TETAP bebas-cgo (gio-shot ringan).
 	OnPlayVoice func(chat, id string)
+	OnPlayVideo func(chat, id, typ string)
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
@@ -504,9 +505,12 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	m := u.messages[idx]
 	if idx < len(u.msgClicks) {
 		for u.msgClicks[idx].Clicked(gtx) {
-			if m.Type == "voice" && u.OnPlayVoice != nil {
+			switch {
+			case m.Type == "voice" && u.OnPlayVoice != nil:
 				u.OnPlayVoice(u.selected, m.ID) // tap voice → putar
-			} else {
+			case (m.Type == "video" || m.Type == "gif") && u.OnPlayVideo != nil:
+				u.OnPlayVideo(u.selected, m.ID, m.Type) // tap video/gif → putar
+			default:
 				u.ctxIdx = idx
 				u.overlay = "msgctx" // klik pesan → context-menu
 			}

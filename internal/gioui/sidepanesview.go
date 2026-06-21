@@ -29,17 +29,19 @@ type spCall struct {
 
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
-func SidePanesView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	calls := []spCall{
-		{name: "Andi Pratama", time: "19.08", video: true, missed: true},
-		{name: "Keluarga", time: "18.41", video: false, missed: false},
-		{name: "Sarah", time: "17.55", video: false, missed: true},
-		{name: "Tim Proyek X", time: "16.20", video: true, missed: false},
+	if calls == nil { // data demo (render standalone / gio-shot)
+		calls = []spCall{
+			{name: "Andi Pratama", time: "19.08", video: true, missed: true},
+			{name: "Keluarga", time: "18.41", video: false, missed: false},
+			{name: "Sarah", time: "17.55", video: false, missed: true},
+			{name: "Tim Proyek X", time: "16.20", video: true, missed: false},
+		}
 	}
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,

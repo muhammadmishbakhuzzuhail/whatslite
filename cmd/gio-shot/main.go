@@ -72,7 +72,7 @@ func main() {
 		case "convheader":
 			gioui.ConvHeaderView(gtx, th, t)
 		case "sidepanes":
-			gioui.SidePanesView(gtx, th, t)
+			gioui.SidePanesView(gtx, th, t, nil)
 		case "modals":
 			gioui.ModalsView(gtx, th, t, nil)
 		case "infodrawer":

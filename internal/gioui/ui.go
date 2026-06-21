@@ -663,7 +663,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		u.handleSettings(gtx)
 		return SettingsView(gtx, u.th, u.t, &SettingsCtl{Dark: u.dark, Clicks: u.setClicks[:]})
 	case "calls":
-		return SidePanesView(gtx, u.th, u.t)
+		return SidePanesView(gtx, u.th, u.t, u.callRows())
 	case "contacts":
 		return ContactsPaneView(gtx, u.th, u.t)
 	case "status":
@@ -1173,6 +1173,25 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 		return lbl.Layout(gtx)
 	})
 	return layout.Dimensions{Size: sz}
+}
+
+// callRows membangun baris pane Panggilan dari log nyata (core.GetCalls). nil =
+// mode demo (render standalone). Nama sudah di-resolve ulang di GetCalls.
+func (u *UI) callRows() []spCall {
+	if u.core == nil {
+		return nil
+	}
+	cs := u.core.GetCalls()
+	out := make([]spCall, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, spCall{
+			name:   c.Name,
+			time:   time.Unix(c.TS, 0).Format("15.04"),
+			video:  c.Video,
+			missed: c.Status == "missed",
+		})
+	}
+	return out
 }
 
 // maybeLoadOlder — bila daftar pesan tergulir mendekati ATAS, minta 50 pesan lebih

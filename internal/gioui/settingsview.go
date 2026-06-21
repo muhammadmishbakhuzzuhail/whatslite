@@ -35,6 +35,7 @@ type SettingsCtl struct {
 	ProfName, ProfAbout, ProfPhone string
 	StoreDB, StoreMedia            int64
 	StoreMsgs                      int
+	Privacy                        map[string]string // nama setelan → nilai
 }
 
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
@@ -68,20 +69,71 @@ func SettingsView(gtx layout.Context, th *material.Theme, t Theme, ctl *Settings
 // setSubPane — sub-pane setelan dgn header + tombol kembali.
 func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
 	title := "Profil"
-	if ctl.Sub == "storage" {
+	switch ctl.Sub {
+	case "storage":
 		title = "Penyimpanan"
+	case "privacy":
+		title = "Privasi"
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return setSubHead(gtx, th, t, title, ctl.Back)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			if ctl.Sub == "storage" {
+			switch ctl.Sub {
+			case "storage":
 				return setStoragePane(gtx, th, t, ctl)
+			case "privacy":
+				return setPrivacyPane(gtx, th, t, ctl)
 			}
 			return setProfilePane(gtx, th, t, ctl)
 		}),
 	)
+}
+
+// setPrivacyPane — daftar setelan privasi (label ramah + nilai). Read-only.
+func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	order := []struct{ key, label string }{
+		{"lastseen", "Terakhir dilihat"}, {"online", "Online"}, {"profile", "Foto profil"},
+		{"about", "Tentang"}, {"status", "Status"}, {"readreceipts", "Laporan dibaca"},
+		{"groupadd", "Grup"}, {"calladd", "Panggilan"},
+	}
+	children := make([]layout.FlexChild, 0, len(order))
+	for i := range order {
+		o := order[i]
+		val, ok := ctl.Privacy[o.key]
+		if !ok {
+			continue
+		}
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return setProfileField(gtx, th, t, o.label, privValue(val))
+		}))
+	}
+	if len(children) == 0 {
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return setProfileField(gtx, th, t, "Privasi", "—")
+		}))
+	}
+	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
+// privValue — terjemahkan nilai privasi WA ke Indonesia.
+func privValue(v string) string {
+	switch v {
+	case "all":
+		return "Semua orang"
+	case "contacts":
+		return "Kontak saya"
+	case "contact_blacklist":
+		return "Kontak saya kecuali…"
+	case "none":
+		return "Tidak ada"
+	case "match_last_seen":
+		return "Sama spt terakhir dilihat"
+	}
+	return v
 }
 
 // setSubHead — header sub-pane: ikon back + judul.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
 //
-// theme.go — token warna WhatsLite (disalin dari frontend/src/styles/app.css)
-// untuk paritas visual. Dark + light.
+// theme.go — token warna WhatsApp Web ASLI (palet resmi web.whatsapp.com).
+// Dark + light. (Sebelumnya pakai app.css WhatsLite; user pilih WA-Web persis.)
 package gioui
 
 import "image/color"
@@ -64,24 +64,28 @@ func LightTheme() Theme { return newTheme(false) }
 
 func newTheme(dark bool) Theme {
 	if dark {
+		// WhatsApp Web dark (resmi): panel #111b21, header/bubble-in #202c33,
+		// bubble-out #005c4b, wallpaper #0b141a, accent #00a884, border #2a3942.
 		return Theme{
-			Dark: true, RailBg: hex("#11161d"), RailIco: hex("#8a97a3"),
-			SidebarBg: hex("#0e1318"), Bg: hex("#1a232a"), Bg2: hex("#222e35"),
-			HeadBg: hex("#11171e"), Line: hex("#2a3942"), Divider: hex("#1c252d"),
-			SearchBg: hex("#1b232b"), Wallpaper: hex("#0a0f14"), InBg: hex("#1f2c33"),
-			OutBg: hex("#144d37"), Text: hex("#e7ecf0"), Text2: hex("#8a97a3"),
-			Hover: hex("#161d24"), Accent: hex("#06c98c"), Tick: hex("#34b7f1"),
-			Selected: hex("#12302a"),
+			Dark: true, RailBg: hex("#202c33"), RailIco: hex("#aebac1"),
+			SidebarBg: hex("#111b21"), Bg: hex("#111b21"), Bg2: hex("#202c33"),
+			HeadBg: hex("#202c33"), Line: hex("#2a3942"), Divider: hex("#222d34"),
+			SearchBg: hex("#202c33"), Wallpaper: hex("#0b141a"), InBg: hex("#202c33"),
+			OutBg: hex("#005c4b"), Text: hex("#e9edef"), Text2: hex("#8696a0"),
+			Hover: hex("#2a3942"), Accent: hex("#00a884"), Tick: hex("#53bdeb"),
+			Selected: hex("#2a3942"),
 		}
 	}
+	// WhatsApp Web light (resmi): panel #fff, list-header #f0f2f5, bubble-out
+	// #d9fdd3, wallpaper #efeae2, accent #00a884, border #e9edef.
 	return Theme{
-		Dark: false, RailBg: hex("#f4f6fa"), RailIco: hex("#6b7785"),
-		SidebarBg: hex("#ffffff"), Bg: hex("#eef1f6"), Bg2: hex("#f0f2f5"),
-		HeadBg: hex("#ffffff"), Line: hex("#e4e8ee"), Divider: hex("#eceff3"),
-		SearchBg: hex("#eef1f6"), Wallpaper: hex("#eef1f6"), InBg: hex("#ffffff"),
+		Dark: false, RailBg: hex("#f0f2f5"), RailIco: hex("#54656f"),
+		SidebarBg: hex("#ffffff"), Bg: hex("#ffffff"), Bg2: hex("#f0f2f5"),
+		HeadBg: hex("#f0f2f5"), Line: hex("#e9edef"), Divider: hex("#f0f2f5"),
+		SearchBg: hex("#f0f2f5"), Wallpaper: hex("#efeae2"), InBg: hex("#ffffff"),
 		OutBg: hex("#d9fdd3"), Text: hex("#111b21"), Text2: hex("#667781"),
-		Hover: hex("#f2f4f8"), Accent: hex("#06b67f"), Tick: hex("#53bdeb"),
-		Selected: hex("#e7f6ef"),
+		Hover: hex("#f5f6f6"), Accent: hex("#00a884"), Tick: hex("#53bdeb"),
+		Selected: hex("#f0f2f5"),
 	}
 }
 

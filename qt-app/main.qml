@@ -90,6 +90,8 @@ ApplicationWindow {
         "send": '<path d="M3 11l18-8-8 18-2-7-8-3z"/>',
         "emoji": '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/>',
         "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+        // Stop (kotak) — tombol saat sedang merekam suara (Composer.svelte recording icon).
+        "stop": '<rect x="6" y="6" width="12" height="12" rx="2"/>',
         "pollq": '<path d="M5 5h14M5 12h9M5 19h5"/>',
         "play": '<path d="M8 5v14l11-7z"/>',
         "locpin": '<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
@@ -1967,9 +1969,21 @@ ApplicationWindow {
             }
             // Composer (.composer: bg head-bg, min-height 64, pad 9/16, gap 10, border-top divider)
             Rectangle {
+                id: composer
                 visible: win.selectedChat.id !== undefined
                 Layout.fillWidth: true; Layout.minimumHeight: 64; Layout.preferredHeight: 64
                 color: theme.headBg
+                // Status rekam suara — VISUAL-ONLY (tak ada backend capture). Mic → rec-bar + mic merah.
+                property bool recording: false
+                property int recElapsed: 0
+                Timer {
+                    id: recTimer; interval: 1000; repeat: true; running: composer.recording
+                    onTriggered: composer.recElapsed += 1
+                }
+                function recLabel() {
+                    var m = Math.floor(composer.recElapsed / 60), s = composer.recElapsed % 60
+                    return m + ":" + (s < 10 ? "0" + s : s)
+                }
                 Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 1; color: theme.divider }
                 RowLayout {
                     anchors.fill: parent
@@ -1989,7 +2003,40 @@ ApplicationWindow {
                         HoverHandler { id: attachHov }
                         MouseArea { anchors.fill: parent; onClicked: attachMenu.popup() }
                     }
+                    // .rec-bar: bar rekam suara (titik merah + timer + slide-to-cancel + delete). Visual-only.
                     Rectangle {
+                        visible: composer.recording
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        radius: 22; color: theme.searchBg
+                        RowLayout {
+                            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 10
+                            // .rec-dot: titik merah berkedip.
+                            Rectangle {
+                                Layout.preferredWidth: 11; Layout.preferredHeight: 11; radius: 5.5; color: "#e0463e"
+                                SequentialAnimation on opacity {
+                                    running: composer.recording; loops: Animation.Infinite
+                                    NumberAnimation { from: 1; to: 0.3; duration: 500; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { from: 0.3; to: 1; duration: 500; easing.type: Easing.InOutQuad }
+                                }
+                            }
+                            // .rec-time: elapsed.
+                            Text { text: composer.recLabel(); color: theme.text; font.pixelSize: 15; font.bold: true }
+                            // .rec-hint: "Recording…" / slide-to-cancel.
+                            Text { Layout.fillWidth: true; text: i18n.t("recording"); color: theme.text2; font.pixelSize: 13 }
+                            // .rec-cancel: hapus (trash) → batal.
+                            Rectangle {
+                                Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14
+                                color: recCancelHov.hovered ? theme.hover : "transparent"
+                                Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["trash"]
+                                    color: recCancelHov.hovered ? "#e0463e" : theme.text2 }
+                                HoverHandler { id: recCancelHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { composer.recording = false; composer.recElapsed = 0 } }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        visible: !composer.recording
                         Layout.fillWidth: true; Layout.fillHeight: true
                         radius: 22; color: theme.searchBg
                         function send() {
@@ -2023,12 +2070,21 @@ ApplicationWindow {
                         id: sendBtn
                         property bool hasText: composerInput.text.trim() !== ""
                         width: 40; height: 40; radius: 20
-                        color: sendHov.hovered ? theme.hover : "transparent"
+                        // .icon-btn.mic.rec: bg merah #e0392b (hover #c0392b), ikon #fff saat merekam.
+                        color: composer.recording ? (sendHov.hovered ? "#c0392b" : "#e0392b")
+                                                   : (sendHov.hovered ? theme.hover : "transparent")
                         Icon { anchors.centerIn: parent; width: 22; height: 22
-                            svg: sendBtn.hasText ? win.ico["send"] : win.ico["mic"]
-                            color: theme.railIco }
+                            // teks → kirim; rekam → stop (kirim voice); kosong → mic.
+                            svg: sendBtn.hasText ? win.ico["send"]
+                               : composer.recording ? win.ico["stop"]
+                               : win.ico["mic"]
+                            color: composer.recording ? "#ffffff" : theme.railIco }
                         HoverHandler { id: sendHov }
-                        MouseArea { anchors.fill: parent; onClicked: if (sendBtn.hasText) composerInput.parent.send() }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
+                            if (sendBtn.hasText) { composerInput.parent.send(); return }
+                            if (composer.recording) { composer.recording = false; composer.recElapsed = 0 }  // stop → "kirim" (visual)
+                            else { composer.recElapsed = 0; composer.recording = true }  // mic → mulai rekam (visual)
+                        } }
                     }
                 }
             }
@@ -2971,6 +3027,39 @@ ApplicationWindow {
                                     Rectangle { visible: parent.parent.isAdm; implicitWidth: adm.implicitWidth + 12; implicitHeight: 18
                                         radius: 8; color: "transparent"; border.width: 1; border.color: theme.accent
                                         Text { id: adm; anchors.centerIn: parent; text: i18n.t("member_admin"); color: theme.accent; font.pixelSize: 11 } }
+                                    // .m-actions: aksi admin per-anggota (promote/demote/remove).
+                                    // Tampil hanya bila amAdmin & bukan diri sendiri. Functional: UpdateGroupParticipants.
+                                    RowLayout {
+                                        id: mActions
+                                        spacing: 4
+                                        property bool memberIsAdmin: modelData.isAdmin === true || modelData.admin === true
+                                        property bool isSelf: modelData.isSelf === true || modelData.isMe === true || modelData.self === true
+                                        visible: detailPopup.amAdmin && !isSelf
+                                        property string mjid: modelData.jid || modelData.id || ""
+                                        // ▲ promote (jika belum admin) / ▼ demote (jika admin)
+                                        Rectangle {
+                                            implicitWidth: mPromote.implicitWidth + 12; implicitHeight: 22; radius: 6
+                                            color: mPromHov.hovered ? theme.hover : "transparent"
+                                            Text { id: mPromote; anchors.centerIn: parent
+                                                text: mActions.memberIsAdmin ? "▼" : "▲"
+                                                color: mPromHov.hovered ? theme.text : theme.text2; font.pixelSize: 13 }
+                                            HoverHandler { id: mPromHov }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: app.act("UpdateGroupParticipants",
+                                                    [win.selectedChat.id, [mActions.mjid],
+                                                     mActions.memberIsAdmin ? "demote" : "promote"]) }
+                                        }
+                                        // ✕ remove (danger)
+                                        Rectangle {
+                                            implicitWidth: mRemove.implicitWidth + 12; implicitHeight: 22; radius: 6
+                                            color: mRemHov.hovered ? theme.hover : "transparent"
+                                            Text { id: mRemove; anchors.centerIn: parent; text: "✕"
+                                                color: mRemHov.hovered ? "#e0463e" : theme.text2; font.pixelSize: 13 }
+                                            HoverHandler { id: mRemHov }
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: app.act("UpdateGroupParticipants", [win.selectedChat.id, [mActions.mjid], "remove"]) }
+                                        }
+                                    }
                                 }
                                 HoverHandler { id: memHov }
                             }
@@ -3000,6 +3089,44 @@ ApplicationWindow {
                         }
                     }
                     InfoSep { visible: !detailPopup.isGroup }
+
+                    // Galeri media bersama ("Media, links & docs"). InfoPanel.svelte .info-block + .media-grid.
+                    // DATA-GUARDED: engine Qt belum punya endpoint shared-media → tampil hanya bila app.detail.media ada.
+                    ColumnLayout {
+                        id: mediaBlock
+                        property var mediaList: (app.detail.media instanceof Array) ? app.detail.media : []
+                        Layout.fillWidth: true; visible: mediaList.length > 0; spacing: 0
+                        Text {
+                            Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.topMargin: 14; Layout.bottomMargin: 8
+                            text: i18n.t("info_media") + " (" + mediaBlock.mediaList.length + ")"
+                            color: theme.text2; font.pixelSize: 13
+                        }
+                        // .media-grid: grid 3 kolom, gap 4, cell aspect-ratio 1, radius 8, bg2.
+                        GridLayout {
+                            Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 8
+                            columns: 3; columnSpacing: 4; rowSpacing: 4
+                            Repeater {
+                                model: mediaBlock.mediaList
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: width   // aspect-ratio: 1
+                                    radius: 8; color: theme.bg2; clip: true
+                                    Image {
+                                        anchors.fill: parent; fillMode: Image.PreserveAspectCrop
+                                        source: (typeof modelData === "string") ? modelData : (modelData.url || modelData.thumb || "")
+                                        visible: status === Image.Ready
+                                    }
+                                    // .media-play overlay untuk video/gif.
+                                    Rectangle {
+                                        anchors.fill: parent; color: "#40000000"
+                                        visible: modelData && (modelData.type === "video" || modelData.type === "gif")
+                                        Text { anchors.centerIn: parent; text: "▶"; color: "#ffffff"; font.pixelSize: 18 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    InfoSep { visible: mediaBlock.visible }
 
                     // Wallpaper per-chat (swatch). LOKAL/visual — engine Qt belum punya store wallpaper. NOTE.
                     ColumnLayout {

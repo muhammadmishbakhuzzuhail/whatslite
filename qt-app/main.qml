@@ -609,14 +609,17 @@ ApplicationWindow {
                 anchors.topMargin: 14
                 spacing: 6
                 Repeater {
+                    // Urutan inti = Rail.svelte: chats, calls, status, channels,
+                    // communities, contacts. View ekstra (starred/archived/scheduled)
+                    // tak punya padanan di Svelte → ditaruh setelah inti.
                     model: [
                         { view: "chats" },
+                        { view: "calls" },
                         { view: "status" },
                         { view: "channels" },
                         { view: "communities" },
-                        { view: "starred" },
-                        { view: "calls" },
                         { view: "contacts" },
+                        { view: "starred" },
                         { view: "archived" },
                         { view: "scheduled" }
                     ]
@@ -1051,7 +1054,7 @@ ApplicationWindow {
                                     group: model.m.group === true
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2   // .row-bottom margin-top 2
                                     RowLayout {
                                         Layout.fillWidth: true; spacing: 6
                                         Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
@@ -1464,7 +1467,7 @@ ApplicationWindow {
                                     group: model.m.group === true
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2   // .row-bottom margin-top 2
                                     RowLayout {
                                         Layout.fillWidth: true; spacing: 6
                                         Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
@@ -1580,11 +1583,11 @@ ApplicationWindow {
                             id: searchCol
                             width: searchOverlay.width
                             spacing: 0
-                            // .sc-types: flex gap 6, padding 8/12 (Svelte style override).
+                            // .sc-types: flex gap 6, padding 6px 12px 8px (Svelte style override).
                             Flow {
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 12; Layout.rightMargin: 12
-                                Layout.topMargin: 8; Layout.bottomMargin: 8; spacing: 6
+                                Layout.topMargin: 6; Layout.bottomMargin: 8; spacing: 6
                                 Repeater {
                                     model: ["all", "image", "video", "document", "link", "voice"]
                                     delegate: Rectangle {
@@ -1616,7 +1619,7 @@ ApplicationWindow {
                                 delegate: Rectangle {
                                     id: scRow
                                     Layout.fillWidth: true
-                                    Layout.leftMargin: 0; Layout.rightMargin: 0
+                                    Layout.leftMargin: 8; Layout.rightMargin: 8   // .chat-list padding 4px 8px inset
                                     Layout.preferredHeight: scRowRow.implicitHeight + 20  // .chat-row padding 10/10
                                     Layout.bottomMargin: 1
                                     radius: theme.r
@@ -1803,6 +1806,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
                     color: searchHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }   // .icon-btn transition background .15s
                     visible: win.selectedChat.id !== undefined
                     Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["search"]; color: theme.railIco }
                     HoverHandler { id: searchHov }
@@ -1815,6 +1819,7 @@ ApplicationWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
                     color: ovHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }   // .icon-btn transition background .15s
                     Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["overflow"]; color: theme.railIco }
                     HoverHandler { id: ovHov }
                     MouseArea { anchors.fill: parent; onClicked: overflowMenu.popup() }
@@ -2510,9 +2515,12 @@ ApplicationWindow {
     // === Picker stiker (shell ala StickerPicker.svelte: tab + cari + grid) ===
     Popup {
         id: stickerPopup
-        width: 520; height: 400
-        x: win.width - width - 16
-        y: win.height - height - 70
+        // .stk-panel: absolute bottom:68 left:8 right:8 max-width:520 — relatif kolom chat
+        //   (rail 64 + sidebar 400 = 464). Lebar regang sampai 520, anchored kiri.
+        height: 400
+        width: Math.min(520, win.width - 464 - 16)
+        x: 464 + 8
+        y: win.height - height - 68
         padding: 10
         property string tab: "online"   // online|recents|pack|create (StickerPicker.svelte default)
         property string cat: "trending" // kategori aktif (.gif-cat.on mengikuti query); "★"=favView
@@ -2560,7 +2568,9 @@ ApplicationWindow {
                         property bool on: stickerPopup.cat === modelData
                         height: 24; radius: 12; width: cat.implicitWidth + 20
                         color: on ? theme.accent : theme.bg2
-                        Text { id: cat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
+                        Text { id: cat; anchors.centerIn: parent; font.pixelSize: 12
+                            // .gif-cat { text-transform: capitalize } — kapital tiap kata (★ tetap)
+                            text: modelData === "★" ? modelData : modelData.replace(/\b\w/g, function(c){ return c.toUpperCase() })
                             color: parent.on ? "#ffffff" : theme.text2 }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
                             stickerPopup.cat = modelData
@@ -2654,9 +2664,12 @@ ApplicationWindow {
     // === Picker GIF (shell ala GifPicker.svelte: tab + cari + grid) ===
     Popup {
         id: gifPopup
-        width: 520; height: 400
-        x: win.width - width - 16
-        y: win.height - height - 70
+        // .gif-panel: absolute bottom:68 left:8 right:8 max-width:520 — relatif kolom chat
+        //   (rail 64 + sidebar 400 = 464). Lebar regang sampai 520, anchored kiri.
+        height: 400
+        width: Math.min(520, win.width - 464 - 16)
+        x: 464 + 8
+        y: win.height - height - 68
         padding: 10
         property string tab: "online"   // GifPicker.svelte: hanya grid online (trending); default online
         property string cat: "trending" // kategori aktif (.gif-cat.on mengikuti query); "★"=favView
@@ -2666,7 +2679,7 @@ ApplicationWindow {
             // GifPicker.svelte has no tabs — single online grid only.
             // Cari (tab online).
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: 36; radius: 9; color: theme.bg2; border.color: theme.line
+                Layout.fillWidth: true; implicitHeight: 36; radius: 10; color: theme.bg2; border.color: theme.line
                 visible: gifPopup.tab === "online"
                 RowLayout {
                     // .gif-search: plain input, padding 8px 12px, no leading icon.
@@ -2687,7 +2700,9 @@ ApplicationWindow {
                         property bool on: gifPopup.cat === modelData
                         height: 24; radius: 12; width: gcat.implicitWidth + 20
                         color: on ? theme.accent : theme.bg2
-                        Text { id: gcat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
+                        Text { id: gcat; anchors.centerIn: parent; font.pixelSize: 12
+                            // .gif-cat { text-transform: capitalize } — kapital tiap kata (★ tetap)
+                            text: modelData === "★" ? modelData : modelData.replace(/\b\w/g, function(c){ return c.toUpperCase() })
                             color: parent.on ? "#ffffff" : theme.text2 }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
                             gifPopup.cat = modelData
@@ -2996,7 +3011,7 @@ ApplicationWindow {
                     // 7) Keep deleted (anti-delete)
                     SettingsItem {
                         icon: "trash"; name: i18n.t("keep_deleted"); desc: i18n.t("keep_deleted_d")
-                        clickable: false
+                        onActivated: app.setKeepDeleted(!app.keepDeleted)
                         trailing: Tog { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
                     }
 
@@ -3164,7 +3179,7 @@ ApplicationWindow {
                     // 15) Jalan di latar belakang
                     SettingsItem {
                         icon: "window"; name: i18n.t("bg_run"); desc: i18n.t("bg_run_d")
-                        clickable: false
+                        onActivated: { settingsPopup.bgRun = !settingsPopup.bgRun; app.act("SetBackgroundClose", [settingsPopup.bgRun]) }
                         trailing: Tog { checked: settingsPopup.bgRun; onToggled: { settingsPopup.bgRun = checked; app.act("SetBackgroundClose", [checked]) } }
                     }
 
@@ -3468,7 +3483,7 @@ ApplicationWindow {
                                         spacing: 4
                                         property bool memberIsAdmin: modelData.isAdmin === true || modelData.admin === true
                                         property bool isSelf: modelData.isSelf === true || modelData.isMe === true || modelData.self === true
-                                        visible: detailPopup.amAdmin && !isSelf
+                                        visible: detailPopup.amAdmin
                                         property string mjid: modelData.jid || modelData.id || ""
                                         // ▲ promote (jika belum admin) / ▼ demote (jika admin)
                                         Rectangle {
@@ -3648,13 +3663,13 @@ ApplicationWindow {
 
                     // Pesan sementara (disappearing) — select. NOTE: backing SetDisappearing.
                     Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 56; color: disHov.hovered ? theme.hover : "transparent"
+                        Layout.fillWidth: true; implicitHeight: 50; color: disHov.hovered ? theme.hover : "transparent"
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
                             Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["clock"]; color: theme.text2 }
                             Text { Layout.fillWidth: true; text: i18n.t("disappearing_msg"); color: theme.text; font.pixelSize: 15 }
                             Combo {
-                                implicitWidth: 120
+                                implicitContentWidthPolicy: ComboBox.WidestText
                                 textRole: "label"
                                 model: [{ label: i18n.t("disappearing_off"), v: 0 },
                                         { label: i18n.t("disappearing_24h"), v: 86400 },
@@ -3758,7 +3773,9 @@ ApplicationWindow {
     Popup {
         id: forwardPopup
         // .fwd-modal: width 380, max-height 70vh, sidebar-bg, radius 12.
-        width: 380; height: Math.min(win.height * 0.70, 520); modal: true
+        //   sizes to content (head+search+list) clamped at 70vh (no fixed fill).
+        width: 380; modal: true
+        height: Math.min(win.height * 0.70, fwdContent.implicitHeight + fwdList.contentHeight)
         anchors.centerIn: Overlay.overlay; padding: 0
         onOpened: fwdSearch.text = ""
         // .modal-backdrop: rgba(0,0,0,.4)
@@ -3773,16 +3790,17 @@ ApplicationWindow {
             }
         }
         ColumnLayout {
+            id: fwdContent
             anchors.fill: parent; spacing: 0
             // .fwd-head: padding 16, font 17, w600
             Text {
                 Layout.fillWidth: true; leftPadding: 16; rightPadding: 16; topPadding: 16; bottomPadding: 16
                 text: i18n.t("forward_action"); color: theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
             }
-            // .fwd-search: margin 0 12 10, padding 8/12, radius 8, search-bg
+            // .fwd-search: margin 0 12 10, padding 8/12 → ~32px box, radius 8, search-bg
             Rectangle {
                 Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.bottomMargin: 10
-                height: 36; radius: 8; color: theme.searchBg
+                height: 32; radius: 8; color: theme.searchBg
                 TextInput {
                     id: fwdSearch
                     anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
@@ -3797,12 +3815,14 @@ ApplicationWindow {
             }
             // .fwd-list
             ListView {
+                id: fwdList
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: chatsModel
                 delegate: ItemDelegate {
                     width: ListView.view.width; clip: true
                     // filter .fwd-row: case-insensitive name contains query
                     visible: !fwdSearch.text || (model.m.name || "").toLowerCase().indexOf(fwdSearch.text.toLowerCase()) >= 0
-                    height: visible ? 54 : 0
+                    // .fwd-row: avatar.sm 40 + 8/8 padding = 56
+                    height: visible ? 56 : 0
                     onClicked: { app.forwardMsg(win.ctxMsg.id, model.m.id); forwardPopup.close() }
                     background: Rectangle { color: hovered ? theme.hover : "transparent" }
                     RowLayout {
@@ -4166,7 +4186,7 @@ ApplicationWindow {
             // h3 judul (margin 0 0 14)
             Text {
                 Layout.fillWidth: true; bottomPadding: 14
-                text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 19; font.weight: Font.Bold
+                text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 17; font.weight: Font.Bold
             }
             Flickable {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
@@ -4420,14 +4440,15 @@ ApplicationWindow {
 
             Flickable {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                contentHeight: suCol.implicitHeight; flickableDirection: Flickable.VerticalFlick
+                contentHeight: suCol.implicitHeight + 16; flickableDirection: Flickable.VerticalFlick
                 ScrollIndicator.vertical: ScrollIndicator {}
                 ColumnLayout {
-                    id: suCol; width: parent.width; spacing: 0
+                    // scroll container padding: 8px 4px (StoragePane.svelte markup)
+                    id: suCol; x: 4; y: 8; width: parent.width - 8; spacing: 0
 
-                    // .su-totals (text-align center, pad 18 16)
+                    // .su-totals (text-align center, pad 18 16 → bottom 18)
                     ColumnLayout {
-                        Layout.fillWidth: true; Layout.topMargin: 18; Layout.bottomMargin: 0; spacing: 0
+                        Layout.fillWidth: true; Layout.topMargin: 18; Layout.bottomMargin: 18; spacing: 0
                         // .su-total 30px bold
                         Text { Layout.alignment: Qt.AlignHCenter; text: storagePopup.fmt(storagePopup.total)
                             color: theme.text; font.pixelSize: 30; font.weight: Font.Bold }

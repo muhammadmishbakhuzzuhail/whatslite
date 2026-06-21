@@ -74,7 +74,7 @@ func main() {
 		case "sidepanes":
 			gioui.SidePanesView(gtx, th, t)
 		case "modals":
-			gioui.ModalsView(gtx, th, t)
+			gioui.ModalsView(gtx, th, t, nil)
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t)
 		case "search":

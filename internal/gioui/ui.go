@@ -61,6 +61,11 @@ type UI struct {
 	reactSender string
 	reactFromMe bool
 
+	// teruskan: id pesan sumber + klik per-chat tujuan + batal.
+	fwdMsgID  string
+	fwdClicks []widget.Clickable
+	fwdCancel widget.Clickable
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -282,7 +287,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		InfoDrawerView(gtx, u.th, u.t)
 		off.Pop()
 	case "forward":
-		ModalsView(gtx, u.th, u.t)
+		u.handleForward(gtx)
+		ModalsView(gtx, u.th, u.t, u.fwdCtl())
 	case "msginfo":
 		MsgInfoView(gtx, u.th, u.t)
 	case "reaction":
@@ -327,7 +333,43 @@ func (u *UI) doCtxAction(label string) {
 		u.replyTo, u.replyName, u.replyText = m.ID, u.replyDisplayName(m), m.Text
 	case "Reaksi":
 		u.reactMsgID, u.reactSender, u.reactFromMe = m.ID, m.SenderID, fromMe // target reaksi
+	case "Teruskan":
+		u.fwdMsgID = m.ID // pesan sumber utk diteruskan (sumber = u.selected)
 	}
+}
+
+// handleForward memproses modal teruskan: ketuk chat tujuan → core.Forward; batal.
+func (u *UI) handleForward(gtx layout.Context) {
+	if len(u.fwdClicks) < len(u.chats) {
+		u.fwdClicks = make([]widget.Clickable, len(u.chats))
+	}
+	for u.fwdCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for i := range u.chats {
+		if i >= len(u.fwdClicks) {
+			break
+		}
+		for u.fwdClicks[i].Clicked(gtx) {
+			if u.core != nil && u.fwdMsgID != "" {
+				u.core.Forward(u.selected, u.fwdMsgID, u.chats[i].ID)
+			}
+			u.fwdMsgID = ""
+			u.overlay = ""
+		}
+	}
+}
+
+// fwdCtl membangun controller modal teruskan dari daftar chat nyata.
+func (u *UI) fwdCtl() *FwdCtl {
+	rows := make([]mvRow, len(u.chats))
+	for i, c := range u.chats {
+		rows[i] = mvRow{name: c.Name, sub: c.Preview}
+	}
+	if len(u.fwdClicks) < len(u.chats) {
+		u.fwdClicks = make([]widget.Clickable, len(u.chats))
+	}
+	return &FwdCtl{Rows: rows, Clicks: u.fwdClicks, Cancel: &u.fwdCancel}
 }
 
 // handleReaction memproses klik emoji di pemilih reaksi: bila ada target pesan →

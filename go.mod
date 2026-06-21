@@ -20,6 +20,8 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/ebitengine/oto/v3 v3.4.0 // indirect
+	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect

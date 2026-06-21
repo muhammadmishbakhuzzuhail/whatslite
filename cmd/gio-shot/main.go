@@ -101,6 +101,18 @@ func main() {
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)
+		case "app-info":
+			ui.SetOverlay("info")
+			ui.Layout(gtx)
+		case "app-reaction":
+			ui.SetOverlay("reaction")
+			ui.Layout(gtx)
+		case "app-forward":
+			ui.SetOverlay("forward")
+			ui.Layout(gtx)
+		case "app-picker":
+			ui.SetOverlay("picker")
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

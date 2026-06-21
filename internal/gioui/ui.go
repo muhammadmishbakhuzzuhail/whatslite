@@ -47,7 +47,16 @@ type UI struct {
 	railClicks []widget.Clickable
 	editor     widget.Editor
 	photos     map[string]paint.ImageOp // foto avatar in-memory (jid/nama → op)
+
+	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox
+	headerClick widget.Clickable
+	emojiClick  widget.Clickable
+	attachClick widget.Clickable
+	backdrop    widget.Clickable
 }
+
+// SetOverlay: utk render-tool menguji popup headless.
+func (u *UI) SetOverlay(o string) { u.overlay = o }
 
 // railNav = tombol nav rail kiri (glyph emoji + view tujuan).
 var railNav = []struct{ view, glyph string }{
@@ -127,11 +136,51 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 		return LoginView(gtx, u.th, u.t)
 	}
 
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+	dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.rail(gtx) }),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.sidebar(gtx) }),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.conversation(gtx) }),
 	)
+	if u.overlay != "" {
+		u.overlayLayer(gtx)
+	}
+	return dims
+}
+
+// overlayLayer — popup di atas app (backdrop klik → tutup). Komponen wave dipakai
+// langsung; modal punya backdrop sendiri, info-drawer di-posisikan kanan.
+func (u *UI) overlayLayer(gtx layout.Context) {
+	for u.backdrop.Clicked(gtx) {
+		u.overlay = ""
+	}
+	// backdrop clickable penuh (di belakang isi)
+	u.backdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Dimensions{Size: gtx.Constraints.Max}
+	})
+	switch u.overlay {
+	case "info":
+		// drawer kanan 400px + dim di kiri-nya
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		w := gtx.Dp(400)
+		off := op.Offset(image.Pt(gtx.Constraints.Max.X-w, 0)).Push(gtx.Ops)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		InfoDrawerView(gtx, u.th, u.t)
+		off.Pop()
+	case "forward":
+		ModalsView(gtx, u.th, u.t)
+	case "msginfo":
+		MsgInfoView(gtx, u.th, u.t)
+	case "reaction":
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Max.X, gtx.Constraints.Max.Y = gtx.Dp(352), gtx.Dp(400)
+			return ReactionPickerView(gtx, u.th, u.t)
+		})
+	case "lightbox":
+		LightboxView(gtx, u.th, u.t)
+	case "picker":
+		PickerView(gtx, u.th, u.t)
+	}
 }
 
 // ---- rail (nav kiri, tombol klik → ganti view) ----
@@ -367,8 +416,12 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 }
 
 func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
+	for u.headerClick.Clicked(gtx) {
+		u.overlay = "info" // klik header → info drawer
+	}
 	h := gtx.Dp(60)
 	sz := image.Pt(gtx.Constraints.Max.X, h)
+	u.headerClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: sz} })
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
@@ -459,39 +512,73 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	for u.emojiClick.Clicked(gtx) {
+		u.overlay = "reaction"
+	}
+	for u.attachClick.Clicked(gtx) {
+		u.overlay = "picker"
+	}
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		pillH := gtx.Dp(40)
-		psz := image.Pt(gtx.Constraints.Max.X, pillH)
-		rr := gtx.Dp(22)
-		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-		gtx.Constraints.Min = psz
-		// Kirim saat Enter (Editor.Submit). core nil (demo) → tak kirim.
-		for {
-			ev, ok := u.editor.Update(gtx)
-			if !ok {
-				break
-			}
-			if _, ok := ev.(widget.SubmitEvent); ok {
-				txt := strings.TrimSpace(u.editor.Text())
-				if txt != "" && u.core != nil && u.selected != "" {
-					u.core.SendText(u.selected, txt)
-					u.messages = u.core.GetMessages(u.selected)
-				}
-				u.editor.SetText("")
-			}
-		}
-		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				ed := material.Editor(u.th, &u.editor, "Ketik pesan")
-				ed.Color = u.t.Text
-				ed.HintColor = u.t.Text2
-				ed.TextSize = 15
-				return ed.Layout(gtx)
-			})
-		})
-		return layout.Dimensions{Size: psz}
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "😊") }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "＋") }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "🎙️") }),
+		)
 	})
 	return layout.Dimensions{Size: sz}
+}
+
+func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, glyph string) layout.Dimensions {
+	body := func(gtx layout.Context) layout.Dimensions {
+		d := gtx.Dp(40)
+		sz := image.Pt(d, d)
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return material.Label(u.th, 20, glyph).Layout(gtx)
+		})
+		return layout.Dimensions{Size: sz}
+	}
+	if c == nil {
+		return body(gtx)
+	}
+	return c.Layout(gtx, body)
+}
+
+func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
+	pillH := gtx.Dp(40)
+	psz := image.Pt(gtx.Constraints.Max.X, pillH)
+	rr := gtx.Dp(22)
+	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	gtx.Constraints.Min = psz
+	// Kirim saat Enter (Editor.Submit). core nil (demo) → tak kirim.
+	for {
+		ev, ok := u.editor.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			txt := strings.TrimSpace(u.editor.Text())
+			if txt != "" && u.core != nil && u.selected != "" {
+				u.core.SendText(u.selected, txt)
+				u.messages = u.core.GetMessages(u.selected)
+			}
+			u.editor.SetText("")
+		}
+	}
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			ed := material.Editor(u.th, &u.editor, "Ketik pesan")
+			ed.Color = u.t.Text
+			ed.HintColor = u.t.Text2
+			ed.TextSize = 15
+			return ed.Layout(gtx)
+		})
+	})
+	return layout.Dimensions{Size: psz}
 }
 
 // ---- helpers ----

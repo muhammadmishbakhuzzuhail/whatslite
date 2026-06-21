@@ -10,6 +10,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import Qt5Compat.GraphicalEffects
+import Qt.labs.settings
 
 ApplicationWindow {
     id: win
@@ -23,6 +24,18 @@ ApplicationWindow {
     property string activeView: "chats" // chats | calls | starred
     property string myName: (app.profile && app.profile.name) ? app.profile.name : "Saya"   // GetProfile (AppController.profile)
     property string myAbout: (app.profile && app.profile.about) ? app.profile.about : ""    // status/about profil sendiri
+
+    // Wallpaper per-chat (Svelte setWallpaper/localStorage) — persist via Qt.labs.settings.
+    property var wallpapers: ({})
+    Settings { id: wpStore; category: "wallpapers"; property string data: "{}" }
+    Component.onCompleted: { try { wallpapers = JSON.parse(wpStore.data) || {} } catch (e) { wallpapers = {} } }
+    function setWallpaper(cid, c) {
+        if (!cid) return
+        var m = Object.assign({}, wallpapers)
+        if (c) m[cid] = c; else delete m[cid]
+        wallpapers = m; wpStore.data = JSON.stringify(m)
+    }
+    function chatWallpaper(cid) { return (cid && wallpapers[cid]) ? wallpapers[cid] : "" }
     property string chatFilter: "Semua" // filter chip aktif
     property string channelTab: "following" // ChannelsPane .ch-tabs: following | discover
     property var commOpen: ({})       // CommunitiesPane: jid/nama komunitas → diperluas (chevron)
@@ -1735,7 +1748,8 @@ ApplicationWindow {
             Rectangle {
                 visible: win.selectedChat.id !== undefined
                 Layout.fillWidth: true; Layout.fillHeight: true
-                color: theme.wallpaper
+                // Wallpaper per-chat (override) atau default tema.
+                color: (win.selectedChat.id && win.wallpapers[win.selectedChat.id]) ? win.wallpapers[win.selectedChat.id] : theme.wallpaper
                 // Doodle wallpaper WhatsApp (di-tile) + wash di atasnya (app.css).
                 Image {
                     anchors.fill: parent; fillMode: Image.Tile; opacity: 0.5
@@ -3046,10 +3060,8 @@ ApplicationWindow {
         property string groupDesc: app.detail.topic || app.detail.desc || ""
         // Saya admin? real→amAdmin. Mock tak set field → tampilkan UI admin (members ada).
         property bool amAdmin: app.detail.amAdmin === true || (app.detail.amAdmin === undefined && app.detail.members !== undefined)
-        // Wallpaper per-chat: LOKAL/visual saja (engine Qt belum punya store wallpaper).
-        property string wallpaperSel: ""
         // Reset state UI sementara tiap buka (deskripsi klem, filter anggota).
-        onOpened: { infoCol.descOpen = false; infoCol.memberQ = ""; wallpaperSel = "" }
+        onOpened: { infoCol.descOpen = false; infoCol.memberQ = "" }
         background: Rectangle {
             color: theme.sidebarBg
             Rectangle { width: 1; height: parent.height; color: theme.divider } // border-left
@@ -3397,19 +3409,19 @@ ApplicationWindow {
                                 Text { text: i18n.t("wallpaper"); color: theme.text; font.pixelSize: 15 }
                                 Flow {
                                     Layout.fillWidth: true; spacing: 6
-                                    // .wp-sw.none (bg2, ✕)
+                                    // .wp-sw.none (bg2, ✕) — terapkan & persist via win.setWallpaper.
                                     Rectangle {
                                         width: 26; height: 26; radius: 7; color: theme.bg2
-                                        border.width: 2; border.color: detailPopup.wallpaperSel === "" ? theme.accent : "transparent"
+                                        border.width: 2; border.color: win.chatWallpaper(win.selectedChat.id) === "" ? theme.accent : "transparent"
                                         Text { anchors.centerIn: parent; text: "✕"; color: theme.text2; font.pixelSize: 12 }
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: detailPopup.wallpaperSel = "" }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setWallpaper(win.selectedChat.id, "") }
                                     }
                                     Repeater {
                                         model: ["#0b141a", "#111b21", "#1d2b22", "#2a2233", "#11212b", "#e7ddd0", "#d9e4dd", "#efe7da"]
                                         delegate: Rectangle {
                                             width: 26; height: 26; radius: 7; color: modelData
-                                            border.width: 2; border.color: detailPopup.wallpaperSel === modelData ? theme.accent : "transparent"
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: detailPopup.wallpaperSel = modelData }
+                                            border.width: 2; border.color: win.chatWallpaper(win.selectedChat.id) === modelData ? theme.accent : "transparent"
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.setWallpaper(win.selectedChat.id, modelData) }
                                         }
                                     }
                                 }

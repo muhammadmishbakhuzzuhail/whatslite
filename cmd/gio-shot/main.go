@@ -142,6 +142,9 @@ func main() {
 		case "app-attach":
 			ui.SetOverlay("attach")
 			ui.Layout(gtx)
+		case "app-pollcompose":
+			ui.SetOverlay("pollcompose")
+			ui.Layout(gtx)
 		case "app-chatctx":
 			ui.SetOverlay("chatctx")
 			ui.Layout(gtx)

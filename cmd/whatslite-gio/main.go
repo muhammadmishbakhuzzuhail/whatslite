@@ -19,6 +19,7 @@ import (
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/video"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/voice"
 )
 
@@ -53,6 +54,15 @@ func run(w *gioapp.Window, core *app.App) error {
 		ui.OnPlayVoice = func(chat, id string) {
 			if b := core.MediaBytes(chat, id); len(b) > 0 {
 				go func() { _, _ = voice.Play(b) }()
+			}
+		}
+		ui.OnPlayVideo = func(chat, id, typ string) {
+			if b := core.MediaBytes(chat, id); len(b) > 0 {
+				ext := ".mp4"
+				if typ == "gif" {
+					ext = ".gif"
+				}
+				go func() { _, _ = video.PlayBytes(b, ext) }()
 			}
 		}
 	}

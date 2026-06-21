@@ -21,8 +21,8 @@ ApplicationWindow {
     property real reactY: -1
     property var selectedChat: ({})  // chat aktif (utk header)
     property string activeView: "chats" // chats | calls | starred
-    property string myName: "Saya"   // nama profil sendiri (avatar rail, GetProfile)
-    property string myAbout: ""       // status/about profil sendiri (settings-profile sp-about)
+    property string myName: (app.profile && app.profile.name) ? app.profile.name : "Saya"   // GetProfile (AppController.profile)
+    property string myAbout: (app.profile && app.profile.about) ? app.profile.about : ""    // status/about profil sendiri
     property string chatFilter: "Semua" // filter chip aktif
     property string channelTab: "following" // ChannelsPane .ch-tabs: following | discover
     property var commOpen: ({})       // CommunitiesPane: jid/nama komunitas → diperluas (chevron)
@@ -1690,7 +1690,11 @@ ApplicationWindow {
                         Text { Layout.fillWidth: true; elide: Text.ElideRight
                             text: win.selectedChat.name || i18n.t("pick_conversation"); font.pixelSize: 16; font.weight: Font.Medium; color: theme.text }
                         Text { visible: win.selectedChat.id !== undefined
-                            text: app.typing ? i18n.t("typing") : (win.selectedChat.status || (win.selectedChat.group ? "klik utk info grup" : "online"))
+                            // typing: rekam suara > "{nama} mengetik…" (grup) > "mengetik…".
+                            text: app.typing
+                                  ? (app.typingRec ? i18n.t("typing_rec")
+                                     : ((win.selectedChat.group && app.typingName !== "") ? app.typingName + " " + i18n.t("typing") : i18n.t("typing")))
+                                  : (win.selectedChat.status || (win.selectedChat.group ? "klik utk info grup" : "online"))
                             color: app.typing ? theme.accent : theme.text2; font.pixelSize: 13 }
                     }
                 }

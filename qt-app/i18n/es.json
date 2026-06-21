@@ -161,7 +161,7 @@
   "a_image": "Imagen", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Crear encuesta", "poll_question": "Pregunta", "poll_option": "Opción",
   "send_contact": "Enviar contacto", "contact_name": "Nombre", "contact_phone": "Teléfono",
-  "result": "Resultado", "media_generic": "multimedia", "typing": "escribiendo…", "voice": "Nota de voz",
+  "result": "Resultado", "media_generic": "multimedia", "typing": "escribiendo…", "typing_rec": "grabando audio…", "voice": "Nota de voz",
   "rec_voice": "grabando audio…", "draft": "Borrador",
   "call_video": "Videollamada", "call_voice": "Llamada de voz",
   "call_missed": "Perdida", "call_rejected": "Rechazada",

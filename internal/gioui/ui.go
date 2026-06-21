@@ -291,6 +291,9 @@ func (u *UI) handleSettings(gtx layout.Context) {
 			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
 		}
 	}
+	for u.setClicks[5].Clicked(gtx) { // Privasi → sub-pane
+		u.setSub = "privacy"
+	}
 	for u.setClicks[6].Clicked(gtx) { // Penyimpanan → sub-pane
 		u.setSub = "storage"
 	}
@@ -698,11 +701,17 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 			Dark: u.dark, KeepDeleted: kd, Clicks: u.setClicks[:],
 			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
 		}
-		if u.setSub != "" && u.core != nil { // data sub-pane (profil/penyimpanan)
-			p := u.core.GetProfile()
-			ctl.ProfName, ctl.ProfAbout, ctl.ProfPhone = p.Name, p.About, p.Phone
-			s := u.core.GetStorageUsage()
-			ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
+		if u.setSub != "" && u.core != nil { // data sub-pane
+			switch u.setSub {
+			case "profile":
+				p := u.core.GetProfile()
+				ctl.ProfName, ctl.ProfAbout, ctl.ProfPhone = p.Name, p.About, p.Phone
+			case "storage":
+				s := u.core.GetStorageUsage()
+				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
+			case "privacy":
+				ctl.Privacy = u.core.GetPrivacy()
+			}
 		}
 		return SettingsView(gtx, u.th, u.t, ctl)
 	case "calls":

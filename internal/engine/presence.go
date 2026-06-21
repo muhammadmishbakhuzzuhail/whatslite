@@ -23,6 +23,18 @@ func (e *Engine) OnConnected(fn func()) {
 	})
 }
 
+// OnOfflineSyncCompleted mendaftarkan callback saat server SELESAI mengirim ulang
+// event yg tertunda selama kita offline (count = jumlah event). Inilah sinyal
+// "backlog offline sudah masuk" → UI bisa refresh data terbaru (setara akhir
+// updates.getDifference Telegram). Tanpa ini, app tak tahu kapan data terkini siap.
+func (e *Engine) OnOfflineSyncCompleted(fn func(count int)) {
+	e.Client.AddEventHandler(func(evt interface{}) {
+		if o, ok := evt.(*events.OfflineSyncCompleted); ok {
+			fn(o.Count)
+		}
+	})
+}
+
 // OnLoggedOut mendaftarkan callback saat akun ter-logout (mis. dari perangkat lain / 401).
 func (e *Engine) OnLoggedOut(fn func()) {
 	e.Client.AddEventHandler(func(evt interface{}) {

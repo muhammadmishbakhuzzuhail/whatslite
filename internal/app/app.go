@@ -352,6 +352,16 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		})
 	})
 
+	// Backlog offline selesai di-replay server → rekonsiliasi & refresh UI dgn data
+	// terkini (akhir "get-difference" Telegram: tahu kapan data terbaru siap).
+	eng.OnOfflineSyncCompleted(func(count int) {
+		a.bg(func() {
+			_ = store.RecomputeSummaries(a.ctx)
+			a.emit("wa:syncprogress", count)
+			a.emit("wa:sync", "")
+		})
+	})
+
 	eng.OnConnected(func() {
 		a.emit("wa:ready", eng.SelfJID())
 		// Rekonsiliasi buku alamat tiap reconnect (fullSync snapshot kontak) — tanpa

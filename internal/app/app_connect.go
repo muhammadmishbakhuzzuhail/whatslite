@@ -39,10 +39,12 @@ func (a *App) Connect() {
 		for evt := range qr {
 			switch evt.Event {
 			case "code":
+				a.setQR(evt.Code) // simpan kode mentah utk UI in-process (Gio)
 				if png, e := qrcode.Encode(evt.Code, qrcode.Medium, 320); e == nil {
 					a.emit("wa:qr", "data:image/png;base64,"+base64.StdEncoding.EncodeToString(png))
 				}
 			case "success":
+				a.setQR("") // sudah tertaut → kosongkan QR
 				a.emit("wa:ready", a.eng.SelfJID())
 			case "timeout":
 				a.emit("wa:qr_timeout", "")
@@ -85,6 +87,22 @@ func (a *App) Logout() {
 	}
 	_ = a.eng.Logout(a.ctx)
 	a.emit("wa:loggedout", "")
+}
+
+// setQR menyimpan kode QR pairing mentah terbaru (thread-safe).
+func (a *App) setQR(code string) {
+	a.qrMu.Lock()
+	a.qrCode = code
+	a.qrMu.Unlock()
+}
+
+// QRCode mengembalikan kode QR pairing mentah terbaru, atau "" bila belum ada /
+// sudah tertaut. UI in-process (Gio) memanggil ini tiap refresh utk meng-encode
+// QR asli sendiri (tanpa lewat jalur event Wails/IPC).
+func (a *App) QRCode() string {
+	a.qrMu.RLock()
+	defer a.qrMu.RUnlock()
+	return a.qrCode
 }
 
 // GetState: "offline" | "qr" | "ready".

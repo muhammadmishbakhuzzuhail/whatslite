@@ -31,6 +31,7 @@ type UI struct {
 	t     Theme
 	dark  bool
 	state string
+	qr    string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
 	view  string // pane sidebar aktif: chats|calls|settings
 
 	chats     []app.ChatDTO
@@ -108,6 +109,7 @@ func (u *UI) refresh() {
 		u.messages = demoMessages()
 	} else {
 		u.state = u.core.GetState()
+		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
 			u.messages = u.core.GetMessages(u.selected)
@@ -149,7 +151,7 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 
 	// Gerbang login: engine tersambung tapi sesi belum siap → layar QR.
 	if u.core != nil && u.state != "" && u.state != "ready" && u.state != "connected" {
-		return LoginView(gtx, u.th, u.t)
+		return LoginView(gtx, u.th, u.t, u.qr)
 	}
 
 	dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,

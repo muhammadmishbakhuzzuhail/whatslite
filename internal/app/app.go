@@ -49,6 +49,9 @@ type App struct {
 
 	keepDeleted atomic.Bool // anti-delete: simpan isi pesan yang ditarik (default on)
 
+	qrMu   sync.RWMutex // melindungi qrCode
+	qrCode string       // kode QR pairing mentah terbaru (utk UI in-process spt Gio)
+
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)

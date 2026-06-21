@@ -1880,6 +1880,14 @@ ApplicationWindow {
                         width: timeline.width
                         implicitHeight: bubble.implicitHeight + 4
                         property bool out: (model.m.dir === "out")
+                        // .msg.gin: pesan masuk di grup → kolom avatar pengirim 32px di kiri.
+                        property bool groupIn: win.selectedChat.group === true && model.m.dir === "in" && model.m.type !== "system"
+                        Avatar {
+                            visible: parent.groupIn
+                            x: 4; y: 0; width: 32; height: 32; fontSize: 14
+                            name: model.m.sender || ""; jid: model.m.senderId || ""
+                            base: app.mediaBase; accent: win.avatarColor(model.m.sender || "")
+                        }
                         Rectangle {
                             id: bubble
                             // Stiker + media (foto/video/gif): tanpa kartu bubble.
@@ -1888,7 +1896,7 @@ ApplicationWindow {
                             property bool bare: model.m.type === "sticker" || content.media
                             // .bubble.voice overrides padding to 8px 10px (10px horizontal).
                             property bool voice: model.m.type === "voice"
-                            x: parent.out ? parent.width - width - 4 : 4
+                            x: parent.out ? parent.width - width - 4 : (parent.groupIn ? 40 : 4)
                             // .bubble: padding 8px 13px → +26 lebar (13×2), +16 tinggi (8×2); voice 10×2.
                             width: content.implicitWidth + (bare ? 0 : (voice ? 20 : 26))
                             implicitHeight: content.implicitHeight + (bare ? 0 : 16)

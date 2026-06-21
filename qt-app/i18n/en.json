@@ -1,4 +1,8 @@
 {
+  "rail_chats": "Chats", "rail_status": "Status", "rail_channels": "Channels", "rail_communities": "Communities",
+  "rail_calls": "Calls", "rail_contacts": "Contacts", "archived_chats": "Archived chats", "scheduled_reminders": "Scheduled & reminders",
+  "all_chats": "All chats", "no_match": "No chats found.",
+  "sct_all": "All", "sct_image": "Photos", "sct_video": "Videos", "sct_document": "Docs", "sct_link": "Links", "sct_voice": "Voice",
   "filter_all": "All", "filter_unread": "Unread", "filter_favorites": "Favorites", "filter_groups": "Groups",
   "folder_new": "New folder",
   "a_document": "Document", "a_stickers": "Stickers", "a_gifs": "GIFs",

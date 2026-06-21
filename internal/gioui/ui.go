@@ -75,8 +75,9 @@ type UI struct {
 	attachClicks []widget.Clickable
 
 	// menu aksi baris chat (klik-kanan): target + item.
-	chatCtxIdx   int
-	chatCtxItems [5]widget.Clickable
+	chatCtxIdx    int
+	chatCtxItems  [5]widget.Clickable
+	headMenuClick widget.Clickable // ikon overflow header → menu chat terbuka
 
 	chats     []app.ChatDTO
 	selected  string
@@ -1199,7 +1200,17 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(18), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	// ikon overflow header → menu aksi chat yg sedang terbuka (reuse chatctx).
+	for u.headMenuClick.Clicked(gtx) {
+		for i := range u.chats {
+			if u.chats[i].ID == u.selected {
+				u.chatCtxIdx = i
+				u.overlay = "chatctx"
+				break
+			}
+		}
+	}
+	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(8), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
@@ -1226,6 +1237,11 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 					}),
 				)
 			}),
+			// dorong ikon aksi ke kanan
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "calls") }),  // panggilan (visual)
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "search") }), // cari di chat (visual)
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.headMenuClick, "overflow") }),
 		)
 	})
 	return layout.Dimensions{Size: sz}

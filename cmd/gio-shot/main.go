@@ -113,6 +113,9 @@ func main() {
 		case "app-picker":
 			ui.SetOverlay("picker")
 			ui.Layout(gtx)
+		case "app-msgctx":
+			ui.SetOverlay("msgctx")
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

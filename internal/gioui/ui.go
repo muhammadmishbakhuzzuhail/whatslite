@@ -25,7 +25,6 @@ import (
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 )
 
-
 type UI struct {
 	th    *material.Theme
 	core  *app.App
@@ -48,11 +47,20 @@ type UI struct {
 	editor     widget.Editor
 	photos     map[string]paint.ImageOp // foto avatar in-memory (jid/nama → op)
 
-	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox
+	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox|msgctx
 	headerClick widget.Clickable
 	emojiClick  widget.Clickable
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
+	msgClicks   []widget.Clickable
+	ctxIdx      int                 // index pesan utk context-menu
+	ctxItems    [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
+}
+
+// ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
+var ctxMenu = []struct{ glyph, label, to string }{
+	{"😀", "Reaksi", "reaction"}, {"↩️", "Balas", ""}, {"➡️", "Teruskan", "forward"},
+	{"⭐", "Bintangi", ""}, {"ℹ️", "Info", "msginfo"}, {"🗑️", "Hapus", ""},
 }
 
 // SetOverlay: utk render-tool menguji popup headless.
@@ -102,6 +110,9 @@ func (u *UI) refresh() {
 	}
 	if len(u.clicks) < len(u.chats) {
 		u.clicks = make([]widget.Clickable, len(u.chats))
+	}
+	if len(u.msgClicks) < len(u.messages) {
+		u.msgClicks = make([]widget.Clickable, len(u.messages))
 	}
 }
 
@@ -180,7 +191,51 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		LightboxView(gtx, u.th, u.t)
 	case "picker":
 		PickerView(gtx, u.th, u.t)
+	case "msgctx":
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(220), gtx.Dp(220)
+			return u.ctxMenuView(gtx)
+		})
 	}
+}
+
+// ctxMenuView — menu aksi pesan (.menu): kartu bg + baris glyph+label klik.
+func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
+	children := make([]layout.FlexChild, 0, len(ctxMenu))
+	for i := range ctxMenu {
+		i := i
+		it := ctxMenu[i]
+		for u.ctxItems[i].Clicked(gtx) {
+			u.overlay = it.to // pindah ke popup tujuan ("" = tutup)
+		}
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.ctxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Label(u.th, 15, it.glyph).Layout(gtx) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 14.5, it.label)
+							lbl.Color = u.t.Text
+							if it.label == "Hapus" {
+								lbl.Color = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+							}
+							return lbl.Layout(gtx)
+						}),
+					)
+				})
+			})
+		}))
+	}
+	macro := op.Record(gtx.Ops)
+	dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	call := macro.Stop()
+	rr := gtx.Dp(10)
+	paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
 }
 
 // ---- rail (nav kiri, tombol klik → ganti view) ----
@@ -405,7 +460,7 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
-					return u.bubble(gtx, u.messages[i])
+					return u.bubble(gtx, i)
 				})
 			})
 		}),
@@ -441,7 +496,14 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 }
 
 // ---- bubble pesan (.bubble: in/out, RRect, ekor) ----
-func (u *UI) bubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
+	m := u.messages[idx]
+	if idx < len(u.msgClicks) {
+		for u.msgClicks[idx].Clicked(gtx) {
+			u.ctxIdx = idx
+			u.overlay = "msgctx" // klik pesan → context-menu
+		}
+	}
 	out := m.Dir == "out"
 	bg := u.t.InBg
 	if out {
@@ -486,24 +548,27 @@ func (u *UI) bubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 	if out {
 		align = layout.E
 	}
-	return layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			// rekam konten utk ukur, lalu gambar bg di belakang
-			macro := op.Record(gtx.Ops)
-			dims := content(gtx)
-			call := macro.Stop()
-			r := gtx.Dp(18)
-			tl, tr := r, r
-			if out {
-				tr = gtx.Dp(6)
-			} else {
-				tl = gtx.Dp(6)
-			}
-			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}.Op(gtx.Ops))
-			call.Add(gtx.Ops)
-			return dims
+	wrap := func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				// rekam konten utk ukur, lalu gambar bg di belakang
+				macro := op.Record(gtx.Ops)
+				dims := content(gtx)
+				call := macro.Stop()
+				r := gtx.Dp(18)
+				tl, tr := r, r
+				if out {
+					tr = gtx.Dp(6)
+				} else {
+					tl = gtx.Dp(6)
+				}
+				paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			})
 		})
-	})
+	}
+	return u.msgClicks[idx].Layout(gtx, wrap)
 }
 
 func (u *UI) composer(gtx layout.Context) layout.Dimensions {

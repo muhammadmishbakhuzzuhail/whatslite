@@ -205,7 +205,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso", Ts: yest},
 		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "delivered", Ts: yest},
 		{ID: "m3", Dir: "in", Type: "text", Text: "Sip. Tempatnya yang kemarin kan?", Time: "19.05", Sender: "Budi Santoso", Ts: yest},
-		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?"},
+		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?", Reactions: []app.ReactionDTO{{Emoji: "👍", Count: 2}, {Emoji: "🔥", Count: 1, Mine: true}}},
 		{ID: "m5", Dir: "in", Type: "text", Text: "Aku mungkin telat dikit, macet", Time: "19.40", Sender: "Citra Dewi", Ts: yest},
 		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest},
 		{ID: "m7", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
@@ -951,6 +951,48 @@ func (u *UI) ensureAvatar(name, jid string) {
 	}()
 }
 
+// reactionPills — chip reaksi di bawah bubble (emoji + jumlah bila >1). Pil Bg2
+// membulat; milik-sendiri di-beri batas accent. Kosong bila tak ada reaksi.
+func (u *UI) reactionPills(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	if len(m.Reactions) == 0 {
+		return layout.Dimensions{}
+	}
+	return layout.Inset{Top: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		children := make([]layout.FlexChild, 0, len(m.Reactions)*2)
+		for i, rx := range m.Reactions {
+			if i > 0 {
+				children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout))
+			}
+			rx := rx
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				txt := rx.Emoji
+				if rx.Count > 1 {
+					txt = rx.Emoji + " " + itoa(rx.Count)
+				}
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(3), Bottom: unit.Dp(3), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 13, txt)
+					lbl.Color = u.t.Text
+					return lbl.Layout(gtx)
+				})
+				call := macro.Stop()
+				r := dims.Size.Y / 2
+				border := u.t.Bg2
+				if rx.Mine {
+					border = u.t.Accent
+				}
+				paint.FillShape(gtx.Ops, border, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				bw := gtx.Dp(1)
+				inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(dims.Size.X-bw, dims.Size.Y-bw)}
+				paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			}))
+		}
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+	})
+}
+
 // quoteBlock — kutipan pesan yg dibalas, di dalam bubble (garis accent kiri + nama
 // + teks), latar agak gelap. margin-bottom kecil sebelum isi.
 func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.Dimensions {
@@ -1252,23 +1294,35 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if out {
 		align = layout.E
 	}
+	bubbleBody := func(gtx layout.Context) layout.Dimensions {
+		// rekam konten utk ukur, lalu gambar bg di belakang
+		macro := op.Record(gtx.Ops)
+		dims := content(gtx)
+		call := macro.Stop()
+		r := gtx.Dp(18)
+		tl, tr := r, r
+		if out {
+			tr = gtx.Dp(6)
+		} else {
+			tl = gtx.Dp(6)
+		}
+		paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	}
+	colAlign := layout.Start
+	if out {
+		colAlign = layout.End
+	}
 	wrap := func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				// rekam konten utk ukur, lalu gambar bg di belakang
-				macro := op.Record(gtx.Ops)
-				dims := content(gtx)
-				call := macro.Stop()
-				r := gtx.Dp(18)
-				tl, tr := r, r
-				if out {
-					tr = gtx.Dp(6)
-				} else {
-					tl = gtx.Dp(6)
-				}
-				paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}.Op(gtx.Ops))
-				call.Add(gtx.Ops)
-				return dims
+				return layout.Flex{Axis: layout.Vertical, Alignment: colAlign}.Layout(gtx,
+					layout.Rigid(bubbleBody),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.reactionPills(gtx, m)
+					}),
+				)
 			})
 		})
 	}

@@ -29,7 +29,7 @@ func SettingsView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 			return setHead(gtx, th, t)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return setProfile(gtx, th, t, "Saya", "Tentang — Hidup itu indah ✨", "#06b67f")
+			return setProfile(gtx, th, t, "Saya", "Tentang — Hidup itu indah ✨", "#00a884")
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return setList(gtx, th, t)

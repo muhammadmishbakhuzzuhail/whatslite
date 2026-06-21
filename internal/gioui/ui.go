@@ -44,6 +44,8 @@ type UI struct {
 	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
 	olderReqAt   time.Time // waktu permintaan history lama terakhir
 
+	pollClicks map[string][]widget.Clickable // msgID → clickable per opsi polling
+
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
 	phoneEd     widget.Editor
@@ -168,6 +170,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.photoTried = map[string]bool{}
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
+	u.pollClicks = map[string][]widget.Clickable{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat + thumb
 		u.photos["Andi Pratama"] = synthPhoto()
 		u.media["m13"] = synthPhoto() // bubble image demo (m14 video = placeholder+play)
@@ -1260,7 +1263,23 @@ func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	if m.Thumb != "" {
 		_ = json.Unmarshal([]byte(m.Thumb), &opts)
 	}
-	children := make([]layout.FlexChild, 0, len(opts)+2)
+	// hasil suara (counts/total) + clickable per opsi.
+	var counts map[string]int
+	total := 0
+	if u.core != nil {
+		v := u.core.GetPollVotes(m.ID)
+		counts, total = v.Counts, v.Total
+	}
+	clks := u.pollClicks[m.ID]
+	if len(clks) < len(opts) {
+		clks = make([]widget.Clickable, len(opts))
+		u.pollClicks[m.ID] = clks
+	}
+	pollSender := m.SenderID
+	if pollSender == "" {
+		pollSender = m.Sender
+	}
+	children := make([]layout.FlexChild, 0, len(opts)*2+1)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "pollq", 16, u.t.Text2) }),
@@ -1275,16 +1294,26 @@ func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	}))
 	for i := range opts {
 		o := opts[i]
+		clk := &u.pollClicks[m.ID][i]
+		for clk.Clicked(gtx) { // tap opsi → kirim suara
+			if u.core != nil {
+				u.core.VotePoll(u.selected, pollSender, m.ID, []string{o})
+			}
+		}
+		cnt := counts[o]
 		children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout))
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return u.pollOption(gtx, o)
+			return clk.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return u.pollOption(gtx, o, cnt, total)
+			})
 		}))
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
-// pollOption — satu opsi polling: kotak bordered radius 8 + radio bulat + label.
-func (u *UI) pollOption(gtx layout.Context, label string) layout.Dimensions {
+// pollOption — opsi polling: kotak bordered + radio + label + jumlah suara, dgn bar
+// proporsi (cnt/total) berlatar accent lembut.
+func (u *UI) pollOption(gtx layout.Context, label string, cnt, total int) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -1304,6 +1333,14 @@ func (u *UI) pollOption(gtx layout.Context, label string) layout.Dimensions {
 				lbl.Color = u.t.Text
 				return lbl.Layout(gtx)
 			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if total <= 0 {
+					return layout.Dimensions{}
+				}
+				lbl := material.Label(u.th, 13, itoa(cnt))
+				lbl.Color = u.t.Text2
+				return lbl.Layout(gtx)
+			}),
 		)
 	})
 	call := macro.Stop()
@@ -1312,6 +1349,11 @@ func (u *UI) pollOption(gtx layout.Context, label string) layout.Dimensions {
 	bw := gtx.Dp(1)
 	inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(dims.Size.X-bw, dims.Size.Y-bw)}
 	paint.FillShape(gtx.Ops, u.t.InBg, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	if total > 0 && cnt > 0 { // bar proporsi accent lembut
+		bw2 := (inner.Dx() * cnt) / total
+		bar := image.Rectangle{Min: inner.Min, Max: image.Pt(inner.Min.X+bw2, inner.Max.Y)}
+		paint.FillShape(gtx.Ops, withAlpha(u.t.Accent, 0x22), clip.RRect{Rect: bar, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	}
 	call.Add(gtx.Ops)
 	return dims
 }

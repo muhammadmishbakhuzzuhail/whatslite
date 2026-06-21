@@ -49,6 +49,12 @@ type UI struct {
 	filterClicks [4]widget.Clickable
 	shown        []int // indeks u.chats yg lolos filter+pencarian (urut tampil)
 
+	// mode balas: pesan yg dikutip; "" = kirim biasa.
+	replyTo   string
+	replyName string
+	replyText string
+	replyX    widget.Clickable // tombol batal balas
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -86,6 +92,9 @@ var ctxMenu = []struct{ icon, label, to string }{
 
 // SetOverlay: utk render-tool menguji popup headless.
 func (u *UI) SetOverlay(o string) { u.overlay = o }
+
+// SetReply: utk render-tool menguji banner balas headless.
+func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
 
 // railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
 var railNav = []struct{ view, icon string }{
@@ -277,6 +286,40 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	}
 }
 
+// doCtxAction menjalankan aksi context-menu pesan terhadap engine. Bintangi/Hapus
+// langsung; Balas mengaktifkan banner balas di composer (kirim → core.Reply).
+func (u *UI) doCtxAction(label string) {
+	if u.ctxIdx < 0 || u.ctxIdx >= len(u.messages) {
+		return
+	}
+	m := u.messages[u.ctxIdx]
+	fromMe := m.Dir == "out"
+	switch label {
+	case "Bintangi":
+		if u.core != nil {
+			u.core.StarMessage(u.selected, m.ID, m.SenderID, fromMe, true)
+		}
+	case "Hapus":
+		if u.core != nil {
+			u.core.DeleteMessage(u.selected, m.ID, m.SenderID, fromMe, fromMe) // everyone hanya utk pesan sendiri
+			u.messages = u.core.GetMessages(u.selected)
+		}
+	case "Balas":
+		u.replyTo, u.replyName, u.replyText = m.ID, u.replyDisplayName(m), m.Text
+	}
+}
+
+// replyDisplayName — nama yg ditampilkan di banner balas.
+func (u *UI) replyDisplayName(m app.MessageDTO) string {
+	if m.Dir == "out" {
+		return "Anda"
+	}
+	if m.Sender != "" {
+		return m.Sender
+	}
+	return u.selName
+}
+
 // ctxMenuView — menu aksi pesan (.menu): kartu bg + baris glyph+label klik.
 func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, len(ctxMenu))
@@ -284,7 +327,8 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		i := i
 		it := ctxMenu[i]
 		for u.ctxItems[i].Clicked(gtx) {
-			u.overlay = it.to // pindah ke popup tujuan ("" = tutup)
+			u.doCtxAction(it.label) // jalankan aksi engine bila ada
+			u.overlay = it.to       // pindah ke popup tujuan ("" = tutup)
 		}
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.ctxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -879,8 +923,15 @@ func dayLabel(ts int64) string {
 	return itoa(d) + " " + bulan[int(mo)] + " " + itoa(y)
 }
 
+// clearReply membatalkan mode balas.
+func (u *UI) clearReply() { u.replyTo, u.replyName, u.replyText = "", "", "" }
+
 func (u *UI) composer(gtx layout.Context) layout.Dimensions {
-	h := gtx.Dp(62)
+	barH := 0
+	if u.replyTo != "" {
+		barH = gtx.Dp(46)
+	}
+	h := gtx.Dp(62) + barH
 	sz := image.Pt(gtx.Constraints.Max.X, h)
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
@@ -891,18 +942,74 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	for u.attachClick.Clicked(gtx) {
 		u.overlay = "picker"
 	}
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "plus") }),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "mic") }),
-		)
-	})
+	for u.replyX.Clicked(gtx) {
+		u.clearReply()
+	}
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if u.replyTo == "" {
+				return layout.Dimensions{}
+			}
+			return u.replyBanner(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "plus") }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "mic") }),
+				)
+			})
+		}),
+	)
 	return layout.Dimensions{Size: sz}
+}
+
+// replyBanner — bilah kutipan di atas composer (garis accent + nama + teks + ✕).
+func (u *UI) replyBanner(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(12), Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 13, u.replyName)
+							lbl.Color = u.t.Accent
+							lbl.Font.Weight = font.Medium
+							lbl.MaxLines = 1
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 13, u.replyText)
+							lbl.Color = u.t.Text2
+							lbl.MaxLines = 1
+							return lbl.Layout(gtx)
+						}),
+					)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.replyX.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return icon(gtx, "close", 16, u.t.Text2)
+						})
+					})
+				}),
+			)
+		})
+		call := macro.Stop()
+		// latar bar + garis accent kiri
+		r := gtx.Dp(6)
+		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) layout.Dimensions {
@@ -936,10 +1043,15 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 		if _, ok := ev.(widget.SubmitEvent); ok {
 			txt := strings.TrimSpace(u.editor.Text())
 			if txt != "" && u.core != nil && u.selected != "" {
-				u.core.SendText(u.selected, txt)
+				if u.replyTo != "" { // mode balas → kutip pesan
+					u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
+				} else {
+					u.core.SendText(u.selected, txt)
+				}
 				u.messages = u.core.GetMessages(u.selected)
 			}
 			u.editor.SetText("")
+			u.clearReply()
 		}
 	}
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

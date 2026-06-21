@@ -127,6 +127,9 @@ func main() {
 		case "app-msgctx":
 			ui.SetOverlay("msgctx")
 			ui.Layout(gtx)
+		case "app-reply":
+			ui.SetReply("Budi Santoso", "Halo! Jadi nanti malam ngumpul jam berapa?")
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

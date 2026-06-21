@@ -73,29 +73,36 @@ func btInBubble(gtx layout.Context, th *material.Theme, t Theme, body func(layou
 
 // ---- (1) DOCUMENT (.doc-card: ikon 40 accent-tint rounded + nama + meta) ----
 func btDocument(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return btDocIcon(gtx, t)
-		}),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(11)}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 14, "Laporan_Tahunan_2026.pdf")
-					lbl.Color = t.Text
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
-				}),
-				layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 12, "PDF · 512 KB · 12 hal")
-					lbl.Color = t.Text2
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
-				}),
-			)
-		}),
-	)
+	// .doc-card: padding 6px 2px, min-width 200px, gap 11px.
+	if minW := gtx.Dp(200); gtx.Constraints.Min.X < minW {
+		gtx.Constraints.Min.X = minW
+	}
+	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(2), Right: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return btDocIcon(gtx, t)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(11)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// .doc-name: font-size 13.5px
+						lbl := material.Label(th, 13.5, "Laporan_Tahunan_2026.pdf")
+						lbl.Color = t.Text
+						lbl.MaxLines = 1
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, 12, "PDF · 512 KB · 12 hal")
+						lbl.Color = t.Text2
+						lbl.MaxLines = 1
+						return lbl.Layout(gtx)
+					}),
+				)
+			}),
+		)
+	})
 }
 
 // btDocIcon: kotak 40x40, radius 9, latar tint accent ~16% (color-mix accent/transparan).
@@ -243,7 +250,8 @@ func btLocLabel(gtx layout.Context, th *material.Theme, t Theme, w int) layout.D
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 13, "Jl. Sudirman No. 12, Jakarta")
+				// .loc-lbl: font-size 13.5px
+				lbl := material.Label(th, 13.5, "Jl. Sudirman No. 12, Jakarta")
 				lbl.Color = t.Text
 				lbl.MaxLines = 1
 				return lbl.Layout(gtx)
@@ -258,52 +266,59 @@ func btLocLabel(gtx layout.Context, th *material.Theme, t Theme, w int) layout.D
 
 // ---- (4) CONTACT (.ctc-card: avatar 40 + nama + nomor + "Simpan") ----
 func btContact(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	// .ctc-card: padding 8px 4px, min-width 200px, gap 11px.
 	minW := gtx.Dp(200)
 	if gtx.Constraints.Min.X < minW {
 		gtx.Constraints.Min.X = minW
 	}
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// .ctc-av: lingkaran 40 accent + inisial putih.
-			d := gtx.Dp(40)
-			sz := image.Pt(d, d)
-			paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
-			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 16, initial("Dewi Anggraini"))
-				lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-				lbl.Font.Weight = font.SemiBold
-				return lbl.Layout(gtx)
-			})
-			return layout.Dimensions{Size: sz}
-		}),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(11)}.Layout),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 14, "Dewi Anggraini")
-					lbl.Color = t.Text
-					lbl.MaxLines = 1
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(4), Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// .ctc-av: lingkaran 40 accent + inisial putih.
+				d := gtx.Dp(40)
+				sz := image.Pt(d, d)
+				paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+				gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, 16, initial("Dewi Anggraini"))
+					lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 					lbl.Font.Weight = font.SemiBold
 					return lbl.Layout(gtx)
-				}),
-				layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 12, "+62 812-3456-7890")
-					lbl.Color = t.Text2
-					lbl.MaxLines = 1
+				})
+				return layout.Dimensions{Size: sz}
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(11)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// .ctc-name: font-size 14.5px, weight 600
+						lbl := material.Label(th, 14.5, "Dewi Anggraini")
+						lbl.Color = t.Text
+						lbl.MaxLines = 1
+						lbl.Font.Weight = font.SemiBold
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// .ctc-num: font-size 12.5px
+						lbl := material.Label(th, 12.5, "+62 812-3456-7890")
+						lbl.Color = t.Text2
+						lbl.MaxLines = 1
+						return lbl.Layout(gtx)
+					}),
+				)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// .ctc-btn: font-size 13px, weight 600, padding 4px 8px
+				return layout.Inset{Top: unit.Dp(4), Bottom: unit.Dp(4), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, 13, "Simpan")
+					lbl.Color = t.Accent
+					lbl.Font.Weight = font.SemiBold
 					return lbl.Layout(gtx)
-				}),
-			)
-		}),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 13, "Simpan")
-			lbl.Color = t.Accent
-			lbl.Font.Weight = font.SemiBold
-			return lbl.Layout(gtx)
-		}),
-	)
+				})
+			}),
+		)
+	})
 }
 
 // ---- (5) POLL (.poll-card: pertanyaan + 3 opsi bordered + radio) ----
@@ -316,7 +331,8 @@ func btPoll(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	rowGap := layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 14, "Liburan ke mana minggu depan?")
+			// .poll-q: font-size 14.5px, weight 600
+			lbl := material.Label(th, 14.5, "Liburan ke mana minggu depan?")
 			lbl.Color = t.Text
 			lbl.Font.Weight = font.SemiBold
 			return lbl.Layout(gtx)
@@ -341,7 +357,8 @@ func btPollOpt(gtx layout.Context, th *material.Theme, t Theme, txt string) layo
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(9)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 13, txt)
+				// .poll-opt: font-size 13.5px
+				lbl := material.Label(th, 13.5, txt)
 				lbl.Color = t.Text
 				lbl.MaxLines = 1
 				return lbl.Layout(gtx)

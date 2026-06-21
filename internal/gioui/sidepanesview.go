@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
 //
 // sidepanesview.go — sidebar pane CALLS (paritas frontend/src/lib/sidebar/
-// CallsPane.svelte + app.css): .pane-head 56px ("Panggilan" 19/SemiBold), lalu
+// CallsPane.svelte + app.css): .sidebar-head 60px ("Panggilan" 23/Bold), lalu
 // daftar baris panggilan — avatar 49 + nama + sub-baris (panah arah + label,
 // merah utk tak terjawab) + ikon panggil accent kanan. Fungsi murni, data demo.
 package gioui
@@ -62,28 +62,31 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimen
 	)
 }
 
-// spPaneHead — .pane-head { height: 56px; padding: 0 16px; background: head-bg }
-// h2 19/SemiBold.
+// spPaneHead — .sidebar-head { height: 60px; padding: 0 18px; background: head-bg;
+// border-bottom: 1px solid divider } ; h1 23/Bold (letter-spacing -.3px).
 func spPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
-	h := gtx.Dp(56)
+	h := gtx.Dp(60)
 	sz := image.Pt(w, h)
 	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	// border-bottom: 1px solid var(--divider)
+	bh := gtx.Dp(1)
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-bh), Max: image.Pt(w, h)}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 19, title)
+			lbl := material.Label(th, 23, title) // .sidebar-head h1 23px/700
 			lbl.Color = t.Text
-			lbl.Font.Weight = font.SemiBold
+			lbl.Font.Weight = font.Bold
 			return lbl.Layout(gtx)
 		})
 	})
 	return layout.Dimensions{Size: sz}
 }
 
-// spCallRow — .chat-row { padding: 8px 12px; gap: 13px } : avatar 49 + kolom
-// (nama 16/Medium + sub-baris panah+label) + ikon panggil accent kanan.
+// spCallRow — .chat-row { padding: 10px 12px; gap: 13px } : avatar 49 + kolom
+// (nama 16.5/Medium + sub-baris panah+label) + ikon panggil accent kanan.
 func spCallRow(gtx layout.Context, th *material.Theme, t Theme, c spCall) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return spAvatar(gtx, th, t, c.name, 49)
@@ -95,14 +98,16 @@ func spCallRow(gtx layout.Context, th *material.Theme, t Theme, c spCall) layout
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								lbl := material.Label(th, 16, c.name)
+								lbl := material.Label(th, 16.5, c.name) // .row-name 16.5px/500
 								lbl.Color = t.Text
 								lbl.MaxLines = 1
 								lbl.Font.Weight = font.Medium
 								return lbl.Layout(gtx)
 							}),
+							// .row-time { margin-left: 8px }
+							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								lbl := material.Label(th, 12, c.time)
+								lbl := material.Label(th, 12, c.time) // .row-time 12px
 								lbl.Color = t.Text2
 								return lbl.Layout(gtx)
 							}),
@@ -129,7 +134,7 @@ func spCallRow(gtx layout.Context, th *material.Theme, t Theme, c spCall) layout
 func spCallLine(gtx layout.Context, th *material.Theme, t Theme, c spCall) layout.Dimensions {
 	col := t.Text2
 	if c.missed {
-		col = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a
+		col = color.NRGBA{R: 0xef, G: 0x53, B: 0x50, A: 0xff} // .call-line.missed #ef5350
 	}
 	var label string
 	if c.video {

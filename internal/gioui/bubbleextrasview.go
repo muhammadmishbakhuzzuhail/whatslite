@@ -4,8 +4,8 @@
 // bubbleextrasview.go — galeri "extras" pada bubble (paritas Bubble.svelte +
 // app.css): (1) bubble masuk dgn blok KUTIPAN balasan (.quote: bar accent kiri +
 // nama accent 13 + teks 13 text2 di area quote-bg membulat) lalu teks balasan;
-// (2) bubble keluar dgn CHIP REAKSI di bawah (.reaction: pil Bg2 border Line r-11,
-// emoji+jumlah) rata kanan; (3) bubble keluar dgn centang BACA ganda (dua centang
+// (2) bubble keluar dgn CHIP REAKSI di bawah (.reaction: pil out-bg border divider
+// r-12, emoji+jumlah) rata kanan; (3) bubble keluar dgn centang BACA ganda (dua centang
 // accent/tick) di samping jam; (4) bubble masuk dgn MENTION (@Budi accent) inline.
 // Fungsi murni, data demo inline (standalone render).
 package gioui
@@ -138,7 +138,7 @@ func bxQuoteBubble(gtx layout.Context, th *material.Theme, t Theme) layout.Dimen
 			layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
 			// teks balasan.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 15, "Jadi dong! Jam 8 di tempat biasa ya 👍")
+				lbl := material.Label(th, 14.5, "Jadi dong! Jam 8 di tempat biasa ya 👍")
 				lbl.Color = t.Text
 				return lbl.Layout(gtx)
 			}),
@@ -189,7 +189,7 @@ func bxReactionBubble(gtx layout.Context, th *material.Theme, t Theme) layout.Di
 			return bxBubble(gtx, t, true, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 15, "Mantap! Sampai nanti 🙌")
+						lbl := material.Label(th, 14.5, "Mantap! Sampai nanti 🙌")
 						lbl.Color = t.Text
 						return lbl.Layout(gtx)
 					}),
@@ -222,16 +222,16 @@ func bxReactionBubble(gtx layout.Context, th *material.Theme, t Theme) layout.Di
 	)
 }
 
-// bxReactionChip — .reaction: latar Bg2 (.msg.out → out-bg), border 1px Line,
-// radius 12, padding 1/6, font 12, gap 2: emoji + jumlah.
+// bxReactionChip — .reaction: latar out-bg (.msg.out .reaction → var(--out-bg)),
+// border 1px var(--divider), radius 12, padding 1/6, font 12, gap 2: emoji + jumlah.
 func bxReactionChip(gtx layout.Context, th *material.Theme, t Theme, rc bxReaction) layout.Dimensions {
-	r := gtx.Dp(11) // radius ~11/12 (border-radius: 12px pil kecil)
+	r := gtx.Dp(12) // border-radius: 12px
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(1), Bottom: unit.Dp(1), Left: unit.Dp(6), Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, 12, rc.emoji)
-				lbl.Color = t.Text
+				lbl.Color = t.Text2 // .reaction { color: var(--text2) }
 				return lbl.Layout(gtx)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(2)}.Layout), // gap: 2px
@@ -243,12 +243,13 @@ func bxReactionChip(gtx layout.Context, th *material.Theme, t Theme, rc bxReacti
 		)
 	})
 	call := macro.Stop()
-	// border = frame Line 1px lalu isi Bg2 di-inset (paritas btPollOpt di bubbletypes.go).
+	// border = frame var(--divider) 1px lalu isi var(--out-bg) di-inset (chip pada
+	// bubble keluar: .msg.out .reaction { background: var(--out-bg) }).
 	bw := gtx.Dp(1)
 	full := image.Rectangle{Max: dims.Size}
-	paint.FillShape(gtx.Ops, t.Line, clip.RRect{Rect: full, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.Divider, clip.RRect{Rect: full, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(dims.Size.X-bw, dims.Size.Y-bw)}
-	paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.OutBg, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
 }
@@ -258,7 +259,7 @@ func bxReadBubble(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 	return bxBubble(gtx, t, true, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 15, "Oke, aku sudah baca pesanmu ya")
+				lbl := material.Label(th, 14.5, "Oke, aku sudah baca pesanmu ya")
 				lbl.Color = t.Text
 				return lbl.Layout(gtx)
 			}),
@@ -314,14 +315,14 @@ func bxMentionBubble(gtx layout.Context, th *material.Theme, t Theme) layout.Dim
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 15, "Tolong bantu cek file-nya ya ")
+						lbl := material.Label(th, 14.5, "Tolong bantu cek file-nya ya ")
 						lbl.Color = t.Text
 						lbl.MaxLines = 1
 						return lbl.Layout(gtx)
 					}),
 					// .mention: accent + weight 600.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 15, "@Budi")
+						lbl := material.Label(th, 14.5, "@Budi")
 						lbl.Color = t.Accent
 						lbl.Font.Weight = font.SemiBold
 						lbl.MaxLines = 1

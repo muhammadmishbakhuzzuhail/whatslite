@@ -145,7 +145,7 @@ func chnTabBtn(gtx layout.Context, th *material.Theme, t Theme, white color.NRGB
 // chnChannelRow — .ch-row { padding 14; gap 13; align center } : avatar 48 +
 // kolom (nama 15/SemiBold + sub 13.5 text2) + ikon lonceng + "✕" batal-ikuti.
 func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			// .ch-av 48.
@@ -165,7 +165,7 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(13.5), c.subs)
+						lbl := material.Label(th, unit.Sp(12.5), c.subs)
 						lbl.Color = t.Text2
 						lbl.MaxLines = 1
 						return lbl.Layout(gtx)
@@ -193,9 +193,10 @@ func chnAvatar(gtx layout.Context, th *material.Theme, name string, dp int) layo
 	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Max: sz}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, unit.Sp(float32(dp)*0.4), initial(name))
+		// .ch-av { font-size:18px; font-weight:600 } (fixed, tdk skala 0.4*d).
+		lbl := material.Label(th, 18, initial(name))
 		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-		lbl.Font.Weight = font.Bold
+		lbl.Font.Weight = font.SemiBold
 		return lbl.Layout(gtx)
 	})
 	return layout.Dimensions{Size: sz}

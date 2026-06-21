@@ -90,6 +90,10 @@ type UI struct {
 	setSub          string
 	setBack         widget.Clickable
 	setProfileClick widget.Clickable
+	profNameEd      widget.Editor // edit nama (sub-pane profil)
+	profAboutEd     widget.Editor // edit tentang
+	profSave        widget.Clickable
+	profLoaded      bool // editor sudah diisi nilai saat ini?
 
 	chats     []app.ChatDTO
 	selected  string
@@ -165,6 +169,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.phoneEd.SingleLine = true
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
+	u.profNameEd.SingleLine = true
+	u.profAboutEd.SingleLine = true
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
@@ -281,9 +287,17 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 func (u *UI) handleSettings(gtx layout.Context) {
 	for u.setBack.Clicked(gtx) { // kembali dari sub-pane
 		u.setSub = ""
+		u.profLoaded = false
 	}
 	for u.setProfileClick.Clicked(gtx) { // kartu profil → sub-pane profil
 		u.setSub = "profile"
+		u.profLoaded = false
+	}
+	for u.profSave.Clicked(gtx) { // simpan nama/tentang
+		if u.core != nil {
+			u.core.SetMyName(strings.TrimSpace(u.profNameEd.Text()))
+			u.core.SetMyAbout(strings.TrimSpace(u.profAboutEd.Text()))
+		}
 	}
 	for u.setClicks[0].Clicked(gtx) { // Tema
 		u.dark = !u.dark
@@ -709,6 +723,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 			case "profile":
 				p := u.core.GetProfile()
 				ctl.ProfName, ctl.ProfAbout, ctl.ProfPhone = p.Name, p.About, p.Phone
+				if !u.profLoaded { // isi editor sekali (agar bisa diketik)
+					u.profNameEd.SetText(p.Name)
+					u.profAboutEd.SetText(p.About)
+					u.profLoaded = true
+				}
+				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
 			case "storage":
 				s := u.core.GetStorageUsage()
 				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount

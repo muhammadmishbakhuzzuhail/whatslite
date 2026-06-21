@@ -13,6 +13,7 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -33,6 +34,8 @@ type SettingsCtl struct {
 	ProfileClick *widget.Clickable
 	// data sub-pane
 	ProfName, ProfAbout, ProfPhone string
+	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
+	ProfSave                       *widget.Clickable
 	StoreDB, StoreMedia            int64
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
@@ -173,17 +176,71 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	if name == "" {
 		name = "Saya"
 	}
+	editable := ctl.ProfNameEd != nil
 	return layout.Inset{Top: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return setAvatar(gtx, th, name, "#00a884", 120) }),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(20)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return setProfileField(gtx, th, t, "Nama", name) }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if editable {
+					return setEditField(gtx, th, t, "Nama", ctl.ProfNameEd)
+				}
+				return setProfileField(gtx, th, t, "Nama", name)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if editable {
+					return setEditField(gtx, th, t, "Tentang", ctl.ProfAboutEd)
+				}
 				return setProfileField(gtx, th, t, "Tentang", orDash(ctl.ProfAbout))
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return setProfileField(gtx, th, t, "Telepon", orDash(ctl.ProfPhone))
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if !editable || ctl.ProfSave == nil {
+					return layout.Dimensions{}
+				}
+				return layout.Inset{Top: unit.Dp(14), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					btn := material.Button(th, ctl.ProfSave, "Simpan")
+					btn.Background = t.Accent
+					btn.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+					btn.CornerRadius = unit.Dp(8)
+					btn.TextSize = unit.Sp(14)
+					return btn.Layout(gtx)
+				})
+			}),
+		)
+	})
+}
+
+// setEditField — label accent + input teks membulat (var --search-bg).
+func setEditField(gtx layout.Context, th *material.Theme, t Theme, label string, ed *widget.Editor) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 13, label)
+				l.Color = t.Accent
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					e := material.Editor(th, ed, "")
+					e.Color = t.Text
+					e.HintColor = t.Text2
+					e.TextSize = unit.Sp(15)
+					return e.Layout(gtx)
+				})
+				call := macro.Stop()
+				r := gtx.Dp(8)
+				paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
 			}),
 		)
 	})

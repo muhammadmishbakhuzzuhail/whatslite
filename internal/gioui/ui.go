@@ -102,6 +102,9 @@ func (u *UI) SetOverlay(o string) { u.overlay = o }
 // SetReply: utk render-tool menguji banner balas headless.
 func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
 
+// ScrollMessagesToEnd: utk render-tool menguji gulir-ke-bawah headless.
+func (u *UI) ScrollMessagesToEnd() { u.msgList.ScrollTo(1 << 20) }
+
 // railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
 var railNav = []struct{ view, icon string }{
 	{"chats", "chats"}, {"status", "status"}, {"channels", "channels"},
@@ -172,8 +175,16 @@ func demoMessages() []app.MessageDTO {
 	return []app.MessageDTO{
 		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso", Ts: yest},
 		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "delivered", Ts: yest},
-		{ID: "m3", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
-		{ID: "m4", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "08.05", Status: "read", Ts: now},
+		{ID: "m3", Dir: "in", Type: "text", Text: "Sip. Tempatnya yang kemarin kan?", Time: "19.05", Sender: "Budi Santoso", Ts: yest},
+		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest},
+		{ID: "m5", Dir: "in", Type: "text", Text: "Aku mungkin telat dikit, macet", Time: "19.40", Sender: "Citra Dewi", Ts: yest},
+		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest},
+		{ID: "m7", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
+		{ID: "m8", Dir: "out", Type: "text", Text: "Mantap! Jangan lupa baterai cadangan", Time: "08.05", Status: "read", Ts: now},
+		{ID: "m9", Dir: "in", Type: "text", Text: "Udah siap semua kok 📸", Time: "08.06", Sender: "Citra Dewi", Ts: now},
+		{ID: "m10", Dir: "in", Type: "text", Text: "Btw jadi makan dulu apa langsung?", Time: "08.07", Sender: "Budi Santoso", Ts: now},
+		{ID: "m11", Dir: "out", Type: "text", Text: "Makan dulu aja, laper nih 😅", Time: "08.08", Status: "delivered", Ts: now},
+		{ID: "m12", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "08.09", Status: "sent", Ts: now},
 	}
 }
 
@@ -617,6 +628,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 				u.core.OpenChat(c.ID)
 				u.messages = u.core.GetMessages(c.ID)
 			}
+			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
 		}
 		// bg hover/active
 		dims := layout.UniformInset(0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -1082,6 +1094,7 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 			}
 			u.editor.SetText("")
 			u.clearReply()
+			u.msgList.ScrollTo(len(u.messages)) // setelah kirim → gulir ke bawah
 		}
 	}
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

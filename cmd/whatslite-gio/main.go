@@ -8,12 +8,16 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"image"
 	"image/png"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	gioapp "gioui.org/app"
@@ -21,6 +25,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
+	"gioui.org/x/explorer"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
@@ -72,6 +77,15 @@ func run(w *gioapp.Window, core *app.App) error {
 		}
 	}
 
+	// Lampiran: dialog berkas native (x/explorer, pure-Go) → SendMedia in-process.
+	// Hanya kategori berbasis berkas (media/document); contact/location/poll = TODO.
+	expl := explorer.NewExplorer(w)
+	if core != nil {
+		ui.OnAttach = func(chat, category string) {
+			go pickAndSend(expl, core, chat, category)
+		}
+	}
+
 	go func() {
 		for range time.NewTicker(700 * time.Millisecond).C {
 			w.Invalidate()
@@ -85,7 +99,9 @@ func run(w *gioapp.Window, core *app.App) error {
 
 	var ops op.Ops
 	for {
-		switch e := w.Event().(type) {
+		evt := w.Event()
+		expl.ListenEvents(evt) // x/explorer perlu lihat tiap event window
+		switch e := evt.(type) {
 		case gioapp.DestroyEvent:
 			return e.Err
 		case gioapp.FrameEvent:
@@ -95,6 +111,41 @@ func run(w *gioapp.Window, core *app.App) error {
 			e.Frame(gtx.Ops)
 		}
 	}
+}
+
+// pickAndSend membuka dialog berkas, baca byte, deteksi mime → kind, lalu kirim
+// via core.SendMedia (data-URI base64, in-process). category: media|document.
+func pickAndSend(expl *explorer.Explorer, core *app.App, chat, category string) {
+	var exts []string
+	switch category {
+	case "media":
+		exts = []string{"jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "webm"}
+	case "document":
+		exts = nil // semua jenis
+	default:
+		return // contact/location/poll: butuh dialog input sendiri (TODO)
+	}
+	rc, err := expl.ChooseFile(exts...)
+	if err != nil || rc == nil {
+		return
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil || len(data) == 0 {
+		return
+	}
+	mime := http.DetectContentType(data)
+	kind := "document"
+	switch {
+	case category == "document":
+		kind = "document"
+	case strings.HasPrefix(mime, "image/"):
+		kind = "image"
+	case strings.HasPrefix(mime, "video/"):
+		kind = "video"
+	}
+	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+	core.SendMedia(chat, kind, "", "", uri, false, 0)
 }
 
 // shooter mengambil PNG frame aplikasi yg sedang berjalan (data nyata) ke

@@ -67,6 +67,9 @@ type UI struct {
 	fwdClicks []widget.Clickable
 	fwdCancel widget.Clickable
 
+	// menu lampiran (tombol "+"): klik per-baris.
+	attachClicks []widget.Clickable
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -96,6 +99,10 @@ type UI struct {
 	// voice + internal/video). gioui TETAP bebas-cgo (gio-shot ringan).
 	OnPlayVoice func(chat, id string)
 	OnPlayVideo func(chat, id, typ string)
+	// OnAttach: hook pilih-berkas + kirim (di-set cmd/whatslite-gio → x/explorer +
+	// core.SendMedia). category ∈ media|document|contact|location|poll. Pisah dari
+	// gioui agar tetap bebas-window/cgo.
+	OnAttach func(chat, category string)
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
@@ -306,6 +313,12 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		LightboxView(gtx, u.th, u.t)
 	case "picker":
 		PickerView(gtx, u.th, u.t)
+	case "attach":
+		u.handleAttach(gtx)
+		if len(u.attachClicks) < AttachCount() {
+			u.attachClicks = make([]widget.Clickable, AttachCount())
+		}
+		AttachMenuView(gtx, u.th, u.t, &AttachCtl{Clicks: u.attachClicks})
 	case "msgctx":
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -359,6 +372,21 @@ func (u *UI) handleForward(gtx layout.Context) {
 				u.core.Forward(u.selected, u.fwdMsgID, u.chats[i].ID)
 			}
 			u.fwdMsgID = ""
+			u.overlay = ""
+		}
+	}
+}
+
+// handleAttach memproses klik menu lampiran → OnAttach(chat, kategori) lalu tutup.
+func (u *UI) handleAttach(gtx layout.Context) {
+	if len(u.attachClicks) < AttachCount() {
+		u.attachClicks = make([]widget.Clickable, AttachCount())
+	}
+	for i := range u.attachClicks {
+		for u.attachClicks[i].Clicked(gtx) {
+			if u.OnAttach != nil && u.selected != "" {
+				u.OnAttach(u.selected, AttachCategory(i))
+			}
 			u.overlay = ""
 		}
 	}
@@ -1060,7 +1088,7 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 		u.overlay = "reaction"
 	}
 	for u.attachClick.Clicked(gtx) {
-		u.overlay = "picker"
+		u.overlay = "attach" // tombol "+" → menu lampiran
 	}
 	for u.replyX.Clicked(gtx) {
 		u.clearReply()

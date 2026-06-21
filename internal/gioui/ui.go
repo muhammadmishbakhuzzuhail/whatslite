@@ -266,6 +266,11 @@ func (u *UI) handleSettings(gtx layout.Context) {
 		u.dark = !u.dark
 		u.t = newTheme(u.dark)
 	}
+	for u.setClicks[3].Clicked(gtx) { // Simpan pesan dihapus (anti-delete)
+		if u.core != nil {
+			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
+		}
+	}
 	for u.setClicks[7].Clicked(gtx) { // Keluar
 		if u.core != nil {
 			u.core.Logout()
@@ -662,7 +667,11 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	switch u.view {
 	case "settings":
 		u.handleSettings(gtx)
-		return SettingsView(gtx, u.th, u.t, &SettingsCtl{Dark: u.dark, Clicks: u.setClicks[:]})
+		kd := true
+		if u.core != nil {
+			kd = u.core.GetKeepDeleted()
+		}
+		return SettingsView(gtx, u.th, u.t, &SettingsCtl{Dark: u.dark, KeepDeleted: kd, Clicks: u.setClicks[:]})
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t, u.callRows())
 	case "contacts":

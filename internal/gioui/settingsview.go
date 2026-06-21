@@ -24,8 +24,9 @@ import (
 // Clicks: 1 clickable per baris (urut spt setList). Dark: status tema saat ini
 // (refleksi toggle "Tema").
 type SettingsCtl struct {
-	Dark   bool
-	Clicks []widget.Clickable
+	Dark        bool
+	KeepDeleted bool // status anti-delete (toggle baris "Simpan pesan dihapus")
+	Clicks      []widget.Clickable
 }
 
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
@@ -122,7 +123,7 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},
 		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},
 		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},
-		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: true},
+		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted},
 		{name: "Retensi", desc: "Hapus pesan setelah 90 hari", icon: "disk"},
 		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},
 		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},

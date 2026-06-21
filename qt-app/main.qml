@@ -4010,9 +4010,9 @@ ApplicationWindow {
     // === Privasi (PrivacyPane.svelte) — surface bg, pv-row + toggle + blocklist ===
     Popup {
         id: privacyPopup
-        width: 380; height: 480; modal: true; anchors.centerIn: Overlay.overlay; padding: 0
-        Overlay.modal: Rectangle { color: "#66000000" }
-        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0; clip: true }
+        // Pane kiri full-height (PrivacyPane.svelte di .sidebar), bukan modal tengah.
+        x: 0; y: 0; width: 400; height: win.height; modal: true; padding: 0
+        background: Rectangle { color: theme.sidebarBg; border.width: 0; clip: true }
         // Saat dibuka: muat daftar diblokir ke searchModel (transient; tak aktif
         // saat popup terbuka). Engine kembalikan [] bila tak ada → empty state.
         onAboutToShow: app.loadInto("GetBlockedContacts", searchModel)
@@ -4034,7 +4034,7 @@ ApplicationWindow {
                     ItemDelegate {
                         Layout.preferredWidth: 36; Layout.preferredHeight: 36; hoverEnabled: true
                         background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
-                        onClicked: privacyPopup.close()
+                        onClicked: { privacyPopup.close(); settingsPopup.open() }
                         Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["chevleft"]; color: theme.text }
                     }
                     Text { Layout.fillWidth: true; text: i18n.t("privacy_title"); color: theme.text
@@ -4137,9 +4137,9 @@ ApplicationWindow {
     // === Penyimpanan (StoragePane.svelte) — ringkasan + bar per-jenis ===
     Popup {
         id: storagePopup
-        width: 380; height: 480; modal: true; anchors.centerIn: Overlay.overlay; padding: 0
-        Overlay.modal: Rectangle { color: "#66000000" }
-        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0; clip: true }
+        // Pane kiri full-height (StoragePane.svelte di .sidebar), bukan modal tengah.
+        x: 0; y: 0; width: 400; height: win.height; modal: true; padding: 0
+        background: Rectangle { color: theme.sidebarBg; border.width: 0; clip: true }
 
         // fmt byte (StoragePane.svelte fmt()).
         function fmt(b) {
@@ -4172,7 +4172,7 @@ ApplicationWindow {
                     ItemDelegate {
                         Layout.preferredWidth: 36; Layout.preferredHeight: 36; hoverEnabled: true
                         background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
-                        onClicked: storagePopup.close()
+                        onClicked: { storagePopup.close(); settingsPopup.open() }
                         Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["chevleft"]; color: theme.text }
                     }
                     Text { Layout.fillWidth: true; text: i18n.t("storage_title")

@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -78,7 +79,9 @@ type UI struct {
 	clicks     []widget.Clickable
 	railClicks []widget.Clickable
 	editor     widget.Editor
-	photos     map[string]paint.ImageOp // foto avatar in-memory (jid/nama → op)
+	photos     map[string]paint.ImageOp // foto avatar in-memory (nama → op)
+	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
+	photoTried map[string]bool          // jid yg sudah dicoba ambil (hindari refetch)
 
 	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox|msgctx
 	headerClick widget.Clickable
@@ -129,6 +132,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.searchEd.SingleLine = true
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
+	u.photoTried = map[string]bool{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
 		u.photos["Andi Pratama"] = synthPhoto()
 	}
@@ -679,7 +683,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 				return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return u.avatar(gtx, c.Name, 49)
+							return u.avatar(gtx, c.Name, c.ID, 49)
 						}),
 						layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -763,11 +767,43 @@ func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
 }
 
 // ---- avatar (lingkaran warna + inisial) ----
-func (u *UI) avatar(gtx layout.Context, name string, dp int) layout.Dimensions {
+// ensureAvatar memuat foto profil (engine AvatarBytes) sekali per jid di goroutine
+// latar → decode → cache di u.photos[name]. Tak memblok thread UI; sekali gagal
+// tetap ditandai agar tak refetch terus.
+func (u *UI) ensureAvatar(name, jid string) {
+	if u.core == nil || jid == "" {
+		return
+	}
+	u.photoMu.Lock()
+	if u.photoTried[jid] {
+		u.photoMu.Unlock()
+		return
+	}
+	u.photoTried[jid] = true
+	u.photoMu.Unlock()
+	go func() {
+		b := u.core.AvatarBytes(jid)
+		img := decodeImage(b)
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.photoMu.Lock()
+		u.photos[name] = op
+		u.photoMu.Unlock()
+	}()
+}
+
+// avatar — foto profil bulat (jid → AvatarBytes, di-cache); fallback inisial warna.
+func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
 	sz := image.Pt(d, d)
+	u.ensureAvatar(name, jid)
 	// Foto in-memory (byte engine → ImageOp) di-mask bulat; else inisial.
-	if ph, ok := u.photos[name]; ok {
+	u.photoMu.Lock()
+	ph, ok := u.photos[name]
+	u.photoMu.Unlock()
+	if ok {
 		cl := clip.Ellipse{Max: sz}.Push(gtx.Ops)
 		drawImageFill(gtx.Ops, ph, d)
 		cl.Pop()
@@ -820,7 +856,7 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(18), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, 40) }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(u.th, 16, u.selName)

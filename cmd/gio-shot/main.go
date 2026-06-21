@@ -56,6 +56,14 @@ func main() {
 			gioui.BubbleTypesView(gtx, th, t)
 		case "states":
 			gioui.StatesView(gtx, th, t)
+		case "convheader":
+			gioui.ConvHeaderView(gtx, th, t)
+		case "sidepanes":
+			gioui.SidePanesView(gtx, th, t)
+		case "modals":
+			gioui.ModalsView(gtx, th, t)
+		case "infodrawer":
+			gioui.InfoDrawerView(gtx, th, t)
 		default:
 			ui.Layout(gtx)
 		}

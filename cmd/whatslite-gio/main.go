@@ -2,14 +2,15 @@
 // Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
 //
 // whatslite-gio — UI WhatsLite native pure-Go (Gio) yang memanggil engine
-// whatsmeow IN-PROCESS (tanpa jembatan IPC/HTTP). Backend = internal/app yang
-// SAMA dgn versi Wails/Qt; di sini cukup panggil method-nya langsung.
+// whatsmeow IN-PROCESS (tanpa jembatan IPC/HTTP). UI di internal/gioui agar
+// bisa dipakai ulang oleh render-tool (cmd/gio-shot) untuk audit headless.
 package main
 
 import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	gioapp "gioui.org/app"
 	"gioui.org/font/gofont"
@@ -19,19 +20,17 @@ import (
 	"gioui.org/widget/material"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
 )
 
 func main() {
-	// Engine in-process: init store+engine+WA persis seperti host headless,
-	// lalu kita panggil GetChats/GetMessages/Connect LANGSUNG (bukan via socket).
-	// WLGIO_DEMO=1 → render UI dgn data statis (tanpa engine/jaringan) utk uji.
 	var core *app.App
 	if os.Getenv("WLGIO_DEMO") == "" {
 		core = app.NewApp()
 		if err := core.StartupHeadless(context.Background()); err != nil {
 			log.Fatal("[gio] startup engine: ", err)
 		}
-		core.Connect() // sambungkan sesi WA (QR bila belum login)
+		core.Connect()
 	}
 
 	go func() {
@@ -49,13 +48,10 @@ func main() {
 func run(w *gioapp.Window, core *app.App) error {
 	th := material.NewTheme()
 	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	ui := gioui.NewUI(th, core)
 
-	ui := NewUI(th, core)
-
-	// Repaint berkala agar data engine yang masuk (chat/pesan baru, koneksi)
-	// ter-refresh. Sederhana untuk POC; nanti diganti event-driven.
 	go func() {
-		for range tick() {
+		for range time.NewTicker(700 * time.Millisecond).C {
 			w.Invalidate()
 		}
 	}()

@@ -90,6 +90,12 @@ type UI struct {
 	// menu lampiran (tombol "+"): klik per-baris.
 	attachClicks []widget.Clickable
 
+	// penyusun polling (lampiran → Polling): pertanyaan + opsi + tombol.
+	pollQEd    widget.Editor
+	pollOptEds [4]widget.Editor
+	pollCreate widget.Clickable
+	pollCancel widget.Clickable
+
 	// menu aksi baris chat (klik-kanan): target + item.
 	chatCtxIdx    int
 	chatCtxItems  [5]widget.Clickable
@@ -180,6 +186,10 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.searchEd.SingleLine = true
 	u.profNameEd.SingleLine = true
 	u.profAboutEd.SingleLine = true
+	u.pollQEd.SingleLine = true
+	for i := range u.pollOptEds {
+		u.pollOptEds[i].SingleLine = true
+	}
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
@@ -421,6 +431,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		})
 	case "statusview":
 		u.statusViewLayer(gtx)
+	case "pollcompose":
+		u.pollComposeLayer(gtx)
 	}
 }
 
@@ -480,12 +492,108 @@ func (u *UI) handleAttach(gtx layout.Context) {
 	}
 	for i := range u.attachClicks {
 		for u.attachClicks[i].Clicked(gtx) {
+			cat := AttachCategory(i)
+			if cat == "poll" { // polling disusun in-app (input teks) → SendPoll
+				u.overlay = "pollcompose"
+				continue
+			}
 			if u.OnAttach != nil && u.selected != "" {
-				u.OnAttach(u.selected, AttachCategory(i))
+				u.OnAttach(u.selected, cat) // media/document via dialog berkas; contact/location TODO
 			}
 			u.overlay = ""
 		}
 	}
+}
+
+// pollComposeLayer — modal susun polling: pertanyaan + 4 opsi + Buat/Batal.
+func (u *UI) pollComposeLayer(gtx layout.Context) {
+	for u.pollCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.pollCreate.Clicked(gtx) {
+		q := strings.TrimSpace(u.pollQEd.Text())
+		var opts []string
+		for i := range u.pollOptEds {
+			if o := strings.TrimSpace(u.pollOptEds[i].Text()); o != "" {
+				opts = append(opts, o)
+			}
+		}
+		if q != "" && len(opts) >= 2 && u.core != nil && u.selected != "" {
+			u.core.SendPoll(u.selected, q, opts, 1)
+			u.pollQEd.SetText("")
+			for i := range u.pollOptEds {
+				u.pollOptEds[i].SetText("")
+			}
+			u.messages = u.core.GetMessages(u.selected)
+		}
+		u.overlay = ""
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(380), gtx.Dp(380)
+		return u.pollComposeCard(gtx)
+	})
+}
+
+func (u *UI) pollComposeCard(gtx layout.Context) layout.Dimensions {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	field := func(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			e := material.Editor(u.th, ed, hint)
+			e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(14.5)
+			return e.Layout(gtx)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(8)
+		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	}
+	macro := op.Record(gtx.Ops)
+	dims := layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		children := []layout.FlexChild{
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 17, "Buat polling")
+				l.Color, l.Font.Weight = u.t.Text, font.SemiBold
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, &u.pollQEd, "Pertanyaan") }),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		}
+		for i := range u.pollOptEds {
+			ed := &u.pollOptEds[i]
+			children = append(children,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, ed, "Opsi") }),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+			)
+		}
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					b := material.Button(u.th, &u.pollCancel, "Batal")
+					b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Bg2, u.t.Text, unit.Dp(8), unit.Sp(14)
+					return b.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					b := material.Button(u.th, &u.pollCreate, "Buat")
+					b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Accent, white, unit.Dp(8), unit.Sp(14)
+					return b.Layout(gtx)
+				}),
+			)
+		}))
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(12)
+	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
 }
 
 // fwdCtl membangun controller modal teruskan dari daftar chat nyata.

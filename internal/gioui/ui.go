@@ -7,6 +7,7 @@
 package gioui
 
 import (
+	"encoding/json"
 	"image"
 	"image/color"
 	"sort"
@@ -231,6 +232,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m12", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "08.09", Status: "sent", Ts: now},
 		{ID: "m13", Dir: "in", Type: "image", Text: "Spot foto kemarin 📷", Time: "08.10", Sender: "Citra Dewi", Ts: now},
 		{ID: "m14", Dir: "out", Type: "video", Time: "08.11", Status: "delivered", Ts: now},
+		{ID: "m15", Dir: "in", Type: "poll", Text: "Liburan ke mana minggu depan?", Thumb: `["Pantai","Gunung","Kota"]`, Time: "08.12", Sender: "Budi Santoso", Ts: now},
 	}
 }
 
@@ -1017,6 +1019,69 @@ func (u *UI) reactionPills(gtx layout.Context, m app.MessageDTO) layout.Dimensio
 	})
 }
 
+// pollBubble — kartu polling: ikon+pertanyaan (m.Text) + opsi bordered (m.Thumb =
+// JSON []string). Tampilan (voting = follow-up). Paritas .poll-card.
+func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	var opts []string
+	if m.Thumb != "" {
+		_ = json.Unmarshal([]byte(m.Thumb), &opts)
+	}
+	children := make([]layout.FlexChild, 0, len(opts)+2)
+	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "pollq", 16, u.t.Text2) }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 14.5, m.Text)
+				lbl.Color = u.t.Text
+				lbl.Font.Weight = font.SemiBold
+				return lbl.Layout(gtx)
+			}),
+		)
+	}))
+	for i := range opts {
+		o := opts[i]
+		children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout))
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.pollOption(gtx, o)
+		}))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+}
+
+// pollOption — satu opsi polling: kotak bordered radius 8 + radio bulat + label.
+func (u *UI) pollOption(gtx layout.Context, label string) layout.Dimensions {
+	macro := op.Record(gtx.Ops)
+	dims := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(18)
+				sz := image.Pt(d, d)
+				paint.FillShape(gtx.Ops, u.t.Line, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+				bw := gtx.Dp(2)
+				in := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(d-bw, d-bw)}
+				paint.FillShape(gtx.Ops, u.t.InBg, clip.Ellipse{Min: in.Min, Max: in.Max}.Op(gtx.Ops))
+				return layout.Dimensions{Size: sz}
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 14, label)
+				lbl.Color = u.t.Text
+				return lbl.Layout(gtx)
+			}),
+		)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(8)
+	paint.FillShape(gtx.Ops, u.t.Line, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	bw := gtx.Dp(1)
+	inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(dims.Size.X-bw, dims.Size.Y-bw)}
+	paint.FillShape(gtx.Ops, u.t.InBg, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
+}
+
 // quoteBlock — kutipan pesan yg dibalas, di dalam bubble (garis accent kiri + nama
 // + teks), latar agak gelap. margin-bottom kecil sebelum isi.
 func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.Dimensions {
@@ -1432,6 +1497,8 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					switch m.Type {
 					case "image", "video", "gif":
 						return u.mediaThumb(gtx, m) // thumbnail + caption
+					case "poll":
+						return u.pollBubble(gtx, m) // pertanyaan + opsi
 					}
 					txt := m.Text
 					if txt == "" && m.Type != "" && m.Type != "text" {

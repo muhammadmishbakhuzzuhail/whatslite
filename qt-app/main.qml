@@ -124,6 +124,8 @@ ApplicationWindow {
         "sticker": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>',
         "gifb": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>',
         "document": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+        // Quick replies (Composer.svelte attach-menu zap/lightning icon) — disalin persis.
+        "zap": '<path d="M13 2L3 14h7l-1 8 10-12h-7z"/>',
         // .doc-ico svg (Bubble.svelte cabang document) — disalin persis.
         "docfile": '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
         "overflow": '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
@@ -375,14 +377,29 @@ ApplicationWindow {
         }
     }
     // .attach-item: hover bg hover, teks text 15px, radius 8, pad ~9 12.
+    // `iconName` (opsional) → .am-item: leading line-SVG 20px accent + gap 12 + teks 14.5px (int 14).
     component TMenuItem: MenuItem {
         id: _mi
-        implicitHeight: 38
-        leftPadding: 12; rightPadding: 12; topPadding: 9; bottomPadding: 9
-        contentItem: Text {
-            text: _mi.text; color: theme.text; font.pixelSize: 15
-            verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
-            opacity: _mi.enabled ? 1 : 0.5
+        property string iconName: ""
+        implicitHeight: iconName !== "" ? 42 : 38
+        leftPadding: iconName !== "" ? 14 : 12; rightPadding: 14; topPadding: iconName !== "" ? 11 : 9; bottomPadding: iconName !== "" ? 11 : 9
+        spacing: 12
+        contentItem: RowLayout {
+            spacing: 12
+            // .am-item svg { width:20; height:20; color: var(--accent) }
+            Icon {
+                visible: _mi.iconName !== ""
+                Layout.preferredWidth: 20; Layout.preferredHeight: 20
+                svg: _mi.iconName !== "" ? (win.ico[_mi.iconName] || "") : ""
+                color: theme.accent
+            }
+            Text {
+                Layout.fillWidth: true
+                text: _mi.text; color: theme.text
+                font.pixelSize: _mi.iconName !== "" ? 14 : 15   // .am-item 14.5px → int 14
+                verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+                opacity: _mi.enabled ? 1 : 0.5
+            }
         }
         background: Rectangle {
             radius: 8
@@ -633,15 +650,7 @@ ApplicationWindow {
                     }
                 }
                 Item { Layout.fillHeight: true }
-                // Toggle tema light/dark (bawah rail).
-                Rectangle {
-                    id: themeBtn
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 44; height: 44; radius: 22
-                    color: themeMa.containsMouse ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
-                    Text { anchors.centerIn: parent; text: theme.dark ? "☀️" : "🌙"; font.pixelSize: 18 }
-                    MouseArea { id: themeMa; anchors.fill: parent; hoverEnabled: true; onClicked: theme.dark = !theme.dark }
-                }
+                // Rail.svelte .rail-bottom: hanya settings rail-btn + .rail-avatar — TANPA theme toggle (tema di Settings).
                 // Avatar profil di dasar rail (.rail-avatar 40px, inisial putih).
                 Avatar {
                     Layout.alignment: Qt.AlignHCenter
@@ -910,7 +919,8 @@ ApplicationWindow {
                                         }
                                         Text {
                                             text: model.m.time || ""
-                                            color: (model.m.badge > 0) ? theme.accent : theme.text2; font.pixelSize: 12
+                                            // .row-time text2; .chat-row.unread .row-time accent (keyed on unread, not badge).
+                                            color: model.m.unread ? theme.accent : theme.text2; font.pixelSize: 12
                                         }
                                         // .row-menu-btn: chevron yg muncul saat hover (width 0→20, opacity 0→1).
                                         Rectangle {
@@ -957,7 +967,8 @@ ApplicationWindow {
                                         Icon {
                                             visible: !parent.rowTyping && !parent.rowDraft && model.m.sent === true
                                             readonly property bool sending: model.m.status === "sending"
-                                            Layout.preferredWidth: sending ? 13 : 16; Layout.preferredHeight: sending ? 13 : 12; Layout.alignment: Qt.AlignVCenter
+                                            // .row-preview .ticks always 16x12; .ticks.clock only overrides stroke color, not size.
+                                            Layout.preferredWidth: 16; Layout.preferredHeight: 12; Layout.alignment: Qt.AlignVCenter
                                             vbox: sending ? "0 0 16 16" : "0 0 18 14"
                                             svg: sending ? win.ico["clockSm"]
                                                : model.m.status === "sent" ? win.ico["check"] : win.ico["checks"]
@@ -1575,29 +1586,66 @@ ApplicationWindow {
                                 text: i18n.t("rail_chats").toUpperCase()
                                 color: theme.text2; font.pixelSize: 12; font.letterSpacing: 0.4
                             }
-                            // Baris chat (nama cocok) — gaya ChatRow ringkas.
+                            // Baris chat (nama cocok) — pakai metrik ChatRow penuh (ChatList.svelte
+                            // me-render <ChatRow chat={c}/>): avatar 49, .row-name 16.5/500, gap 13,
+                            // pad 10/12, radius var(--r), + .row-time (accent saat unread) & ticks.
                             Repeater {
                                 model: (win.searchType === "all") ? searchOverlay.matched : []
                                 delegate: Rectangle {
+                                    id: scRow
                                     Layout.fillWidth: true
-                                    Layout.leftMargin: 8; Layout.rightMargin: 8
-                                    Layout.preferredHeight: 64
+                                    Layout.leftMargin: 0; Layout.rightMargin: 0
+                                    Layout.preferredHeight: scRowRow.implicitHeight + 20  // .chat-row padding 10/10
+                                    Layout.bottomMargin: 1
                                     radius: theme.r
                                     color: ncHov.hovered ? theme.hover : "transparent"
                                     RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 13
+                                        id: scRowRow
+                                        anchors.left: parent.left; anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 13
                                         Avatar {
-                                            Layout.preferredWidth: 44; Layout.preferredHeight: 44; fontSize: 16
+                                            Layout.preferredWidth: 49; Layout.preferredHeight: 49; fontSize: 19
                                             name: modelData.name || ""; jid: modelData.id || ""
                                             base: app.mediaBase; accent: win.avatarColor(modelData.name || "?")
                                             group: modelData.group === true
                                         }
                                         ColumnLayout {
                                             Layout.fillWidth: true; spacing: 2
-                                            Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                                text: modelData.name || modelData.id || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
-                                            Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                                text: modelData.preview || ""; color: theme.text2; font.pixelSize: 14 }
+                                            RowLayout {
+                                                Layout.fillWidth: true; spacing: 8
+                                                Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                    text: modelData.name || modelData.id || ""; color: theme.text; font.pixelSize: 16
+                                                    font.weight: modelData.unread ? Font.Bold : Font.Medium }
+                                                // .row-time: text2, accent saat unread.
+                                                Text { text: modelData.time || ""; font.pixelSize: 12
+                                                    color: modelData.unread ? theme.accent : theme.text2 }
+                                            }
+                                            RowLayout {
+                                                Layout.fillWidth: true; spacing: 4
+                                                // Ticks pesan terakhir keluar (mirip ChatRow): sending=jam, sent=tunggal, lainnya=ganda.
+                                                Icon {
+                                                    visible: modelData.sent === true
+                                                    readonly property bool sending: modelData.status === "sending"
+                                                    Layout.preferredWidth: 16; Layout.preferredHeight: 12; Layout.alignment: Qt.AlignVCenter
+                                                    vbox: sending ? "0 0 16 16" : "0 0 18 14"
+                                                    svg: sending ? win.ico["clockSm"]
+                                                       : modelData.status === "sent" ? win.ico["check"] : win.ico["checks"]
+                                                    color: modelData.status === "read" ? theme.tick : theme.text2
+                                                }
+                                                Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                    text: modelData.preview || ""; font.pixelSize: 14
+                                                    color: modelData.unread ? theme.text : theme.text2
+                                                    font.weight: modelData.unread ? Font.Medium : Font.Normal }
+                                                // .badge unread.
+                                                Rectangle {
+                                                    visible: (modelData.badge || 0) > 0
+                                                    Layout.leftMargin: 4; radius: 10; color: theme.accent
+                                                    implicitWidth: Math.max(20, scBdg.implicitWidth + 12); implicitHeight: 20
+                                                    Text { id: scBdg; anchors.centerIn: parent; color: "white"; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                        text: (modelData.badge || 0) > 99 ? "99+" : (modelData.badge || 0) }
+                                                }
+                                            }
                                         }
                                     }
                                     HoverHandler { id: ncHov }
@@ -2211,7 +2259,11 @@ ApplicationWindow {
             Rectangle {
                 id: composer
                 visible: win.selectedChat.id !== undefined
-                Layout.fillWidth: true; Layout.minimumHeight: 64; Layout.preferredHeight: 64
+                // Tinggi tumbuh dgn isi composer (textarea auto-grow s/d 130): tinggi
+                // area input + padding vertikal 9+9; min 64 (.composer min-height).
+                property int inputH: 46
+                Layout.fillWidth: true; Layout.minimumHeight: 64
+                Layout.preferredHeight: Math.max(64, inputH + 18)
                 color: theme.headBg
                 // Status rekam suara — VISUAL-ONLY (tak ada backend capture). Mic → rec-bar + mic merah.
                 property bool recording: false
@@ -2236,7 +2288,15 @@ ApplicationWindow {
                         color: emojiHov.hovered ? (theme.dark ? Qt.rgba(1,1,1,0.08) : Qt.rgba(0,0,0,0.06)) : "transparent"
                         Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["emoji"]; color: theme.railIco }
                         HoverHandler { id: emojiHov }
-                        MouseArea { anchors.fill: parent; onClicked: emojiMenu.popup() }
+                        // Tombol emoji → buka grid emoji penuh (reactionPopup) dlm mode sisip,
+                        // bukan menu 10-glyph. Posisikan di atas tombol (.emoji-panel bottom:68 left:8).
+                        MouseArea { anchors.fill: parent; onClicked: {
+                            var p = mapToItem(null, 0, 0)
+                            win.reactX = p.x
+                            win.reactY = Math.max(8, p.y - reactionPopup.height - 6)
+                            reactionPopup.insertMode = true
+                            reactionPopup.open()
+                        } }
                     }
                     // Lampiran (+) → menu: dokumen/stiker/gif/gambar/video/lokasi/polling/kontak/mention.
                     Rectangle {
@@ -2278,9 +2338,14 @@ ApplicationWindow {
                             }
                         }
                     }
+                    // .composer .input: pill searchBg radius 22, pad 9/16. Berisi
+                    // <textarea> multi-baris auto-grow (line-height 1.4, max-height 130,
+                    // overflow-y auto); Enter=kirim, Shift+Enter=baris baru.
                     Rectangle {
+                        id: inputPill
                         visible: !composer.recording
-                        Layout.fillWidth: true; Layout.fillHeight: true
+                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
+                        Layout.preferredHeight: composer.inputH
                         radius: 22; color: theme.searchBg
                         function send() {
                             if (composerInput.text.trim() === "") return
@@ -2291,20 +2356,40 @@ ApplicationWindow {
                             composerInput.text = ""
                             win.replyTo = null
                         }
-                        TextInput {
-                            id: composerInput
-                            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16
-                            verticalAlignment: TextInput.AlignVCenter
-                            color: theme.text; font.pixelSize: 15; clip: true
-                            onTextChanged: app.sendTyping(text.length > 0)
-                            Keys.onReturnPressed: parent.send()
-                            Keys.onEnterPressed: parent.send()
-                        }
-                        Text {
-                            visible: composerInput.text === ""
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left; anchors.leftMargin: 16
-                            text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 15
+                        ScrollView {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16; anchors.rightMargin: 16
+                            anchors.topMargin: 9; anchors.bottomMargin: 9
+                            clip: true
+                            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                            TextArea {
+                                id: composerInput
+                                width: inputPill.width - 32
+                                background: null
+                                wrapMode: TextArea.Wrap
+                                verticalAlignment: TextArea.AlignVCenter
+                                color: theme.text; font.pixelSize: 15
+                                // line-height 1.4 → spasi antar-baris.
+                                topPadding: 0; bottomPadding: 0; leftPadding: 0; rightPadding: 0
+                                // textarea auto-grow: clamp(contentHeight, 28, 130) → set inputH (+18 pad pill).
+                                onContentHeightChanged: composer.inputH = Math.max(46, Math.min(Math.ceil(contentHeight) + 18, 130))
+                                onTextChanged: app.sendTyping(text.length > 0)
+                                // Enter=kirim (tanpa Shift); Shift+Enter=baris baru (default TextArea).
+                                Keys.onReturnPressed: function(e) {
+                                    if (e.modifiers & Qt.ShiftModifier) { e.accepted = false }
+                                    else { e.accepted = true; inputPill.send() }
+                                }
+                                Keys.onEnterPressed: function(e) {
+                                    if (e.modifiers & Qt.ShiftModifier) { e.accepted = false }
+                                    else { e.accepted = true; inputPill.send() }
+                                }
+                                Text {
+                                    visible: composerInput.text === ""
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    text: i18n.t("type_message"); color: theme.text2; font.pixelSize: 15
+                                }
+                            }
                         }
                     }
                     // .icon-btn schedule (jam): muncul saat input ada teks (Composer.svelte typing && !editDraft),
@@ -2335,7 +2420,7 @@ ApplicationWindow {
                             color: composer.recording ? "#ffffff" : theme.railIco }
                         HoverHandler { id: sendHov }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
-                            if (sendBtn.hasText) { composerInput.parent.send(); return }
+                            if (sendBtn.hasText) { inputPill.send(); return }
                             if (composer.recording) { composer.recording = false; composer.recElapsed = 0 }  // stop → "kirim" (visual)
                             else { composer.recElapsed = 0; composer.recording = true }  // mic → mulai rekam (visual)
                         } }
@@ -2399,6 +2484,7 @@ ApplicationWindow {
         y: win.height - height - 70
         padding: 10
         property string tab: "online"   // online|recents|pack|create (StickerPicker.svelte default)
+        property string cat: "trending" // kategori aktif (.gif-cat.on mengikuti query); "★"=favView
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 10
@@ -2433,16 +2519,21 @@ ApplicationWindow {
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 35 }
                 }
             }
-            // .gif-cats: kategori chip (tab online).
+            // .gif-cats: kategori chip (tab online). .gif-cat.on mengikuti kategori terpilih (query).
             Flow {
                 Layout.fillWidth: true; spacing: 5; visible: stickerPopup.tab === "online"
                 Repeater {
                     model: ["★", "trending", "love", "happy", "sad", "meme"]
                     delegate: Rectangle {
+                        property bool on: stickerPopup.cat === modelData
                         height: 24; radius: 12; width: cat.implicitWidth + 20
-                        color: index === 1 ? theme.accent : theme.bg2
+                        color: on ? theme.accent : theme.bg2
                         Text { id: cat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
-                            color: index === 1 ? "#ffffff" : theme.text2 }
+                            color: parent.on ? "#ffffff" : theme.text2 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
+                            stickerPopup.cat = modelData
+                            if (modelData !== "★") app.searchOnline("SearchStickers", modelData === "trending" ? "" : modelData, onlineStkModel)
+                        } }
                     }
                 }
             }
@@ -2451,12 +2542,14 @@ ApplicationWindow {
                 id: stickerGrid
                 Layout.fillWidth: true; Layout.fillHeight: true
                 visible: stickerPopup.tab === "pack"
-                cellWidth: 84; cellHeight: 84; clip: true
+                // .stk-grid minmax(84,1fr) gap 6: sel mengisi 1fr (floor(width/90)) — bukan 84 fix.
+                property int stkCols: Math.max(1, Math.floor(width / 90))
+                cellWidth: width / stkCols; cellHeight: cellWidth; clip: true
                 model: stickerPopup.tab === "pack" ? stickersModel : 0
                 delegate: Item {
-                    width: 84; height: 84
+                    width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2
                         Image {
                             id: stkImg
                             anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
@@ -2476,12 +2569,13 @@ ApplicationWindow {
             GridView {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 visible: stickerPopup.tab === "online"
-                cellWidth: 84; cellHeight: 84; clip: true
+                property int stkCols: Math.max(1, Math.floor(width / 90))
+                cellWidth: width / stkCols; cellHeight: cellWidth; clip: true
                 model: stickerPopup.tab === "online" ? onlineStkModel : 0
                 delegate: Item {
-                    width: 84; height: 84
+                    width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2
                         Image {
                             anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
                             source: model.m.preview || ""; asynchronous: true
@@ -2509,6 +2603,7 @@ ApplicationWindow {
         y: win.height - height - 70
         padding: 10
         property string tab: "online"   // GifPicker.svelte: hanya grid online (trending); default online
+        property string cat: "trending" // kategori aktif (.gif-cat.on mengikuti query); "★"=favView
         background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line }
         ColumnLayout {
             anchors.fill: parent; spacing: 10
@@ -2547,24 +2642,32 @@ ApplicationWindow {
                 Repeater {
                     model: ["★", "trending", "reactions", "love", "lol", "wow"]
                     delegate: Rectangle {
+                        property bool on: gifPopup.cat === modelData
                         height: 24; radius: 12; width: gcat.implicitWidth + 20
-                        color: index === 1 ? theme.accent : theme.bg2
+                        color: on ? theme.accent : theme.bg2
                         Text { id: gcat; anchors.centerIn: parent; text: modelData; font.pixelSize: 12
-                            color: index === 1 ? "#ffffff" : theme.text2 }
+                            color: parent.on ? "#ffffff" : theme.text2 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: {
+                            gifPopup.cat = modelData
+                            if (modelData !== "★") app.searchOnline("SearchGifs", modelData === "trending" ? "" : modelData, onlineGifModel)
+                        } }
                     }
                 }
             }
             GridView {
                 Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab === "saved"
-                cellWidth: 150; cellHeight: 150; clip: true
+                // .gif-grid minmax(150,1fr) gap 6: sel mengisi 1fr (floor(width/156)) — bukan 150 fix.
+                property int gifCols: Math.max(1, Math.floor(width / 156))
+                cellWidth: width / gifCols; cellHeight: cellWidth; clip: true
                 model: gifPopup.tab === "saved" ? gifsModel : 0
                 delegate: Item {
-                    width: 150; height: 150
+                    width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2; clip: true
                         Image {
                             id: gifImg
-                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectFit
+                            // .gif-cell img { object-fit:cover } → crop-fill, bukan fit.
+                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectCrop; clip: true
                             source: app.mediaBase ? (app.mediaBase + "/savedgif/" + model.m.hash) : ""
                             visible: status === Image.Ready
                         }
@@ -2580,12 +2683,13 @@ ApplicationWindow {
             // Grid hasil online (Tenor) — preview URL remote.
             GridView {
                 Layout.fillWidth: true; Layout.fillHeight: true; visible: gifPopup.tab === "online"
-                cellWidth: 150; cellHeight: 150; clip: true
+                property int gifCols: Math.max(1, Math.floor(width / 156))
+                cellWidth: width / gifCols; cellHeight: cellWidth; clip: true
                 model: gifPopup.tab === "online" ? onlineGifModel : 0
                 delegate: Item {
-                    width: 150; height: 150
+                    width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
+                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2; clip: true
                         Image {
                             anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectCrop; clip: true
                             source: model.m.preview || ""; asynchronous: true
@@ -2607,7 +2711,7 @@ ApplicationWindow {
     TMenu {
         id: msgMenu
         TMenuItem { text: "👍  " + i18n.t("m_like"); onTriggered: app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", "👍") }
-        TMenuItem { text: "😀  " + i18n.t("m_react"); onTriggered: reactionPopup.open() }
+        TMenuItem { text: "😀  " + i18n.t("m_react"); onTriggered: { reactionPopup.insertMode = false; reactionPopup.open() } }
         TMenuItem { text: "↩️  " + i18n.t("m_reply"); onTriggered: win.replyTo = win.ctxMsg }
         TMenuItem {
             text: "✏️  " + i18n.t("m_edit"); visible: win.ctxMsg.dir === "out"; height: visible ? implicitHeight : 0
@@ -3061,7 +3165,7 @@ ApplicationWindow {
         // Saya admin? real→amAdmin. Mock tak set field → tampilkan UI admin (members ada).
         property bool amAdmin: app.detail.amAdmin === true || (app.detail.amAdmin === undefined && app.detail.members !== undefined)
         // Reset state UI sementara tiap buka (deskripsi klem, filter anggota).
-        onOpened: { infoCol.descOpen = false; infoCol.memberQ = "" }
+        onOpened: { infoCol.descOpen = false; infoCol.aboutOpen = false; infoCol.memberQ = "" }
         background: Rectangle {
             color: theme.sidebarBg
             Rectangle { width: 1; height: parent.height; color: theme.divider } // border-left
@@ -3092,6 +3196,7 @@ ApplicationWindow {
                 ColumnLayout {
                     id: infoCol; width: parent.width; spacing: 0
                     property bool descOpen: false
+                    property bool aboutOpen: false
                     property string memberQ: ""
 
                     // Pemisah antar-bagian: bar 6px warna wallpaper (app.css border-bottom 6px wallpaper).
@@ -3188,13 +3293,40 @@ ApplicationWindow {
                     }
                     InfoSep { visible: detailPopup.isGroup && detailPopup.groupDesc !== "" }
 
-                    // About (kontak).
+                    // Info bisnis (kontak): ContactProfile.svelte — .info-block lbl=business_info,
+                    // baris .val 📍 alamat / ✉️ email; guard biz.isBiz && (address||email).
+                    ColumnLayout {
+                        property bool show: !detailPopup.isGroup && app.detail.isBiz === true
+                                            && ((app.detail.address || "") !== "" || (app.detail.email || "") !== "")
+                        Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24
+                        Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 5
+                        visible: show
+                        Text { text: i18n.t("business_info"); color: theme.accent; font.pixelSize: 13 }
+                        Text { visible: (app.detail.address || "") !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: "📍 " + (app.detail.address || ""); color: theme.text; font.pixelSize: 15 }
+                        Text { visible: (app.detail.email || "") !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: "✉️ " + (app.detail.email || ""); color: theme.text; font.pixelSize: 15 }
+                    }
+                    InfoSep { visible: !detailPopup.isGroup && app.detail.isBiz === true
+                                       && ((app.detail.address || "") !== "" || (app.detail.email || "") !== "") }
+
+                    // About (kontak) — klem 5 baris + baca selengkapnya (>140 char), mirror desc grup.
                     ColumnLayout {
                         Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24
                         Layout.topMargin: 14; Layout.bottomMargin: 14; spacing: 5
                         visible: !detailPopup.isGroup && (app.detail.about || "") !== ""
                         Text { text: i18n.t("info_about"); color: theme.accent; font.pixelSize: 13 }
-                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: app.detail.about || "—"; color: theme.text; font.pixelSize: 15 }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; text: app.detail.about || "—"
+                            color: theme.text; font.pixelSize: 15
+                            maximumLineCount: infoCol.aboutOpen ? 0 : 5; elide: infoCol.aboutOpen ? Text.ElideNone : Text.ElideRight
+                        }
+                        Text {
+                            visible: (app.detail.about || "").length > 140
+                            text: infoCol.aboutOpen ? i18n.t("read_less") : i18n.t("read_more")
+                            color: theme.accent; font.pixelSize: 13; font.weight: Font.DemiBold
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: infoCol.aboutOpen = !infoCol.aboutOpen }
+                        }
                     }
                     InfoSep { visible: !detailPopup.isGroup && (app.detail.about || "") !== "" }
 
@@ -3323,7 +3455,7 @@ ApplicationWindow {
                     }
                     InfoSep { visible: detailPopup.isGroup }
 
-                    // Aksi kontak (info-row): Pesan, Simpan/Ganti nama.
+                    // Aksi kontak (info-row): Pesan, Simpan/Ganti nama, + Hapus label (danger) bila tersimpan.
                     ColumnLayout {
                         Layout.fillWidth: true; visible: !detailPopup.isGroup; spacing: 0
                         Repeater {
@@ -3342,8 +3474,46 @@ ApplicationWindow {
                                     else win.prompt(i18n.t("save_contact"), app.detail.name || "", function(v){ if (v && v.trim()) app.act("SaveContactLabel", [win.selectedChat.id, v.trim()]) }) } }
                             }
                         }
+                        // .info-row.danger 'remove_label' (#e35d6a) — hanya bila kontak tersimpan (prof.saved).
+                        Rectangle {
+                            visible: app.detail.saved === true
+                            Layout.fillWidth: true; implicitHeight: 50; color: ctRmHov.hovered ? theme.hover : "transparent"
+                            RowLayout {
+                                anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["removelabel"]; color: "#e35d6a" }
+                                Text { Layout.fillWidth: true; text: i18n.t("remove_label"); color: "#e35d6a"; font.pixelSize: 15 }
+                            }
+                            HoverHandler { id: ctRmHov }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: app.act("RemoveContactLabel", [win.selectedChat.id]) }
+                        }
                     }
                     InfoSep { visible: !detailPopup.isGroup }
+
+                    // Grup bersama (kontak): ContactProfile.svelte — .info-block lbl=common_groups (n),
+                    // tiap baris button.info-row (ikon grup + nama) buka grup; guard commonGroups ada.
+                    ColumnLayout {
+                        property var groups: (app.detail.commonGroups instanceof Array) ? app.detail.commonGroups : []
+                        Layout.fillWidth: true; visible: !detailPopup.isGroup && groups.length > 0; spacing: 0
+                        Text { Layout.leftMargin: 24; Layout.topMargin: 14; Layout.bottomMargin: 6
+                            text: i18n.t("common_groups") + " (" + groups.length + ")"; color: theme.accent; font.pixelSize: 13 }
+                        Repeater {
+                            model: parent.groups
+                            delegate: Rectangle {
+                                Layout.fillWidth: true; implicitHeight: 50; color: cgHov.hovered ? theme.hover : "transparent"
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                    Icon { Layout.preferredWidth: 22; Layout.preferredHeight: 22; svg: win.ico["commongroup"]; color: theme.text2 }
+                                    Text { Layout.fillWidth: true; text: modelData.name || (modelData.jid || "").split("@")[0] || ""
+                                        color: theme.text; font.pixelSize: 15; elide: Text.ElideRight }
+                                }
+                                HoverHandler { id: cgHov }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { app.openChat(modelData.jid || ""); detailPopup.close() } }
+                            }
+                        }
+                    }
+                    InfoSep { visible: !detailPopup.isGroup && (app.detail.commonGroups instanceof Array) && app.detail.commonGroups.length > 0 }
 
                     // Galeri media bersama ("Media, links & docs"). InfoPanel.svelte .info-block + .media-grid.
                     // DATA-GUARDED: engine Qt belum punya endpoint shared-media → tampil hanya bila app.detail.media ada.
@@ -3848,7 +4018,15 @@ ApplicationWindow {
         y: win.reactY < 0 ? (win.height - height) / 2
                           : Math.max(8, Math.min(win.reactY, win.height - height - 8))
         Overlay.modal: Rectangle { color: "transparent" }  // .rp-backdrop transparan
-        background: Rectangle { color: theme.bg; radius: 14; border.color: theme.line; clip: true }
+        // .rp-pop: radius 14, box-shadow var(--shadow-lg), TANPA border (Svelte hanya shadow).
+        background: Rectangle {
+            color: theme.bg; radius: 14; clip: true
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 12; radius: 32; samples: 41
+                color: Qt.rgba(0, 0, 0, theme.dark ? 0.55 : 0.16)
+            }
+        }
         // Daftar emoji ala WhatsApp quick-react + kategori umum.
         readonly property var quick: ["👍","❤️","😂","😮","😢","🙏"]
         readonly property var grid: [
@@ -3857,7 +4035,11 @@ ApplicationWindow {
             "👌","✌️","🤝","💪","🙌","👀","💯","✨","⭐","🌟","💔","💕",
             "😊","😉","😋","😇","🤣","😆","🥰","😻","🤤","😬","😤","😩"
         ]
+        // insertMode=true → sisip emoji ke composer (tombol emoji Composer.svelte),
+        // selain itu → react ke pesan (ReactionPicker).
+        property bool insertMode: false
         function send(em) {
+            if (insertMode) { composerInput.text += em; reactionPopup.close(); return }
             app.react(win.ctxMsg.id, win.ctxMsg.senderId || "", win.ctxMsg.dir === "out", em)
             reactionPopup.close()
         }
@@ -4373,32 +4555,23 @@ ApplicationWindow {
         }
     }
 
-    // === Menu lampiran compose (lokasi/polling/kontak/mention/poll-vote) ===
+    // === Menu lampiran compose (.attach-menu) — paritas Composer.svelte: 8 item
+    //     dgn line-SVG accent 20px + teks 14.5px, urutan Svelte:
+    //     attach_media / attach_location / attach_poll / GIF / attach_sticker /
+    //     attach_contact / quick_replies / attach_document.
     TMenu {
         id: attachMenu
-        TMenuItem { text: "📄  " + i18n.t("a_document"); onTriggered: docDialog.open() }
-        TMenuItem { text: "🏷️  " + i18n.t("a_stickers"); onTriggered: { app.loadStickers(); stickerPopup.open() } }
-        TMenuItem { text: "🎬  " + i18n.t("a_gifs"); onTriggered: { app.loadGifs(); gifPopup.open() } }
-        TMenuItem { text: "🖼️  " + i18n.t("a_image"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
-        TMenuItem { text: "🎬  " + i18n.t("a_video"); onTriggered: { mediaDialog.kind = "video"; mediaDialog.open() } }
-        TMenuItem { text: "🎵  " + i18n.t("a_audio"); onTriggered: { mediaDialog.kind = "audio"; mediaDialog.open() } }
-        TMenuItem { text: "📍  " + i18n.t("a_location"); onTriggered: win.prompt(i18n.t("a_location"), "Jakarta", function(v){ app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, v]) }) }
-        TMenuItem { text: "📊  " + i18n.t("a_poll"); onTriggered: pollDialog.open() }
-        TMenuItem { text: "👤  " + i18n.t("a_contact"); onTriggered: contactDialog.open() }
-        TMenuItem { text: "@  " + i18n.t("a_mention"); onTriggered: win.prompt(i18n.t("a_mention"), "", function(v){ app.act("SendTextMentioned", [win.selectedChat.id, v, []]) }) }
-        TMenuItem { text: "🏷️  " + i18n.t("a_send_sticker"); onTriggered: { mediaDialog.kind = "sticker"; mediaDialog.open() } }
-        TMenuItem { text: "🎞️  " + i18n.t("a_send_gif"); onTriggered: { mediaDialog.kind = "gif"; mediaDialog.open() } }
-        TMenuItem { text: "🗳️  " + i18n.t("a_vote"); onTriggered: app.act("VotePoll", [win.selectedChat.id, win.selectedChat.id, win.ctxMsg.id || "p", ["Opsi A"]]) }
+        TMenuItem { iconName: "herophoto"; text: i18n.t("attach_media"); onTriggered: { mediaDialog.kind = "image"; mediaDialog.open() } }
+        TMenuItem { iconName: "locpin"; text: i18n.t("attach_location"); onTriggered: win.prompt(i18n.t("attach_location"), "Jakarta", function(v){ app.act("SendLocation", [win.selectedChat.id, -6.2, 106.8, v]) }) }
+        TMenuItem { iconName: "pollq"; text: i18n.t("attach_poll"); onTriggered: pollDialog.open() }
+        TMenuItem { iconName: "gifb"; text: "GIF"; onTriggered: { app.loadGifs(); gifPopup.open() } }
+        TMenuItem { iconName: "sticker"; text: i18n.t("attach_sticker"); onTriggered: { app.loadStickers(); stickerPopup.open() } }
+        TMenuItem { iconName: "contacts"; text: i18n.t("attach_contact"); onTriggered: contactDialog.open() }
+        TMenuItem { iconName: "zap"; text: i18n.t("quick_replies"); onTriggered: win.prompt(i18n.t("quick_replies"), "", function(v){ if (v) composerInput.text = composerInput.text ? composerInput.text + " " + v : v }) }
+        TMenuItem { iconName: "document"; text: i18n.t("attach_document"); onTriggered: docDialog.open() }
     }
 
-    // Emoji picker ringkas (sisip ke composer) — paritas tombol emoji Composer.svelte.
-    TMenu {
-        id: emojiMenu
-        Repeater {
-            model: ["😀", "😂", "😍", "👍", "🙏", "🎉", "❤️", "🔥", "😢", "😮"]
-            delegate: TMenuItem { text: modelData; onTriggered: composerInput.text += modelData }
-        }
-    }
+    // (Tombol emoji kini membuka reactionPopup penuh dlm mode-sisip — TMenu glyph dihapus.)
 
     // FileDialog media (gambar/video/audio/sticker/gif) → kirim file nyata.
     // Untuk gambar/video: tampilkan pratinjau (MediaPreviewModal) dulu; lainnya
@@ -4784,7 +4957,7 @@ ApplicationWindow {
             else if (openPanel === "storage") { app.loadDetail("GetStorageUsage", ""); storagePopup.open() }
             else if (openPanel === "folder") { win.folders = [{ name: "Kerja", jids: ["c"] }, { name: "Keluarga", jids: [] }]; win.openFolderPicker("c", "Alice") }
             else if (openPanel === "msginfo") { app.loadDetailA("GetMessageInfo", ["c", "m1"]); msgInfoPopup.open() }
-            else if (openPanel === "reaction") { win.ctxMsg = { id: "m1", senderId: "", dir: "in" }; win.reactX = 80; win.reactY = 120; reactionPopup.open() }
+            else if (openPanel === "reaction") { win.ctxMsg = { id: "m1", senderId: "", dir: "in" }; win.reactX = 80; win.reactY = 120; reactionPopup.insertMode = false; reactionPopup.open() }
             else if (openPanel === "reactiondetail") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionDetailPopup.open() }
             else if (openPanel === "mediapreview") { win.mediaDraftIdx = 0; win.mediaDraftOnce = false; win.mediaDraft = { chatId: "c", items: [{ kind: "image", url: (app.mediaBase || "") + "/media/c/m1", name: "" }] }; mediaPreviewPopup.open() }
             else if (openPanel === "lightbox") {

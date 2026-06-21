@@ -133,6 +133,9 @@ func main() {
 		case "app-chatbottom":
 			ui.ScrollMessagesToEnd()
 			ui.Layout(gtx)
+		case "app-attach":
+			ui.SetOverlay("attach")
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

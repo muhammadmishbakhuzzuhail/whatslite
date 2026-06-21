@@ -27,6 +27,7 @@
   "promote": "Jadikan admin", "demote": "Cabut admin", "remove_member": "Keluarkan",
   "group_set_photo": "Ubah foto grup", "group_edit_name": "Ubah nama", "group_edit_desc": "Ubah deskripsi",
   "stk_online": "Online", "stk_recents": "Terkini", "stk_pack": "Paket", "stk_create": "Buat",
+  "stk_pick": "Pilih gambar", "stk_hint": "Stiker persegi 512",
   "gif_online": "Online", "gif_recents": "Terkini",
   "search": "Cari pesan", "search_placeholder": "Cari atau mulai chat baru",
   "pick_conversation": "Pilih percakapan",

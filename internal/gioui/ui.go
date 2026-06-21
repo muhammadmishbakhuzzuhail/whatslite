@@ -39,6 +39,9 @@ type UI struct {
 	typingSent bool   // status composing terakhir yg dikirim (throttle SendTyping)
 	view       string // pane sidebar aktif: chats|calls|settings
 
+	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
+	olderReqAt   time.Time // waktu permintaan history lama terakhir
+
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
 	phoneEd     widget.Editor
@@ -1172,12 +1175,31 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 	return layout.Dimensions{Size: sz}
 }
 
+// maybeLoadOlder — bila daftar pesan tergulir mendekati ATAS, minta 50 pesan lebih
+// lama dari engine (history on-demand WhatsApp; prinsip lazy-history Telegram).
+// Throttle per-chat 3s; respons tiba via OnHistorySync ON_DEMAND → GetMessages.
+func (u *UI) maybeLoadOlder() {
+	if u.core == nil || u.selected == "" || len(u.messages) < 15 {
+		return
+	}
+	if u.msgList.Position.First > 3 { // belum di dekat atas
+		return
+	}
+	if u.olderReqChat == u.selected && time.Since(u.olderReqAt) < 3*time.Second {
+		return // baru saja minta utk chat ini
+	}
+	u.olderReqChat, u.olderReqAt = u.selected, time.Now()
+	chat := u.selected
+	go u.core.LoadOlderHistory(chat)
+}
+
 // ---- percakapan (header + bubble + composer) ----
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.Wallpaper, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	if u.selected == "" {
 		return StatesView(gtx, u.th, u.t) // splash + divider demo
 	}
+	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.convHeader(gtx)

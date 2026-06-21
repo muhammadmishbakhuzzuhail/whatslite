@@ -92,6 +92,7 @@ func setProfile(gtx layout.Context, th *material.Theme, t Theme, name, about, ac
 type setItem struct {
 	name   string
 	desc   string
+	icon   string // nama ikon garis WhatsApp (lihat icons.go)
 	hasSw  bool
 	swOn   bool
 	danger bool
@@ -99,14 +100,14 @@ type setItem struct {
 
 func setList(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	items := []setItem{
-		{name: "Tema", desc: "Terang, gelap, atau ikuti sistem"},
-		{name: "Bahasa", desc: "Bahasa Indonesia"},
-		{name: "Notifikasi", desc: "Aktif", hasSw: true, swOn: true},
-		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", hasSw: true, swOn: true},
-		{name: "Retensi", desc: "Hapus pesan setelah 90 hari"},
-		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi"},
-		{name: "Penyimpanan", desc: "Kelola ruang & data"},
-		{name: "Keluar", danger: true},
+		{name: "Tema", desc: "Terang, gelap, atau ikuti sistem", icon: "theme"},
+		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},
+		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},
+		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: true},
+		{name: "Retensi", desc: "Hapus pesan setelah 90 hari", icon: "disk"},
+		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},
+		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},
+		{name: "Keluar", icon: "power", danger: true},
 	}
 	flex := layout.Flex{Axis: layout.Vertical}
 	children := make([]layout.FlexChild, len(items))
@@ -131,9 +132,12 @@ func setRow(gtx layout.Context, th *material.Theme, t Theme, it setItem) layout.
 	}
 	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			// ikon placeholder 24px (svg width/height 24, color text2)
+			// ikon garis WhatsApp 24px (svg width/height 24, color text2/danger)
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return setIcon(gtx, icoCol)
+				if it.icon == "" {
+					return layout.Dimensions{Size: image.Pt(gtx.Dp(24), gtx.Dp(24))}
+				}
+				return icon(gtx, it.icon, 24, icoCol)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(20)}.Layout), // gap 20
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -170,16 +174,6 @@ func setRow(gtx layout.Context, th *material.Theme, t Theme, it setItem) layout.
 	// border-bottom 1px divider
 	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y - gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
 	return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
-}
-
-// ikon placeholder 24px (svg width/height 24, color text2): kotak membulat.
-func setIcon(gtx layout.Context, col color.NRGBA) layout.Dimensions {
-	d := gtx.Dp(24)
-	sz := image.Pt(d, d)
-	r := gtx.Dp(6)
-	paint.FillShape(gtx.Ops, col, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	return layout.Dimensions{Size: sz}
 }
 
 // .switch { 38x22 radius12 accent } knob 18x18 white inset 2; off => text2 kiri

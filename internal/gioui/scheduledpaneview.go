@@ -89,48 +89,10 @@ func scPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title st
 	return layout.Dimensions{Size: sz}
 }
 
-// scChevron — ikon kembali .icon-btn svg (M15 5l-7 7 7 7): dua batang diagonal
-// (stroke 2) membentuk "<" 24x24, warna text2.
+// scChevron — ikon kembali .icon-btn svg (M15 5l-7 7 7 7): ikon "chevleft" 24x24,
+// warna text2.
 func scChevron(gtx layout.Context, col color.NRGBA) layout.Dimensions {
-	d := gtx.Dp(24)
-	sz := image.Pt(d, d)
-	sw := gtx.Dp(2)
-	// titik kunci kira-kira: kanan-atas (15,5) → kiri-tengah (8,12) → kanan-bawah (15,19).
-	rx := gtx.Dp(15)
-	lx := gtx.Dp(8)
-	ty := gtx.Dp(5)
-	my := gtx.Dp(12)
-	by := gtx.Dp(19)
-	// batang atas: (rx,ty) → (lx,my)
-	scDiag(gtx, col, rx, ty, lx, my, sw)
-	// batang bawah: (lx,my) → (rx,by)
-	scDiag(gtx, col, lx, my, rx, by, sw)
-	return layout.Dimensions{Size: sz}
-}
-
-// scDiag — garis lurus dari (x0,y0) ke (x1,y1) via deret kotak sw x sw.
-func scDiag(gtx layout.Context, col color.NRGBA, x0, y0, x1, y1, sw int) {
-	dx := x1 - x0
-	dy := y1 - y0
-	n := dx
-	if n < 0 {
-		n = -n
-	}
-	if ady := dy; ady < 0 {
-		if -ady > n {
-			n = -ady
-		}
-	} else if ady > n {
-		n = ady
-	}
-	if n < 1 {
-		n = 1
-	}
-	for i := 0; i <= n; i++ {
-		x := x0 + dx*i/n
-		y := y0 + dy*i/n
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(x, y), Max: image.Pt(x+sw, y+sw)}.Op())
-	}
+	return icon(gtx, "chevleft", 24, col)
 }
 
 // scSection — .sc-sec { font-size:12; font-weight:700; uppercase; letter-spacing:.4px;
@@ -169,13 +131,21 @@ func scRow(gtx layout.Context, th *material.Theme, t Theme, it scItem) layout.Di
 							lbl.MaxLines = 1
 							return lbl.Layout(gtx)
 						}),
-						// .sc-when { margin-top:2px } : ⏰ + waktu, 12 accent.
+						// .sc-when { margin-top:2px } : ⏰ (ikon clock) + waktu, 12 accent.
 						layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							lbl := material.Label(th, 12, "⏰ "+it.when)
-							lbl.Color = t.Accent
-							lbl.MaxLines = 1
-							return lbl.Layout(gtx)
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, "clock", 14, t.Accent)
+								}),
+								layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, 12, it.when)
+									lbl.Color = t.Accent
+									lbl.MaxLines = 1
+									return lbl.Layout(gtx)
+								}),
+							)
 						}),
 					)
 				})
@@ -191,15 +161,13 @@ func scRow(gtx layout.Context, th *material.Theme, t Theme, it scItem) layout.Di
 
 // scCancel — .sc-x { background:bg2; color:text2; width:30; height:30;
 // border-radius:50% } berisi glyph ✕ di tengah.
-func scCancel(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func scCancel(gtx layout.Context, _ *material.Theme, t Theme) layout.Dimensions {
 	d := gtx.Dp(30)
 	sz := image.Pt(d, d)
 	paint.FillShape(gtx.Ops, t.Bg2, clip.Ellipse{Max: sz}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, 14, "✕")
-		lbl.Color = t.Text2
-		return lbl.Layout(gtx)
+		return icon(gtx, "close", 14, t.Text2)
 	})
 	return layout.Dimensions{Size: sz}
 }

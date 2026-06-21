@@ -125,7 +125,7 @@ func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpMagnifier(gtx, t)
+				return icon(gtx, "search", 18, t.Text2)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -143,22 +143,6 @@ func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 	return dims
 }
 
-// cpMagnifier — ikon kaca pembesar 18 (text2): cincin + gagang (ellipse + rect).
-func cpMagnifier(gtx layout.Context, t Theme) layout.Dimensions {
-	d := gtx.Dp(18)
-	sz := image.Pt(d, d)
-	ring := gtx.Dp(12)
-	bw := gtx.Dp(2)
-	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Max: image.Pt(ring, ring)}.Op(gtx.Ops))
-	paint.FillShape(gtx.Ops, t.Bg2, clip.Ellipse{Min: image.Pt(bw, bw), Max: image.Pt(ring-bw, ring-bw)}.Op(gtx.Ops))
-	g := gtx.Dp(6)
-	hx := ring - gtx.Dp(3)
-	hy := ring - gtx.Dp(3)
-	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(hx, hy), Max: image.Pt(hx+g, hy+bw)}.Op())
-	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(hx, hy), Max: image.Pt(hx+bw, hy+g)}.Op())
-	return layout.Dimensions{Size: sz}
-}
-
 // cpNewBtn — .ct-new { background: accent; color: #fff; border-radius: 10px;
 // padding: 8px 11px; gap: 6px; font-size: 13px } : ikon tambah-kontak + "Kontak baru".
 func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
@@ -167,7 +151,7 @@ func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions
 	dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpAddIcon(gtx, white)
+				return icon(gtx, "addmember", 17, white)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout), // gap: 6px
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -183,39 +167,6 @@ func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions
 	paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
-}
-
-// cpAddIcon — ikon "tambah kontak" 17 (.ct-new svg, stroke 2 putih): kepala
-// (lingkaran cincin) + bahu + tanda plus kecil.
-func cpAddIcon(gtx layout.Context, col color.NRGBA) layout.Dimensions {
-	d := gtx.Dp(17)
-	sz := image.Pt(d, d)
-	bg := col // hanya untuk lubang cincin — pakai accent latar; samakan dgn accent.
-	_ = bg
-	// kepala: cincin di kiri-atas.
-	hd := gtx.Dp(8)
-	hx := gtx.Dp(1)
-	hy := gtx.Dp(1)
-	bw := gtx.Dp(2)
-	paint.FillShape(gtx.Ops, col, clip.Ellipse{Min: image.Pt(hx, hy), Max: image.Pt(hx+hd, hy+hd)}.Op(gtx.Ops))
-	// lubang cincin: isi dgn warna accent latar agar tampak garis. Karena latar
-	// tombol = accent, gambar lubang transparan via op record tak tersedia ringkas;
-	// pakai kepala penuh kecil (paritas visual cukup: titik kepala).
-	// bahu: busur bawah kepala (deret kotak melengkung sederhana).
-	shy := hy + hd - gtx.Dp(1)
-	sw2 := gtx.Dp(2)
-	span := gtx.Dp(7)
-	for i := 0; i <= span; i++ {
-		x := hx - gtx.Dp(1) + i
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(x, shy), Max: image.Pt(x+sw2, shy+sw2)}.Op())
-	}
-	// plus di kanan: garis vertikal + horizontal.
-	px := d - gtx.Dp(6)
-	py := d - gtx.Dp(9)
-	pl := gtx.Dp(6)
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px+pl/2-bw/2, py), Max: image.Pt(px+pl/2-bw/2+bw, py+pl)}.Op())
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px, py+pl/2-bw/2), Max: image.Pt(px+pl, py+pl/2-bw/2+bw)}.Op())
-	return layout.Dimensions{Size: sz}
 }
 
 // cpLetter — .ct-letter { background: var(--bg); color: var(--accent);
@@ -268,7 +219,7 @@ func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact) layout.
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpInfoIcon(gtx, th, t)
+				return icon(gtx, "info", 20, t.Text2)
 			}),
 		)
 	})
@@ -290,26 +241,6 @@ func cpAvatarDot(gtx layout.Context, th *material.Theme, t Theme, c cpContact) l
 		paint.FillShape(gtx.Ops, green, clip.Ellipse{Min: image.Pt(x+bw, y+bw), Max: image.Pt(x+dot-bw, y+dot-bw)}.Op(gtx.Ops))
 	}
 	return av
-}
-
-// cpInfoIcon — .ct-info : ikon "i" lingkaran (stroke 2 text2) 20x20: cincin +
-// titik + batang. Digambar via ellipse (cincin) + rect (huruf i).
-func cpInfoIcon(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	_ = th
-	d := gtx.Dp(20)
-	sz := image.Pt(d, d)
-	bw := gtx.Dp(2)
-	// cincin: ellipse text2 lalu lubang sidebarBg.
-	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Min: image.Pt(bw, bw), Max: image.Pt(d-bw, d-bw)}.Op(gtx.Ops))
-	// titik atas "i".
-	dot := gtx.Dp(2)
-	cx := d/2 - dot/2
-	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Min: image.Pt(cx, gtx.Dp(5)), Max: image.Pt(cx+dot, gtx.Dp(5)+dot)}.Op(gtx.Ops))
-	// batang bawah "i".
-	stx := d/2 - bw/2
-	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(stx, gtx.Dp(9)), Max: image.Pt(stx+bw, gtx.Dp(15))}.Op())
-	return layout.Dimensions{Size: sz}
 }
 
 // cpAvatar — .ct-av lingkaran avatarColor(name) + inisial putih (paritas

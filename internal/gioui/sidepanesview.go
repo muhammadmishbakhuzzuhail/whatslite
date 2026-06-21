@@ -161,105 +161,25 @@ func spCallLine(gtx layout.Context, th *material.Theme, t Theme, c spCall) layou
 	)
 }
 
-// spArrow — .call-ico 15x15 : panah diagonal (stroke 2). Masuk → panah turun-kiri
-// (incoming), tak terjawab/keluar → panah naik-kanan. Digambar via batang +
-// kepala panah (clip.Rect tipis), warna mengikuti garis (currentColor).
+// spArrow — .call-ico 15x15 : panah arah panggilan (callArrowOut, paritas SVG
+// path M7 17L17 7M17 7H9M17 7v8). Warna mengikuti garis (currentColor / merah
+// utk tak terjawab).
 func spArrow(gtx layout.Context, col color.NRGBA, missed bool) layout.Dimensions {
-	d := gtx.Dp(15)
-	sz := image.Pt(d, d)
-	sw := gtx.Dp(2) // stroke-width: 2
-	pad := gtx.Dp(2)
-	lo := pad
-	hi := d - pad
-
-	// batang diagonal: deret kotak sw x sw sepanjang diagonal.
-	// incoming (masuk) = arah kiri-bawah (dari kanan-atas ke kiri-bawah).
-	// missed/outgoing = arah kanan-atas (dari kiri-bawah ke kanan-atas).
-	n := hi - lo
-	if n < 1 {
-		n = 1
-	}
-	for i := 0; i <= n; i++ {
-		var x, y int
-		if missed { // ke kanan-atas
-			x = lo + i
-			y = hi - i
-		} else { // ke kiri-bawah
-			x = hi - i
-			y = hi - i
-		}
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(x, y), Max: image.Pt(x+sw, y+sw)}.Op())
-	}
-
-	// kepala panah di ujung (dua batang pendek membentuk sudut).
-	head := gtx.Dp(5)
-	if missed { // ujung kanan-atas → kepala buka ke kiri & ke bawah
-		tx, ty := hi, lo
-		// batang horizontal (ke kiri)
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(tx-head, ty), Max: image.Pt(tx+sw, ty+sw)}.Op())
-		// batang vertikal (ke bawah)
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(tx, ty), Max: image.Pt(tx+sw, ty+head)}.Op())
-	} else { // ujung kiri-bawah → kepala buka ke kanan & ke atas
-		tx, ty := lo, hi
-		// batang horizontal (ke kanan)
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(tx, ty), Max: image.Pt(tx+head, ty+sw)}.Op())
-		// batang vertikal (ke atas)
-		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(tx, ty-head), Max: image.Pt(tx+sw, ty+sw)}.Op())
-	}
-	return layout.Dimensions{Size: sz}
+	_ = missed
+	return icon(gtx, "callArrowOut", 15, col)
 }
 
 // spCallIcon — ikon panggil accent di kanan baris (.icon-btn ~40, glyph accent).
-// video → kotak kamera; suara → gagang telepon. Disederhanakan dgn clip yg
-// dipakai ui.go (Rect/RRect/Ellipse).
+// Pakai ikon native "calls" (gagang telepon WhatsApp) ber-tint accent, 20dp glyph
+// di tengah kotak 40dp.
 func spCallIcon(gtx layout.Context, t Theme, video bool) layout.Dimensions {
+	_ = video
 	box := gtx.Dp(40)
 	sz := image.Pt(box, box)
-	gw := gtx.Dp(20) // area glyph 20x20 di tengah
-	ox := (box - gw) / 2
-	oy := (box - gw) / 2
-
-	if video {
-		// kamera: badan rounded + corong segitiga kanan.
-		bw := gtx.Dp(13)
-		bh := gtx.Dp(13)
-		bx := ox
-		by := oy + (gw-bh)/2
-		r := gtx.Dp(3)
-		paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Min: image.Pt(bx, by), Max: image.Pt(bx+bw, by+bh)}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-		// corong: segitiga via deret kotak menyempit.
-		lh := bh
-		cx := bx + bw
-		for i := 0; i < lh; i++ {
-			dist := i
-			if i > lh/2 {
-				dist = lh - i
-			}
-			lw := dist * gtx.Dp(7) / (lh / 2)
-			if lw <= 0 {
-				continue
-			}
-			y := by + i
-			paint.FillShape(gtx.Ops, t.Accent, clip.Rect{Min: image.Pt(cx, y), Max: image.Pt(cx+lw, y+1)}.Op())
-		}
-	} else {
-		// telepon: gagang diagonal sederhana (dua bulatan + batang).
-		ed := gtx.Dp(7)
-		paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Min: image.Pt(ox, oy), Max: image.Pt(ox+ed, oy+ed)}.Op(gtx.Ops))
-		paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Min: image.Pt(ox+gw-ed, oy+gw-ed), Max: image.Pt(ox+gw, oy+gw)}.Op(gtx.Ops))
-		sw := gtx.Dp(3)
-		lo := ox + ed/2
-		hi := ox + gw - ed/2
-		n := hi - lo
-		if n < 1 {
-			n = 1
-		}
-		for i := 0; i <= n; i++ {
-			x := lo + i
-			y := oy + ed/2 + i*(gw-ed)/n
-			paint.FillShape(gtx.Ops, t.Accent, clip.Rect{Min: image.Pt(x, y), Max: image.Pt(x+sw, y+sw)}.Op())
-		}
-	}
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "calls", 20, t.Accent)
+	})
 	return layout.Dimensions{Size: sz}
 }
 

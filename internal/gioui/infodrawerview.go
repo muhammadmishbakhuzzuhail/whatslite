@@ -190,72 +190,26 @@ func infoDrawerRow(gtx layout.Context, th *material.Theme, t Theme, icon func(la
 	return dims
 }
 
-// infoDrawerIconBox: kotak ikon 22x22 (.info-row svg) — gambar glyph via fn.
-func infoDrawerIconBox(gtx layout.Context, icon func(layout.Context, color.NRGBA), col color.NRGBA) layout.Dimensions {
+// infoDrawerIconBox: kotak ikon 22x22 (.info-row svg) — gambar ikon WhatsApp via helper.
+func infoDrawerIconBox(gtx layout.Context, draw func(layout.Context, color.NRGBA), col color.NRGBA) layout.Dimensions {
 	d := gtx.Dp(22)
-	icon(gtx, col)
+	draw(gtx, col)
 	return layout.Dimensions{Size: image.Pt(d, d)}
 }
 
-// ---- ikon-placeholder 22 (bentuk sederhana via clip, warna col) ----
+// ---- ikon 22 (raster SVG WhatsApp via icon(), warna col) ----
 
-// infoDrawerAddIcon: tambah anggota — lingkaran kepala + bahu + plus.
+// infoDrawerAddIcon: tambah anggota → ikon "addmember".
 func infoDrawerAddIcon(gtx layout.Context, col color.NRGBA) {
-	d := gtx.Dp(22)
-	bw := gtx.Dp(2)
-	// kepala: cincin lingkaran kiri-atas.
-	hd := gtx.Dp(8)
-	hx := gtx.Dp(2)
-	infoDrawerRing(gtx, col, image.Pt(hx, gtx.Dp(1)), hd, bw)
-	// bahu: bar mendatar di bawah kepala.
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(hx, gtx.Dp(13)), Max: image.Pt(hx+hd, gtx.Dp(13)+bw)}.Op())
-	// plus di kanan.
-	px := gtx.Dp(15)
-	py := gtx.Dp(10)
-	pl := gtx.Dp(7)
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px, py+(pl-bw)/2), Max: image.Pt(px+pl, py+(pl+bw)/2)}.Op())
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px+(pl-bw)/2, py), Max: image.Pt(px+(pl+bw)/2, py+pl)}.Op())
-	_ = d
+	icon(gtx, "addmember", 22, col)
 }
 
-// infoDrawerLinkIcon: link undangan — dua batang diagonal (rantai).
+// infoDrawerLinkIcon: link undangan → ikon "invitelink".
 func infoDrawerLinkIcon(gtx layout.Context, col color.NRGBA) {
-	bw := gtx.Dp(2)
-	// dua kapsul diagonal sebagai mata rantai (didekati dgn rect membulat).
-	rr := gtx.Dp(3)
-	a := image.Rectangle{Min: image.Pt(gtx.Dp(3), gtx.Dp(9)), Max: image.Pt(gtx.Dp(12), gtx.Dp(9)+bw+gtx.Dp(3))}
-	paint.FillShape(gtx.Ops, col, clip.RRect{Rect: a, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-	b := image.Rectangle{Min: image.Pt(gtx.Dp(10), gtx.Dp(11)), Max: image.Pt(gtx.Dp(19), gtx.Dp(11)+bw+gtx.Dp(3))}
-	paint.FillShape(gtx.Ops, col, clip.RRect{Rect: b, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	icon(gtx, "invitelink", 22, col)
 }
 
-// infoDrawerLeaveIcon: keluar grup — pintu + panah keluar.
+// infoDrawerLeaveIcon: keluar grup → ikon "leavegroup".
 func infoDrawerLeaveIcon(gtx layout.Context, col color.NRGBA) {
-	bw := gtx.Dp(2)
-	// bingkai pintu (kotak kanan, terbuka kiri).
-	dx := gtx.Dp(11)
-	top := gtx.Dp(3)
-	bot := gtx.Dp(19)
-	right := gtx.Dp(19)
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(right-bw, top), Max: image.Pt(right, bot)}.Op())              // sisi kanan
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(dx, top), Max: image.Pt(right, top+bw)}.Op())                 // atas
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(dx, bot-bw), Max: image.Pt(right, bot)}.Op())                 // bawah
-	// panah keluar: batang mendatar + kepala.
-	ay := gtx.Dp(11)
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(gtx.Dp(3), ay), Max: image.Pt(gtx.Dp(13), ay+bw)}.Op())      // batang
-	// kepala panah (dua bar miring didekati dgn rect kecil).
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(gtx.Dp(5), ay-gtx.Dp(3)), Max: image.Pt(gtx.Dp(5)+bw, ay+bw+gtx.Dp(3))}.Op())
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(gtx.Dp(6), ay-gtx.Dp(2)), Max: image.Pt(gtx.Dp(6)+bw, ay)}.Op())
-	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(gtx.Dp(6), ay+bw), Max: image.Pt(gtx.Dp(6)+bw, ay+bw+gtx.Dp(2))}.Op())
-}
-
-// infoDrawerRing: cincin (lingkaran luar col, lubang dalam sidebarBg) — kepala ikon.
-func infoDrawerRing(gtx layout.Context, col color.NRGBA, min image.Point, d, bw int) {
-	outer := image.Rectangle{Min: min, Max: image.Pt(min.X+d, min.Y+d)}
-	paint.FillShape(gtx.Ops, col, clip.Ellipse{Min: outer.Min, Max: outer.Max}.Op(gtx.Ops))
-	inner := image.Rectangle{Min: image.Pt(min.X+bw, min.Y+bw), Max: image.Pt(min.X+d-bw, min.Y+d-bw)}
-	// lubang: pakai warna sidebar agar tampak cincin di atas latar baris.
-	hole := color.NRGBA{R: 0x0e, G: 0x13, B: 0x18, A: 0xff} // var(--sidebar-bg) gelap
-	paint.FillShape(gtx.Ops, hole, clip.Ellipse{Min: inner.Min, Max: inner.Max}.Op(gtx.Ops))
-	_ = col
+	icon(gtx, "leavegroup", 22, col)
 }

@@ -21,59 +21,90 @@ import (
 )
 
 // InfoDrawerView menggambar laci info grup 400px di sisi kanan (sidebarBg).
-func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+// InfoDrawerData = data nyata drawer info (nil → demo grup statis).
+type InfoDrawerData struct {
+	Name  string
+	Sub   string // "N anggota" (grup) / presence (DM)
+	Desc  string // topik grup / about kontak
+	Group bool
+}
+
+func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
 	// .info-panel { width: 400px; background: var(--sidebar-bg); }
 	w := gtx.Dp(400)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	const groupName = "Grup Kerja"
+	if d == nil { // demo (render standalone / gio-shot)
+		d = &InfoDrawerData{Name: "Grup Kerja", Sub: "4 anggota", Desc: "Koordinasi tim proyek", Group: true}
+	}
 	dangerCol := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a
+	headTitle := "Info kontak"
+	if d.Group {
+		headTitle = "Info grup"
+	}
+	desc := d.Desc
+	if desc == "" {
+		desc = "—"
+	}
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// .info-head — height 56, head-bg, title 16/500.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerHead(gtx, th, t, w)
+			return infoDrawerHead(gtx, th, t, w, headTitle)
 		}),
-		// .info-hero — pad 28/24, avatar 200, nama 24/500, "4 anggota" 15.
+		// .info-hero — pad 28/24, avatar 200, nama 24/500, sub 15.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerHero(gtx, th, t, groupName)
+			return infoDrawerHero(gtx, th, t, d.Name, d.Sub)
 		}),
 		// pemisah 6px var(--wallpaper) (border-bottom .info-hero).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerSep(gtx, t, w)
 		}),
-		// .info-block — Deskripsi: lbl accent 13 + val text 15.
+		// .info-block — Deskripsi/Tentang.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerBlock(gtx, th, t, "Deskripsi", "Koordinasi tim proyek")
+			lbl := "Tentang"
+			if d.Group {
+				lbl = "Deskripsi"
+			}
+			return infoDrawerBlock(gtx, th, t, lbl, desc)
 		}),
 		// pemisah 6px var(--wallpaper) (border-bottom .info-block).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerSep(gtx, t, w)
 		}),
-		// baris aksi (.info-row): ikon 22 + label 15.
+		// baris aksi (.info-row): grup → tambah/link/keluar; DM → blokir.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group {
+				return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Blokir kontak", dangerCol, dangerCol)
+			}
 			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group {
+				return layout.Dimensions{}
+			}
 			return infoDrawerRow(gtx, th, t, infoDrawerLinkIcon, "Link undangan", t.Text2, t.Text)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group {
+				return layout.Dimensions{}
+			}
 			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol)
 		}),
 	)
 }
 
 // infoDrawerHead: .info-head — tinggi 56, latar head-bg, pad 0 16, title 16/500.
-func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int) layout.Dimensions {
+func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(w, h)
 	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 16, "Info grup")
+			lbl := material.Label(th, 16, title)
 			lbl.Color = t.Text
 			lbl.Font.Weight = font.Medium
 			return lbl.Layout(gtx)
@@ -82,8 +113,8 @@ func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int) layo
 	return layout.Dimensions{Size: sz}
 }
 
-// infoDrawerHero: .info-hero — pad 28/24, avatar 200 di tengah + nama + jumlah.
-func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name string) layout.Dimensions {
+// infoDrawerHero: .info-hero — pad 28/24, avatar 200 di tengah + nama + sub.
+func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name, sub string) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(28), Bottom: unit.Dp(28), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -104,7 +135,7 @@ func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name string
 			// .info-hero .iphone — margin-top 4, 15, text2.
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 15, "4 anggota")
+				lbl := material.Label(th, 15, sub)
 				lbl.Color = t.Text2
 				return lbl.Layout(gtx)
 			}),

@@ -336,7 +336,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		w := gtx.Dp(400)
 		off := op.Offset(image.Pt(gtx.Constraints.Max.X-w, 0)).Push(gtx.Ops)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
-		InfoDrawerView(gtx, u.th, u.t)
+		InfoDrawerView(gtx, u.th, u.t, u.infoData())
 		off.Pop()
 	case "forward":
 		u.handleForward(gtx)
@@ -1515,6 +1515,22 @@ func (u *UI) statusRows() []stpItem {
 		out = append(out, stpItem{name: g.Name, time: g.Time, seen: false})
 	}
 	return out
+}
+
+// infoData membangun data drawer info dari chat terpilih nyata. nil = demo.
+// GetGroupInfo hanya dipanggil saat drawer dibuka (overlay=="info"), bukan tiap frame.
+func (u *UI) infoData() *InfoDrawerData {
+	if u.core == nil || u.selected == "" {
+		return nil
+	}
+	d := &InfoDrawerData{Name: u.selName, Group: u.selGroup, Sub: u.subtitle}
+	if u.selGroup {
+		if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+			d.Sub = itoa(len(gi.Participants)) + " anggota"
+			d.Desc = gi.Topic
+		}
+	}
+	return d
 }
 
 // callRows membangun baris pane Panggilan dari log nyata (core.GetCalls). nil =

@@ -114,7 +114,8 @@ type UI struct {
 	profNameEd      widget.Editor // edit nama (sub-pane profil)
 	profAboutEd     widget.Editor // edit tentang
 	profSave        widget.Clickable
-	profLoaded      bool // editor sudah diisi nilai saat ini?
+	profLoaded      bool                // editor sudah diisi nilai saat ini?
+	privacyClicks   [8]widget.Clickable // baris privasi (siklus nilai → SetPrivacy)
 
 	chats     []app.ChatDTO
 	selected  string
@@ -962,7 +963,15 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				s := u.core.GetStorageUsage()
 				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
 			case "privacy":
-				ctl.Privacy = u.core.GetPrivacy()
+				pv := u.core.GetPrivacy()
+				ctl.Privacy = pv
+				ctl.PrivacyClicks = u.privacyClicks[:]
+				for i := range privacyOrder { // ketuk baris → siklus all→contacts→none
+					if u.privacyClicks[i].Clicked(gtx) {
+						k := privacyOrder[i].key
+						u.core.SetPrivacy(k, nextPrivacy(pv[k]))
+					}
+				}
 			}
 		}
 		return SettingsView(gtx, u.th, u.t, ctl)

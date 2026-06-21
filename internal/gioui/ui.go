@@ -151,11 +151,13 @@ func demoChats() []app.ChatDTO {
 	}
 }
 func demoMessages() []app.MessageDTO {
+	now := time.Now().Unix()
+	yest := now - 86400
 	return []app.MessageDTO{
-		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso"},
-		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "read"},
-		{ID: "m3", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "19.04", Sender: "Citra Dewi"},
-		{ID: "m4", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "19.05", Status: "read"},
+		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso", Ts: yest},
+		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "delivered", Ts: yest},
+		{ID: "m3", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
+		{ID: "m4", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "08.05", Status: "read", Ts: now},
 	}
 }
 
@@ -752,9 +754,24 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return lbl.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(u.th, 11, m.Time)
-					lbl.Color = u.t.Text2
-					return layout.E.Layout(gtx, lbl.Layout)
+					// .meta: jam + (utk pesan keluar) centang status.
+					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(u.th, 11, m.Time)
+								lbl.Color = u.t.Text2
+								return lbl.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if !out {
+									return layout.Dimensions{}
+								}
+								return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return u.statusTick(gtx, m.Status)
+								})
+							}),
+						)
+					})
 				}),
 			)
 		})
@@ -784,7 +801,82 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			})
 		})
 	}
-	return u.msgClicks[idx].Layout(gtx, wrap)
+	// Pemisah hari di atas bubble bila ganti tanggal (atau pesan pertama).
+	needSep := false
+	if m.Ts > 0 {
+		if idx == 0 || (idx-1 < len(u.messages) && dayKey(u.messages[idx-1].Ts) != dayKey(m.Ts)) {
+			needSep = true
+		}
+	}
+	if !needSep {
+		return u.msgClicks[idx].Layout(gtx, wrap)
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.daySeparator(gtx, dayLabel(m.Ts)) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.msgClicks[idx].Layout(gtx, wrap) }),
+	)
+}
+
+// statusTick — centang status pesan keluar (✓ sent, ✓✓ delivered/read; biru=read).
+func (u *UI) statusTick(gtx layout.Context, status string) layout.Dimensions {
+	name := "check"
+	col := u.t.Text2
+	switch status {
+	case "read":
+		name, col = "checks", u.t.Tick // biru baca
+	case "delivered":
+		name = "checks"
+	case "sent", "":
+		name = "check"
+	}
+	return icon(gtx, name, 16, col)
+}
+
+// daySeparator — pil tanggal di tengah (paritas .day-divider).
+func (u *UI) daySeparator(gtx layout.Context, label string) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			macro := op.Record(gtx.Ops)
+			dims := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 12, label)
+				lbl.Color = u.t.Text2
+				return lbl.Layout(gtx)
+			})
+			call := macro.Stop()
+			r := gtx.Dp(8)
+			paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			call.Add(gtx.Ops)
+			return dims
+		})
+	})
+}
+
+// dayKey — kunci hari (tahun-bulan-tanggal) dari unix detik utk bandingkan tanggal.
+func dayKey(ts int64) int64 {
+	if ts <= 0 {
+		return 0
+	}
+	t := time.Unix(ts, 0)
+	y, mo, d := t.Date()
+	return int64(y)*10000 + int64(mo)*100 + int64(d)
+}
+
+// dayLabel — label pemisah: "Hari ini" / "Kemarin" / "2 Jan 2006" (Indonesia).
+func dayLabel(ts int64) string {
+	if ts <= 0 {
+		return ""
+	}
+	t := time.Unix(ts, 0)
+	now := time.Now()
+	switch dayKey(ts) {
+	case dayKey(now.Unix()):
+		return "Hari ini"
+	case dayKey(now.AddDate(0, 0, -1).Unix()):
+		return "Kemarin"
+	}
+	bulan := []string{"", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"}
+	y, mo, d := t.Date()
+	return itoa(d) + " " + bulan[int(mo)] + " " + itoa(y)
 }
 
 func (u *UI) composer(gtx layout.Context) layout.Dimensions {

@@ -64,6 +64,7 @@
   "logout": "Sign out",
   "close": "Close",
   "cancel": "Cancel",
+  "recording": "Recording… tap send to finish",
   "save": "Save",
   "send": "Send",
   "connect": "Connect",

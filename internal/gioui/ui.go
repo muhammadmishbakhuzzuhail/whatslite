@@ -92,6 +92,10 @@ type UI struct {
 	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
 	photoTried map[string]bool          // jid yg sudah dicoba ambil (hindari refetch)
 
+	media      map[string]paint.ImageOp // thumbnail media bubble (msgID → op)
+	mediaMu    sync.Mutex
+	mediaTried map[string]bool // msgID yg sudah dicoba ambil
+
 	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox|msgctx
 	headerClick widget.Clickable
 	emojiClick  widget.Clickable
@@ -146,8 +150,11 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
-	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
+	u.media = map[string]paint.ImageOp{}
+	u.mediaTried = map[string]bool{}
+	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat + thumb
 		u.photos["Andi Pratama"] = synthPhoto()
+		u.media["m13"] = synthPhoto() // bubble image demo (m14 video = placeholder+play)
 	}
 	return u
 }
@@ -207,6 +214,8 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m10", Dir: "in", Type: "text", Text: "Btw jadi makan dulu apa langsung?", Time: "08.07", Sender: "Budi Santoso", Ts: now},
 		{ID: "m11", Dir: "out", Type: "text", Text: "Makan dulu aja, laper nih 😅", Time: "08.08", Status: "delivered", Ts: now},
 		{ID: "m12", Dir: "out", Type: "text", Text: "Mantap! Sampai nanti 🙌", Time: "08.09", Status: "sent", Ts: now},
+		{ID: "m13", Dir: "in", Type: "image", Text: "Spot foto kemarin 📷", Time: "08.10", Sender: "Citra Dewi", Ts: now},
+		{ID: "m14", Dir: "out", Type: "video", Time: "08.11", Status: "delivered", Ts: now},
 	}
 }
 
@@ -942,6 +951,104 @@ func (u *UI) ensureAvatar(name, jid string) {
 	}()
 }
 
+// ensureMedia memuat byte media bubble (engine MediaBytes) sekali per msgID di
+// goroutine → decode → cache u.media[id]. Tak memblok UI.
+func (u *UI) ensureMedia(chat, id string) {
+	if u.core == nil || id == "" {
+		return
+	}
+	u.mediaMu.Lock()
+	if u.mediaTried[id] {
+		u.mediaMu.Unlock()
+		return
+	}
+	u.mediaTried[id] = true
+	u.mediaMu.Unlock()
+	go func() {
+		b := u.core.MediaBytes(chat, id)
+		img := decodeImage(b)
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.mediaMu.Lock()
+		u.media[id] = op
+		u.mediaMu.Unlock()
+	}()
+}
+
+// mediaThumb — thumbnail media bubble (image/video/gif): kotak membulat 220px (rasio
+// asli bila termuat, else 4:3 placeholder Bg2 + ikon), play-overlay utk video/gif,
+// lalu caption m.Text bila ada. Tap di-tangani bubble (OnPlayVideo).
+func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	u.ensureMedia(u.selected, m.ID)
+	u.mediaMu.Lock()
+	op, ok := u.media[m.ID]
+	u.mediaMu.Unlock()
+
+	w := gtx.Dp(220)
+	h := w * 3 / 4
+	if ok {
+		s := op.Size()
+		if s.X > 0 && s.Y > 0 {
+			h = w * s.Y / s.X
+			if max := gtx.Dp(300); h > max {
+				h = max
+			}
+		}
+	}
+	box := image.Pt(w, h)
+	r := gtx.Dp(10)
+
+	thumb := func(gtx layout.Context) layout.Dimensions {
+		if ok {
+			cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+			drawImageFill(gtx.Ops, op, w) // cover lebar; tinggi mengikuti
+			_ = h
+			cl.Pop()
+		} else {
+			paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			ic := "wallpaperico"
+			if m.Type != "image" {
+				ic = "play"
+			}
+			gtx.Constraints.Min, gtx.Constraints.Max = box, box
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return icon(gtx, ic, 36, u.t.Text2)
+			})
+		}
+		// play-overlay (video/gif): lingkaran gelap + segitiga putih di tengah.
+		if m.Type == "video" || m.Type == "gif" {
+			gtx.Constraints.Min, gtx.Constraints.Max = box, box
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(46)
+				sz := image.Pt(d, d)
+				paint.FillShape(gtx.Ops, color.NRGBA{A: 140}, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+				gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "play", 22, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+				})
+				return layout.Dimensions{Size: sz}
+			})
+		}
+		return layout.Dimensions{Size: box}
+	}
+
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(thumb),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if m.Text == "" {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Top: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 15, m.Text)
+				lbl.Color = u.t.Text
+				return lbl.Layout(gtx)
+			})
+		}),
+	)
+}
+
 // avatar — foto profil bulat (jid → AvatarBytes, di-cache); fallback inisial warna.
 func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
@@ -1056,8 +1163,12 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return lbl.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					switch m.Type {
+					case "image", "video", "gif":
+						return u.mediaThumb(gtx, m) // thumbnail + caption
+					}
 					txt := m.Text
-					if txt == "" {
+					if txt == "" && m.Type != "" && m.Type != "text" {
 						txt = "[" + m.Type + "]"
 					}
 					lbl := material.Label(u.th, 15, txt)

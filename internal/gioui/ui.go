@@ -9,6 +9,7 @@ package gioui
 import (
 	"image"
 	"image/color"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -665,11 +666,11 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t, u.callRows())
 	case "contacts":
-		return ContactsPaneView(gtx, u.th, u.t)
+		return ContactsPaneView(gtx, u.th, u.t, u.contactGroups())
 	case "status":
 		return StatusPaneView(gtx, u.th, u.t, u.statusRows())
 	case "channels":
-		return ChannelsPaneView(gtx, u.th, u.t)
+		return ChannelsPaneView(gtx, u.th, u.t, u.channelRows())
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
@@ -1173,6 +1174,57 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 		return lbl.Layout(gtx)
 	})
 	return layout.Dimensions{Size: sz}
+}
+
+// contactGroups membangun pane Kontak dari kontak nyata (core.GetContacts),
+// dikelompokkan per huruf awal nama (urut). nil = mode demo.
+func (u *UI) contactGroups() []cpGroup {
+	if u.core == nil {
+		return nil
+	}
+	cs := u.core.GetContacts()
+	sort.Slice(cs, func(i, j int) bool {
+		return strings.ToLower(cs[i].Name) < strings.ToLower(cs[j].Name)
+	})
+	var groups []cpGroup
+	var cur *cpGroup
+	for _, c := range cs {
+		if c.Name == "" {
+			continue
+		}
+		letter := strings.ToUpper(initial(c.Name))
+		if cur == nil || cur.letter != letter {
+			groups = append(groups, cpGroup{letter: letter})
+			cur = &groups[len(groups)-1]
+		}
+		cur.items = append(cur.items, cpContact{name: c.Name, about: c.Phone})
+	}
+	return groups
+}
+
+// channelRows membangun pane Saluran dari saluran nyata (core.GetChannels). nil = demo.
+func (u *UI) channelRows() []chnChannel {
+	if u.core == nil {
+		return nil
+	}
+	cs := u.core.GetChannels()
+	out := make([]chnChannel, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers)})
+	}
+	return out
+}
+
+// fmtSubs — "12 pengikut" / "12,3 rb pengikut" / "1,2 jt pengikut".
+func fmtSubs(n int) string {
+	switch {
+	case n >= 1000000:
+		return itoa(n/1000000) + " jt pengikut"
+	case n >= 1000:
+		return itoa(n/1000) + " rb pengikut"
+	default:
+		return itoa(n) + " pengikut"
+	}
 }
 
 // statusRows membangun baris pane Status (TERKINI) dari grup status nyata

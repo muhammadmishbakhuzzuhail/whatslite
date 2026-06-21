@@ -37,17 +37,19 @@ type cpGroup struct {
 
 // ContactsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane KONTAK.
 // Fungsi murni, mandiri (standalone render).
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	groups := []cpGroup{
-		{letter: "A", items: []cpContact{{name: "Alice", about: "Tersedia", online: true}}},
-		{letter: "B", items: []cpContact{{name: "Bob", about: "Di tempat kerja"}}},
-		{letter: "C", items: []cpContact{{name: "Carol", about: "Sibuk · jangan ganggu"}}},
+	if groups == nil { // data demo (render standalone / gio-shot)
+		groups = []cpGroup{
+			{letter: "A", items: []cpContact{{name: "Alice", about: "Tersedia", online: true}}},
+			{letter: "B", items: []cpContact{{name: "Bob", about: "Di tempat kerja"}}},
+			{letter: "C", items: []cpContact{{name: "Carol", about: "Sibuk · jangan ganggu"}}},
+		}
 	}
 
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz

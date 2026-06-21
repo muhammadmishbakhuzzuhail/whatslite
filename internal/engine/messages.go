@@ -272,6 +272,41 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string,
 			}
 			out = append(out, hc)
 		}
+		// Status/stories dari history sync (INITIAL_STATUS_V3) tiba di
+		// StatusV3Messages, BUKAN di conversations → tanpa ini status kosong setelah
+		// offline. Rutekan sbg konversasi sintetis status@broadcast → tabel status.
+		if sv3 := hs.Data.GetStatusV3Messages(); len(sv3) > 0 {
+			sc := HistoryConversation{JID: "status@broadcast", Name: "Status"}
+			for _, wmi := range sv3 {
+				if wmi == nil {
+					continue
+				}
+				kind, txt, thumb, media := describeMessage(wmi.GetMessage())
+				if kind == "" {
+					continue
+				}
+				key := wmi.GetKey()
+				sender := wmi.GetParticipant()
+				if sender == "" {
+					sender = key.GetParticipant()
+				}
+				sc.Messages = append(sc.Messages, IncomingMessage{
+					ID:        key.GetID(),
+					Chat:      "status@broadcast",
+					Sender:    sender,
+					PushName:  wmi.GetPushName(),
+					Text:      txt,
+					Kind:      kind,
+					Thumb:     thumb,
+					Media:     media,
+					Timestamp: time.Unix(int64(wmi.GetMessageTimestamp()), 0),
+					FromMe:    key.GetFromMe(),
+				})
+			}
+			if len(sc.Messages) > 0 {
+				out = append(out, sc)
+			}
+		}
 		names := make(map[string]string)
 		for _, p := range hs.Data.GetPushnames() {
 			if p.GetID() != "" && p.GetPushname() != "" {

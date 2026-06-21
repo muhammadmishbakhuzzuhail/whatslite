@@ -80,6 +80,14 @@ func main() {
 			gioui.ChannelsPaneView(gtx, th, t)
 		case "bubbleextras":
 			gioui.BubbleExtrasView(gtx, th, t)
+		case "archived":
+			gioui.ArchivedPaneView(gtx, th, t)
+		case "scheduled":
+			gioui.ScheduledPaneView(gtx, th, t)
+		case "msginfo":
+			gioui.MsgInfoView(gtx, th, t)
+		case "lightbox":
+			gioui.LightboxView(gtx, th, t)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

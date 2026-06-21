@@ -46,6 +46,7 @@ type UI struct {
 	clicks     []widget.Clickable
 	railClicks []widget.Clickable
 	editor     widget.Editor
+	photos     map[string]paint.ImageOp // foto avatar in-memory (jid/nama → op)
 }
 
 // railNav = tombol nav rail kiri (glyph emoji + view tujuan).
@@ -62,6 +63,10 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
+	u.photos = map[string]paint.ImageOp{}
+	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
+		u.photos["Andi Pratama"] = synthPhoto()
+	}
 	return u
 }
 
@@ -318,6 +323,13 @@ func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
 func (u *UI) avatar(gtx layout.Context, name string, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
 	sz := image.Pt(d, d)
+	// Foto in-memory (byte engine → ImageOp) di-mask bulat; else inisial.
+	if ph, ok := u.photos[name]; ok {
+		cl := clip.Ellipse{Max: sz}.Push(gtx.Ops)
+		drawImageFill(gtx.Ops, ph, d)
+		cl.Pop()
+		return layout.Dimensions{Size: sz}
+	}
 	col := avatarColor(name)
 	paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: sz}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz

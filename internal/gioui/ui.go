@@ -15,6 +15,8 @@ import (
 	"unicode"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -69,6 +71,10 @@ type UI struct {
 
 	// menu lampiran (tombol "+"): klik per-baris.
 	attachClicks []widget.Clickable
+
+	// menu aksi baris chat (klik-kanan): target + item.
+	chatCtxIdx   int
+	chatCtxItems [5]widget.Clickable
 
 	chats     []app.ChatDTO
 	selected  string
@@ -325,6 +331,12 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(220), gtx.Dp(220)
 			return u.ctxMenuView(gtx)
 		})
+	case "chatctx":
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(240), gtx.Dp(240)
+			return u.chatCtxView(gtx)
+		})
 	}
 }
 
@@ -450,6 +462,99 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					dcol := u.t.Text
 					if it.label == "Hapus" {
+						dcol = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+					}
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, it.icon, 18, dcol) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 14.5, it.label)
+							lbl.Color = dcol
+							return lbl.Layout(gtx)
+						}),
+					)
+				})
+			})
+		}))
+	}
+	macro := op.Record(gtx.Ops)
+	dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	call := macro.Stop()
+	rr := gtx.Dp(10)
+	paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// chatTag — tag pointer per baris chat (deteksi klik-kanan).
+type chatTag int
+
+// chatCtxAction = item menu aksi baris chat (ikon, label, aksi, danger).
+type chatCtxAction struct {
+	icon, label, action string
+	danger              bool
+}
+
+// chatCtxActions menghasilkan item menu menurut status chat (pin/mute toggle).
+func chatCtxActions(c app.ChatDTO) []chatCtxAction {
+	pin, mute := "Sematkan", "Bisukan"
+	if c.Pinned {
+		pin = "Lepas sematan"
+	}
+	if c.Muted {
+		mute = "Bunyikan"
+	}
+	return []chatCtxAction{
+		{"pin", pin, "pin", false},
+		{"mute", mute, "mute", false},
+		{"archive", "Arsipkan", "archive", false},
+		{"message", "Tandai belum dibaca", "unread", false},
+		{"trash", "Hapus chat", "delete", true},
+	}
+}
+
+// doChatAction menjalankan aksi baris chat terhadap engine + refresh bila perlu.
+func (u *UI) doChatAction(action string, c app.ChatDTO) {
+	if u.core == nil {
+		return
+	}
+	switch action {
+	case "pin":
+		u.core.Pin(c.ID, !c.Pinned)
+	case "mute":
+		u.core.Mute(c.ID, !c.Muted)
+	case "archive":
+		u.core.Archive(c.ID, true)
+	case "unread":
+		u.core.MarkUnread(c.ID, true)
+	case "delete":
+		u.core.DeleteChat(c.ID)
+	}
+	u.chats = u.core.GetChats()
+}
+
+// chatCtxView — menu aksi baris chat (klik-kanan): kartu + baris glyph+label.
+func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
+	if u.chatCtxIdx < 0 || u.chatCtxIdx >= len(u.chats) {
+		u.overlay = ""
+		return layout.Dimensions{}
+	}
+	c := u.chats[u.chatCtxIdx]
+	items := chatCtxActions(c)
+	children := make([]layout.FlexChild, 0, len(items))
+	for i := range items {
+		i := i
+		it := items[i]
+		for u.chatCtxItems[i].Clicked(gtx) {
+			u.doChatAction(it.action, c)
+			u.overlay = ""
+		}
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.chatCtxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					dcol := u.t.Text
+					if it.danger {
 						dcol = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
 					}
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -730,6 +835,21 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			})
 		})
 		_ = active
+		// klik-kanan (secondary) di baris → menu aksi chat.
+		tag := chatTag(i)
+		for {
+			ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+			if !ok {
+				break
+			}
+			if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+				u.chatCtxIdx = i
+				u.overlay = "chatctx"
+			}
+		}
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		event.Op(gtx.Ops, tag)
+		area.Pop()
 		return dims
 	})
 }

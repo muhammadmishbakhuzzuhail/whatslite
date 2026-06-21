@@ -41,7 +41,7 @@
   "theme_light": "Light",
   "theme_dark": "Dark",
   "keep_deleted": "Keep deleted messages",
-  "keep_deleted_sub": "Revoked messages stay visible with a mark",
+  "keep_deleted_sub": "Revoked messages stay visible with a mark", "bg_run": "Run in background", "keep_deleted_d": "Save the content of messages others delete (anti-delete). Off = behave like WhatsApp.",
   "retention_d": "Old messages are pruned automatically",
   "retention_forever": "Forever",
   "retention_days_30": "30 days",

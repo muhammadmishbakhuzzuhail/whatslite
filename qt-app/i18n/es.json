@@ -41,7 +41,7 @@
   "theme_light": "Claro",
   "theme_dark": "Oscuro",
   "keep_deleted": "Conservar mensajes eliminados",
-  "keep_deleted_sub": "Los mensajes revocados siguen visibles con una marca",
+  "keep_deleted_sub": "Los mensajes revocados siguen visibles con una marca", "bg_run": "Ejecutar en segundo plano", "keep_deleted_d": "Guarda el contenido de los mensajes que otros eliminan (anti-eliminación). Apagado = como WhatsApp.",
   "retention_d": "Los mensajes antiguos se eliminan automáticamente",
   "retention_forever": "Para siempre",
   "retention_days_30": "30 días",

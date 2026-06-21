@@ -41,7 +41,7 @@
   "theme_light": "Terang",
   "theme_dark": "Gelap",
   "keep_deleted": "Simpan pesan dihapus",
-  "keep_deleted_sub": "Pesan yang ditarik tetap tampil dengan tanda",
+  "keep_deleted_sub": "Pesan yang ditarik tetap tampil dengan tanda", "bg_run": "Jalan di latar belakang", "keep_deleted_d": "Simpan isi pesan yang dihapus orang lain (anti-delete). Mati = seperti WhatsApp asli.",
   "retention_d": "Jaga DB tetap ramping",
   "retention_forever": "Selamanya",
   "retention_days_30": "30 hari",

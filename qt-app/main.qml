@@ -618,8 +618,7 @@ ApplicationWindow {
                         { view: "calls" },
                         { view: "contacts" },
                         { view: "archived" },
-                        { view: "scheduled" },
-                        { view: "settings" }
+                        { view: "scheduled" }
                     ]
                     // .rail-btn: 44×44; default lingkaran (radius 50%), aktif → rounded-rect
                     // radius 14 + bg rgba(0,168,132,.15) + ikon rail-active (app.css).
@@ -663,7 +662,16 @@ ApplicationWindow {
                     }
                 }
                 Item { Layout.fillHeight: true }
-                // Rail.svelte .rail-bottom: hanya settings rail-btn + .rail-avatar — TANPA theme toggle (tema di Settings).
+                // Rail.svelte .rail-bottom: settings rail-btn DI BAWAH (dekat avatar) + .rail-avatar.
+                Rectangle {
+                    id: railSettings
+                    Layout.alignment: Qt.AlignHCenter; Layout.bottomMargin: 8
+                    width: 44; height: 44; radius: 22
+                    color: setMa.containsMouse ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Icon { anchors.centerIn: parent; width: 24; height: 24; svg: win.ico["settings"]; color: theme.railIco }
+                    MouseArea { id: setMa; anchors.fill: parent; hoverEnabled: true; onClicked: settingsPopup.open() }
+                }
                 // Avatar profil di dasar rail (.rail-avatar 40px, inisial putih).
                 Avatar {
                     Layout.alignment: Qt.AlignHCenter
@@ -1143,7 +1151,7 @@ ApplicationWindow {
                                 width: parent.width
                                 height: win.startsLetterGroup(statusModel, index, model.m.name) ? 26 : 0
                                 visible: height > 0; clip: true
-                                Rectangle { anchors.fill: parent; color: theme.sidebarBg }
+                                Rectangle { anchors.fill: parent; color: theme.bg }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
                                     text: win.letterOf(model.m.name); color: theme.accent; font.pixelSize: 12; font.weight: Font.Bold
@@ -1230,7 +1238,7 @@ ApplicationWindow {
                                 width: parent.width
                                 height: win.startsLetterGroup(contactsModel, index, model.m.name) ? 26 : 0
                                 visible: height > 0; clip: true
-                                Rectangle { anchors.fill: parent; color: theme.sidebarBg }
+                                Rectangle { anchors.fill: parent; color: theme.bg }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 16
                                     text: win.letterOf(model.m.name); color: theme.accent; font.pixelSize: 12; font.weight: Font.Bold
@@ -2283,7 +2291,7 @@ ApplicationWindow {
                 visible: win.selectedChat.id !== undefined
                 // Tinggi tumbuh dgn isi composer (textarea auto-grow s/d 130): tinggi
                 // area input + padding vertikal 9+9; min 64 (.composer min-height).
-                property int inputH: 46
+                property int inputH: 39
                 Layout.fillWidth: true; Layout.minimumHeight: 64
                 Layout.preferredHeight: Math.max(64, inputH + 18)
                 color: theme.headBg
@@ -2395,7 +2403,7 @@ ApplicationWindow {
                                 // line-height 1.4 → spasi antar-baris.
                                 topPadding: 0; bottomPadding: 0; leftPadding: 0; rightPadding: 0
                                 // textarea auto-grow: clamp(contentHeight, 28, 130) → set inputH (+18 pad pill).
-                                onContentHeightChanged: composer.inputH = Math.max(46, Math.min(Math.ceil(contentHeight) + 18, 130))
+                                onContentHeightChanged: composer.inputH = Math.max(39, Math.min(Math.ceil(contentHeight) + 18, 130))
                                 onTextChanged: app.sendTyping(text.length > 0)
                                 // Enter=kirim (tanpa Shift); Shift+Enter=baris baru (default TextArea).
                                 Keys.onReturnPressed: function(e) {
@@ -2697,11 +2705,11 @@ ApplicationWindow {
                 delegate: Item {
                     width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2; clip: true
+                        anchors.fill: parent; anchors.margins: 3; radius: 8; color: theme.bg2; clip: true
                         Image {
                             id: gifImg
                             // .gif-cell img { object-fit:cover } → crop-fill, bukan fit.
-                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectCrop; clip: true
+                            anchors.fill: parent; fillMode: Image.PreserveAspectCrop; clip: true
                             source: app.mediaBase ? (app.mediaBase + "/savedgif/" + model.m.hash) : ""
                             visible: status === Image.Ready
                         }
@@ -2723,9 +2731,9 @@ ApplicationWindow {
                 delegate: Item {
                     width: GridView.view.cellWidth; height: GridView.view.cellHeight
                     Rectangle {
-                        anchors.fill: parent; anchors.margins: 3; radius: 10; color: theme.bg2; clip: true
+                        anchors.fill: parent; anchors.margins: 3; radius: 8; color: theme.bg2; clip: true
                         Image {
-                            anchors.fill: parent; anchors.margins: 6; fillMode: Image.PreserveAspectCrop; clip: true
+                            anchors.fill: parent; fillMode: Image.PreserveAspectCrop; clip: true
                             source: model.m.preview || ""; asynchronous: true
                         }
                         MouseArea { anchors.fill: parent; onClicked: { app.sendOnline("gif", model.m.mp4 || model.m.preview); gifPopup.close() } }
@@ -2987,7 +2995,7 @@ ApplicationWindow {
 
                     // 7) Keep deleted (anti-delete)
                     SettingsItem {
-                        icon: "trash"; name: i18n.t("keep_deleted"); desc: i18n.t("keep_deleted_sub")
+                        icon: "trash"; name: i18n.t("keep_deleted"); desc: i18n.t("keep_deleted_d")
                         clickable: false
                         trailing: Tog { checked: app.keepDeleted; onToggled: app.setKeepDeleted(checked) }
                     }
@@ -3155,7 +3163,7 @@ ApplicationWindow {
 
                     // 15) Jalan di latar belakang
                     SettingsItem {
-                        icon: "window"; name: i18n.t("bg_close"); desc: i18n.t("bg_run_d")
+                        icon: "window"; name: i18n.t("bg_run"); desc: i18n.t("bg_run_d")
                         clickable: false
                         trailing: Tog { checked: settingsPopup.bgRun; onToggled: { settingsPopup.bgRun = checked; app.act("SetBackgroundClose", [checked]) } }
                     }
@@ -3407,7 +3415,8 @@ ApplicationWindow {
                                 // real engine: adminAddOnly. mock: adminAdd.
                                 property bool on: app.detail[modelData.k] === true || (modelData.k === "adminAddOnly" && app.detail.adminAdd === true)
                                 RowLayout {
-                                    anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24; spacing: 18
+                                    // .info-block pad 24 + .info-row pad 24 → toggle rows ter-inset 48 (label tetap 24).
+                                    anchors.fill: parent; anchors.leftMargin: 48; anchors.rightMargin: 48; spacing: 18
                                     Text { Layout.fillWidth: true; text: modelData.t; color: theme.text; font.pixelSize: 15 }
                                     Tog { checked: setRow.on; onClicked: app.act(modelData.a, [win.selectedChat.id, !setRow.on]) }
                                 }

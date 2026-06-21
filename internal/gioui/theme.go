@@ -58,6 +58,10 @@ type Theme struct {
 	Selected  color.NRGBA
 }
 
+// DarkTheme/LightTheme: ekspor utk render-tool (gio-shot).
+func DarkTheme() Theme  { return newTheme(true) }
+func LightTheme() Theme { return newTheme(false) }
+
 func newTheme(dark bool) Theme {
 	if dark {
 		return Theme{

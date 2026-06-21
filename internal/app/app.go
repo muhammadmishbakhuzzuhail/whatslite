@@ -52,6 +52,10 @@ type App struct {
 	qrMu   sync.RWMutex // melindungi qrCode
 	qrCode string       // kode QR pairing mentah terbaru (utk UI in-process spt Gio)
 
+	presMu   sync.RWMutex            // melindungi presence + typing
+	presence map[string]string       // jid → "online"/"terakhir dilihat .."/""
+	typing   map[string]typingStateT // jid → status mengetik (utk subtitle header)
+
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
@@ -485,6 +489,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				txt = "terakhir dilihat " + hm(ls)
 			}
 		}
+		a.setPresence(eng.CanonicalJID(jid), txt) // cache utk UI in-process (Gio)
 		a.emit("wa:presence", map[string]string{"jid": jid, "text": txt})
 	})
 	eng.OnChatPresence(func(chat, sender string, composing, recording bool) {
@@ -493,6 +498,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 		if composing && isGroupJID(chat) && sender != "" {
 			who = a.displayName(sender) // grup → "Budi sedang mengetik…"
 		}
+		a.setTyping(chat, typingStateT{on: composing, who: who, rec: recording})
 		a.emit("wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who, "rec": recording})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {

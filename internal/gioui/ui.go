@@ -235,6 +235,8 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m15", Dir: "in", Type: "poll", Text: "Liburan ke mana minggu depan?", Thumb: `["Pantai","Gunung","Kota"]`, Time: "08.12", Sender: "Budi Santoso", Ts: now},
 		{ID: "m16", Dir: "in", Type: "document", Text: "Laporan_Tahunan_2026.pdf", DocMime: "application/pdf", DocSize: 524288, DocPages: 12, Time: "08.13", Sender: "Citra Dewi", Ts: now},
 		{ID: "m17", Dir: "out", Type: "voice", Text: "0:12", Time: "08.14", Status: "read", Ts: now},
+		{ID: "m18", Dir: "in", Type: "location", Text: "Jl. Sudirman No. 12, Jakarta", Time: "08.15", Sender: "Budi Santoso", Ts: now},
+		{ID: "m19", Dir: "in", Type: "contact", Text: "Dewi Anggraini", Thumb: "+62 812-3456-7890", Time: "08.16", Sender: "Citra Dewi", Ts: now},
 	}
 }
 
@@ -1021,6 +1023,79 @@ func (u *UI) reactionPills(gtx layout.Context, m app.MessageDTO) layout.Dimensio
 	})
 }
 
+// locationBubble — kartu lokasi: kotak peta (placeholder Bg2 + ikon locpin) +
+// baris alamat (locpin + m.Text). Tap → buka peta (follow-up).
+func (u *UI) locationBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	addr := m.Text
+	if addr == "" {
+		addr = "Lokasi"
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			w := gtx.Dp(220)
+			h := gtx.Dp(120)
+			box := image.Pt(w, h)
+			r := gtx.Dp(10)
+			paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			gtx.Constraints.Min, gtx.Constraints.Max = box, box
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "locpin", 30, u.t.Accent) })
+			return layout.Dimensions{Size: box}
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "locpin", 15, u.t.Text2) }),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 14, addr)
+					lbl.Color = u.t.Text
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+			)
+		}),
+	)
+}
+
+// contactBubble — kartu kontak: avatar + nama (m.Text) + tautan "Simpan" accent.
+func (u *UI) contactBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	name := m.Text
+	if name == "" {
+		name = "Kontak"
+	}
+	sub := m.Thumb // nomor telepon bila ada
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, name, "", 40) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 14.5, name)
+					lbl.Color = u.t.Text
+					lbl.Font.Weight = font.Medium
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if sub == "" {
+						return layout.Dimensions{}
+					}
+					lbl := material.Label(u.th, 13, sub)
+					lbl.Color = u.t.Text2
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+			)
+		}),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(u.th, 13, "Simpan")
+			lbl.Color = u.t.Accent
+			return lbl.Layout(gtx)
+		}),
+	)
+}
+
 // docBubble — kartu dokumen: ikon docfile (kotak accent) + nama berkas + sub
 // (PDF · ukuran · halaman). Tap → OnPlayVideo? tidak; dokumen dibuka via engine
 // (follow-up). m.Text = nama berkas; DocMime/DocSize/DocPages utk sub.
@@ -1626,6 +1701,10 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 						return u.docBubble(gtx, m)
 					case "voice", "audio", "ptt":
 						return u.voiceBubble(gtx, m)
+					case "location":
+						return u.locationBubble(gtx, m)
+					case "contact", "vcard":
+						return u.contactBubble(gtx, m)
 					}
 					txt := m.Text
 					if txt == "" && m.Type != "" && m.Type != "text" {

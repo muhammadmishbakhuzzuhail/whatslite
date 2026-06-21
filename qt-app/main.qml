@@ -2018,7 +2018,8 @@ ApplicationWindow {
                                     property bool ok: stk.status === Image.Ready && stk.sourceSize.width > 2
                                     Image {
                                         id: stk; anchors.fill: parent; fillMode: Image.PreserveAspectFit; visible: parent.ok
-                                        source: app.mediaBase ? (app.mediaBase + "/media/" + (content.pmsg.id || "")) : ""
+                                        // serveMedia: GET /media/<chatJID>/<msgID> (Bubble.svelte). chatJID WAJIB.
+                                        source: app.mediaBase ? (app.mediaBase + "/media/" + encodeURIComponent(win.selectedChat.id || "") + "/" + encodeURIComponent(content.pmsg.id || "")) : ""
                                     }
                                     ColumnLayout {
                                         anchors.centerIn: parent; spacing: 8; visible: !parent.ok
@@ -2079,8 +2080,12 @@ ApplicationWindow {
                                     property bool hasMedia: imgM.status === Image.Ready && imgM.sourceSize.width > 2
                                     Image {
                                         id: imgM; anchors.fill: parent; fillMode: Image.PreserveAspectCrop
-                                        source: (content.pmsg.thumb || "").indexOf("data:") === 0 ? content.pmsg.thumb
-                                                : (model.m.type === "gif" && app.mediaBase ? app.mediaBase + "/media/" + (content.pmsg.id || "") : "")
+                                        // Svelte imgSrc: media penuh /media/<chat>/<id>, fallback ke thumb saat error.
+                                        property string fullUrl: app.mediaBase ? (app.mediaBase + "/media/" + encodeURIComponent(win.selectedChat.id || "") + "/" + encodeURIComponent(content.pmsg.id || "")) : ""
+                                        property bool mediaErr: false
+                                        source: mediaErr ? (content.pmsg.thumb || "")
+                                                         : (fullUrl || content.pmsg.thumb || "")
+                                        onStatusChanged: if (status === Image.Error && !mediaErr && (content.pmsg.thumb || "") !== "") mediaErr = true
                                         visible: parent.hasMedia
                                     }
                                     // Badge "GIF" pojok kiri-bawah (ala WhatsApp).

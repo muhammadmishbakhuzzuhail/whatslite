@@ -29,8 +29,14 @@ var picHTTP = &http.Client{Timeout: 20 * time.Second}
 // (nil, nil) = tak ada foto (negatif). Dipanggil LAZY (avatar terlihat saja).
 func (e *Engine) ProfilePictureRaw(jid string) ([]byte, error) {
 	j, err := types.ParseJID(jid)
-	if err != nil || !e.Client.IsConnected() {
+	if err != nil {
 		return nil, err
+	}
+	// PENTING: jangan kembalikan (nil,nil) saat belum tersambung — serveAvatar
+	// akan men-cache `.none` (negatif 24 jam) sehingga SEMUA avatar 404 walau
+	// kontak punya foto. Error transient → serveAvatar balas 502, tak men-cache.
+	if !e.Client.IsConnected() {
+		return nil, fmt.Errorf("client not connected")
 	}
 	// Saluran (newsletter): foto ada di metadata thread, bukan IQ picture biasa.
 	if j.Server == types.NewsletterServer {

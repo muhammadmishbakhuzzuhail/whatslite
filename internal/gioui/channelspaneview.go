@@ -35,7 +35,7 @@ type chnTab struct {
 
 // ChannelsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane CHANNELS:
 // .pane-head + .ch-tabs + daftar .ch-row. Fungsi murni, mandiri (standalone).
-func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels []chnChannel) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
 	w := gtx.Dp(380)
@@ -48,9 +48,11 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Di
 		{label: "Diikuti", active: true},
 		{label: "Jelajahi", active: false},
 	}
-	channels := []chnChannel{
-		{name: "WhatsLite News", subs: "0 subscriber"},
-		{name: "Tech Daily", subs: "0 subscriber"},
+	if channels == nil { // data demo (render standalone / gio-shot)
+		channels = []chnChannel{
+			{name: "WhatsLite News", subs: "0 subscriber"},
+			{name: "Tech Daily", subs: "0 subscriber"},
+		}
 	}
 
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz

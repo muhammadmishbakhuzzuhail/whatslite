@@ -88,11 +88,11 @@ func main() {
 		case "gif":
 			gioui.GifView(gtx, th, t)
 		case "contacts":
-			gioui.ContactsPaneView(gtx, th, t)
+			gioui.ContactsPaneView(gtx, th, t, nil)
 		case "status":
 			gioui.StatusPaneView(gtx, th, t, nil)
 		case "channels":
-			gioui.ChannelsPaneView(gtx, th, t)
+			gioui.ChannelsPaneView(gtx, th, t, nil)
 		case "bubbleextras":
 			gioui.BubbleExtrasView(gtx, th, t)
 		case "archived":

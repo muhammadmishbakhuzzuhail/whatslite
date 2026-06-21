@@ -233,6 +233,8 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m13", Dir: "in", Type: "image", Text: "Spot foto kemarin 📷", Time: "08.10", Sender: "Citra Dewi", Ts: now},
 		{ID: "m14", Dir: "out", Type: "video", Time: "08.11", Status: "delivered", Ts: now},
 		{ID: "m15", Dir: "in", Type: "poll", Text: "Liburan ke mana minggu depan?", Thumb: `["Pantai","Gunung","Kota"]`, Time: "08.12", Sender: "Budi Santoso", Ts: now},
+		{ID: "m16", Dir: "in", Type: "document", Text: "Laporan_Tahunan_2026.pdf", DocMime: "application/pdf", DocSize: 524288, DocPages: 12, Time: "08.13", Sender: "Citra Dewi", Ts: now},
+		{ID: "m17", Dir: "out", Type: "voice", Text: "0:12", Time: "08.14", Status: "read", Ts: now},
 	}
 }
 
@@ -1019,6 +1021,127 @@ func (u *UI) reactionPills(gtx layout.Context, m app.MessageDTO) layout.Dimensio
 	})
 }
 
+// docBubble — kartu dokumen: ikon docfile (kotak accent) + nama berkas + sub
+// (PDF · ukuran · halaman). Tap → OnPlayVideo? tidak; dokumen dibuka via engine
+// (follow-up). m.Text = nama berkas; DocMime/DocSize/DocPages utk sub.
+func (u *UI) docBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	name := m.Text
+	if name == "" {
+		name = "Dokumen"
+	}
+	var parts []string
+	if ext := docExt(m.DocMime); ext != "" {
+		parts = append(parts, ext)
+	}
+	if m.DocSize > 0 {
+		parts = append(parts, fmtBytes(m.DocSize))
+	}
+	if m.DocPages > 0 {
+		parts = append(parts, itoa(m.DocPages)+" hal")
+	}
+	sub := strings.Join(parts, " · ")
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			d := gtx.Dp(40)
+			sz := image.Pt(d, d)
+			r := gtx.Dp(8)
+			paint.FillShape(gtx.Ops, withAlpha(u.t.Accent, 0x33), clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "docfile", 22, u.t.Accent) })
+			return layout.Dimensions{Size: sz}
+		}),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 14.5, name)
+					lbl.Color = u.t.Text
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if sub == "" {
+						return layout.Dimensions{}
+					}
+					return layout.Inset{Top: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 12.5, sub)
+						lbl.Color = u.t.Text2
+						return lbl.Layout(gtx)
+					})
+				}),
+			)
+		}),
+	)
+}
+
+// voiceBubble — pesan suara: tombol play + waveform (batang) + durasi. Tap pada
+// bubble memutar (OnPlayVoice di bubble()).
+func (u *UI) voiceBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "play", 26, u.t.Accent) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.waveform(gtx) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			dur := m.Text
+			if dur == "" {
+				dur = "0:08"
+			}
+			lbl := material.Label(u.th, 11, dur)
+			lbl.Color = u.t.Text2
+			return lbl.Layout(gtx)
+		}),
+	)
+}
+
+// waveform — batang-batang tinggi bervariasi (visual statis pesan suara).
+func (u *UI) waveform(gtx layout.Context) layout.Dimensions {
+	heights := []int{6, 11, 8, 14, 9, 16, 7, 12, 10, 15, 6, 13, 8, 11, 7}
+	bw := gtx.Dp(2)
+	gap := gtx.Dp(2)
+	maxH := gtx.Dp(18)
+	w := len(heights) * (bw + gap)
+	for i, h := range heights {
+		hp := gtx.Dp(unit.Dp(h))
+		x := i * (bw + gap)
+		y := (maxH - hp) / 2
+		paint.FillShape(gtx.Ops, u.t.Text2, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+bw, y+hp)}, NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
+	}
+	return layout.Dimensions{Size: image.Pt(w, maxH)}
+}
+
+// fmtBytes — ukuran berkas ringkas.
+func fmtBytes(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return itoa(int(n>>20)) + " MB"
+	case n >= 1<<10:
+		return itoa(int(n>>10)) + " KB"
+	default:
+		return itoa(int(n)) + " B"
+	}
+}
+
+// docExt — label jenis dari mime ("application/pdf"→"PDF").
+func docExt(mime string) string {
+	switch {
+	case strings.Contains(mime, "pdf"):
+		return "PDF"
+	case strings.Contains(mime, "word") || strings.Contains(mime, "document"):
+		return "DOC"
+	case strings.Contains(mime, "sheet") || strings.Contains(mime, "excel"):
+		return "XLS"
+	case strings.Contains(mime, "zip"):
+		return "ZIP"
+	case mime == "":
+		return ""
+	}
+	return "FILE"
+}
+
+// withAlpha — warna dgn alpha berbeda.
+func withAlpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
+
 // pollBubble — kartu polling: ikon+pertanyaan (m.Text) + opsi bordered (m.Thumb =
 // JSON []string). Tampilan (voting = follow-up). Paritas .poll-card.
 func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
@@ -1499,6 +1622,10 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 						return u.mediaThumb(gtx, m) // thumbnail + caption
 					case "poll":
 						return u.pollBubble(gtx, m) // pertanyaan + opsi
+					case "document":
+						return u.docBubble(gtx, m)
+					case "voice", "audio", "ptt":
+						return u.voiceBubble(gtx, m)
 					}
 					txt := m.Text
 					if txt == "" && m.Type != "" && m.Type != "text" {

@@ -113,6 +113,11 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	// latar
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
+	// Gerbang login: engine tersambung tapi sesi belum siap → layar QR.
+	if u.core != nil && u.state != "" && u.state != "ready" && u.state != "connected" {
+		return LoginView(gtx, u.th, u.t)
+	}
+
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.rail(gtx) }),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.sidebar(gtx) }),

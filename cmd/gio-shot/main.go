@@ -64,6 +64,14 @@ func main() {
 			gioui.ModalsView(gtx, th, t)
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t)
+		case "search":
+			gioui.SearchView(gtx, th, t)
+		case "picker":
+			gioui.PickerView(gtx, th, t)
+		case "reactionpicker":
+			gioui.ReactionPickerView(gtx, th, t)
+		case "composerdetail":
+			gioui.ComposerDetailView(gtx, th, t)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

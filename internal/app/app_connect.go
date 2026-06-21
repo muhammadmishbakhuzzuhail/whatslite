@@ -105,6 +105,52 @@ func (a *App) QRCode() string {
 	return a.qrCode
 }
 
+// typingStateT — status "mengetik" terakhir per chat (utk subtitle header in-process).
+type typingStateT struct {
+	on  bool
+	who string // nama (grup) atau "" (DM)
+	rec bool   // merekam audio
+}
+
+func (a *App) setPresence(jid, txt string) {
+	a.presMu.Lock()
+	if a.presence == nil {
+		a.presence = map[string]string{}
+	}
+	a.presence[jid] = txt
+	a.presMu.Unlock()
+}
+
+func (a *App) setTyping(jid string, st typingStateT) {
+	a.presMu.Lock()
+	if a.typing == nil {
+		a.typing = map[string]typingStateT{}
+	}
+	a.typing[jid] = st
+	a.presMu.Unlock()
+}
+
+// ChatSubtitle mengembalikan subtitle header chat: "mengetik…"/"merekam audio…"
+// bila sedang mengetik, jika tidak "online"/"terakhir dilihat .."/"" (presence).
+// Dipoll UI in-process (Gio) tiap refresh — tanpa lewat jalur event Wails/IPC.
+func (a *App) ChatSubtitle(jid string) string {
+	a.presMu.RLock()
+	defer a.presMu.RUnlock()
+	if st, ok := a.typing[jid]; ok && st.on {
+		if st.rec {
+			if st.who != "" {
+				return st.who + " sedang merekam audio…"
+			}
+			return "merekam audio…"
+		}
+		if st.who != "" {
+			return st.who + " sedang mengetik…"
+		}
+		return "mengetik…"
+	}
+	return a.presence[jid]
+}
+
 // GetState: "offline" | "qr" | "ready".
 func (a *App) GetState() string {
 	if a.eng == nil {

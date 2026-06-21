@@ -29,13 +29,15 @@ import (
 )
 
 type UI struct {
-	th    *material.Theme
-	core  *app.App
-	t     Theme
-	dark  bool
-	state string
-	qr    string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
-	view  string // pane sidebar aktif: chats|calls|settings
+	th         *material.Theme
+	core       *app.App
+	t          Theme
+	dark       bool
+	state      string
+	qr         string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
+	subtitle   string // subtitle header chat (online/mengetik…/terakhir dilihat)
+	typingSent bool   // status composing terakhir yg dikirim (throttle SendTyping)
+	view       string // pane sidebar aktif: chats|calls|settings
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -48,7 +50,7 @@ type UI struct {
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
-	filterSel    int                // 0 Semua · 1 Belum dibaca · 2 Favorit · 3 Grup
+	filterSel    int // 0 Semua · 1 Belum dibaca · 2 Favorit · 3 Grup
 	filterClicks [4]widget.Clickable
 	shown        []int // indeks u.chats yg lolos filter+pencarian (urut tampil)
 
@@ -173,12 +175,14 @@ func (u *UI) refresh() {
 			u.selected, u.selName, u.selGroup = "2", "Keluarga", true
 		}
 		u.messages = demoMessages()
+		u.subtitle = "online"
 	} else {
 		u.state = u.core.GetState()
 		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
 			u.messages = u.core.GetMessages(u.selected)
+			u.subtitle = u.core.ChatSubtitle(u.selected)
 		}
 	}
 	if len(u.clicks) < len(u.chats) {
@@ -1200,10 +1204,27 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(u.th, 16, u.selName)
-				lbl.Color = u.t.Text
-				lbl.Font.Weight = font.Medium
-				return lbl.Layout(gtx)
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 16, u.selName)
+						lbl.Color = u.t.Text
+						lbl.Font.Weight = font.Medium
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if u.subtitle == "" {
+							return layout.Dimensions{}
+						}
+						col := u.t.Text2 // presence → text2; mengetik/merekam → accent
+						if strings.Contains(u.subtitle, "mengetik") || strings.Contains(u.subtitle, "merekam") {
+							col = u.t.Accent
+						}
+						lbl := material.Label(u.th, 12.5, u.subtitle)
+						lbl.Color = col
+						lbl.MaxLines = 1
+						return lbl.Layout(gtx)
+					}),
+				)
 			}),
 		)
 	})
@@ -1544,7 +1565,18 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 		if !ok {
 			break
 		}
-		if _, ok := ev.(widget.SubmitEvent); ok {
+		switch ev.(type) {
+		case widget.ChangeEvent:
+			// indikator "mengetik" keluar: kirim composing sekali saat mulai isi,
+			// stop saat kosong (throttle via typingSent agar tak spam socket).
+			if u.core != nil && u.selected != "" {
+				typing := strings.TrimSpace(u.editor.Text()) != ""
+				if typing != u.typingSent {
+					u.core.SendTyping(u.selected, typing, false)
+					u.typingSent = typing
+				}
+			}
+		case widget.SubmitEvent:
 			txt := strings.TrimSpace(u.editor.Text())
 			if txt != "" && u.core != nil && u.selected != "" {
 				if u.replyTo != "" { // mode balas → kutip pesan
@@ -1553,6 +1585,10 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 					u.core.SendText(u.selected, txt)
 				}
 				u.messages = u.core.GetMessages(u.selected)
+			}
+			if u.core != nil && u.selected != "" && u.typingSent {
+				u.core.SendTyping(u.selected, false, false) // berhenti mengetik
+				u.typingSent = false
 			}
 			u.editor.SetText("")
 			u.clearReply()

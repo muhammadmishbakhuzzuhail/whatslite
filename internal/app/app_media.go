@@ -18,6 +18,32 @@ import (
 	"time"
 )
 
+// MediaBytes: byte media penuh (proto → unduh) IN-PROCESS — utk UI Gio (foto/
+// voice) yang memutar/menggambar langsung dari memori, tanpa server HTTP.
+func (a *App) MediaBytes(chatJID, msgID string) []byte {
+	if a.eng == nil || a.store == nil {
+		return nil
+	}
+	pb, err := a.store.GetMedia(a.ctx, chatJID, msgID)
+	if err != nil || pb == "" {
+		return nil
+	}
+	data, _, err := a.eng.DownloadMediaRaw(pb)
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// AvatarBytes: foto profil byte in-process (ProfilePictureRaw) — Gio avatar.
+func (a *App) AvatarBytes(jid string) []byte {
+	if a.eng == nil {
+		return nil
+	}
+	b, _ := a.eng.ProfilePictureRaw(jid)
+	return b
+}
+
 // DownloadMedia mengunduh media penuh satu pesan → data-URI (atau "").
 func (a *App) DownloadMedia(chatJID, msgID string) string {
 	if a.eng == nil || a.store == nil {

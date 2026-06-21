@@ -19,6 +19,7 @@ import (
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
+	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/voice"
 )
 
 func main() {
@@ -47,6 +48,14 @@ func run(w *gioapp.Window, core *app.App) error {
 	th := material.NewTheme()
 	th.Shaper = gioui.NewShaper()
 	ui := gioui.NewUI(th, core)
+	// Voice note (ogg-opus) in-process: byte engine → internal/voice (cgo libopus).
+	if core != nil {
+		ui.OnPlayVoice = func(chat, id string) {
+			if b := core.MediaBytes(chat, id); len(b) > 0 {
+				go func() { _, _ = voice.Play(b) }()
+			}
+		}
+	}
 
 	go func() {
 		for range time.NewTicker(700 * time.Millisecond).C {

@@ -7,28 +7,22 @@
 # Dependensi & artefak build frontend
 /frontend/node_modules/
 /frontend/dist/
-
 # Artefak snapshot / screenshot offline
 /scripts/*.png
 /frontend/public/real-data.json
 real-data.json
-
 # Database & cache lokal (jangan pernah di-commit — berisi sesi & kunci enkripsi!)
 *.db
 *.db-wal
 *.db-shm
 *.db-journal
-
 # OS / editor
 .DS_Store
 *.swp
-
 # Wails build cache (md5 package.json — regenerated)
 /frontend/package.json.md5
-
 # Qt/CMake build artifacts (FE baru)
 qt-app/build/
 qt-poc/build/
-whatslite-engine
-whatslite-gio
-whatslite-engine
+/whatslite-engine
+/whatslite-gio

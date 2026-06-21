@@ -667,7 +667,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "contacts":
 		return ContactsPaneView(gtx, u.th, u.t)
 	case "status":
-		return StatusPaneView(gtx, u.th, u.t)
+		return StatusPaneView(gtx, u.th, u.t, u.statusRows())
 	case "channels":
 		return ChannelsPaneView(gtx, u.th, u.t)
 	}
@@ -1173,6 +1173,24 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 		return lbl.Layout(gtx)
 	})
 	return layout.Dimensions{Size: sz}
+}
+
+// statusRows membangun baris pane Status (TERKINI) dari grup status nyata
+// (core.GetStatuses), mengecualikan status sendiri (itu baris "My status"). nil =
+// mode demo.
+func (u *UI) statusRows() []stpItem {
+	if u.core == nil {
+		return nil
+	}
+	gs := u.core.GetStatuses()
+	out := make([]stpItem, 0, len(gs))
+	for _, g := range gs {
+		if g.Mine {
+			continue // status sendiri tampil di baris My-status, bukan daftar
+		}
+		out = append(out, stpItem{name: g.Name, time: g.Time, seen: false})
+	}
+	return out
 }
 
 // callRows membangun baris pane Panggilan dari log nyata (core.GetCalls). nil =

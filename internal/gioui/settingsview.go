@@ -39,6 +39,7 @@ type SettingsCtl struct {
 	StoreDB, StoreMedia            int64
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
+	PrivacyClicks                  []widget.Clickable
 }
 
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
@@ -94,22 +95,29 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 	)
 }
 
-// setPrivacyPane — daftar setelan privasi (label ramah + nilai). Read-only.
+// privacyOrder — urutan + label baris privasi (indeks = indeks clickable).
+var privacyOrder = []struct{ key, label string }{
+	{"lastseen", "Terakhir dilihat"}, {"online", "Online"}, {"profile", "Foto profil"},
+	{"about", "Tentang"}, {"status", "Status"}, {"readreceipts", "Laporan dibaca"},
+	{"groupadd", "Grup"}, {"calladd", "Panggilan"},
+}
+
+// setPrivacyPane — daftar setelan privasi (label + nilai). Ketuk baris → siklus nilai.
 func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
-	order := []struct{ key, label string }{
-		{"lastseen", "Terakhir dilihat"}, {"online", "Online"}, {"profile", "Foto profil"},
-		{"about", "Tentang"}, {"status", "Status"}, {"readreceipts", "Laporan dibaca"},
-		{"groupadd", "Grup"}, {"calladd", "Panggilan"},
-	}
-	children := make([]layout.FlexChild, 0, len(order))
-	for i := range order {
-		o := order[i]
+	children := make([]layout.FlexChild, 0, len(privacyOrder))
+	for i := range privacyOrder {
+		o := privacyOrder[i]
 		val, ok := ctl.Privacy[o.key]
 		if !ok {
 			continue
 		}
+		idx := i
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return setProfileField(gtx, th, t, o.label, privValue(val))
+			row := func(gtx layout.Context) layout.Dimensions { return setProfileField(gtx, th, t, o.label, privValue(val)) }
+			if idx < len(ctl.PrivacyClicks) {
+				return ctl.PrivacyClicks[idx].Layout(gtx, row)
+			}
+			return row(gtx)
 		}))
 	}
 	if len(children) == 0 {
@@ -120,6 +128,18 @@ func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// nextPrivacy — siklus nilai privasi all→contacts→none→all.
+func nextPrivacy(cur string) string {
+	switch cur {
+	case "all":
+		return "contacts"
+	case "contacts":
+		return "none"
+	default:
+		return "all"
+	}
 }
 
 // privValue — terjemahkan nilai privasi WA ke Indonesia.

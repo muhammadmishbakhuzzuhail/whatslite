@@ -30,3 +30,5 @@ real-data.json
 qt-app/build/
 qt-poc/build/
 whatslite-engine
+whatslite-gio
+whatslite-engine

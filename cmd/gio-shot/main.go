@@ -15,11 +15,9 @@ import (
 	"os"
 	"strconv"
 
-	"gioui.org/font/gofont"
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 
@@ -40,7 +38,7 @@ func main() {
 	hw, err := headless.NewWindow(w, h)
 	must(err)
 	th := material.NewTheme()
-	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	th.Shaper = gioui.NewShaper()
 	ui := gioui.NewUI(th, nil) // core nil → data demo
 
 	ops := new(op.Ops)

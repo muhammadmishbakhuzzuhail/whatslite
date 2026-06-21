@@ -207,7 +207,8 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m3", Dir: "in", Type: "text", Text: "Sip. Tempatnya yang kemarin kan?", Time: "19.05", Sender: "Budi Santoso", Ts: yest},
 		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?", Reactions: []app.ReactionDTO{{Emoji: "👍", Count: 2}, {Emoji: "🔥", Count: 1, Mine: true}}},
 		{ID: "m5", Dir: "in", Type: "text", Text: "Aku mungkin telat dikit, macet", Time: "19.40", Sender: "Citra Dewi", Ts: yest},
-		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest},
+		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest, Edited: true},
+		{ID: "m6b", Dir: "in", Type: "text", Time: "19.42", Sender: "Citra Dewi", Ts: yest, Revoked: true},
 		{ID: "m7", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
 		{ID: "m8", Dir: "out", Type: "text", Text: "Mantap! Jangan lupa baterai cadangan", Time: "08.05", Status: "read", Ts: now},
 		{ID: "m9", Dir: "in", Type: "text", Text: "Udah siap semua kok 📸", Time: "08.06", Sender: "Citra Dewi", Ts: now},
@@ -1254,6 +1255,18 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return u.quoteBlock(gtx, m, out) // kutipan pesan dibalas
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if m.Revoked { // pesan ditarik pengirim → placeholder miring + ikon
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "block", 15, u.t.Text2) }),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(u.th, 15, "Pesan ini telah dihapus")
+								lbl.Color = u.t.Text2
+								lbl.Font.Style = font.Italic
+								return lbl.Layout(gtx)
+							}),
+						)
+					}
 					switch m.Type {
 					case "image", "video", "gif":
 						return u.mediaThumb(gtx, m) // thumbnail + caption
@@ -1270,6 +1283,15 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					// .meta: jam + (utk pesan keluar) centang status.
 					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if !m.Edited || m.Revoked {
+									return layout.Dimensions{}
+								}
+								lbl := material.Label(u.th, 11, "Diedit  ")
+								lbl.Color = u.t.Text2
+								lbl.Font.Style = font.Italic
+								return lbl.Layout(gtx)
+							}),
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								lbl := material.Label(u.th, 11, m.Time)
 								lbl.Color = u.t.Text2

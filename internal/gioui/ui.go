@@ -96,6 +96,12 @@ type UI struct {
 	pollCreate widget.Clickable
 	pollCancel widget.Clickable
 
+	// kirim kontak (lampiran → Kontak): daftar kontak + pilih.
+	contactSendCache  []app.ContactRowDTO
+	contactSendClicks []widget.Clickable
+	contactSendCancel widget.Clickable
+	contactSendList   widget.List
+
 	// menu aksi baris chat (klik-kanan): target + item.
 	chatCtxIdx    int
 	chatCtxItems  [5]widget.Clickable
@@ -433,6 +439,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.statusViewLayer(gtx)
 	case "pollcompose":
 		u.pollComposeLayer(gtx)
+	case "contactsend":
+		u.contactSendLayer(gtx)
 	}
 }
 
@@ -497,12 +505,113 @@ func (u *UI) handleAttach(gtx layout.Context) {
 				u.overlay = "pollcompose"
 				continue
 			}
+			if cat == "contact" { // pilih kontak → SendContact
+				u.overlay = "contactsend"
+				continue
+			}
 			if u.OnAttach != nil && u.selected != "" {
 				u.OnAttach(u.selected, cat) // media/document via dialog berkas; contact/location TODO
 			}
 			u.overlay = ""
 		}
 	}
+}
+
+// contactSendLayer — modal pilih kontak utk dikirim (SendContact).
+func (u *UI) contactSendLayer(gtx layout.Context) {
+	if u.core != nil && u.contactSendCache == nil {
+		u.contactSendCache = u.core.GetContacts()
+		sort.Slice(u.contactSendCache, func(i, j int) bool {
+			return strings.ToLower(u.contactSendCache[i].Name) < strings.ToLower(u.contactSendCache[j].Name)
+		})
+	}
+	if len(u.contactSendClicks) < len(u.contactSendCache) {
+		u.contactSendClicks = make([]widget.Clickable, len(u.contactSendCache))
+	}
+	for u.contactSendCancel.Clicked(gtx) {
+		u.overlay = ""
+		u.contactSendCache = nil
+	}
+	for i := range u.contactSendCache {
+		if i >= len(u.contactSendClicks) {
+			break
+		}
+		for u.contactSendClicks[i].Clicked(gtx) {
+			c := u.contactSendCache[i]
+			if u.core != nil && u.selected != "" {
+				u.core.SendContact(u.selected, c.Name, c.Phone)
+				u.messages = u.core.GetMessages(u.selected)
+			}
+			u.overlay = ""
+			u.contactSendCache = nil
+		}
+	}
+	u.contactSendList.Axis = layout.Vertical
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w, h := gtx.Dp(380), gtx.Dp(460)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		gtx.Constraints.Max.Y = h
+		macro := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 17, "Kirim kontak")
+							l.Color, l.Font.Weight = u.t.Text, font.SemiBold
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.contactSendCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "close", 20, u.t.Text2)
+							})
+						}),
+					)
+				})
+			}),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				if len(u.contactSendCache) == 0 {
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 14, "Tak ada kontak")
+						l.Color = u.t.Text2
+						return l.Layout(gtx)
+					})
+				}
+				return material.List(u.th, &u.contactSendList).Layout(gtx, len(u.contactSendCache), func(gtx layout.Context, i int) layout.Dimensions {
+					c := u.contactSendCache[i]
+					return u.contactSendClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, c.Name, c.JID, 40) }),
+								layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											l := material.Label(u.th, 15, c.Name)
+											l.Color, l.MaxLines = u.t.Text, 1
+											return l.Layout(gtx)
+										}),
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											l := material.Label(u.th, 13, c.Phone)
+											l.Color, l.MaxLines = u.t.Text2, 1
+											return l.Layout(gtx)
+										}),
+									)
+								}),
+							)
+						})
+					})
+				})
+			}),
+		)
+		call := macro.Stop()
+		r := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // pollComposeLayer — modal susun polling: pertanyaan + 4 opsi + Buat/Batal.

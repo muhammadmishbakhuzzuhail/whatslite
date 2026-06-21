@@ -84,6 +84,11 @@ type UI struct {
 	chatCtxItems  [5]widget.Clickable
 	headMenuClick widget.Clickable // ikon overflow header → menu chat terbuka
 
+	// sub-pane setelan (profil/penyimpanan) + navigasi kembali.
+	setSub          string
+	setBack         widget.Clickable
+	setProfileClick widget.Clickable
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -137,6 +142,9 @@ func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText =
 
 // ScrollMessagesToEnd: utk render-tool menguji gulir-ke-bawah headless.
 func (u *UI) ScrollMessagesToEnd() { u.msgList.ScrollTo(1 << 20) }
+
+// SetSettingsSub: utk render-tool menguji sub-pane setelan headless.
+func (u *UI) SetSettingsSub(s string) { u.view = "settings"; u.setSub = s }
 
 // railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
 var railNav = []struct{ view, icon string }{
@@ -268,6 +276,12 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 // handleSettings memproses klik baris pane setelan: Tema (toggle gelap/terang)
 // dan Keluar (logout engine → kembali ke layar QR).
 func (u *UI) handleSettings(gtx layout.Context) {
+	for u.setBack.Clicked(gtx) { // kembali dari sub-pane
+		u.setSub = ""
+	}
+	for u.setProfileClick.Clicked(gtx) { // kartu profil → sub-pane profil
+		u.setSub = "profile"
+	}
 	for u.setClicks[0].Clicked(gtx) { // Tema
 		u.dark = !u.dark
 		u.t = newTheme(u.dark)
@@ -276,6 +290,9 @@ func (u *UI) handleSettings(gtx layout.Context) {
 		if u.core != nil {
 			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
 		}
+	}
+	for u.setClicks[6].Clicked(gtx) { // Penyimpanan → sub-pane
+		u.setSub = "storage"
 	}
 	for u.setClicks[7].Clicked(gtx) { // Keluar
 		if u.core != nil {
@@ -677,7 +694,17 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		if u.core != nil {
 			kd = u.core.GetKeepDeleted()
 		}
-		return SettingsView(gtx, u.th, u.t, &SettingsCtl{Dark: u.dark, KeepDeleted: kd, Clicks: u.setClicks[:]})
+		ctl := &SettingsCtl{
+			Dark: u.dark, KeepDeleted: kd, Clicks: u.setClicks[:],
+			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
+		}
+		if u.setSub != "" && u.core != nil { // data sub-pane (profil/penyimpanan)
+			p := u.core.GetProfile()
+			ctl.ProfName, ctl.ProfAbout, ctl.ProfPhone = p.Name, p.About, p.Phone
+			s := u.core.GetStorageUsage()
+			ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
+		}
+		return SettingsView(gtx, u.th, u.t, ctl)
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t, u.callRows())
 	case "contacts":

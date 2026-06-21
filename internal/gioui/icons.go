@@ -84,6 +84,7 @@ var iconPaths = map[string]string{
 	"verif":        `<path d="M5 12l4 4 10-10"/>`,
 	"callArrowOut": `<path d="M7 17L17 7M17 7H9M17 7v8"/>`,
 	"wallpaperico": `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>`,
+	"archive":      `<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M9 13h6"/>`,
 }
 
 type iconKey struct {

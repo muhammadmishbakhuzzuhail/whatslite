@@ -26,6 +26,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/richtext"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 )
@@ -44,7 +45,8 @@ type UI struct {
 	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
 	olderReqAt   time.Time // waktu permintaan history lama terakhir
 
-	pollClicks map[string][]widget.Clickable // msgID → clickable per opsi polling
+	pollClicks   map[string][]widget.Clickable // msgID → clickable per opsi polling
+	mentionState richtext.InteractiveText      // state teks ber-mention (warna inline)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -254,6 +256,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m17", Dir: "out", Type: "voice", Text: "0:12", Time: "08.14", Status: "read", Ts: now},
 		{ID: "m18", Dir: "in", Type: "location", Text: "Jl. Sudirman No. 12, Jakarta", Time: "08.15", Sender: "Budi Santoso", Ts: now},
 		{ID: "m19", Dir: "in", Type: "contact", Text: "Dewi Anggraini", Thumb: "+62 812-3456-7890", Time: "08.16", Sender: "Citra Dewi", Ts: now},
+		{ID: "m20", Dir: "in", Type: "text", Text: "Setuju sama @Budi Santoso, nanti @Citra Dewi yang bawa kamera ya", Time: "08.17", Sender: "Rian", Ts: now, Mentions: []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra Dewi"}}},
 	}
 }
 
@@ -1276,6 +1279,46 @@ func docExt(mime string) string {
 // withAlpha — warna dgn alpha berbeda.
 func withAlpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 
+// mentionText — render teks dgn @mention berwarna accent (richtext, wrap benar).
+func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.MentionDTO) layout.Dimensions {
+	base := richtext.SpanStyle{Size: unit.Sp(15), Color: u.t.Text}
+	acc := base
+	acc.Color = u.t.Accent
+	acc.Font.Weight = font.Medium
+	// token "@Name" per mention.
+	toks := make([]string, 0, len(mentions))
+	for _, mn := range mentions {
+		if mn.Name != "" {
+			toks = append(toks, "@"+mn.Name)
+		}
+	}
+	var spans []richtext.SpanStyle
+	for i := 0; i < len(text); {
+		bestPos, bestTok := -1, ""
+		for _, tok := range toks {
+			if p := strings.Index(text[i:], tok); p >= 0 && (bestPos < 0 || p < bestPos) {
+				bestPos, bestTok = p, tok
+			}
+		}
+		if bestPos < 0 {
+			s := base
+			s.Content = text[i:]
+			spans = append(spans, s)
+			break
+		}
+		if bestPos > 0 {
+			s := base
+			s.Content = text[i : i+bestPos]
+			spans = append(spans, s)
+		}
+		s := acc
+		s.Content = bestTok
+		spans = append(spans, s)
+		i += bestPos + len(bestTok)
+	}
+	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
+}
+
 // pollBubble — kartu polling: ikon+pertanyaan (m.Text) + opsi bordered (m.Thumb =
 // JSON []string). Tampilan (voting = follow-up). Paritas .poll-card.
 func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
@@ -1823,6 +1866,9 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					txt := m.Text
 					if txt == "" && m.Type != "" && m.Type != "text" {
 						txt = "[" + m.Type + "]"
+					}
+					if len(m.Mentions) > 0 { // @mention berwarna accent (inline, wrap)
+						return u.mentionText(gtx, txt, m.Mentions)
 					}
 					lbl := material.Label(u.th, 15, txt)
 					lbl.Color = u.t.Text

@@ -31,16 +31,18 @@ type stpItem struct {
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
 // header .pane-head + baris "My status" + label "TERKINI" + 3 baris status.
 // Fungsi murni, mandiri (standalone render).
-func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	items := []stpItem{
-		{name: "Andi Pratama", time: "2 menit lalu", seen: false},
-		{name: "Sarah Wijaya", time: "15 menit lalu", seen: false},
-		{name: "Tim Proyek X", time: "1 jam lalu", seen: true},
+	if items == nil { // data demo (render standalone / gio-shot)
+		items = []stpItem{
+			{name: "Andi Pratama", time: "2 menit lalu", seen: false},
+			{name: "Sarah Wijaya", time: "15 menit lalu", seen: false},
+			{name: "Tim Proyek X", time: "1 jam lalu", seen: true},
+		}
 	}
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,

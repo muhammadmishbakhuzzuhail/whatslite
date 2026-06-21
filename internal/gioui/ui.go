@@ -55,6 +55,12 @@ type UI struct {
 	replyText string
 	replyX    widget.Clickable // tombol batal balas
 
+	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
+	rpClicks    []widget.Clickable
+	reactMsgID  string
+	reactSender string
+	reactFromMe bool
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -113,6 +119,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.phoneEd.SingleLine = true
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
+	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
 		u.photos["Andi Pratama"] = synthPhoto()
@@ -268,10 +275,11 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	case "msginfo":
 		MsgInfoView(gtx, u.th, u.t)
 	case "reaction":
+		u.handleReaction(gtx)
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max.X, gtx.Constraints.Max.Y = gtx.Dp(352), gtx.Dp(400)
-			return ReactionPickerView(gtx, u.th, u.t)
+			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks})
 		})
 	case "lightbox":
 		LightboxView(gtx, u.th, u.t)
@@ -306,6 +314,27 @@ func (u *UI) doCtxAction(label string) {
 		}
 	case "Balas":
 		u.replyTo, u.replyName, u.replyText = m.ID, u.replyDisplayName(m), m.Text
+	case "Reaksi":
+		u.reactMsgID, u.reactSender, u.reactFromMe = m.ID, m.SenderID, fromMe // target reaksi
+	}
+}
+
+// handleReaction memproses klik emoji di pemilih reaksi: bila ada target pesan →
+// core.React; bila tidak (dibuka dari tombol emoji composer) → sisipkan ke editor.
+func (u *UI) handleReaction(gtx layout.Context) {
+	for i := range u.rpClicks {
+		for u.rpClicks[i].Clicked(gtx) {
+			glyph := RpEmoji()[i]
+			if u.reactMsgID != "" {
+				if u.core != nil {
+					u.core.React(u.selected, u.reactMsgID, u.reactSender, glyph, u.reactFromMe)
+				}
+				u.reactMsgID = ""
+			} else {
+				u.editor.Insert(glyph) // sisip emoji ke pesan yg sedang diketik
+			}
+			u.overlay = ""
+		}
 	}
 }
 
@@ -937,6 +966,7 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	for u.emojiClick.Clicked(gtx) {
+		u.reactMsgID = "" // tombol emoji composer → mode sisip (bukan reaksi pesan)
 		u.overlay = "reaction"
 	}
 	for u.attachClick.Clicked(gtx) {

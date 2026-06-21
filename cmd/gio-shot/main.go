@@ -82,7 +82,7 @@ func main() {
 		case "picker":
 			gioui.PickerView(gtx, th, t)
 		case "reactionpicker":
-			gioui.ReactionPickerView(gtx, th, t)
+			gioui.ReactionPickerView(gtx, th, t, nil)
 		case "composerdetail":
 			gioui.ComposerDetailView(gtx, th, t)
 		case "gif":

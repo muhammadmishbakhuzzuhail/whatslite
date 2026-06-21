@@ -63,18 +63,18 @@ type UI struct {
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
-var ctxMenu = []struct{ glyph, label, to string }{
-	{"😀", "Reaksi", "reaction"}, {"↩️", "Balas", ""}, {"➡️", "Teruskan", "forward"},
-	{"⭐", "Bintangi", ""}, {"ℹ️", "Info", "msginfo"}, {"🗑️", "Hapus", ""},
+var ctxMenu = []struct{ icon, label, to string }{
+	{"emoji", "Reaksi", "reaction"}, {"reply", "Balas", ""}, {"forward", "Teruskan", "forward"},
+	{"star", "Bintangi", ""}, {"info", "Info", "msginfo"}, {"trash", "Hapus", ""},
 }
 
 // SetOverlay: utk render-tool menguji popup headless.
 func (u *UI) SetOverlay(o string) { u.overlay = o }
 
-// railNav = tombol nav rail kiri (glyph emoji + view tujuan).
-var railNav = []struct{ view, glyph string }{
-	{"chats", "💬"}, {"status", "🟢"}, {"channels", "📢"},
-	{"calls", "📞"}, {"contacts", "👤"}, {"settings", "⚙️"},
+// railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
+var railNav = []struct{ view, icon string }{
+	{"chats", "chats"}, {"status", "status"}, {"channels", "channels"},
+	{"calls", "calls"}, {"contacts", "contacts"}, {"settings", "settings"},
 }
 
 func NewUI(th *material.Theme, core *app.App) *UI {
@@ -123,7 +123,7 @@ func (u *UI) refresh() {
 
 func demoChats() []app.ChatDTO {
 	return []app.ChatDTO{
-		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read"},
+		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true},
 		{ID: "2", Name: "Keluarga", Preview: "Ibu: Jangan lupa makan ya nak", Time: "18.41", Group: true, Badge: 2, Unread: true},
 		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Sent: true, Status: "sent"},
 		{ID: "4", Name: "Tim Proyek X", Preview: "Budi: file-nya udah aku upload", Time: "16.20", Group: true, Badge: 12, Unread: true},
@@ -218,15 +218,16 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 			return u.ctxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					dcol := u.t.Text
+					if it.label == "Hapus" {
+						dcol = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+					}
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Label(u.th, 15, it.glyph).Layout(gtx) }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, it.icon, 18, dcol) }),
 						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(u.th, 14.5, it.label)
-							lbl.Color = u.t.Text
-							if it.label == "Hapus" {
-								lbl.Color = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
-							}
+							lbl.Color = dcol
 							return lbl.Layout(gtx)
 						}),
 					)
@@ -282,9 +283,12 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: rad, NE: rad, SE: rad, SW: rad}.Op(gtx.Ops))
 		}
 		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		col := u.t.RailIco
+		if active {
+			col = u.t.Accent
+		}
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(u.th, 20, nav.glyph)
-			return lbl.Layout(gtx)
+			return icon(gtx, nav.icon, 24, col)
 		})
 		return layout.Dimensions{Size: sz}
 	})
@@ -407,11 +411,24 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 			lbl.MaxLines = 1
 			return lbl.Layout(gtx)
 		}),
+		// indikator: bisu (mute) + sematkan (pin) + badge belum-dibaca.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !c.Muted {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "mute", 16, u.t.Text2) })
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !c.Pinned {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "pin", 16, u.t.Text2) })
+		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if c.Badge <= 0 {
 				return layout.Dimensions{}
 			}
-			return u.badge(gtx, c.Badge)
+			return layout.Inset{Left: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.badge(gtx, c.Badge) })
 		}),
 	)
 }
@@ -597,25 +614,25 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	}
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "😊") }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "＋") }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "plus") }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "🎙️") }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "mic") }),
 		)
 	})
 	return layout.Dimensions{Size: sz}
 }
 
-func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, glyph string) layout.Dimensions {
+func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) layout.Dimensions {
 	body := func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(40)
 		sz := image.Pt(d, d)
 		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return material.Label(u.th, 20, glyph).Layout(gtx)
+			return icon(gtx, iconName, 24, u.t.RailIco)
 		})
 		return layout.Dimensions{Size: sz}
 	}

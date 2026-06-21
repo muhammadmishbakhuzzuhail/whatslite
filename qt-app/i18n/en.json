@@ -27,6 +27,7 @@
   "promote": "Make admin", "demote": "Dismiss as admin", "remove_member": "Remove",
   "group_set_photo": "Change group photo", "group_edit_name": "Edit name", "group_edit_desc": "Edit description",
   "stk_online": "Online", "stk_recents": "Recents", "stk_pack": "Pack", "stk_create": "Create",
+  "stk_pick": "Pick image", "stk_hint": "Square 512 sticker",
   "gif_online": "Online", "gif_recents": "Recents",
   "search": "Search messages", "search_placeholder": "Search or start a new chat",
   "pick_conversation": "Select a conversation",

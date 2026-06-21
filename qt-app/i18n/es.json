@@ -27,6 +27,7 @@
   "promote": "Hacer admin", "demote": "Quitar admin", "remove_member": "Eliminar",
   "group_set_photo": "Cambiar foto del grupo", "group_edit_name": "Editar nombre", "group_edit_desc": "Editar descripción",
   "stk_online": "En línea", "stk_recents": "Recientes", "stk_pack": "Paquete", "stk_create": "Crear",
+  "stk_pick": "Elegir imagen", "stk_hint": "Sticker cuadrado 512",
   "gif_online": "En línea", "gif_recents": "Recientes",
   "search": "Buscar mensajes", "search_placeholder": "Busca o empieza un chat nuevo",
   "pick_conversation": "Selecciona una conversación",

@@ -107,7 +107,8 @@ func run(w *gioapp.Window, core *app.App) error {
 		case gioapp.FrameEvent:
 			gtx := gioapp.NewContext(&ops, e)
 			ui.Layout(gtx)
-			shot.maybeCapture(gtx.Ops, e.Size) // foto live sebelum frame window
+			shot.maybeCapture(gtx.Ops, e.Size) // foto seluruh frame live
+			shot.maybeCaptureScreens(ui, e)    // atau foto tiap layar bernama
 			e.Frame(gtx.Ops)
 		}
 	}
@@ -151,12 +152,13 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, chat, category string) 
 // shooter mengambil PNG frame aplikasi yg sedang berjalan (data nyata) ke
 // WLGIO_SHOTDIR. Render headless pakai ops yg sama → identik dgn yg di layar.
 type shooter struct {
-	dir   string
-	every time.Duration
-	last  time.Time
-	hw    *headless.Window
-	size  image.Point
-	n     int
+	dir     string
+	every   time.Duration
+	last    time.Time
+	hw      *headless.Window
+	size    image.Point
+	n       int
+	screens []string // WLGIO_SHOT_SCREENS: potret tiap layar bernama (data nyata)
 }
 
 func newShooter() *shooter {
@@ -170,48 +172,110 @@ func newShooter() *shooter {
 			every = time.Duration(sec) * time.Second
 		}
 	}
+	var screens []string
+	if v := os.Getenv("WLGIO_SHOT_SCREENS"); v != "" {
+		for _, s := range strings.Split(v, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				screens = append(screens, s)
+			}
+		}
+	}
 	_ = os.MkdirAll(dir, 0o755)
-	log.Printf("[gio] auto-capture aktif → %s tiap %s", dir, every)
-	return &shooter{dir: dir, every: every}
+	if len(screens) > 0 {
+		log.Printf("[gio] auto-capture layar %v → %s tiap %s", screens, dir, every)
+	} else {
+		log.Printf("[gio] auto-capture aktif → %s tiap %s", dir, every)
+	}
+	return &shooter{dir: dir, every: every, screens: screens}
 }
 
-func (s *shooter) maybeCapture(ops *op.Ops, size image.Point) {
-	if s.dir == "" || size.X <= 0 || size.Y <= 0 || time.Since(s.last) < s.every {
-		return
+// ensureHW (re)membuat window headless seukuran window saat ini.
+func (s *shooter) ensureHW(size image.Point) bool {
+	if s.hw != nil && s.size == size {
+		return true
 	}
-	s.last = time.Now()
-	if s.hw == nil || s.size != size {
-		if s.hw != nil {
-			s.hw.Release()
-		}
-		hw, err := headless.NewWindow(size.X, size.Y)
-		if err != nil {
-			log.Printf("[gio] capture: headless gagal: %v", err)
-			s.dir = "" // matikan agar tak spam error
-			return
-		}
-		s.hw, s.size = hw, size
+	if s.hw != nil {
+		s.hw.Release()
 	}
+	hw, err := headless.NewWindow(size.X, size.Y)
+	if err != nil {
+		log.Printf("[gio] capture: headless gagal: %v", err)
+		s.dir = "" // matikan agar tak spam error
+		return false
+	}
+	s.hw, s.size = hw, size
+	return true
+}
+
+// snap render ops → PNG di WLGIO_SHOTDIR (label = nama berkas tanpa ekstensi).
+func (s *shooter) snap(ops *op.Ops, size image.Point, label string) {
 	if err := s.hw.Frame(ops); err != nil {
-		log.Printf("[gio] capture: frame: %v", err)
 		return
 	}
 	img := image.NewRGBA(image.Rectangle{Max: size})
 	if err := s.hw.Screenshot(img); err != nil {
-		log.Printf("[gio] capture: screenshot: %v", err)
 		return
 	}
-	s.n++
-	name := filepath.Join(s.dir, "wlive-"+s.last.UTC().Format("20060102-150405")+".png")
+	name := filepath.Join(s.dir, "wlive-"+label+".png")
 	f, err := os.Create(name)
 	if err != nil {
-		log.Printf("[gio] capture: create: %v", err)
 		return
 	}
 	defer f.Close()
-	if err := png.Encode(f, img); err != nil {
-		log.Printf("[gio] capture: encode: %v", err)
+	if png.Encode(f, img) == nil {
+		s.n++
+		log.Printf("[gio] capture #%d → %s", s.n, name)
+	}
+}
+
+// maybeCapture memotret SELURUH frame live (default, ops yg sama spt window).
+// Dilewati bila mode layar-bernama aktif (lihat maybeCaptureScreens).
+func (s *shooter) maybeCapture(ops *op.Ops, size image.Point) {
+	if s.dir == "" || len(s.screens) > 0 || size.X <= 0 || size.Y <= 0 || time.Since(s.last) < s.every {
 		return
 	}
-	log.Printf("[gio] capture #%d → %s", s.n, name)
+	s.last = time.Now()
+	if !s.ensureHW(size) {
+		return
+	}
+	s.snap(ops, size, s.last.UTC().Format("20060102-150405"))
+}
+
+// maybeCaptureScreens memotret tiap layar bernama dgn DATA NYATA: simpan state,
+// arahkan UI ke layar, render headless (ops terpisah → window tak terganggu),
+// potret, lalu pulihkan state. wlive-<screen>-<ts>.png.
+func (s *shooter) maybeCaptureScreens(ui *gioui.UI, e gioapp.FrameEvent) {
+	if s.dir == "" || len(s.screens) == 0 || e.Size.X <= 0 || e.Size.Y <= 0 || time.Since(s.last) < s.every {
+		return
+	}
+	s.last = time.Now()
+	if !s.ensureHW(e.Size) {
+		return
+	}
+	savedView, savedOverlay := ui.View(), ui.Overlay()
+	ts := s.last.UTC().Format("20060102-150405")
+	var ops op.Ops
+	for _, scr := range s.screens {
+		applyScreen(ui, scr)
+		ops.Reset()
+		gtx := gioapp.NewContext(&ops, e)
+		ui.Layout(gtx) // bangun layar bernama dgn data nyata
+		s.snap(&ops, e.Size, ts+"-"+scr)
+	}
+	ui.SetView(savedView) // pulihkan tampilan user
+	ui.SetOverlay(savedOverlay)
+}
+
+// applyScreen mengarahkan UI ke layar bernama (mirror cmd/gio-shot). View vs overlay.
+func applyScreen(ui *gioui.UI, name string) {
+	switch name {
+	case "chats", "calls", "contacts", "status", "channels", "settings":
+		ui.SetView(name)
+		ui.SetOverlay("")
+	case "info", "forward", "picker", "attach", "reaction", "msgctx", "chatctx", "lightbox", "msginfo":
+		ui.SetView("chats")
+		ui.SetOverlay(name)
+	default:
+		ui.SetOverlay("")
+	}
 }

@@ -39,6 +39,7 @@ EOF
 }
 
 have() { command -v "$1" >/dev/null 2>&1; }
+ok() { [ -s "$1" ]; } # capture succeeded only if file exists and is non-empty
 
 # Echo "X,Y WxH" for the WhatsLite window on a wlroots compositor, or nothing.
 wl_window_geom() {
@@ -58,43 +59,49 @@ wl_window_geom() {
 	fi
 }
 
+# Each backend RETURNS NON-ZERO on failure so capture_one falls through. grim
+# aborts on GNOME/Mutter ("compositor doesn't support screen capture"), so we must
+# verify the file was actually written rather than trusting exit status alone.
+try_gnome() {
+	have gnome-screenshot || return 1
+	gnome-screenshot -w -f "$1" 2>/dev/null && ok "$1" && return 0 # focused window
+	gnome-screenshot -f "$1" 2>/dev/null && ok "$1" && return 0     # whole screen
+	return 1
+}
+try_grim() { # wlroots (Hyprland/sway); window geometry if hyprctl/swaymsg present
+	have grim || return 1
+	local geom
+	geom="$(wl_window_geom || true)"
+	if [ -n "${geom:-}" ]; then
+		grim -g "$geom" "$1" 2>/dev/null && ok "$1" && return 0
+	fi
+	grim "$1" 2>/dev/null && ok "$1" && return 0
+	return 1
+}
+try_import() { # X11/XWayland; window via xdotool, else root
+	have import || return 1
+	local wid=""
+	have xdotool && wid="$(xdotool search --name "$APP_TITLE" 2>/dev/null | head -1 || true)"
+	if [ -n "$wid" ]; then
+		import -window "$wid" "$1" 2>/dev/null && ok "$1" && return 0
+	fi
+	import -window root "$1" 2>/dev/null && ok "$1" && return 0
+	return 1
+}
+
 capture_one() {
 	local out="$1"
-
-	if have grim; then
-		local geom
-		geom="$(wl_window_geom || true)"
-		if [ -n "${geom:-}" ]; then
-			grim -g "$geom" "$out"
-		else
-			# wlroots grim can't target a window by title; grab the focused output.
-			grim "$out"
-		fi
-		return 0
-	fi
-
-	if have import; then
-		local wid=""
-		if have xdotool; then
-			wid="$(xdotool search --name "$APP_TITLE" 2>/dev/null | head -1 || true)"
-		fi
-		if [ -n "$wid" ]; then
-			import -window "$wid" "$out"
-		else
-			import -window root "$out"
-		fi
-		return 0
-	fi
-
-	if have gnome-screenshot; then
-		if gnome-screenshot -w -f "$out" 2>/dev/null; then
-			return 0
-		fi
-		gnome-screenshot -f "$out"
-		return 0
-	fi
-
-	echo "ui-capture.sh: no capture backend found (need grim, import, or gnome-screenshot)" >&2
+	# Order by what actually targets a WINDOW on each environment. On GNOME/Mutter
+	# grim is non-functional, so prefer gnome-screenshot there; on wlroots prefer
+	# grim. Every backend falls through on failure (file-existence checked).
+	case "${XDG_CURRENT_DESKTOP:-}" in
+	*[Gg][Nn][Oo][Mm][Ee]*) try_gnome "$out" && return 0 ;;
+	esac
+	try_grim "$out" && return 0
+	try_import "$out" && return 0
+	try_gnome "$out" && return 0
+	echo "ui-capture.sh: no working capture backend (tried gnome-screenshot, grim, import)" >&2
+	echo "  Install one, or use the in-app live capture: WLGIO_SHOTDIR=docs/ui-shots ./cmd/whatslite-gio/run.sh" >&2
 	return 1
 }
 

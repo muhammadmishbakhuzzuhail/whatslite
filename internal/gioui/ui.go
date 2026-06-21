@@ -169,6 +169,11 @@ func (u *UI) SetDark(d bool) { u.dark = d; u.t = newTheme(d) }
 func (u *UI) SetView(v string) { u.view = v }
 func (u *UI) Deselect()        { u.selected = "" }
 
+// View/Overlay — getter agar render-tool bisa simpan+pulihkan state saat memotret
+// layar bernama dari app yg sedang berjalan (WLGIO_SHOT_SCREENS).
+func (u *UI) View() string    { return u.view }
+func (u *UI) Overlay() string { return u.overlay }
+
 func (u *UI) refresh() {
 	if u.core == nil { // mode demo: data statis (uji render tanpa engine/jaringan)
 		u.chats = demoChats()

@@ -38,7 +38,8 @@ Rectangle {
         id: img
         anchors.fill: parent
         fillMode: Image.PreserveAspectCrop
-        source: (root.base && root.jid) ? (root.base + "/avatar/" + root.jid) : ""
+        // Svelte avatarUrl(): /avatar/<encodeURIComponent(jid)>. jid berisi '@',':' → WAJIB encode.
+        source: (root.base && root.jid) ? (root.base + "/avatar/" + encodeURIComponent(root.jid)) : ""
         visible: status === Image.Ready
         layer.enabled: true
         layer.effect: OpacityMask {

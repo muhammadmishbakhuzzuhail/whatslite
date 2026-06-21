@@ -76,6 +76,8 @@ func main() {
 			gioui.ReactionPickerView(gtx, th, t)
 		case "composerdetail":
 			gioui.ComposerDetailView(gtx, th, t)
+		case "gif":
+			gioui.GifView(gtx, th, t)
 		case "contacts":
 			gioui.ContactsPaneView(gtx, th, t)
 		case "status":

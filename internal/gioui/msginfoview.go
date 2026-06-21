@@ -3,9 +3,10 @@
 //
 // msginfoview.go — modal "Info pesan" di atas backdrop redup (paritas
 // frontend/src/lib/chat/MessageInfoModal.svelte + .nc-card app.css): kartu
-// sidebarBg radius 14, judul 19/Bold, lalu seksi "DIBACA OLEH" (dot accent) +
-// "TERKIRIM KE" (dot #3d8bd3) berisi baris penerima (avatar + nama + waktu),
-// diakhiri tombol "Tutup" accent. Fungsi murni, data demo inline (standalone).
+// sidebarBg radius 14 max-width 380, judul h3 (~16.965/Bold), lalu seksi
+// "DIBACA OLEH" (dot accent) + "TERKIRIM KE" (dot #3d8bd3) berisi baris penerima
+// (.mi-rcpt: nama kiri + waktu kanan, tanpa avatar), diakhiri tombol "Tutup"
+// accent. Fungsi murni, data demo inline (standalone).
 package gioui
 
 import (
@@ -21,7 +22,7 @@ import (
 	"gioui.org/widget/material"
 )
 
-// miRcpt = satu baris penerima (.mi-rcpt): avatar + nama + waktu kanan.
+// miRcpt = satu baris penerima (.mi-rcpt): nama kiri + waktu kanan.
 type miRcpt struct {
 	name string
 	time string
@@ -41,7 +42,7 @@ func MsgInfoView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensi
 // miCard — .nc-card: sidebarBg, radius 14, lebar ~360, padding 18, kolom isi.
 func miCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	w := gtx.Dp(360)
+	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
 	readBy := []miRcpt{
@@ -59,9 +60,10 @@ func miCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			// judul h3 19/Bold, margin-bottom 14.
+			// judul h3 default browser (1.17em × body 14.5px ≈ 16.965)/Bold,
+			// margin-bottom 14 (inline style h3 "margin:0 0 14px").
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 19, "Info pesan")
+				lbl := material.Label(th, 16.965, "Info pesan")
 				lbl.Color = t.Text
 				lbl.Font.Weight = font.Bold
 				return lbl.Layout(gtx)
@@ -142,22 +144,19 @@ func miList(gtx layout.Context, th *material.Theme, t Theme, rows []miRcpt) layo
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
-// miRcptRow — .mi-rcpt: padding 3/0, avatar 34 + nama 13.5 + waktu 12 text2 kanan.
+// miRcptRow — .mi-rcpt: padding 3/0, justify-content space-between → nama 13.5
+// (text) kiri + waktu (.mi-rt) 12 text2 kanan. Tanpa avatar (paritas Svelte).
 func miRcptRow(gtx layout.Context, th *material.Theme, t Theme, r miRcpt) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(3), Bottom: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return miAvatar(gtx, th, r.name, 34)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(11)}.Layout),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, 13.5, r.name)
 				lbl.Color = t.Text
 				lbl.MaxLines = 1
 				return lbl.Layout(gtx)
 			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, 12, r.time)
 				lbl.Color = t.Text2
@@ -165,21 +164,6 @@ func miRcptRow(gtx layout.Context, th *material.Theme, t Theme, r miRcpt) layout
 			}),
 		)
 	})
-}
-
-// miAvatar — lingkaran avatarColor(name) + inisial putih (paritas u.avatar).
-func miAvatar(gtx layout.Context, th *material.Theme, name string, dp int) layout.Dimensions {
-	d := gtx.Dp(unit.Dp(dp))
-	sz := image.Pt(d, d)
-	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Max: sz}.Op(gtx.Ops))
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, unit.Sp(float32(dp)*0.4), initial(name))
-		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-		lbl.Font.Weight = font.Bold
-		return lbl.Layout(gtx)
-	})
-	return layout.Dimensions{Size: sz}
 }
 
 // miBtn — .btn-accent: radius 10, padding 9/16, font 14/SemiBold.

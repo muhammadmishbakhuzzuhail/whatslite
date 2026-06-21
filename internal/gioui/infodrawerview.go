@@ -32,11 +32,11 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme) layout.Dime
 	dangerCol := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// .info-head — height 56, head-bg, title 17/500.
+		// .info-head — height 56, head-bg, title 16/500.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerHead(gtx, th, t, w)
 		}),
-		// .info-hero — pad 28/24, avatar 200, nama 19/500, "4 anggota" 14.
+		// .info-hero — pad 28/24, avatar 200, nama 24/500, "4 anggota" 15.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerHero(gtx, th, t, groupName)
 		}),
@@ -65,7 +65,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme) layout.Dime
 	)
 }
 
-// infoDrawerHead: .info-head — tinggi 56, latar head-bg, pad 0 16, title 17/500.
+// infoDrawerHead: .info-head — tinggi 56, latar head-bg, pad 0 16, title 16/500.
 func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(w, h)
@@ -73,7 +73,7 @@ func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int) layo
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 17, "Info grup")
+			lbl := material.Label(th, 16, "Info grup")
 			lbl.Color = t.Text
 			lbl.Font.Weight = font.Medium
 			return lbl.Layout(gtx)
@@ -94,17 +94,17 @@ func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name string
 			}),
 			// margin: 0 auto 16px.
 			layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
-			// .iname — 19/500 (mengikuti spesifikasi laci).
+			// .info-hero .iname — 24/500.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 19, name)
+				lbl := material.Label(th, 24, name)
 				lbl.Color = t.Text
-				lbl.Font.Weight = font.SemiBold
+				lbl.Font.Weight = font.Medium
 				return lbl.Layout(gtx)
 			}),
-			// .iphone — margin-top 4, 14, text2.
+			// .info-hero .iphone — margin-top 4, 15, text2.
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 14, "4 anggota")
+				lbl := material.Label(th, 15, "4 anggota")
 				lbl.Color = t.Text2
 				return lbl.Layout(gtx)
 			}),

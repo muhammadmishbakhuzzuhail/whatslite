@@ -30,18 +30,18 @@ type mvRow struct {
 func ModalsView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
-	// latar app (var(--bg)) lalu backdrop rgba(0,0,0,.5) penuh.
+	// latar app (var(--bg)) lalu backdrop rgba(0,0,0,.4) penuh.
 	paint.FillShape(gtx.Ops, t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
-	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 128}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 102}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return mvCard(gtx, th, t, white)
 	})
 }
 
-// mvCard — .fwd-modal: sidebarBg, radius 12, lebar 360, kolom isi.
+// mvCard — .fwd-modal: sidebarBg, radius 12, lebar 380, kolom isi.
 func mvCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA) layout.Dimensions {
-	w := gtx.Dp(360)
+	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
 	rows := []mvRow{
@@ -53,10 +53,10 @@ func mvCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA) 
 
 	macro := op.Record(gtx.Ops)
 	dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// .fwd-head — padding 16, judul 16/SemiBold.
+		// .fwd-head — padding 16, judul 17/SemiBold.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 16, "Teruskan")
+				lbl := material.Label(th, 17, "Teruskan")
 				lbl.Color = t.Text
 				lbl.Font.Weight = font.SemiBold
 				return lbl.Layout(gtx)
@@ -122,7 +122,6 @@ func mvChatRow(gtx layout.Context, th *material.Theme, t Theme, r mvRow) layout.
 						lbl := material.Label(th, 15, r.name)
 						lbl.Color = t.Text
 						lbl.MaxLines = 1
-						lbl.Font.Weight = font.Medium
 						return lbl.Layout(gtx)
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
@@ -145,7 +144,7 @@ func mvAvatar(gtx layout.Context, th *material.Theme, name string, dp int) layou
 	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Max: sz}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, unit.Sp(float32(dp)*0.4), initial(name))
+		lbl := material.Label(th, 16, initial(name))
 		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 		lbl.Font.Weight = font.Bold
 		return lbl.Layout(gtx)
@@ -170,11 +169,11 @@ func mvFooter(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA
 	})
 }
 
-// mvBtn — tombol generik (.btn-accent/.btn-ghost): radius 10, padding 9/16, font 14/600.
+// mvBtn — tombol generik (.btn-accent/.btn-ghost): radius 10, padding 9/16, font 14.5/600 (body inherit).
 func mvBtn(gtx layout.Context, th *material.Theme, bg, fg color.NRGBA, txt string, wt font.Weight) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, 14, txt)
+		lbl := material.Label(th, 14.5, txt)
 		lbl.Color = fg
 		lbl.Font.Weight = wt
 		return lbl.Layout(gtx)

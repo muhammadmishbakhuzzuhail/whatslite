@@ -7,6 +7,7 @@
 package gioui
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -23,6 +24,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -47,6 +49,11 @@ type UI struct {
 
 	pollClicks   map[string][]widget.Clickable // msgID → clickable per opsi polling
 	mentionState richtext.InteractiveText      // state teks ber-mention (warna inline)
+
+	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
+	statusClicks      []widget.Clickable
+	statusViewIdx     int
+	statusClose       widget.Clickable
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -412,6 +419,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(240), gtx.Dp(240)
 			return u.chatCtxView(gtx)
 		})
+	case "statusview":
+		u.statusViewLayer(gtx)
 	}
 }
 
@@ -745,7 +754,9 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "contacts":
 		return ContactsPaneView(gtx, u.th, u.t, u.contactGroups())
 	case "status":
-		return StatusPaneView(gtx, u.th, u.t, u.statusRows())
+		items := u.statusRows()
+		u.handleStatus(gtx)
+		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks)
 	case "channels":
 		return ChannelsPaneView(gtx, u.th, u.t, u.channelRows())
 	}
@@ -1648,14 +1659,127 @@ func (u *UI) statusRows() []stpItem {
 		return nil
 	}
 	gs := u.core.GetStatuses()
+	u.statusGroupsCache = u.statusGroupsCache[:0]
 	out := make([]stpItem, 0, len(gs))
 	for _, g := range gs {
 		if g.Mine {
 			continue // status sendiri tampil di baris My-status, bukan daftar
 		}
+		u.statusGroupsCache = append(u.statusGroupsCache, g)
 		out = append(out, stpItem{name: g.Name, time: g.Time, seen: false})
 	}
+	if len(u.statusClicks) < len(out) {
+		u.statusClicks = make([]widget.Clickable, len(out))
+	}
 	return out
+}
+
+// statusViewLayer — penampil status layar penuh: bar atas (nama+waktu+tutup) +
+// item pertama (teks besar di tengah / gambar dari thumb data-URI).
+func (u *UI) statusViewLayer(gtx layout.Context) {
+	if u.statusViewIdx < 0 || u.statusViewIdx >= len(u.statusGroupsCache) {
+		u.overlay = ""
+		return
+	}
+	g := u.statusGroupsCache[u.statusViewIdx]
+	for u.statusClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 0xee}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	var item app.StatusItemDTO
+	if len(g.Items) > 0 {
+		item = g.Items[len(g.Items)-1] // terbaru
+	}
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// bar atas: avatar + nama + waktu + tutup
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, g.Name, g.Jid, 38) }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 15, g.Name)
+								l.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+								l.Font.Weight = font.Medium
+								return l.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 12, item.Time)
+								l.Color = color.NRGBA{R: 0xcc, G: 0xcc, B: 0xcc, A: 0xff}
+								return l.Layout(gtx)
+							}),
+						)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.statusClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "close", 22, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+						})
+					}),
+				)
+			})
+		}),
+		// isi: gambar (thumb data-URI) atau teks besar.
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				if img := decodeImage(decodeDataURI(item.Thumb)); img != nil {
+					op := paint.NewImageOp(img)
+					sz := op.Size()
+					maxW, maxH := gtx.Dp(420), gtx.Constraints.Max.Y-gtx.Dp(80)
+					w := maxW
+					h := w * sz.Y / sz.X
+					if h > maxH {
+						h = maxH
+						w = h * sz.X / sz.Y
+					}
+					box := image.Pt(w, h)
+					cl := clip.Rect{Max: box}.Push(gtx.Ops)
+					drawImageFill(gtx.Ops, op, w)
+					cl.Pop()
+					return layout.Dimensions{Size: box}
+				}
+				txt := item.Text
+				if txt == "" {
+					txt = "Status"
+				}
+				return layout.Inset{Left: unit.Dp(40), Right: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 26, txt)
+					l.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+					l.Alignment = text.Middle
+					return l.Layout(gtx)
+				})
+			})
+		}),
+	)
+}
+
+// decodeDataURI — "data:<mime>;base64,<...>" → byte. "" bila bukan data-URI base64.
+func decodeDataURI(s string) []byte {
+	i := strings.Index(s, ";base64,")
+	if i < 0 || !strings.HasPrefix(s, "data:") {
+		return nil
+	}
+	b, err := base64.StdEncoding.DecodeString(s[i+len(";base64,"):])
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// handleStatus — klik baris status → buka viewer (overlay statusview).
+func (u *UI) handleStatus(gtx layout.Context) {
+	for i := range u.statusGroupsCache {
+		if i >= len(u.statusClicks) {
+			break
+		}
+		for u.statusClicks[i].Clicked(gtx) {
+			u.statusViewIdx = i
+			u.overlay = "statusview"
+		}
+	}
 }
 
 // infoData membangun data drawer info dari chat terpilih nyata. nil = demo.

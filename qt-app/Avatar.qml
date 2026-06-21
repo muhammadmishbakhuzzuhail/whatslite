@@ -14,6 +14,7 @@ Rectangle {
     property color accent: "#06b67f"
     property real fontSize: 19
     property bool group: false // grup → siluet orang-banyak (bukan inisial)
+    property int weight: Font.Bold // app.css .avatar 700; .pv-av (blokir) 600
 
     implicitWidth: 44
     implicitHeight: 44
@@ -23,7 +24,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         visible: img.status !== Image.Ready && !root.group
-        color: "white"; font.pixelSize: root.fontSize; font.bold: true
+        color: "white"; font.pixelSize: root.fontSize; font.weight: root.weight
         text: (root.name || "?").charAt(0).toUpperCase()
     }
     // Siluet grup (default WhatsApp) bila grup tanpa foto.

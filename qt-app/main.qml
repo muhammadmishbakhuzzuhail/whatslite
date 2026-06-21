@@ -4337,6 +4337,7 @@ ApplicationWindow {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
                                 Avatar {   // .pv-av: flat colored circle (colorFor(jid)) + initial, no photo
                                     Layout.preferredWidth: 38; Layout.preferredHeight: 38; fontSize: 15
+                                    weight: Font.DemiBold   // .pv-av font-weight 600 (umum .avatar 700)
                                     name: model.m.name; jid: model.m.jid; base: ""
                                     accent: win.avatarColor(model.m.jid || model.m.name || "?")
                                 }

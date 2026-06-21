@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/draw"
+	"image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 
@@ -17,6 +19,79 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/paint"
 )
+
+// gifFrames: byte GIF → frame-frame ter-komposit (paint.ImageOp) + delay(ms) +
+// ukuran. Pure-Go (stdlib image/gif). Disposal disederhanakan (akumulasi Over —
+// benar utk "keep" yg paling umum). Animasi: pilih frame per waktu.
+func gifFrames(b []byte) (frames []paint.ImageOp, delaysMs []int, w, h int) {
+	g, err := gif.DecodeAll(bytes.NewReader(b))
+	if err != nil || len(g.Image) == 0 {
+		return nil, nil, 0, 0
+	}
+	w, h = g.Config.Width, g.Config.Height
+	if w == 0 || h == 0 {
+		b0 := g.Image[0].Bounds()
+		w, h = b0.Dx(), b0.Dy()
+	}
+	canvas := image.NewRGBA(image.Rect(0, 0, w, h))
+	for i, fr := range g.Image {
+		draw.Draw(canvas, fr.Bounds(), fr, fr.Bounds().Min, draw.Over)
+		snap := image.NewRGBA(canvas.Bounds())
+		copy(snap.Pix, canvas.Pix)
+		frames = append(frames, paint.NewImageOp(snap))
+		d := 100 // default 100ms
+		if i < len(g.Delay) && g.Delay[i] > 0 {
+			d = g.Delay[i] * 10 // centidetik → ms
+		}
+		delaysMs = append(delaysMs, d)
+	}
+	return frames, delaysMs, w, h
+}
+
+// frameAt: index frame utk total durasi `t` ms (loop).
+func frameAt(delaysMs []int, tMs int) int {
+	total := 0
+	for _, d := range delaysMs {
+		total += d
+	}
+	if total <= 0 {
+		return 0
+	}
+	tMs %= total
+	for i, d := range delaysMs {
+		if tMs < d {
+			return i
+		}
+		tMs -= d
+	}
+	return len(delaysMs) - 1
+}
+
+// synthGif: GIF animasi sintetis (titik accent bergerak) utk uji render headless.
+func synthGif() []byte {
+	const n = 120
+	pal := color.Palette{
+		color.RGBA{0x0a, 0x0f, 0x14, 0xff}, // 0 bg
+		color.RGBA{0x06, 0xc9, 0x8c, 0xff}, // 1 accent
+	}
+	g := &gif.GIF{}
+	for f := 0; f < 5; f++ {
+		img := image.NewPaletted(image.Rect(0, 0, n, n), pal)
+		cx, cy := 20+f*20, 60
+		for y := 0; y < n; y++ {
+			for x := 0; x < n; x++ {
+				if (x-cx)*(x-cx)+(y-cy)*(y-cy) < 220 {
+					img.SetColorIndex(x, y, 1)
+				}
+			}
+		}
+		g.Image = append(g.Image, img)
+		g.Delay = append(g.Delay, 15)
+	}
+	var buf bytes.Buffer
+	_ = gif.EncodeAll(&buf, g)
+	return buf.Bytes()
+}
 
 // decodeImage: byte (jpeg/png) → image.Image (nil bila gagal). Dipakai utk byte
 // avatar (engine.ProfilePictureRaw) & media dari store, in-memory.

@@ -34,6 +34,13 @@ type UI struct {
 	qr    string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
 	view  string // pane sidebar aktif: chats|calls|settings
 
+	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
+	loginPhone  bool
+	phoneEd     widget.Editor
+	loginSwitch widget.Clickable
+	loginSubmit widget.Clickable
+	pairCode    string
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -86,6 +93,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
+	u.phoneEd.SingleLine = true
+	u.phoneEd.Submit = true
 	u.photos = map[string]paint.ImageOp{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
 		u.photos["Andi Pratama"] = synthPhoto()
@@ -149,9 +158,10 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	// latar
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
-	// Gerbang login: engine tersambung tapi sesi belum siap → layar QR.
+	// Gerbang login: engine tersambung tapi sesi belum siap → layar QR / nomor.
 	if u.core != nil && u.state != "" && u.state != "ready" && u.state != "connected" {
-		return LoginView(gtx, u.th, u.t, u.qr)
+		u.handleLogin(gtx)
+		return LoginView(gtx, u.th, u.t, u.qr, u.loginCtl())
 	}
 
 	dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
@@ -163,6 +173,40 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 		u.overlayLayer(gtx)
 	}
 	return dims
+}
+
+// loginCtl membangun controller login dari state UI (utk LoginView interaktif).
+func (u *UI) loginCtl() *LoginCtl {
+	return &LoginCtl{
+		PhoneMode: u.loginPhone, Phone: &u.phoneEd,
+		Switch: &u.loginSwitch, Submit: &u.loginSubmit, Code: u.pairCode,
+	}
+}
+
+// handleLogin memproses event layar login: toggle QR↔nomor + minta kode pairing.
+func (u *UI) handleLogin(gtx layout.Context) {
+	for u.loginSwitch.Clicked(gtx) {
+		u.loginPhone = !u.loginPhone
+		u.pairCode = ""
+	}
+	req := false
+	for u.loginSubmit.Clicked(gtx) {
+		req = true
+	}
+	for {
+		ev, ok := u.phoneEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			req = true
+		}
+	}
+	if req && u.core != nil {
+		if phone := strings.TrimSpace(u.phoneEd.Text()); phone != "" {
+			u.pairCode = u.core.LinkWithPhone(phone)
+		}
+	}
 }
 
 // overlayLayer — popup di atas app (backdrop klik → tutup). Komponen wave dipakai

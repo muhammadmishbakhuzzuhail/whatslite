@@ -18,14 +18,25 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
 
+// LoginCtl = state interaktif layar login (alur nomor telepon). nil → render QR
+// statis saja (dipakai render-tool gio-shot). Disuplai UI.loginCtl() saat hidup.
+type LoginCtl struct {
+	PhoneMode bool             // true = panel nomor telepon; false = QR
+	Phone     *widget.Editor   // input nomor (mode telepon)
+	Switch    *widget.Clickable // link toggle QR↔nomor
+	Submit    *widget.Clickable // tombol "Minta kode"
+	Code      string           // kode pairing 8-karakter (hasil LinkWithPhone)
+}
+
 // LoginView menggambar layar login penuh (bar accent + kartu QR + hint).
 // qr = kode QR pairing mentah dari engine; "" → tampilkan placeholder + "menunggu".
-func LoginView(gtx layout.Context, th *material.Theme, t Theme, qr string) layout.Dimensions {
+func LoginView(gtx layout.Context, th *material.Theme, t Theme, qr string, ctl *LoginCtl) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
 	// latar: var(--head-bg)
@@ -41,7 +52,7 @@ func LoginView(gtx layout.Context, th *material.Theme, t Theme, qr string) layou
 		// .login-card { margin-top: 56px; }
 		layout.Rigid(layout.Spacer{Height: unit.Dp(56)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return loginCard(gtx, th, t, white, qr)
+			return loginCard(gtx, th, t, white, qr, ctl)
 		}),
 		// .login-hint { margin-top: 30px; color: text2; font-size: 14px; }
 		layout.Rigid(layout.Spacer{Height: unit.Dp(30)}.Layout),
@@ -71,7 +82,7 @@ func loginBar(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA
 }
 
 // .login-card — sidebarBg, radius 14, padding 44, gap 56, row align center.
-func loginCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, qr string) layout.Dimensions {
+func loginCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, qr string, ctl *LoginCtl) layout.Dimensions {
 	pad := unit.Dp(44)
 	// rekam isi utk ukur, gambar latar RRect di belakang.
 	macro := op.Record(gtx.Ops)
@@ -83,7 +94,7 @@ func loginCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGB
 			// gap: 56px
 			layout.Rigid(layout.Spacer{Width: unit.Dp(56)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return loginRight(gtx, th, t, white, qr)
+				return loginRight(gtx, th, t, white, qr, ctl)
 			}),
 		)
 	})
@@ -147,31 +158,109 @@ func loginStep(gtx layout.Context, th *material.Theme, t Theme, n int, s string)
 }
 
 // .login-right — kotak QR 220 putih (padding 8) + waiting + link nomor telepon.
-func loginRight(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, qr string) layout.Dimensions {
+func loginRight(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, qr string, ctl *LoginCtl) layout.Dimensions {
+	phoneMode := ctl != nil && ctl.PhoneMode
+	switchTxt := "Tautkan dengan nomor telepon"
+	if phoneMode {
+		switchTxt = "Gunakan kode QR"
+	}
+	return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+		// area utama: panel nomor telepon ATAU QR (kotak 220 sama).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if phoneMode {
+				return loginPhonePanel(gtx, th, t, ctl)
+			}
+			return loginQRBlock(gtx, th, t, white, qr)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		// .pl-switch — link accent 13px (toggle QR↔nomor). Clickable bila hidup.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 13, switchTxt)
+				l.Color = t.Accent
+				return l.Layout(gtx)
+			}
+			if ctl != nil && ctl.Switch != nil {
+				return ctl.Switch.Layout(gtx, lbl)
+			}
+			return lbl(gtx)
+		}),
+	)
+}
+
+// loginQRBlock — kotak QR 220 + label status di bawahnya.
+func loginQRBlock(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, qr string) layout.Dimensions {
 	waiting := "Pindai dengan ponsel Anda"
 	if qr == "" {
 		waiting = "Menunggu kode QR…"
 	}
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return loginQR(gtx, white, qr)
-		}),
-		// gap: 12px
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return loginQR(gtx, white, qr) }),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-		// .login-waiting { font-size: 13px; color: text2; }
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(th, 13, waiting)
 			lbl.Color = t.Text2
 			return lbl.Layout(gtx)
 		}),
-		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-		// .pl-switch — link accent 13px ("Tautkan dengan nomor telepon").
+	)
+}
+
+// loginPhonePanel — input nomor + tombol "Minta kode"; bila Code terisi tampilkan
+// kode pairing 8-karakter besar. Lebar disamakan dgn kotak QR (220).
+func loginPhonePanel(gtx layout.Context, th *material.Theme, t Theme, ctl *LoginCtl) layout.Dimensions {
+	gtx.Constraints.Min.X = gtx.Dp(220)
+	gtx.Constraints.Max.X = gtx.Dp(220)
+	return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 13, "Tautkan dengan nomor telepon")
-			lbl.Color = t.Accent
+			lbl := material.Label(th, 14, "Nomor telepon (kode negara, tanpa +)")
+			lbl.Color = t.Text2
 			return lbl.Layout(gtx)
 		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		// kotak input membulat (var --search-bg)
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return loginField(gtx, th, t, ctl.Phone, "628123456789")
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		// tombol accent "Minta kode"
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			btn := material.Button(th, ctl.Submit, "Minta kode")
+			btn.Background = t.Accent
+			btn.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			btn.CornerRadius = unit.Dp(8)
+			btn.TextSize = unit.Sp(14)
+			return btn.Layout(gtx)
+		}),
+		// kode pairing (bila ada)
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if ctl.Code == "" {
+				return layout.Dimensions{}
+			}
+			return layout.Inset{Top: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, 24, ctl.Code)
+				lbl.Color = t.Text
+				lbl.Font.Weight = font.SemiBold
+				return lbl.Layout(gtx)
+			})
+		}),
 	)
+}
+
+// loginField — input teks 1-baris dlm kotak membulat (var --search-bg).
+func loginField(gtx layout.Context, th *material.Theme, t Theme, ed *widget.Editor, hint string) layout.Dimensions {
+	macro := op.Record(gtx.Ops)
+	dims := layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		e := material.Editor(th, ed, hint)
+		e.Color = t.Text
+		e.HintColor = t.Text2
+		e.TextSize = unit.Sp(14)
+		return e.Layout(gtx)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(8)
+	paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
 }
 
 // .qr / .qr-img — kotak 220x220 putih, radius 8, padding 8 → QR 200px asli.

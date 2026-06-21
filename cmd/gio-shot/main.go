@@ -19,6 +19,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
@@ -54,7 +55,14 @@ func main() {
 		switch screen {
 		case "login":
 			// contoh kode QR ala whatsmeow (ref,noise,identity,adv) utk uji render.
-			gioui.LoginView(gtx, th, t, "2@abc123XYZ/def456==,Tg9kL+pQr,Zm9vYmFy,YmF6cXV4")
+			gioui.LoginView(gtx, th, t, "2@abc123XYZ/def456==,Tg9kL+pQr,Zm9vYmFy,YmF6cXV4", nil)
+		case "login-phone":
+			ed := &widget.Editor{SingleLine: true}
+			ed.SetText("628123456789")
+			gioui.LoginView(gtx, th, t, "", &gioui.LoginCtl{
+				PhoneMode: true, Phone: ed,
+				Switch: &widget.Clickable{}, Submit: &widget.Clickable{}, Code: "K7QM-2XPL",
+			})
 		case "settings":
 			gioui.SettingsView(gtx, th, t)
 		case "bubbles":

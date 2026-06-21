@@ -76,7 +76,7 @@ func main() {
 		case "modals":
 			gioui.ModalsView(gtx, th, t, nil)
 		case "infodrawer":
-			gioui.InfoDrawerView(gtx, th, t)
+			gioui.InfoDrawerView(gtx, th, t, nil)
 		case "search":
 			gioui.SearchView(gtx, th, t)
 		case "picker":

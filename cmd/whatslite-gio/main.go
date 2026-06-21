@@ -13,9 +13,7 @@ import (
 	"time"
 
 	gioapp "gioui.org/app"
-	"gioui.org/font/gofont"
 	"gioui.org/op"
-	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 
@@ -47,7 +45,7 @@ func main() {
 
 func run(w *gioapp.Window, core *app.App) error {
 	th := material.NewTheme()
-	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	th.Shaper = gioui.NewShaper()
 	ui := gioui.NewUI(th, core)
 
 	go func() {

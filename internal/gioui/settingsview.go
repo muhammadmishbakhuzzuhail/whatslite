@@ -16,11 +16,20 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
+// SettingsCtl = state interaktif pane setelan. nil → render statis (gio-shot).
+// Clicks: 1 clickable per baris (urut spt setList). Dark: status tema saat ini
+// (refleksi toggle "Tema").
+type SettingsCtl struct {
+	Dark   bool
+	Clicks []widget.Clickable
+}
+
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
-func SettingsView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func SettingsView(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
 	// latar pane (sidebarBg seperti SettingsPane yg menempati sidebar)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
@@ -32,7 +41,7 @@ func SettingsView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 			return setProfile(gtx, th, t, "Saya", "Tentang — Hidup itu indah ✨", "#00a884")
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return setList(gtx, th, t)
+			return setList(gtx, th, t, ctl)
 		}),
 	)
 }
@@ -98,9 +107,19 @@ type setItem struct {
 	danger bool
 }
 
-func setList(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	themeDesc := "Terang, gelap, atau ikuti sistem"
+	themeOn := false
+	if ctl != nil { // Tema jadi toggle nyata yg merefleksikan mode gelap aktif
+		themeOn = ctl.Dark
+		if ctl.Dark {
+			themeDesc = "Mode gelap"
+		} else {
+			themeDesc = "Mode terang"
+		}
+	}
 	items := []setItem{
-		{name: "Tema", desc: "Terang, gelap, atau ikuti sistem", icon: "theme"},
+		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},
 		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},
 		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},
 		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: true},
@@ -112,9 +131,13 @@ func setList(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions 
 	flex := layout.Flex{Axis: layout.Vertical}
 	children := make([]layout.FlexChild, len(items))
 	for i := range items {
-		it := items[i]
+		it, idx := items[i], i
 		children[i] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return setRow(gtx, th, t, it)
+			row := func(gtx layout.Context) layout.Dimensions { return setRow(gtx, th, t, it) }
+			if ctl != nil && idx < len(ctl.Clicks) { // baris jadi clickable
+				return ctl.Clicks[idx].Layout(gtx, row)
+			}
+			return row(gtx)
 		})
 	}
 	return flex.Layout(gtx, children...)

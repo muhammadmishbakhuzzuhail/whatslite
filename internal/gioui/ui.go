@@ -41,6 +41,8 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
+	setClicks [8]widget.Clickable // baris pane setelan (0=Tema … 7=Keluar)
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -173,6 +175,21 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 		u.overlayLayer(gtx)
 	}
 	return dims
+}
+
+// handleSettings memproses klik baris pane setelan: Tema (toggle gelap/terang)
+// dan Keluar (logout engine → kembali ke layar QR).
+func (u *UI) handleSettings(gtx layout.Context) {
+	for u.setClicks[0].Clicked(gtx) { // Tema
+		u.dark = !u.dark
+		u.t = newTheme(u.dark)
+	}
+	for u.setClicks[7].Clicked(gtx) { // Keluar
+		if u.core != nil {
+			u.core.Logout()
+			u.state = "qr"
+		}
+	}
 }
 
 // loginCtl membangun controller login dari state UI (utk LoginView interaktif).
@@ -348,7 +365,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	switch u.view {
 	case "settings":
-		return SettingsView(gtx, u.th, u.t)
+		u.handleSettings(gtx)
+		return SettingsView(gtx, u.th, u.t, &SettingsCtl{Dark: u.dark, Clicks: u.setClicks[:]})
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t)
 	case "contacts":

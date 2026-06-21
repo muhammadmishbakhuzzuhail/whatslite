@@ -29,6 +29,11 @@ ApplicationWindow {
     }
     property string lightboxSrc: ""  // media fullscreen (kosong = tutup)
     property string lightboxCaption: "" // keterangan media di lightbox (Lightbox.svelte .lb-cap)
+    // Album lightbox (Lightbox.svelte items[]): daftar URL + indeks aktif → prev/next.
+    // Kosong → mode gambar tunggal (pakai lightboxSrc). NOTE: pemicu album dari bubble
+    // belum disambungkan (engine Qt belum kirim items[]); UI nav siap & ter-guard >1.
+    property var lightboxItems: []
+    property int lightboxIndex: 0
     // Draf pratinjau media sebelum kirim (MediaPreviewModal.svelte). Engine Qt tak
     // punya store mediaDraft → diisi lokal saat pilih gambar; null = tutup.
     // Bentuk: { chatId, items:[{kind, url, name}] }. items kosong = popup tutup.
@@ -142,6 +147,8 @@ ApplicationWindow {
         // --- Ikon panel info/profil (disalin dari InfoPanel.svelte & ContactProfile.svelte) ---
         "editpen": '<path d="M4 20h4L18 10l-4-4L4 16z"/><path d="M14 6l4 4"/>',
         "addmember": '<circle cx="9" cy="8" r="4"/><path d="M2 20c0-3.5 3-6 7-6M18 11v6M15 14h6"/>',
+        // Buat saluran (ChannelsPane.svelte .icon-btn ch_create) — orang + plus.
+        "ch_create": '<path d="M19 9v6M16 12h6"/><circle cx="9" cy="8" r="4"/><path d="M2 20a7 7 0 0 1 12-5"/>',
         "invitelink": '<path d="M9 15l6-6M8 13l-2 2a3 3 0 0 0 4 4l2-2M16 11l2-2a3 3 0 0 0-4-4l-2 2"/>',
         "resetlink": '<path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M18 4v5h-5M6 20v-5h5"/>',
         "wallpaperico": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>',
@@ -175,6 +182,22 @@ ApplicationWindow {
             if (m && m[field] === true) n++
         }
         return n
+    }
+    // Filter jenis pencarian aktif (.sc-types: all|image|video|document|link|voice).
+    // NOTE: backend Qt SearchMessages hanya menerima query (1 arg) → filter jenis
+    // belum tersambung ke engine; chip hanya state UI (parity visual).
+    property string searchType: "all"
+    // Chat yang NAMA-nya cocok query (.list-label "Chats" di ChatList.svelte search).
+    // dep = chatList.count agar binding recompute saat model berubah.
+    function nameMatches(q, dep) {
+        var out = []
+        var s = (q || "").trim().toLowerCase()
+        if (s.length === 0) return out
+        for (var i = 0; i < dep; i++) {
+            var m = chatsModel.get(i)
+            if (m && (m.name || m.id || "").toLowerCase().indexOf(s) !== -1) out.push(m)
+        }
+        return out
     }
     // Huruf-awal utk pemisah abjad ContactsPane/StatusPane (.ct-letter): A–Z,
     // selain itu "#". Dipakai delegate utk menyisipkan header huruf inline
@@ -608,15 +631,26 @@ ApplicationWindow {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
-                // Header: judul view + aksi (chat baru, menu) — ala WhatsApp.
+                // Header sidebar — KONDISIONAL per activeView (Svelte: setiap pane punya
+                // header sendiri). Peta judul i18n (sesuai key Svelte tiap pane).
+                property string paneTitle: ({
+                    chats: i18n.t("rail_chats"), status: i18n.t("rail_status"),
+                    channels: i18n.t("rail_channels"), communities: i18n.t("rail_communities"),
+                    calls: i18n.t("rail_calls"), contacts: i18n.t("rail_contacts"),
+                    starred: i18n.t("starred_msg"), archived: i18n.t("archived_chats"),
+                    scheduled: i18n.t("scheduled_reminders")
+                })[activeView] || i18n.t("rail_chats")
+
+                // (1) chats + calls → .sidebar-head 60px (h1 23/700) + newchat + overflow.
                 Rectangle {
+                    visible: activeView === "chats" || activeView === "calls"
                     Layout.fillWidth: true; Layout.preferredHeight: 60
                     color: theme.headBg
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 18; anchors.rightMargin: 10; spacing: 4
                         Text {
                             Layout.fillWidth: true
-                            text: ({ chats: "Chat", status: "Status", channels: "Channels", communities: "Communities", calls: "Panggilan", contacts: "Kontak", starred: "Berbintang", archived: "Arsip", scheduled: "Terjadwal" }[activeView] || "Chat")
+                            text: paneTitle
                             font.pixelSize: 23; font.bold: true; color: theme.text
                         }
                         Rectangle {
@@ -628,6 +662,63 @@ ApplicationWindow {
                             Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: menuMa.containsMouse ? theme.hover : "transparent"
                             Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["overflow"]; color: theme.railIco }
                             MouseArea { id: menuMa; anchors.fill: parent; hoverEnabled: true; onClicked: settingsPopup.open() }
+                        }
+                    }
+                }
+                // (2) status/contacts/communities → .pane-head 56px (h2 19/600), tanpa aksi.
+                Rectangle {
+                    visible: activeView === "status" || activeView === "contacts" || activeView === "communities"
+                    Layout.fillWidth: true; Layout.preferredHeight: 56
+                    color: theme.headBg
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        text: paneTitle
+                        font.pixelSize: 19; font.weight: Font.DemiBold; color: theme.text
+                    }
+                }
+                // (3) channels → .pane-head 56px (h2 19/600) + ch_create + ch_follow.
+                Rectangle {
+                    visible: activeView === "channels"
+                    Layout.fillWidth: true; Layout.preferredHeight: 56
+                    color: theme.headBg
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 8; spacing: 0
+                        Text {
+                            Layout.fillWidth: true
+                            text: paneTitle
+                            font.pixelSize: 19; font.weight: Font.DemiBold; color: theme.text
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: chCreateMa.containsMouse ? theme.hover : "transparent"
+                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["ch_create"]; color: theme.railIco }
+                            MouseArea { id: chCreateMa; anchors.fill: parent; hoverEnabled: true; onClicked: app.act("CreateChannel", []) }
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: chFollowMa.containsMouse ? theme.hover : "transparent"
+                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["plus"]; color: theme.railIco }
+                            MouseArea { id: chFollowMa; anchors.fill: parent; hoverEnabled: true; onClicked: { win.channelTab = "discover"; app.loadIntoA("GetRecommendedChannels", [""], channelsModel) } }
+                        }
+                    }
+                }
+                // (4) starred/archived/scheduled → .pane-head 56px: back icon-btn + h2 17px.
+                //     gap 22 (starred/scheduled) / 14 (archived).
+                Rectangle {
+                    visible: activeView === "starred" || activeView === "archived" || activeView === "scheduled"
+                    Layout.fillWidth: true; Layout.preferredHeight: 56
+                    color: theme.headBg
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16
+                        spacing: (activeView === "archived") ? 14 : 22
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; radius: 20; color: backMa.containsMouse ? theme.hover : "transparent"
+                            Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["chevleft"]; color: theme.railIco }
+                            MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true; onClicked: activeView = "chats" }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: paneTitle
+                            font.pixelSize: 17; font.weight: Font.DemiBold; color: theme.text
                         }
                     }
                 }
@@ -1389,51 +1480,143 @@ ApplicationWindow {
                         }
                     }
                     // --- Hasil pencarian (override semua view saat mengetik) ---
-                    ListView {
+                    // Parity ChatList.svelte (cabang search): chip jenis (.sc-types) +
+                    // bagian "Chats" (nama cocok) + "Messages" (hit isi) + empty-list.
+                    Flickable {
+                        id: searchOverlay
                         anchors.fill: parent
                         visible: searchInput.text !== ""
-                        clip: true; model: searchModel
-                        delegate: Item {
-                            width: ListView.view.width; implicitHeight: hitRow.height
-                            // .hit-row: radius var(--r)=14, padding 9/12, hover → theme.hover.
-                            Rectangle {
-                                id: hitRow
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.margins: 3
-                                height: hitContent.implicitHeight + 18   // 2×9 padding vertikal
-                                radius: theme.r
-                                color: hitHov.hovered ? theme.hover : "transparent"
-                                RowLayout {
-                                    id: hitContent
-                                    anchors.left: parent.left; anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: 12; anchors.rightMargin: 12
-                                    spacing: 12
-                                    // .hit-av: 40×40 lingkaran, inisial putih (Avatar component).
-                                    Avatar {
-                                        Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
-                                        name: model.m.chatName || ""; jid: model.m.chatId || model.m.id || ""
-                                        base: app.mediaBase; accent: win.avatarColor(model.m.chatName || "?")
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 2
-                                        Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: model.m.chatName || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
-                                        Text { Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: model.m.text || ""; color: theme.text2; font.pixelSize: 13 }
+                        clip: true
+                        contentWidth: width; contentHeight: searchCol.implicitHeight
+                        boundsBehavior: Flickable.StopAtBounds
+                        // Chat yang nama-nya cocok query (.list-label "Chats").
+                        property var matched: win.nameMatches(searchInput.text, chatList.count)
+                        ColumnLayout {
+                            id: searchCol
+                            width: searchOverlay.width
+                            spacing: 0
+                            // .sc-types: flex gap 6, padding 8/12 (Svelte style override).
+                            Flow {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 12; Layout.rightMargin: 12
+                                Layout.topMargin: 8; Layout.bottomMargin: 8; spacing: 6
+                                Repeater {
+                                    model: ["all", "image", "video", "document", "link", "voice"]
+                                    delegate: Rectangle {
+                                        property bool on: win.searchType === modelData
+                                        radius: 16; height: 26  // .chip radius16 pad5/13
+                                        implicitWidth: scLbl.implicitWidth + 26
+                                        color: on ? theme.accent : theme.searchBg
+                                        Text { id: scLbl; anchors.centerIn: parent
+                                            text: i18n.t("sct_" + modelData); font.pixelSize: 13
+                                            color: on ? "#ffffff" : theme.text2 }
+                                        MouseArea { anchors.fill: parent; onClicked: win.searchType = modelData }
                                     }
                                 }
-                                HoverHandler { id: hitHov }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: {
-                                        var cid = model.m.chatId || model.m.id || ""
-                                        if (cid !== "") {
-                                            win.selectedChat = { name: model.m.chatName || "", id: cid }
-                                            activeView = "chats"; searchInput.text = ""; app.openChat(cid)
+                            }
+                            // .list-label "CHATS" — hanya filter "all" & ada nama cocok.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 16; Layout.rightMargin: 16
+                                Layout.topMargin: 8; Layout.bottomMargin: 4
+                                visible: win.searchType === "all" && searchOverlay.matched.length > 0
+                                text: i18n.t("rail_chats").toUpperCase()
+                                color: theme.text2; font.pixelSize: 12; font.letterSpacing: 0.4
+                            }
+                            // Baris chat (nama cocok) — gaya ChatRow ringkas.
+                            Repeater {
+                                model: (win.searchType === "all") ? searchOverlay.matched : []
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: 8; Layout.rightMargin: 8
+                                    Layout.preferredHeight: 64
+                                    radius: theme.r
+                                    color: ncHov.hovered ? theme.hover : "transparent"
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 13
+                                        Avatar {
+                                            Layout.preferredWidth: 44; Layout.preferredHeight: 44; fontSize: 16
+                                            name: modelData.name || ""; jid: modelData.id || ""
+                                            base: app.mediaBase; accent: win.avatarColor(modelData.name || "?")
+                                            group: modelData.group === true
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: modelData.name || modelData.id || ""; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium }
+                                            Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: modelData.preview || ""; color: theme.text2; font.pixelSize: 14 }
+                                        }
+                                    }
+                                    HoverHandler { id: ncHov }
+                                    MouseArea { anchors.fill: parent; onClicked: {
+                                        if ((modelData.id || "") !== "") {
+                                            win.selectedChat = modelData
+                                            activeView = "chats"; searchInput.text = ""; app.openChat(modelData.id)
+                                        }
+                                    } }
+                                }
+                            }
+                            // .list-label "MESSAGES" — di atas hit isi pesan.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 16; Layout.rightMargin: 16
+                                Layout.topMargin: 8; Layout.bottomMargin: 4
+                                visible: hitRep.count > 0
+                                text: i18n.t("messages_label").toUpperCase()
+                                color: theme.text2; font.pixelSize: 12; font.letterSpacing: 0.4
+                            }
+                            // Hit isi pesan (searchModel ≤50). Repeater agar bisa diselang label.
+                            Repeater {
+                                id: hitRep
+                                model: searchModel
+                                delegate: Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: 8; Layout.rightMargin: 8
+                                    Layout.preferredHeight: 64
+                                    radius: theme.r
+                                    color: hitHov.hovered ? theme.hover : "transparent"
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
+                                        Avatar {
+                                            Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
+                                            name: model.m.chatName || ""; jid: model.m.chatJid || model.m.chatId || model.m.id || ""
+                                            base: app.mediaBase; accent: win.avatarColor(model.m.chatName || "?")
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            // .hit-top: nama (kiri, elide) + .hit-time (kanan).
+                                            RowLayout {
+                                                Layout.fillWidth: true; spacing: 8
+                                                Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                    text: model.m.chatName || ""; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                                                Text { text: model.m.time || ""; color: theme.text2; font.pixelSize: 12 }
+                                            }
+                                            Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: model.m.text || ""; color: theme.text2; font.pixelSize: 13 }
+                                        }
+                                    }
+                                    HoverHandler { id: hitHov }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            var cid = model.m.chatJid || model.m.chatId || model.m.id || ""
+                                            if (cid !== "") {
+                                                win.selectedChat = { name: model.m.chatName || "", id: cid }
+                                                activeView = "chats"; searchInput.text = ""; app.openChat(cid)
+                                            }
                                         }
                                     }
                                 }
+                            }
+                            // .empty-list: tak ada chat cocok & tak ada hit → 28/16 center 14px.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 28; Layout.bottomMargin: 28
+                                Layout.leftMargin: 16; Layout.rightMargin: 16
+                                visible: searchOverlay.matched.length === 0 && hitRep.count === 0
+                                horizontalAlignment: Text.AlignHCenter
+                                text: i18n.t("no_match"); color: theme.text2; font.pixelSize: 14
                             }
                         }
                     }
@@ -3323,9 +3506,16 @@ ApplicationWindow {
     // === Lightbox media (Lightbox.svelte) — fullscreen gambar + simpan/tutup/caption ===
     Rectangle {
         id: lightbox
-        anchors.fill: parent; z: 150; visible: lightboxSrc !== ""
+        anchors.fill: parent; z: 150; visible: lightboxSrc !== "" || lightboxItems.length > 0
         color: "#eb000000"   // rgba(0,0,0,.92)
-        function close() { win.lightboxSrc = ""; win.lightboxCaption = "" }
+        // Album: items[] → prev/next; selain itu gambar tunggal (lightboxSrc).
+        readonly property int count: lightboxItems.length
+        readonly property string curSrc: count > 0
+            ? ((lightboxItems[Math.max(0, Math.min(lightboxIndex, count - 1))].url) || "")
+            : lightboxSrc
+        function close() { win.lightboxSrc = ""; win.lightboxCaption = ""; win.lightboxItems = []; win.lightboxIndex = 0 }
+        function prev() { if (win.lightboxIndex > 0) win.lightboxIndex-- }
+        function next() { if (win.lightboxIndex < count - 1) win.lightboxIndex++ }
         // Klik backdrop → tutup (.lb on:click|self)
         MouseArea { anchors.fill: parent; onClicked: lightbox.close() }
         // .lb-media: max 94vw/90vh, radius 6
@@ -3334,7 +3524,7 @@ ApplicationWindow {
             anchors.centerIn: parent
             width: Math.min(implicitWidth, parent.width * 0.94)
             height: Math.min(implicitHeight, parent.height * 0.90)
-            fillMode: Image.PreserveAspectFit; source: lightboxSrc; smooth: true
+            fillMode: Image.PreserveAspectFit; source: lightbox.curSrc; smooth: true
         }
         // Placeholder bila media tak tersedia dari engine (guarded).
         Text {
@@ -3350,7 +3540,36 @@ ApplicationWindow {
             color: saveMa.containsMouse ? "#38ffffff" : "#1fffffff"
             Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["download"]; color: "#ffffff" }
             MouseArea { id: saveMa; anchors.fill: parent; hoverEnabled: true
-                onClicked: if (typeof app.saveMedia === "function") app.saveMedia(lightboxSrc) }
+                onClicked: if (typeof app.saveMedia === "function") app.saveMedia(lightbox.curSrc) }
+        }
+        // .lb-nav.prev "‹" — kiri 18, 46×46 rgba(255,255,255,.12), font 28; album >1.
+        Rectangle {
+            visible: lightbox.count > 1 && lightboxIndex > 0
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left; anchors.leftMargin: 18
+            width: 46; height: 46; radius: 23
+            color: prevMa.containsMouse ? "#38ffffff" : "#1fffffff"
+            Text { anchors.centerIn: parent; text: "‹"; color: "#ffffff"; font.pixelSize: 28 }
+            MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; onClicked: lightbox.prev() }
+        }
+        // .lb-nav.next "›" — kanan 18.
+        Rectangle {
+            visible: lightbox.count > 1 && lightboxIndex < lightbox.count - 1
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right; anchors.rightMargin: 18
+            width: 46; height: 46; radius: 23
+            color: nextMa.containsMouse ? "#38ffffff" : "#1fffffff"
+            Text { anchors.centerIn: parent; text: "›"; color: "#ffffff"; font.pixelSize: 28 }
+            MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; onClicked: lightbox.next() }
+        }
+        // .lb-count "i+1/N" — atas 22, terpusat, font 13, opacity .8; album >1.
+        Text {
+            visible: lightbox.count > 1
+            anchors.top: parent.top; anchors.topMargin: 22
+            anchors.left: parent.left; anchors.right: parent.right
+            horizontalAlignment: Text.AlignHCenter
+            text: (lightboxIndex + 1) + "/" + lightbox.count
+            color: "#ffffff"; opacity: 0.8; font.pixelSize: 13
         }
         // .lb-x: lingkaran 38, rgba(255,255,255,.12), pojok kanan-atas (right:22)
         Rectangle {
@@ -4481,7 +4700,13 @@ ApplicationWindow {
             else if (openPanel === "reaction") { win.ctxMsg = { id: "m1", senderId: "", dir: "in" }; reactionPopup.open() }
             else if (openPanel === "reactiondetail") { win.ctxMsg = { reactions: [{ emoji: "👍", count: 2, who: ["Alice", "Bob"] }, { emoji: "❤️", count: 1, who: ["Citra"] }] }; reactionDetailPopup.open() }
             else if (openPanel === "mediapreview") { win.mediaDraftIdx = 0; win.mediaDraftOnce = false; win.mediaDraft = { chatId: "c", items: [{ kind: "image", url: (app.mediaBase || "") + "/media/c/m1", name: "" }] }; mediaPreviewPopup.open() }
-            else if (openPanel === "lightbox") { win.lightboxCaption = "Sunset di pantai 🌅"; win.lightboxSrc = (app.mediaBase || "") + "/media/c/m1" }
+            else if (openPanel === "lightbox") {
+                win.lightboxCaption = "Sunset di pantai 🌅"
+                // Album 3 item → verifikasi nav prev/next + counter (.lb-nav/.lb-count).
+                var base = (app.mediaBase || "")
+                win.lightboxItems = [{ url: base + "/media/c/m1" }, { url: base + "/media/c/m2" }, { url: base + "/media/c/m3" }]
+                win.lightboxIndex = 0
+            }
             else if (openPanel === "poll") pollDialog.open()
             else if (openPanel === "contact") contactDialog.open()
             else if (openPanel === "toast") win.toast(i18n.t("toast_copied"))

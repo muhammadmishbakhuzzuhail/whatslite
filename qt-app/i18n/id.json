@@ -1,4 +1,8 @@
 {
+  "rail_chats": "Chat", "rail_status": "Status", "rail_channels": "Saluran", "rail_communities": "Komunitas",
+  "rail_calls": "Panggilan", "rail_contacts": "Kontak", "archived_chats": "Chat diarsipkan", "scheduled_reminders": "Terjadwal & pengingat",
+  "all_chats": "Semua chat", "no_match": "Tidak ada chat yang cocok.",
+  "sct_all": "Semua", "sct_image": "Foto", "sct_video": "Video", "sct_document": "Dokumen", "sct_link": "Tautan", "sct_voice": "Suara",
   "filter_all": "Semua", "filter_unread": "Belum dibaca", "filter_favorites": "Favorit", "filter_groups": "Grup",
   "folder_new": "Folder baru",
   "a_document": "Dokumen", "a_stickers": "Stiker", "a_gifs": "GIF",

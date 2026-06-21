@@ -205,7 +205,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso", Ts: yest},
 		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "delivered", Ts: yest},
 		{ID: "m3", Dir: "in", Type: "text", Text: "Sip. Tempatnya yang kemarin kan?", Time: "19.05", Sender: "Budi Santoso", Ts: yest},
-		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest},
+		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?"},
 		{ID: "m5", Dir: "in", Type: "text", Text: "Aku mungkin telat dikit, macet", Time: "19.40", Sender: "Citra Dewi", Ts: yest},
 		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest},
 		{ID: "m7", Dir: "in", Type: "text", Text: "Oke sip. Aku bawa kamera sekalian foto-foto.", Time: "08.04", Sender: "Citra Dewi", Ts: now},
@@ -951,6 +951,49 @@ func (u *UI) ensureAvatar(name, jid string) {
 	}()
 }
 
+// quoteBlock — kutipan pesan yg dibalas, di dalam bubble (garis accent kiri + nama
+// + teks), latar agak gelap. margin-bottom kecil sebelum isi.
+func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.Dimensions {
+	name := m.QuoteName
+	if name == "" {
+		name = "Pesan"
+	}
+	return layout.Inset{Bottom: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(10), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 13, name)
+					lbl.Color = u.t.Accent
+					lbl.Font.Weight = font.Medium
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 13, m.QuoteText)
+					lbl.Color = u.t.Text2
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+			)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(5)
+		// latar kutipan: sedikit kontras dari bubble.
+		qbg := u.t.InBg
+		if out {
+			qbg = color.NRGBA{R: 0, G: 0, B: 0, A: 40}
+		} else {
+			qbg = color.NRGBA{R: 0, G: 0, B: 0, A: 30}
+		}
+		paint.FillShape(gtx.Ops, qbg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 // ensureMedia memuat byte media bubble (engine MediaBytes) sekali per msgID di
 // goroutine → decode → cache u.media[id]. Tak memblok UI.
 func (u *UI) ensureMedia(chat, id string) {
@@ -1161,6 +1204,12 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					lbl.Color = avatarColor(m.Sender)
 					lbl.Font.Weight = font.Bold
 					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if m.QuoteName == "" && m.QuoteText == "" {
+						return layout.Dimensions{}
+					}
+					return u.quoteBlock(gtx, m, out) // kutipan pesan dibalas
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					switch m.Type {

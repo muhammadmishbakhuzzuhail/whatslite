@@ -30,27 +30,24 @@ func LoginView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimension
 	// latar: var(--head-bg)
 	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
+	// .login { flex-direction: column; align-items: center } — kartu mengalir
+	// dari atas (margin-top), bukan dipusatkan vertikal.
 	return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
 		// .login-bar — align-self: stretch; height 56; accent bg; white 17/600
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return loginBar(gtx, th, t, white)
 		}),
-		// .login-card + .login-hint dipusatkan pada sisa ruang
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return loginCard(gtx, th, t, white)
-					}),
-					// .login-hint { margin-top: 30px; color: text2; font-size: 14px; }
-					layout.Rigid(layout.Spacer{Height: unit.Dp(30)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 14, "Buka WhatsLite di ponsel untuk memindai.")
-						lbl.Color = t.Text2
-						return lbl.Layout(gtx)
-					}),
-				)
-			})
+		// .login-card { margin-top: 56px; }
+		layout.Rigid(layout.Spacer{Height: unit.Dp(56)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return loginCard(gtx, th, t, white)
+		}),
+		// .login-hint { margin-top: 30px; color: text2; font-size: 14px; }
+		layout.Rigid(layout.Spacer{Height: unit.Dp(30)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, 14, "Buka WhatsLite di ponsel untuk memindai.")
+			lbl.Color = t.Text2
+			return lbl.Layout(gtx)
 		}),
 	)
 }

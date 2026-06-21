@@ -53,7 +53,8 @@ func main() {
 	draw := func(gtx layout.Context) {
 		switch screen {
 		case "login":
-			gioui.LoginView(gtx, th, t)
+			// contoh kode QR ala whatsmeow (ref,noise,identity,adv) utk uji render.
+			gioui.LoginView(gtx, th, t, "2@abc123XYZ/def456==,Tg9kL+pQr,Zm9vYmFy,YmF6cXV4")
 		case "settings":
 			gioui.SettingsView(gtx, th, t)
 		case "bubbles":

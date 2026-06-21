@@ -130,6 +130,9 @@ func main() {
 		case "app-reply":
 			ui.SetReply("Budi Santoso", "Halo! Jadi nanti malam ngumpul jam berapa?")
 			ui.Layout(gtx)
+		case "app-chatbottom":
+			ui.ScrollMessagesToEnd()
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

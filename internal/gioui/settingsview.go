@@ -27,6 +27,14 @@ type SettingsCtl struct {
 	Dark        bool
 	KeepDeleted bool // status anti-delete (toggle baris "Simpan pesan dihapus")
 	Clicks      []widget.Clickable
+	// sub-pane navigasi
+	Sub          string // ""|profile|storage
+	Back         *widget.Clickable
+	ProfileClick *widget.Clickable
+	// data sub-pane
+	ProfName, ProfAbout, ProfPhone string
+	StoreDB, StoreMedia            int64
+	StoreMsgs                      int
 }
 
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
@@ -34,17 +42,155 @@ func SettingsView(gtx layout.Context, th *material.Theme, t Theme, ctl *Settings
 	// latar pane (sidebarBg seperti SettingsPane yg menempati sidebar)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
+	if ctl != nil && ctl.Sub != "" { // sub-pane (profil / penyimpanan)
+		return setSubPane(gtx, th, t, ctl)
+	}
+
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return setHead(gtx, th, t)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return setProfile(gtx, th, t, "Saya", "Tentang — Hidup itu indah ✨", "#00a884")
+			card := func(gtx layout.Context) layout.Dimensions {
+				return setProfile(gtx, th, t, "Saya", "Tentang — Hidup itu indah ✨", "#00a884")
+			}
+			if ctl != nil && ctl.ProfileClick != nil { // kartu profil bisa diklik
+				return ctl.ProfileClick.Layout(gtx, card)
+			}
+			return card(gtx)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return setList(gtx, th, t, ctl)
 		}),
 	)
+}
+
+// setSubPane — sub-pane setelan dgn header + tombol kembali.
+func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	title := "Profil"
+	if ctl.Sub == "storage" {
+		title = "Penyimpanan"
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return setSubHead(gtx, th, t, title, ctl.Back)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if ctl.Sub == "storage" {
+				return setStoragePane(gtx, th, t, ctl)
+			}
+			return setProfilePane(gtx, th, t, ctl)
+		}),
+	)
+}
+
+// setSubHead — header sub-pane: ikon back + judul.
+func setSubHead(gtx layout.Context, th *material.Theme, t Theme, title string, back *widget.Clickable) layout.Dimensions {
+	h := gtx.Dp(56)
+	sz := image.Pt(gtx.Constraints.Max.X, h)
+	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Inset{Left: unit.Dp(12), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				b := func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "back", 22, t.Text)
+					})
+				}
+				if back != nil {
+					return back.Layout(gtx, b)
+				}
+				return b(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, unit.Sp(19), title)
+				lbl.Color = t.Text
+				lbl.Font.Weight = font.SemiBold
+				return lbl.Layout(gtx)
+			}),
+		)
+	})
+	return layout.Dimensions{Size: sz}
+}
+
+// setProfilePane — avatar besar + nama + tentang + nomor (data GetProfile).
+func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	name := ctl.ProfName
+	if name == "" {
+		name = "Saya"
+	}
+	return layout.Inset{Top: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return setAvatar(gtx, th, name, "#00a884", 120) }),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(20)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return setProfileField(gtx, th, t, "Nama", name) }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return setProfileField(gtx, th, t, "Tentang", orDash(ctl.ProfAbout))
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return setProfileField(gtx, th, t, "Telepon", orDash(ctl.ProfPhone))
+			}),
+		)
+	})
+}
+
+func setProfileField(gtx layout.Context, th *material.Theme, t Theme, label, val string) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 13, label)
+				l.Color = t.Accent
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 15.5, val)
+				l.Color = t.Text
+				return l.Layout(gtx)
+			}),
+		)
+	})
+}
+
+// setStoragePane — ringkasan penyimpanan (DB, media, jumlah pesan).
+func setStoragePane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	rows := []struct{ label, val string }{
+		{"Basis data", setBytes(ctl.StoreDB)},
+		{"Media", setBytes(ctl.StoreMedia)},
+		{"Total pesan", itoa(ctl.StoreMsgs)},
+	}
+	children := make([]layout.FlexChild, 0, len(rows))
+	for i := range rows {
+		r := rows[i]
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return setProfileField(gtx, th, t, r.label, r.val)
+		}))
+	}
+	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+func setBytes(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return itoa(int(n>>20)) + " MB"
+	case n >= 1<<10:
+		return itoa(int(n>>10)) + " KB"
+	default:
+		return itoa(int(n)) + " B"
+	}
 }
 
 // .pane-head { height:56; padding:0 16; head-bg }  h2 { 19/600 }
@@ -94,7 +240,7 @@ func setProfile(gtx layout.Context, th *material.Theme, t Theme, name, about, ac
 		)
 	})
 	// border-bottom 1px divider
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y - gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y-gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
 	return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
 }
 
@@ -196,7 +342,7 @@ func setRow(gtx layout.Context, th *material.Theme, t Theme, it setItem) layout.
 		)
 	})
 	// border-bottom 1px divider
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y - gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y-gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
 	return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
 }
 

@@ -106,6 +106,12 @@ func main() {
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)
+		case "app-set-profile":
+			ui.SetSettingsSub("profile")
+			ui.Layout(gtx)
+		case "app-set-storage":
+			ui.SetSettingsSub("storage")
+			ui.Layout(gtx)
 		case "app-calls":
 			ui.SetView("calls")
 			ui.Layout(gtx)

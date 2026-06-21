@@ -72,6 +72,14 @@ func main() {
 			gioui.ReactionPickerView(gtx, th, t)
 		case "composerdetail":
 			gioui.ComposerDetailView(gtx, th, t)
+		case "contacts":
+			gioui.ContactsPaneView(gtx, th, t)
+		case "status":
+			gioui.StatusPaneView(gtx, th, t)
+		case "channels":
+			gioui.ChannelsPaneView(gtx, th, t)
+		case "bubbleextras":
+			gioui.BubbleExtrasView(gtx, th, t)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

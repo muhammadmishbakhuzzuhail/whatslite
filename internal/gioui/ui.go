@@ -45,11 +45,13 @@ type UI struct {
 	msgList    widget.List
 	clicks     []widget.Clickable
 	railClicks []widget.Clickable
+	editor     widget.Editor
 }
 
 // railNav = tombol nav rail kiri (glyph emoji + view tujuan).
 var railNav = []struct{ view, glyph string }{
-	{"chats", "💬"}, {"calls", "📞"}, {"settings", "⚙️"},
+	{"chats", "💬"}, {"status", "🟢"}, {"channels", "📢"},
+	{"calls", "📞"}, {"contacts", "👤"}, {"settings", "⚙️"},
 }
 
 func NewUI(th *material.Theme, core *app.App) *UI {
@@ -58,6 +60,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
 	u.railClicks = make([]widget.Clickable, len(railNav))
+	u.editor.SingleLine = true
+	u.editor.Submit = true
 	return u
 }
 
@@ -183,6 +187,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		return SettingsView(gtx, u.th, u.t)
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t)
+	case "contacts":
+		return ContactsPaneView(gtx, u.th, u.t)
+	case "status":
+		return StatusPaneView(gtx, u.th, u.t)
+	case "channels":
+		return ChannelsPaneView(gtx, u.th, u.t)
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
@@ -442,11 +452,28 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 		rr := gtx.Dp(22)
 		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		gtx.Constraints.Min = psz
-		layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Left: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(u.th, 15, "Ketik pesan")
-				lbl.Color = u.t.Text2
-				return lbl.Layout(gtx)
+		// Kirim saat Enter (Editor.Submit). core nil (demo) → tak kirim.
+		for {
+			ev, ok := u.editor.Update(gtx)
+			if !ok {
+				break
+			}
+			if _, ok := ev.(widget.SubmitEvent); ok {
+				txt := strings.TrimSpace(u.editor.Text())
+				if txt != "" && u.core != nil && u.selected != "" {
+					u.core.SendText(u.selected, txt)
+					u.messages = u.core.GetMessages(u.selected)
+				}
+				u.editor.SetText("")
+			}
+		}
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				ed := material.Editor(u.th, &u.editor, "Ketik pesan")
+				ed.Color = u.t.Text
+				ed.HintColor = u.t.Text2
+				ed.TextSize = 15
+				return ed.Layout(gtx)
 			})
 		})
 		return layout.Dimensions{Size: psz}

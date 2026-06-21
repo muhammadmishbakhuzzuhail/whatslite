@@ -202,46 +202,25 @@ func chnAvatar(gtx layout.Context, th *material.Theme, name string, dp int) layo
 	return layout.Dimensions{Size: sz}
 }
 
-// chnBell — .ch-act lonceng (text2, opacity .6): badan lonceng (RRect) + bibir
-// (Rect lebar) + bandul (Ellipse kecil). Digambar via clip yg dipakai ui.go.
+// chnBell — .ch-act lonceng (text2, opacity .6): ikon "bell" native WhatsApp
+// (area glyph 18 di tengah box 34).
 func chnBell(gtx layout.Context, t Theme) layout.Dimensions {
 	box := gtx.Dp(34) // .ch-act ~ ikon kecil + padding 4
 	sz := image.Pt(box, box)
-	gw := gtx.Dp(18) // area glyph 18x18 di tengah
-	ox := (box - gw) / 2
-	oy := (box - gw) / 2
-
-	bw := gtx.Dp(11) // lebar badan
-	bh := gtx.Dp(11) // tinggi badan
-	bx := ox + (gw-bw)/2
-	by := oy + gtx.Dp(2)
-	r := gtx.Dp(5)
-	// badan lonceng: bagian atas membulat (NW/NE), bawah lurus.
-	paint.FillShape(gtx.Ops, t.Text2, clip.RRect{Rect: image.Rectangle{Min: image.Pt(bx, by), Max: image.Pt(bx+bw, by+bh)}, NW: r, NE: r}.Op(gtx.Ops))
-	// bibir lonceng: garis lebar di bawah badan.
-	lipW := gtx.Dp(15)
-	lipH := gtx.Dp(2)
-	lx := ox + (gw-lipW)/2
-	ly := by + bh
-	paint.FillShape(gtx.Ops, t.Text2, clip.RRect{Rect: image.Rectangle{Min: image.Pt(lx, ly), Max: image.Pt(lx+lipW, ly+lipH)}, NW: lipH / 2, NE: lipH / 2, SE: lipH / 2, SW: lipH / 2}.Op(gtx.Ops))
-	// bandul: bulatan kecil di bawah bibir.
-	cd := gtx.Dp(4)
-	cx := ox + (gw-cd)/2
-	cy := ly + lipH
-	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Min: image.Pt(cx, cy), Max: image.Pt(cx+cd, cy+cd)}.Op(gtx.Ops))
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "bell", 18, t.Text2)
+	})
 	return layout.Dimensions{Size: sz}
 }
 
-// chnUnfollow — .ch-act "✕" (text2, opacity .6): glyph ✕ via material.Label 15.
+// chnUnfollow — .ch-act "✕" (text2, opacity .6): ikon "close" native WhatsApp.
 func chnUnfollow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	box := gtx.Dp(34)
 	sz := image.Pt(box, box)
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, 15, "✕")
-		lbl.Color = t.Text2
-		lbl.MaxLines = 1
-		return lbl.Layout(gtx)
+		return icon(gtx, "close", 18, t.Text2)
 	})
 	return layout.Dimensions{Size: sz}
 }

@@ -87,37 +87,14 @@ func avPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int) layout.D
 }
 
 // avBackBtn — .icon-btn 40x40 transparan berisi chevron ‹ (back), warna text2.
-// Chevron digambar dari dua batang diagonal (stroke 2) yg bertemu di kiri.
+// Glyph 24dp di tengah (SVG path M15 5l-7 7 7 7 → ikon "chevleft").
 func avBackBtn(gtx layout.Context, t Theme) layout.Dimensions {
 	box := gtx.Dp(40)
 	sz := image.Pt(box, box)
-	// glyph 24x24 di tengah (viewBox SVG), chevron menunjuk kiri.
-	gw := gtx.Dp(24)
-	ox := (box - gw) / 2
-	oy := (box - gw) / 2
-	sw := gtx.Dp(2) // stroke-width: 2
-	// titik: atas-kanan (15,5) → tengah-kiri (8,12) → bawah-kanan (15,19).
-	tipX := ox + gw*8/24
-	tipY := oy + gw*12/24
-	topX := ox + gw*15/24
-	topY := oy + gw*5/24
-	botY := oy + gw*19/24
-	// batang atas: dari (topX,topY) ke (tipX,tipY).
-	n := topX - tipX
-	if n < 1 {
-		n = 1
-	}
-	for i := 0; i <= n; i++ {
-		x := tipX + i
-		y := tipY - (tipY-topY)*i/n
-		paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(x, y), Max: image.Pt(x+sw, y+sw)}.Op())
-	}
-	// batang bawah: dari (tipX,tipY) ke (topX,botY).
-	for i := 0; i <= n; i++ {
-		x := tipX + i
-		y := tipY + (botY-tipY)*i/n
-		paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(x, y), Max: image.Pt(x+sw, y+sw)}.Op())
-	}
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "chevleft", 24, t.Text2)
+	})
 	return layout.Dimensions{Size: sz}
 }
 

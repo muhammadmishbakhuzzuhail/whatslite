@@ -112,15 +112,11 @@ func btDocIcon(gtx layout.Context, t Theme) layout.Dimensions {
 	r := gtx.Dp(9)
 	tint := color.NRGBA{R: t.Accent.R, G: t.Accent.G, B: t.Accent.B, A: 41} // 16% ≈ 41/255
 	paint.FillShape(gtx.Ops, tint, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-	// ikon dokumen sederhana: lembaran accent dgn sudut terlipat, 22x22 di tengah.
-	iw := gtx.Dp(15)
-	ih := gtx.Dp(20)
-	ox := (d - iw) / 2
-	oy := (d - ih) / 2
-	paint.FillShape(gtx.Ops, t.Accent, clip.Rect{Min: image.Pt(ox, oy), Max: image.Pt(ox+iw, oy+ih)}.Op())
-	// sudut terlipat: potong segitiga kanan-atas dgn warna kotak (tint) — tiru lipatan.
-	fold := gtx.Dp(6)
-	paint.FillShape(gtx.Ops, tint, clip.Rect{Min: image.Pt(ox+iw-fold, oy), Max: image.Pt(ox+iw, oy+fold)}.Op())
+	// ikon dokumen (.doc-ico): docfile line-icon accent 22dp, di tengah kotak.
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "docfile", 22, t.Accent)
+	})
 	return layout.Dimensions{Size: sz}
 }
 
@@ -151,24 +147,11 @@ func btVoice(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions 
 func btPlayCircle(gtx layout.Context, t Theme) layout.Dimensions {
 	d := gtx.Dp(34)
 	sz := image.Pt(d, d)
-	// glyph play: segitiga kasar dari beberapa baris horizontal (clip.Rect) supaya
-	// tetap pakai API yg ada di ui.go. Warna text2.
-	cx := gtx.Dp(13)
-	cy := d / 2
-	hh := gtx.Dp(7) // setengah tinggi segitiga
-	for i := 0; i < hh*2; i++ {
-		y := cy - hh + i
-		// lebar mengecil dari pangkal (atas+bawah) ke ujung (tengah): bentuk ▶
-		dist := i
-		if i > hh {
-			dist = hh*2 - i
-		}
-		w := dist * gtx.Dp(14) / hh
-		if w <= 0 {
-			continue
-		}
-		paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(cx, y), Max: image.Pt(cx+w, y+1)}.Op())
-	}
+	// glyph play (.play svg): ikon play text2, 18dp di tengah lingkaran 34.
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "play", 18, t.Text2)
+	})
 	return layout.Dimensions{Size: sz}
 }
 
@@ -216,11 +199,11 @@ func btLocation(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 			// area peta: Wallpaper, tinggi 140, pin accent di tengah.
 			sz := image.Pt(w, mapH)
 			paint.FillShape(gtx.Ops, t.Wallpaper, clip.Rect{Max: sz}.Op())
-			// pin: lingkaran accent + titik di tengah peta.
-			pd := gtx.Dp(14)
-			px := (w - pd) / 2
-			py := (mapH - pd) / 2
-			paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Min: image.Pt(px, py), Max: image.Pt(px+pd, py+pd)}.Op(gtx.Ops))
+			// pin: ikon locpin accent di tengah peta (.loc-map marker).
+			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return icon(gtx, "locpin", 28, t.Accent)
+			})
 			return layout.Dimensions{Size: sz}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -242,11 +225,8 @@ func btLocLabel(gtx layout.Context, th *material.Theme, t Theme, w int) layout.D
 		gtx.Constraints.Min.X = w - gtx.Dp(20)
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				// ikon pin kecil 18: lingkaran accent.
-				d := gtx.Dp(12)
-				oy := gtx.Dp(3)
-				paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Min: image.Pt(0, oy), Max: image.Pt(d, oy+d)}.Op(gtx.Ops))
-				return layout.Dimensions{Size: image.Pt(gtx.Dp(18), gtx.Dp(18))}
+				// ikon pin kecil (.loc-lbl svg): locpin accent 18.
+				return icon(gtx, "locpin", 18, t.Accent)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -331,11 +311,19 @@ func btPoll(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	rowGap := layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// .poll-q: font-size 14.5px, weight 600
-			lbl := material.Label(th, 14.5, "Liburan ke mana minggu depan?")
-			lbl.Color = t.Text
-			lbl.Font.Weight = font.SemiBold
-			return lbl.Layout(gtx)
+			// .poll-q: ikon pollq text2 + pertanyaan (font-size 14.5px, weight 600).
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "pollq", 16, t.Text2)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, 14.5, "Liburan ke mana minggu depan?")
+					lbl.Color = t.Text
+					lbl.Font.Weight = font.SemiBold
+					return lbl.Layout(gtx)
+				}),
+			)
 		}),
 		rowGap,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return btPollOpt(gtx, th, t, opts[0]) }),

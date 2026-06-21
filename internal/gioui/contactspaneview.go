@@ -1,0 +1,303 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Muhammad Mishbakhuz Zuhail
+//
+// contactspaneview.go — sidebar pane KONTAK (paritas frontend/src/lib/sidebar/
+// ContactsPane.svelte + app.css): .pane-head 56px ("Kontak" 19/SemiBold), .ct-top
+// (pil pencarian searchBg + tombol accent "Kontak baru"), lalu daftar .ct-list
+// dgn pemisah huruf .ct-letter (accent 12/Bold, pad 5/16) + baris .ct-row (avatar
+// 49 + nama 16/Medium + about/status 13.5 text2 + ikon info "i" text2 kanan).
+// Fungsi murni, data demo inline (standalone render).
+package gioui
+
+import (
+	"image"
+	"image/color"
+
+	"gioui.org/font"
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
+	"gioui.org/widget/material"
+)
+
+// cpContact = satu kontak demo (.ct-row).
+type cpContact struct {
+	name  string
+	about string
+}
+
+// cpGroup = satu kelompok huruf (.ct-letter + items).
+type cpGroup struct {
+	letter string
+	items  []cpContact
+}
+
+// ContactsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane KONTAK.
+// Fungsi murni, mandiri (standalone render).
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	w := gtx.Dp(380)
+	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+	sz := image.Pt(w, gtx.Constraints.Max.Y)
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
+
+	groups := []cpGroup{
+		{letter: "A", items: []cpContact{{name: "Alice", about: "Tersedia"}}},
+		{letter: "B", items: []cpContact{{name: "Bob", about: "Di tempat kerja"}}},
+		{letter: "C", items: []cpContact{{name: "Carol", about: "Sibuk · jangan ganggu"}}},
+	}
+
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// .pane-head 56px "Kontak" (19/SemiBold).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return cpPaneHead(gtx, th, t, w, "Kontak")
+		}),
+		// .ct-top { gap: 8px; padding: 6px 12px 10px } : pil cari + tombol baru.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return cpTop(gtx, th, t)
+		}),
+		// .ct-list : pemisah huruf + baris kontak.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, len(groups)*2)
+			for _, g := range groups {
+				gg := g
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return cpLetter(gtx, th, t, gg.letter)
+				}))
+				for _, c := range gg.items {
+					cc := c
+					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return cpRow(gtx, th, t, cc)
+					}))
+				}
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		}),
+	)
+	return layout.Dimensions{Size: sz}
+}
+
+// cpPaneHead — .pane-head { height: 56px; padding: 0 16px; background: head-bg }
+// h2 19/SemiBold.
+func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
+	h := gtx.Dp(56)
+	sz := image.Pt(w, h)
+	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, 19, title)
+			lbl.Color = t.Text
+			lbl.Font.Weight = font.SemiBold
+			return lbl.Layout(gtx)
+		})
+	})
+	return layout.Dimensions{Size: sz}
+}
+
+// cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian
+// (searchBg, r-pill, magnifier + placeholder) + tombol accent "Kontak baru".
+func cpTop(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return cpSearchPill(gtx, th, t)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout), // gap: 8px
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpNewBtn(gtx, th, t)
+			}),
+		)
+	})
+}
+
+// cpSearchPill — pil pencarian (.ct-search, searchBg, padding 9/14, gap 10):
+// magnifier 18 text2 + placeholder "Cari".
+func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	gtx.Constraints.Min.X = gtx.Constraints.Max.X
+	macro := op.Record(gtx.Ops)
+	dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpMagnifier(gtx, t)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, unit.Sp(14.5), "Cari")
+				lbl.Color = t.Text2
+				lbl.MaxLines = 1
+				return lbl.Layout(gtx)
+			}),
+		)
+	})
+	call := macro.Stop()
+	r := dims.Size.Y / 2 // r-pill penuh.
+	paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// cpMagnifier — ikon kaca pembesar 18 (text2): cincin + gagang (ellipse + rect).
+func cpMagnifier(gtx layout.Context, t Theme) layout.Dimensions {
+	d := gtx.Dp(18)
+	sz := image.Pt(d, d)
+	ring := gtx.Dp(12)
+	bw := gtx.Dp(2)
+	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Max: image.Pt(ring, ring)}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.SearchBg, clip.Ellipse{Min: image.Pt(bw, bw), Max: image.Pt(ring-bw, ring-bw)}.Op(gtx.Ops))
+	g := gtx.Dp(6)
+	hx := ring - gtx.Dp(3)
+	hy := ring - gtx.Dp(3)
+	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(hx, hy), Max: image.Pt(hx+g, hy+bw)}.Op())
+	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(hx, hy), Max: image.Pt(hx+bw, hy+g)}.Op())
+	return layout.Dimensions{Size: sz}
+}
+
+// cpNewBtn — .ct-new { background: accent; color: #fff; border-radius: 10px;
+// padding: 8px 11px; gap: 6px; font-size: 13px } : ikon tambah-kontak + "Kontak baru".
+func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	macro := op.Record(gtx.Ops)
+	dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpAddIcon(gtx, white)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout), // gap: 6px
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, 13, "Kontak baru")
+				lbl.Color = white
+				lbl.MaxLines = 1
+				return lbl.Layout(gtx)
+			}),
+		)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(10) // border-radius: 10px
+	paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// cpAddIcon — ikon "tambah kontak" 17 (.ct-new svg, stroke 2 putih): kepala
+// (lingkaran cincin) + bahu + tanda plus kecil.
+func cpAddIcon(gtx layout.Context, col color.NRGBA) layout.Dimensions {
+	d := gtx.Dp(17)
+	sz := image.Pt(d, d)
+	bg := col // hanya untuk lubang cincin — pakai accent latar; samakan dgn accent.
+	_ = bg
+	// kepala: cincin di kiri-atas.
+	hd := gtx.Dp(8)
+	hx := gtx.Dp(1)
+	hy := gtx.Dp(1)
+	bw := gtx.Dp(2)
+	paint.FillShape(gtx.Ops, col, clip.Ellipse{Min: image.Pt(hx, hy), Max: image.Pt(hx+hd, hy+hd)}.Op(gtx.Ops))
+	// lubang cincin: isi dgn warna accent latar agar tampak garis. Karena latar
+	// tombol = accent, gambar lubang transparan via op record tak tersedia ringkas;
+	// pakai kepala penuh kecil (paritas visual cukup: titik kepala).
+	// bahu: busur bawah kepala (deret kotak melengkung sederhana).
+	shy := hy + hd - gtx.Dp(1)
+	sw2 := gtx.Dp(2)
+	span := gtx.Dp(7)
+	for i := 0; i <= span; i++ {
+		x := hx - gtx.Dp(1) + i
+		paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(x, shy), Max: image.Pt(x+sw2, shy+sw2)}.Op())
+	}
+	// plus di kanan: garis vertikal + horizontal.
+	px := d - gtx.Dp(6)
+	py := d - gtx.Dp(9)
+	pl := gtx.Dp(6)
+	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px+pl/2-bw/2, py), Max: image.Pt(px+pl/2-bw/2+bw, py+pl)}.Op())
+	paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(px, py+pl/2-bw/2), Max: image.Pt(px+pl, py+pl/2-bw/2+bw)}.Op())
+	return layout.Dimensions{Size: sz}
+}
+
+// cpLetter — .ct-letter { color: accent; font-size: 12px; font-weight: 700;
+// padding: 5px 16px } pemisah huruf alfabet.
+func cpLetter(gtx layout.Context, th *material.Theme, t Theme, letter string) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, 12, letter)
+		lbl.Color = t.Accent
+		lbl.MaxLines = 1
+		lbl.Font.Weight = font.Bold
+		return lbl.Layout(gtx)
+	})
+}
+
+// cpRow — baris kontak (.ct-row, padding 8/12, gap 13): avatar 49 + kolom (nama
+// 16/Medium + about/status 13.5 text2) + ikon info "i" lingkaran text2 kanan.
+func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpAvatar(gtx, th, t, c.name, 49)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, 16, c.name)
+						lbl.Color = t.Text
+						lbl.MaxLines = 1
+						lbl.Font.Weight = font.Medium
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(13.5), c.about)
+						lbl.Color = t.Text2
+						lbl.MaxLines = 1
+						return lbl.Layout(gtx)
+					}),
+				)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpInfoIcon(gtx, th, t)
+			}),
+		)
+	})
+}
+
+// cpInfoIcon — .ct-info : ikon "i" lingkaran (stroke 2 text2) 20x20: cincin +
+// titik + batang. Digambar via ellipse (cincin) + rect (huruf i).
+func cpInfoIcon(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	_ = th
+	d := gtx.Dp(20)
+	sz := image.Pt(d, d)
+	bw := gtx.Dp(2)
+	// cincin: ellipse text2 lalu lubang sidebarBg.
+	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Min: image.Pt(bw, bw), Max: image.Pt(d-bw, d-bw)}.Op(gtx.Ops))
+	// titik atas "i".
+	dot := gtx.Dp(2)
+	cx := d/2 - dot/2
+	paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Min: image.Pt(cx, gtx.Dp(5)), Max: image.Pt(cx+dot, gtx.Dp(5)+dot)}.Op(gtx.Ops))
+	// batang bawah "i".
+	stx := d/2 - bw/2
+	paint.FillShape(gtx.Ops, t.Text2, clip.Rect{Min: image.Pt(stx, gtx.Dp(9)), Max: image.Pt(stx+bw, gtx.Dp(15))}.Op())
+	return layout.Dimensions{Size: sz}
+}
+
+// cpAvatar — .ct-av lingkaran avatarColor(name) + inisial putih (paritas
+// u.avatar: font 0.4*d, Bold, putih, di tengah).
+func cpAvatar(gtx layout.Context, th *material.Theme, t Theme, name string, dp int) layout.Dimensions {
+	_ = t
+	d := gtx.Dp(unit.Dp(dp))
+	sz := image.Pt(d, d)
+	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Max: sz}.Op(gtx.Ops))
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, unit.Sp(float32(dp)*0.4), initial(name))
+		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+		lbl.Font.Weight = font.Bold
+		return lbl.Layout(gtx)
+	})
+	return layout.Dimensions{Size: sz}
+}

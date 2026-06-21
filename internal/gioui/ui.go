@@ -43,6 +43,12 @@ type UI struct {
 
 	setClicks [8]widget.Clickable // baris pane setelan (0=Tema … 7=Keluar)
 
+	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
+	searchEd     widget.Editor
+	filterSel    int                // 0 Semua · 1 Belum dibaca · 2 Favorit · 3 Grup
+	filterClicks [4]widget.Clickable
+	shown        []int // indeks u.chats yg lolos filter+pencarian (urut tampil)
+
 	chats     []app.ChatDTO
 	selected  string
 	selName   string
@@ -97,6 +103,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.editor.Submit = true
 	u.phoneEd.SingleLine = true
 	u.phoneEd.Submit = true
+	u.searchEd.SingleLine = true
 	u.photos = map[string]paint.ImageOp{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat
 		u.photos["Andi Pratama"] = synthPhoto()
@@ -378,16 +385,132 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
+	u.handleChatFilter(gtx)
+	u.computeShown()
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.header(gtx, w, "Chat", u.t.Text, 23, font.Bold)
 		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.searchBar(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.filterChips(gtx)
+		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return material.List(u.th, &u.chatList).Layout(gtx, len(u.chats), func(gtx layout.Context, i int) layout.Dimensions {
-				return u.chatRow(gtx, i)
+			return material.List(u.th, &u.chatList).Layout(gtx, len(u.shown), func(gtx layout.Context, i int) layout.Dimensions {
+				return u.chatRow(gtx, u.shown[i])
 			})
 		}),
 	)
+}
+
+// chatFilterLabels — chip filter daftar chat (paritas Filters.svelte).
+var chatFilterLabels = []string{"Semua", "Belum dibaca", "Favorit", "Grup"}
+
+// handleChatFilter memproses klik chip filter.
+func (u *UI) handleChatFilter(gtx layout.Context) {
+	for i := range u.filterClicks {
+		for u.filterClicks[i].Clicked(gtx) {
+			u.filterSel = i
+		}
+	}
+}
+
+// computeShown menyaring u.chats menurut filter aktif + teks pencarian → u.shown.
+func (u *UI) computeShown() {
+	q := strings.ToLower(strings.TrimSpace(u.searchEd.Text()))
+	u.shown = u.shown[:0]
+	for i, c := range u.chats {
+		switch u.filterSel {
+		case 1: // Belum dibaca
+			if !c.Unread && c.Badge == 0 {
+				continue
+			}
+		case 2: // Favorit (disematkan)
+			if !c.Pinned {
+				continue
+			}
+		case 3: // Grup
+			if !c.Group {
+				continue
+			}
+		}
+		if q != "" && !strings.Contains(strings.ToLower(c.Name), q) &&
+			!strings.Contains(strings.ToLower(c.Preview), q) {
+			continue
+		}
+		u.shown = append(u.shown, i)
+	}
+}
+
+// searchBar — input pencarian membulat (ikon + editor) di var(--search-bg).
+func (u *UI) searchBar(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(8), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "search", 18, u.t.Text2)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					e := material.Editor(u.th, &u.searchEd, "Cari atau mulai chat baru")
+					e.TextSize = unit.Sp(14)
+					e.Color = u.t.Text
+					e.HintColor = u.t.Text2
+					return e.Layout(gtx)
+				}),
+			)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(18)
+		w := gtx.Constraints.Max.X
+		bg := clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, dims.Size.Y)}, NW: r, NE: r, SE: r, SW: r}
+		paint.FillShape(gtx.Ops, u.t.SearchBg, bg.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
+	})
+}
+
+// filterChips — baris chip filter (aktif = bg accent lembut + teks accent).
+func (u *UI) filterChips(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Left: unit.Dp(12), Top: unit.Dp(2), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		children := make([]layout.FlexChild, 0, len(chatFilterLabels)*2)
+		for i := range chatFilterLabels {
+			if i > 0 {
+				children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout))
+			}
+			idx := i
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.filterChip(gtx, idx)
+			}))
+		}
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+	})
+}
+
+func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
+	active := u.filterSel == i
+	txtCol := u.t.Text2
+	chipBg := u.t.SearchBg
+	if active {
+		txtCol = color.NRGBA{R: 0x00, G: 0xa8, B: 0x84, A: 0xff} // accent
+		chipBg = color.NRGBA{R: 0x00, G: 0xa8, B: 0x84, A: 0x2e} // accent lembut
+	}
+	return u.filterClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(u.th, 13, chatFilterLabels[i])
+			lbl.Color = txtCol
+			return lbl.Layout(gtx)
+		})
+		call := macro.Stop()
+		r := dims.Size.Y / 2
+		paint.FillShape(gtx.Ops, chipBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 func (u *UI) header(gtx layout.Context, w int, title string, col color.NRGBA, sp unit.Sp, wt font.Weight) layout.Dimensions {

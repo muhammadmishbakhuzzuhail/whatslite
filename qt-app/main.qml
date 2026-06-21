@@ -135,7 +135,11 @@ ApplicationWindow {
         "disk": '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v6h8V4M8 16h.01"/>',
         "lock": '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
         "trash": '<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>',
+        // rec-cancel (Composer.svelte) trash — simpler path, distinct from settings trash.
+        "trashSimple": '<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
         "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+        // Ticks.svelte 'sending' clock (viewBox 0 0 16 16).
+        "clockSm": '<circle cx="8" cy="8" r="6"/><path d="M8 4.7V8l2.2 1.3"/>',
         // Chevron bawah (Combo indicator / chat-row menu .row-menu-btn / shared-media .chev).
         "chevdown": '<path d="M6 9l6 6 6-6"/>',
         "star2": '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>',
@@ -308,7 +312,7 @@ ApplicationWindow {
         // .lang-select: bg var(--search-bg), border var(--divider) radius 9,
         // hover border-color var(--accent) (transition .12s).
         background: Rectangle {
-            radius: 9; color: theme.searchBg
+            radius: 8; color: theme.searchBg
             border.color: _cb.hovered ? theme.accent : theme.divider; border.width: 1
             Behavior on border.color { ColorAnimation { duration: 120 } }
         }
@@ -324,7 +328,7 @@ ApplicationWindow {
         }
         popup: Popup {
             y: _cb.height + 2; width: _cb.width; padding: 1
-            background: Rectangle { color: theme.searchBg; radius: 9; border.color: theme.divider }
+            background: Rectangle { color: theme.searchBg; radius: 8; border.color: theme.divider }
             contentItem: ListView {
                 clip: true; implicitHeight: contentHeight; model: _cb.popup.visible ? _cb.delegateModel : null
                 currentIndex: _cb.highlightedIndex
@@ -559,7 +563,7 @@ ApplicationWindow {
             color: theme.railBg
             ColumnLayout {
                 anchors.fill: parent
-                anchors.topMargin: 12
+                anchors.topMargin: 14
                 spacing: 6
                 Repeater {
                     model: [
@@ -585,6 +589,8 @@ ApplicationWindow {
                         color: active ? Qt.rgba(0, 168/255, 132/255, 0.15)
                                       : (railMa.containsMouse ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06))
                                                               : "transparent")
+                        // .rail-btn transition: background .15s
+                        Behavior on color { ColorAnimation { duration: 150 } }
                         Icon {
                             anchors.centerIn: parent; width: 24; height: 24
                             svg: win.ico[modelData.view] || ""
@@ -626,7 +632,7 @@ ApplicationWindow {
                 // Avatar profil di dasar rail (.rail-avatar 40px, inisial putih).
                 Avatar {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.bottomMargin: 12
+                    Layout.bottomMargin: 14
                     implicitWidth: 40; implicitHeight: 40; fontSize: 16
                     name: win.myName; jid: "self"; base: app.mediaBase
                     accent: win.avatarColor(win.myName)
@@ -879,15 +885,15 @@ ApplicationWindow {
                                     group: model.m.group === true
                                 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 3
+                                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
                                     // Baris 1: nama (kiri) + waktu (kanan)
                                     RowLayout {
-                                        Layout.fillWidth: true; spacing: 6
+                                        Layout.fillWidth: true; spacing: 8
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                             text: model.m.name || model.m.id || ""
                                             font.pixelSize: 16; color: theme.text
-                                            font.weight: (model.m.unread || (model.m.badge || 0) > 0) ? Font.Bold : Font.Medium
+                                            font.weight: model.m.unread ? Font.Bold : Font.Medium
                                         }
                                         Text {
                                             text: model.m.time || ""
@@ -934,12 +940,14 @@ ApplicationWindow {
                                             Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
                                             text: model.m.draft || ""; color: theme.text2; font.pixelSize: 14
                                         }
-                                        // Ticks preview (pesan terakhir keluar): "sent" → centang tunggal, "delivered"/"read" → ganda.
+                                        // Ticks preview (pesan terakhir keluar): "sending" → jam, "sent" → centang tunggal, "delivered"/"read" → ganda.
                                         Icon {
                                             visible: !parent.rowTyping && !parent.rowDraft && model.m.sent === true
-                                            Layout.preferredWidth: 16; Layout.preferredHeight: 12; Layout.alignment: Qt.AlignVCenter
-                                            vbox: "0 0 18 14"
-                                            svg: model.m.status === "sent" ? win.ico["check"] : win.ico["checks"]
+                                            readonly property bool sending: model.m.status === "sending"
+                                            Layout.preferredWidth: sending ? 13 : 16; Layout.preferredHeight: sending ? 13 : 12; Layout.alignment: Qt.AlignVCenter
+                                            vbox: sending ? "0 0 16 16" : "0 0 18 14"
+                                            svg: sending ? win.ico["clockSm"]
+                                               : model.m.status === "sent" ? win.ico["check"] : win.ico["checks"]
                                             color: model.m.status === "read" ? theme.tick : theme.text2
                                         }
                                         Text {
@@ -964,7 +972,7 @@ ApplicationWindow {
                                             visible: !((model.m.badge || 0) > 0) && (model.m.pinned === true || model.m.muted === true)
                                             spacing: 4
                                             Icon { visible: model.m.muted === true; width: 16; height: 16; svg: win.ico["mute"]; color: theme.text2 }
-                                            Icon { visible: model.m.pinned === true; width: 15; height: 15; rotation: 45; svg: win.ico["pin"]; color: theme.text2 }
+                                            Icon { visible: model.m.pinned === true; width: 16; height: 16; rotation: 45; svg: win.ico["pin"]; color: theme.text2 }
                                         }
                                     }
                                 }
@@ -1006,9 +1014,9 @@ ApplicationWindow {
                                     }
                                     RowLayout {
                                         Layout.fillWidth: true; spacing: 6
-                                        Icon {   // .call-ico 15px — masuk/tak-terjawab pakai panah-masuk merah
+                                        Icon {   // .call-ico 15px — satu panah diagonal statis (CallsPane.svelte); merah hanya saat missed
                                             Layout.preferredWidth: 15; Layout.preferredHeight: 15; Layout.alignment: Qt.AlignVCenter
-                                            svg: (callRow.missed || model.m.direction === "in") ? win.ico["callArrowIn"] : win.ico["callArrowOut"]
+                                            svg: win.ico["callArrowOut"]
                                             color: callRow.missed ? "#ef5350" : theme.text2
                                         }
                                         Text {
@@ -1048,7 +1056,7 @@ ApplicationWindow {
                                     }
                                     Text {   // .hit-text 13.5 — bintang mendahului preview, bukan nama
                                         Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1; wrapMode: Text.NoWrap
-                                        text: "⭐ " + (model.m.text || ("(" + i18n.t("result") + ")"))
+                                        text: "⭐ " + (model.m.text || ("(" + i18n.t("media_generic") + ")"))
                                         color: theme.text2; font.pixelSize: 13
                                     }
                                 }
@@ -1502,7 +1510,7 @@ ApplicationWindow {
                                     ItemDelegate {   // .sc-x — ✕ batal, lingkaran bg2 30px
                                         Layout.preferredWidth: 30; Layout.preferredHeight: 30; Layout.alignment: Qt.AlignVCenter
                                         hoverEnabled: true
-                                        background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : theme.bg2 }
+                                        background: Rectangle { radius: width / 2; color: theme.bg2 }   // .sc-x: no :hover state in Svelte
                                         onClicked: { win.ctxChat = { id: model.m.id || "", name: model.m.chatName }; schedMenu.popup() }
                                         Icon { anchors.centerIn: parent; width: 14; height: 14; svg: win.ico["close"]; color: theme.text2 }
                                     }
@@ -1612,7 +1620,7 @@ ApplicationWindow {
                                         Avatar {
                                             Layout.preferredWidth: 40; Layout.preferredHeight: 40; fontSize: 16
                                             name: model.m.chatName || ""; jid: model.m.chatJid || model.m.chatId || model.m.id || ""
-                                            base: app.mediaBase; accent: win.avatarColor(model.m.chatName || "?")
+                                            base: app.mediaBase; accent: win.avatarColor(model.m.chatJid || model.m.chatId || model.m.id || "?")
                                         }
                                         ColumnLayout {
                                             Layout.fillWidth: true; spacing: 2
@@ -1668,7 +1676,7 @@ ApplicationWindow {
                 // .conv-head border-bottom 1px divider (bukan border 4-sisi).
                 Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: theme.divider }
                 RowLayout {
-                    anchors.left: parent.left; anchors.leftMargin: 18; anchors.right: parent.right; anchors.rightMargin: 54
+                    anchors.left: parent.left; anchors.leftMargin: 18; anchors.right: parent.right; anchors.rightMargin: 100
                     anchors.verticalCenter: parent.verticalCenter; spacing: 13
                     Avatar {
                         visible: win.selectedChat.id !== undefined
@@ -1710,7 +1718,7 @@ ApplicationWindow {
                 // Overflow ⋮ — utilitas (media/pin/poll/profil/grup/status/dll).
                 Rectangle {
                     id: convOverflow
-                    anchors.right: parent.right; anchors.rightMargin: 12
+                    anchors.right: parent.right; anchors.rightMargin: 18
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
                     color: ovHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
@@ -1877,21 +1885,12 @@ ApplicationWindow {
                                             svg: win.ico["docfile"]; color: theme.accent
                                         }
                                     }
-                                    ColumnLayout {
+                                    // .doc-card markup (Bubble.svelte): doc-ico + doc-name + doc-dl only (no meta sub-line).
+                                    Text {
                                         Layout.fillWidth: true
-                                        spacing: 1
-                                        // .doc-name: ellipsis 1 baris, 13.5px (→14 int).
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: model.m.text || i18n.t("a_document")
-                                            color: theme.text; font.pixelSize: 14
-                                            elide: Text.ElideRight; maximumLineCount: 1
-                                        }
-                                        Text {
-                                            visible: text !== ""
-                                            text: win.fmtDoc(model.m)
-                                            color: theme.text2; font.pixelSize: 12
-                                        }
+                                        text: model.m.text || i18n.t("a_document")
+                                        color: theme.text; font.pixelSize: 14
+                                        elide: Text.ElideRight; maximumLineCount: 1
                                     }
                                     // .doc-dl: ikon unduh 20×20 (text2; accent saat hover).
                                     Icon {
@@ -1921,7 +1920,7 @@ ApplicationWindow {
                                 // Polling: pertanyaan + opsi (klik = vote → VotePoll). app.css .poll-card.
                                 ColumnLayout {
                                     visible: model.m.type === "poll"
-                                    spacing: 6
+                                    spacing: 6; Layout.minimumWidth: 230
                                     // .poll-q: ikon-list (stroke accent) + pertanyaan (600).
                                     RowLayout {
                                         spacing: 7
@@ -2005,11 +2004,11 @@ ApplicationWindow {
                                 // Voice note — play + waveform + durasi (app.css .play/.wave/.vtime).
                                 RowLayout {
                                     // .bubble.voice min-width:230px.
-                                    visible: model.m.type === "voice"; spacing: 8; Layout.minimumWidth: 230
+                                    visible: model.m.type === "voice"; spacing: 9; Layout.minimumWidth: 230
                                     Rectangle {
                                         Layout.preferredWidth: 34; Layout.preferredHeight: 34; radius: 17
                                         color: playHov.hovered ? theme.hover : "transparent"
-                                        Icon { anchors.centerIn: parent; width: 24; height: 24; fill: "currentColor"
+                                        Icon { anchors.centerIn: parent; width: 26; height: 26; fill: "currentColor"
                                             svg: win.ico["play"]; color: theme.text2 }
                                         HoverHandler { id: playHov }
                                     }
@@ -2045,7 +2044,8 @@ ApplicationWindow {
                                     }
                                     Text {
                                         visible: (content.pmsg.thumb || "") !== ""; text: i18n.t("copy"); color: theme.accent
-                                        font.pixelSize: 13; font.weight: Font.DemiBold; padding: 4
+                                        font.pixelSize: 13; font.weight: Font.DemiBold
+                                        leftPadding: 8; rightPadding: 8; topPadding: 4; bottomPadding: 4
                                     }
                                 }
                                 // Kartu lokasi (.loc-card): peta (placeholder bg2) + label pin.
@@ -2056,11 +2056,11 @@ ApplicationWindow {
                                     ColumnLayout {
                                         id: locCol; anchors.fill: parent; spacing: 0
                                         Rectangle {
-                                            Layout.fillWidth: true; Layout.preferredHeight: 140; color: theme.wallpaper
+                                            Layout.fillWidth: true; Layout.preferredHeight: 140; color: theme.bg2
                                             Icon { anchors.centerIn: parent; width: 32; height: 32; svg: win.ico["locpin"]; color: theme.accent }
                                         }
                                         RowLayout {
-                                            Layout.fillWidth: true; Layout.margins: 9; spacing: 6
+                                            Layout.fillWidth: true; Layout.leftMargin: 10; Layout.rightMargin: 10; Layout.topMargin: 8; Layout.bottomMargin: 8; spacing: 6
                                             Icon { Layout.preferredWidth: 18; Layout.preferredHeight: 18; svg: win.ico["locpin"]; color: theme.accent }
                                             Text { Layout.fillWidth: true; elide: Text.ElideRight; text: content.pmsg.text || ""; color: theme.text; font.pixelSize: 14 }
                                         }
@@ -2252,7 +2252,7 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 14
                                 color: recCancelHov.hovered ? theme.hover : "transparent"
-                                Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["trash"]
+                                Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico["trashSimple"]
                                     color: recCancelHov.hovered ? "#e0463e" : theme.text2 }
                                 HoverHandler { id: recCancelHov }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -2401,9 +2401,9 @@ ApplicationWindow {
                     }
                 }
             }
-            // .pk-searchbox + .stk-search (tab online).
+            // .pk-searchbox + .stk-search (tab online). .stk-search { border:0 }.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: 36; radius: 9; color: theme.bg2; border.color: theme.line
+                Layout.fillWidth: true; implicitHeight: 36; radius: 9; color: theme.bg2; border.width: 0
                 visible: stickerPopup.tab === "online"
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11; spacing: 8
@@ -2433,10 +2433,10 @@ ApplicationWindow {
                 id: stickerGrid
                 Layout.fillWidth: true; Layout.fillHeight: true
                 visible: stickerPopup.tab === "pack"
-                cellWidth: 90; cellHeight: 90; clip: true
+                cellWidth: 84; cellHeight: 84; clip: true
                 model: stickerPopup.tab === "pack" ? stickersModel : 0
                 delegate: Item {
-                    width: 90; height: 90
+                    width: 84; height: 84
                     Rectangle {
                         anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
                         Image {
@@ -2458,10 +2458,10 @@ ApplicationWindow {
             GridView {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 visible: stickerPopup.tab === "online"
-                cellWidth: 90; cellHeight: 90; clip: true
+                cellWidth: 84; cellHeight: 84; clip: true
                 model: stickerPopup.tab === "online" ? onlineStkModel : 0
                 delegate: Item {
-                    width: 90; height: 90
+                    width: 84; height: 84
                     Rectangle {
                         anchors.fill: parent; anchors.margins: 5; radius: 10; color: theme.bg2
                         Image {
@@ -3056,9 +3056,10 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 56; color: theme.headBg
                 RowLayout {
-                    anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 18
+                    anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 20
                     Rectangle {
-                        width: 36; height: 36; radius: 18; color: closeHov.hovered ? theme.hover : "transparent"
+                        width: 40; height: 40; radius: 20
+                        color: closeHov.hovered ? (theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)) : "transparent"
                         Icon { anchors.centerIn: parent; width: 22; height: 22; svg: win.ico["close"]; color: theme.text2 }
                         HoverHandler { id: closeHov }
                         MouseArea { anchors.fill: parent; onClicked: detailPopup.close() }
@@ -3131,7 +3132,7 @@ ApplicationWindow {
                         Rectangle {
                             visible: !detailPopup.isGroup && app.detail.isBiz === true
                             Layout.alignment: Qt.AlignHCenter; Layout.topMargin: 6
-                            implicitWidth: bizT.implicitWidth + 20; implicitHeight: 24; radius: 12
+                            implicitWidth: bizT.implicitWidth + 20; implicitHeight: 24; radius: 20
                             color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.15)
                             Text { id: bizT; anchors.centerIn: parent; text: "✔ " + i18n.t("business_account")
                                 color: theme.accent; font.pixelSize: 12; font.weight: Font.DemiBold }
@@ -3240,7 +3241,7 @@ ApplicationWindow {
                         // .member-search: bg2, border line, radius 9, pad 7/11.
                         Rectangle {
                             visible: detailPopup.memberList.length > 8
-                            Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.bottomMargin: 8
+                            Layout.fillWidth: true; Layout.leftMargin: 24; Layout.rightMargin: 24; Layout.topMargin: 6; Layout.bottomMargin: 8
                             implicitHeight: 34; radius: 9; color: theme.bg2; border.color: theme.line; border.width: 1
                             TextInput {
                                 anchors.fill: parent; anchors.leftMargin: 11; anchors.rightMargin: 11
@@ -3524,7 +3525,12 @@ ApplicationWindow {
         Overlay.modal: Rectangle { color: "#66000000" }
         background: Rectangle {
             color: theme.sidebarBg; radius: 12; border.width: 0
-            // box-shadow: 0 8px 30px rgba(0,0,0,.4) — approx via layer drop shadow tak ada → border halus.
+            // .fwd-modal box-shadow: 0 8px 30px rgba(0,0,0,.4)
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 8; radius: 30; samples: 41
+                color: Qt.rgba(0, 0, 0, 0.4)
+            }
         }
         ColumnLayout {
             anchors.fill: parent; spacing: 0
@@ -3722,7 +3728,7 @@ ApplicationWindow {
                              {ic: "rotate", tip: "rotate", flip: true},
                              {ic: "crop", tip: "crop", flip: false} ]
                     delegate: Rectangle {
-                        Layout.preferredWidth: 44; Layout.preferredHeight: 38; radius: 19
+                        Layout.preferredWidth: 44; Layout.preferredHeight: 38; radius: 20
                         color: ebMa.containsMouse ? "#2effffff" : "#24ffffff"
                         Icon { anchors.centerIn: parent; width: 20; height: 20; svg: win.ico[modelData.ic]; color: "#ffffff"
                             transform: Scale { origin.x: 10; xScale: modelData.flip ? -1 : 1 } }
@@ -3884,7 +3890,15 @@ ApplicationWindow {
         width: 380; height: Math.min(win.height * 0.84, 480); modal: true
         anchors.centerIn: Overlay.overlay; padding: 18
         Overlay.modal: Rectangle { color: "#66000000" }   // .nc-overlay rgba(0,0,0,.4)
-        background: Rectangle { color: theme.sidebarBg; radius: 14; border.width: 0 }
+        background: Rectangle {
+            color: theme.sidebarBg; radius: 14; border.width: 0
+            // .nc-card box-shadow var(--shadow-lg): 0 12px 32px rgba(0,0,0,.55) dark / .18 light
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0; verticalOffset: 12; radius: 32; samples: 49
+                color: Qt.rgba(0, 0, 0, theme.dark ? 0.55 : 0.18)
+            }
+        }
         // Peta status → dot color (app.css .mi-dot.delivered #3d8bd3 / .read accent).
         function statusLabel(s) {
             return s === "read" ? i18n.t("status_read")
@@ -3899,7 +3913,7 @@ ApplicationWindow {
             // h3 judul (margin 0 0 14)
             Text {
                 Layout.fillWidth: true; bottomPadding: 14
-                text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 16; font.weight: Font.DemiBold
+                text: i18n.t("msg_info"); color: theme.text; font.pixelSize: 19; font.weight: Font.Bold
             }
             Flickable {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
@@ -4077,10 +4091,10 @@ ApplicationWindow {
                             Layout.fillWidth: true; implicitHeight: 56; color: "transparent"
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16; spacing: 12
-                                Avatar {
+                                Avatar {   // .pv-av: flat colored circle (colorFor(jid)) + initial, no photo
                                     Layout.preferredWidth: 38; Layout.preferredHeight: 38; fontSize: 15
-                                    name: model.m.name; jid: model.m.jid; base: app.mediaBase
-                                    accent: win.avatarColor(model.m.name || "?")
+                                    name: model.m.name; jid: model.m.jid; base: ""
+                                    accent: win.avatarColor(model.m.jid || model.m.name || "?")
                                 }
                                 Text { Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1
                                     text: model.m.name || ""; color: theme.text; font.pixelSize: 15 }
@@ -4275,10 +4289,10 @@ ApplicationWindow {
                                 }
                                 Text { Layout.fillWidth: true; text: modelData.name; color: theme.text
                                     font.pixelSize: 15; elide: Text.ElideRight }
-                                // .fp-del ✕
+                                // .fp-del: bare text2 ✕, background:none (no per-button hover circle)
                                 ItemDelegate {
                                     Layout.preferredWidth: 28; Layout.preferredHeight: 28; hoverEnabled: true
-                                    background: Rectangle { radius: width / 2; color: parent.hovered ? theme.hover : "transparent" }
+                                    background: null
                                     onClicked: win.deleteFolder(modelData.name)
                                     Icon { anchors.centerIn: parent; width: 14; height: 14; svg: win.ico["close"]; color: theme.text2 }
                                 }

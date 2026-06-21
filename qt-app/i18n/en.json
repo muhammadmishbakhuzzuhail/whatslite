@@ -161,7 +161,7 @@
   "a_image": "Image", "a_video": "Video", "a_audio": "Audio",
   "send_poll": "Create poll", "poll_question": "Question", "poll_option": "Option",
   "send_contact": "Send contact", "contact_name": "Name", "contact_phone": "Phone",
-  "result": "Result", "typing": "typing…", "voice": "Voice note",
+  "result": "Result", "media_generic": "media", "typing": "typing…", "voice": "Voice note",
   "rec_voice": "recording audio…", "draft": "Draft",
   "call_video": "Video call", "call_voice": "Voice call",
   "call_missed": "Missed", "call_rejected": "Declined",

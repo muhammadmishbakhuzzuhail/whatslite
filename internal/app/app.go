@@ -354,8 +354,14 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 
 	eng.OnConnected(func() {
 		a.emit("wa:ready", eng.SelfJID())
-		// Tarik buku alamat (nama tersimpan) — tanpa ini nama tampil nomor.
-		go eng.SyncContacts()
+		// Rekonsiliasi buku alamat tiap reconnect (fullSync snapshot kontak) — tanpa
+		// ini, nama yg berubah saat offline tetap tampil sebagai nomor. Setara
+		// "catch-up on reconnect" Telegram. Setelah selesai → wa:sync agar UI refresh.
+		go func() {
+			eng.SyncContacts(true)
+			_ = store.RecomputeSummaries(a.ctx)
+			a.emit("wa:sync", "")
+		}()
 		// Umumkan online → server mulai kirim presence balik. SubscribePresence
 		// HANYA utk online/last-seen; "mengetik" (chatstate) di-push tanpa subscribe.
 		// Riset whatsmeow: JANGAN bulk-subscribe ratusan chat (boros IQ/wakeup/

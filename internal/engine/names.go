@@ -199,20 +199,26 @@ func groupDigits(s string) string {
 }
 
 // SyncContacts menarik app-state buku alamat (nama tersimpan) + aksi chat
-// (pin/arsip). Tanpa ini ContactStore kosong → nama tampil sebagai nomor.
-// Aman dipanggil tiap connect; onlyIfNotSynced=true → tak ulang bila sudah.
-func (e *Engine) SyncContacts() {
+// (pin/arsip/mute). Tanpa ini ContactStore kosong → nama tampil sebagai nomor.
+//
+// onlyIfNotSynced SELALU false: tiap reconnect kita REKONSILIASI (ambil patch yg
+// berubah saat offline) — bukan skip bila "sudah sinkron" (itu penyebab nama jadi
+// nomor setelah lama offline; lihat riset arsitektur Telegram: catch-up eksplisit
+// di tiap reconnect). force=true → fullSync snapshot kontak (rebuild bersih).
+func (e *Engine) SyncContacts(force bool) {
 	if e == nil || e.Client == nil || !e.Client.IsConnected() {
 		return
 	}
 	ctx := context.Background()
 	for _, name := range []appstate.WAPatchName{
 		appstate.WAPatchCriticalUnblockLow, // kontak (nama tersimpan)
-		appstate.WAPatchRegularHigh,        // pin
+		appstate.WAPatchRegularHigh,        // pin + bintang
 		appstate.WAPatchRegularLow,         // arsip/mute
+		appstate.WAPatchCriticalBlock,      // pushname/locale sendiri
 	} {
 		n := name
-		_ = retry(ctx, 3, func() error { return e.Client.FetchAppState(ctx, n, false, true) })
+		full := force && n == appstate.WAPatchCriticalUnblockLow // snapshot kontak penuh
+		_ = retry(ctx, 3, func() error { return e.Client.FetchAppState(ctx, n, full, false) })
 	}
 }
 

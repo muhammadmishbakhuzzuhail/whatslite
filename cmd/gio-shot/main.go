@@ -26,27 +26,47 @@ import (
 
 func main() {
 	out := "/tmp/gio_shot.png"
+	screen := "main"
 	w, h := 1000, 680
 	if len(os.Args) > 1 {
 		out = os.Args[1]
 	}
-	if len(os.Args) > 3 {
-		w, _ = strconv.Atoi(os.Args[2])
-		h, _ = strconv.Atoi(os.Args[3])
+	if len(os.Args) > 2 {
+		screen = os.Args[2]
+	}
+	if len(os.Args) > 4 {
+		w, _ = strconv.Atoi(os.Args[3])
+		h, _ = strconv.Atoi(os.Args[4])
 	}
 
 	hw, err := headless.NewWindow(w, h)
 	must(err)
 	th := material.NewTheme()
 	th.Shaper = gioui.NewShaper()
+	t := gioui.DarkTheme()
 	ui := gioui.NewUI(th, nil) // core nil → data demo
+
+	draw := func(gtx layout.Context) {
+		switch screen {
+		case "login":
+			gioui.LoginView(gtx, th, t)
+		case "settings":
+			gioui.SettingsView(gtx, th, t)
+		case "bubbles":
+			gioui.BubbleTypesView(gtx, th, t)
+		case "states":
+			gioui.StatesView(gtx, th, t)
+		default:
+			ui.Layout(gtx)
+		}
+	}
 
 	ops := new(op.Ops)
 	// dua frame: frame-1 memicu refresh() (load data demo), frame-2 menggambarnya.
 	for i := 0; i < 2; i++ {
 		ops.Reset()
 		gtx := layout.Context{Ops: ops, Constraints: layout.Exact(image.Pt(w, h)), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
-		ui.Layout(gtx)
+		draw(gtx)
 		must(hw.Frame(ops))
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))

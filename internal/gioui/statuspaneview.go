@@ -18,6 +18,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
@@ -31,7 +32,7 @@ type stpItem struct {
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
 // header .pane-head + baris "My status" + label "TERKINI" + 3 baris status.
 // Fungsi murni, mandiri (standalone render).
-func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem) layout.Dimensions {
+func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -62,9 +63,13 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, len(items))
 			for i := range items {
-				it := items[i]
+				it, idx := items[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return stpStatusRow(gtx, th, t, it)
+					row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it) }
+					if idx < len(clicks) {
+						return clicks[idx].Layout(gtx, row)
+					}
+					return row(gtx)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

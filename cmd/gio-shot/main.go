@@ -90,7 +90,7 @@ func main() {
 		case "contacts":
 			gioui.ContactsPaneView(gtx, th, t, nil)
 		case "status":
-			gioui.StatusPaneView(gtx, th, t, nil)
+			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil)
 		case "bubbleextras":

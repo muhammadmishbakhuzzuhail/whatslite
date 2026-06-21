@@ -32,6 +32,7 @@ type UI struct {
 	t     Theme
 	dark  bool
 	state string
+	view  string // pane sidebar aktif: chats|calls|settings
 
 	chats     []app.ChatDTO
 	selected  string
@@ -40,18 +41,32 @@ type UI struct {
 	messages  []app.MessageDTO
 	lastFetch time.Time
 
-	chatList widget.List
-	msgList  widget.List
-	clicks   []widget.Clickable
+	chatList   widget.List
+	msgList    widget.List
+	clicks     []widget.Clickable
+	railClicks []widget.Clickable
+}
+
+// railNav = tombol nav rail kiri (glyph emoji + view tujuan).
+var railNav = []struct{ view, glyph string }{
+	{"chats", "💬"}, {"calls", "📞"}, {"settings", "⚙️"},
 }
 
 func NewUI(th *material.Theme, core *app.App) *UI {
-	u := &UI{th: th, core: core, dark: true}
+	u := &UI{th: th, core: core, dark: true, view: "chats"}
 	u.t = newTheme(u.dark)
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
+	u.railClicks = make([]widget.Clickable, len(railNav))
 	return u
 }
+
+// SetDark: ganti tema (dipakai render-tool utk audit light/dark).
+func (u *UI) SetDark(d bool) { u.dark = d; u.t = newTheme(d) }
+
+// SetView/Deselect: utk render-tool menguji state navigasi headless.
+func (u *UI) SetView(v string) { u.view = v }
+func (u *UI) Deselect()        { u.selected = "" }
 
 func (u *UI) refresh() {
 	if u.core == nil { // mode demo: data statis (uji render tanpa engine/jaringan)
@@ -105,19 +120,65 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	)
 }
 
-// ---- rail (nav kiri) ----
+// ---- rail (nav kiri, tombol klik → ganti view) ----
 func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	w := gtx.Dp(56)
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, u.t.RailBg, clip.Rect{Max: sz}.Op())
+	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+	children := []layout.FlexChild{layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout)}
+	for i := range railNav {
+		i := i
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.railBtn(gtx, i)
+		}))
+		children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout))
+	}
+	layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
 	return layout.Dimensions{Size: sz}
 }
 
-// ---- sidebar (header + daftar chat) ----
+func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
+	nav := railNav[i]
+	for u.railClicks[i].Clicked(gtx) {
+		u.view = nav.view
+	}
+	return u.railClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		d := gtx.Dp(44)
+		sz := image.Pt(d, d)
+		active := u.view == nav.view
+		rad := d / 2
+		bg := color.NRGBA{}
+		if active {
+			bg = color.NRGBA{R: 0, G: 168, B: 132, A: 38}
+			rad = gtx.Dp(14)
+		} else if u.railClicks[i].Hovered() {
+			bg = u.t.Hover
+		}
+		if bg.A > 0 {
+			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: rad, NE: rad, SE: rad, SW: rad}.Op(gtx.Ops))
+		}
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(u.th, 20, nav.glyph)
+			return lbl.Layout(gtx)
+		})
+		return layout.Dimensions{Size: sz}
+	})
+}
+
+// ---- sidebar (dispatch per view: settings/calls pane, else daftar chat) ----
 func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
+	switch u.view {
+	case "settings":
+		return SettingsView(gtx, u.th, u.t)
+	case "calls":
+		return SidePanesView(gtx, u.th, u.t)
+	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -157,8 +218,10 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			u.selected = c.ID
 			u.selName = c.Name
 			u.selGroup = c.Group
-			u.core.OpenChat(c.ID)
-			u.messages = u.core.GetMessages(c.ID)
+			if u.core != nil {
+				u.core.OpenChat(c.ID)
+				u.messages = u.core.GetMessages(c.ID)
+			}
 		}
 		// bg hover/active
 		dims := layout.UniformInset(0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -256,11 +319,7 @@ func (u *UI) avatar(gtx layout.Context, name string, dp int) layout.Dimensions {
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.Wallpaper, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	if u.selected == "" {
-		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(u.th, 18, "WhatsLite — pilih percakapan")
-			lbl.Color = u.t.Text2
-			return lbl.Layout(gtx)
-		})
+		return StatesView(gtx, u.th, u.t) // splash + divider demo
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {

@@ -64,6 +64,15 @@ func main() {
 			gioui.ModalsView(gtx, th, t)
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t)
+		case "app-settings":
+			ui.SetView("settings")
+			ui.Layout(gtx)
+		case "app-calls":
+			ui.SetView("calls")
+			ui.Layout(gtx)
+		case "app-splash":
+			ui.Deselect()
+			ui.Layout(gtx)
 		default:
 			ui.Layout(gtx)
 		}

@@ -63,7 +63,7 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
 				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 12, "Powered by Sticker.ly")
+					lbl := material.Label(th, 10, "Powered by Sticker.ly")
 					lbl.Color = t.Text2
 					return lbl.Layout(gtx)
 				})
@@ -137,19 +137,19 @@ func pkTabBtn(gtx layout.Context, th *material.Theme, t Theme, tb pkTab) layout.
 	return dims
 }
 
-// pkSearch — .stk-search: pil Bg2, radius 9, padding 8/12, teks placeholder text2.
+// pkSearch — .stk-search: pil Bg2 (background:var(--bg2)), radius 9, padding 8/12, teks placeholder text2.
 func pkSearch(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		lbl := material.Label(th, 14, "Cari pesan stiker")
+		lbl := material.Label(th, 14.5, "Cari pesan stiker")
 		lbl.Color = t.Text2
 		lbl.MaxLines = 1
 		return lbl.Layout(gtx)
 	})
 	call := macro.Stop()
 	r := gtx.Dp(9)
-	paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
 }
@@ -160,7 +160,7 @@ type pkCat struct {
 	active bool
 }
 
-// pkCats — .gif-cats: baris chip kategori (gap 6). Aktif = Accent, else Bg2.
+// pkCats — .gif-cats: baris chip kategori (gap 5). Aktif = Accent, else Bg2.
 func pkCats(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	cats := []pkCat{
 		{label: "🔥 trending", active: true},
@@ -171,7 +171,7 @@ func pkCats(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, len(cats)*2)
 	for i, c := range cats {
 		if i > 0 {
-			children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout))
+			children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout))
 		}
 		c := c
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -181,7 +181,7 @@ func pkCats(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
 }
 
-// pkCatChip — .gif-cat: pil radius 9, padding 6/11, latar Bg2 (Accent jika aktif), teks 13.
+// pkCatChip — .gif-cat: pil radius 12, padding 4/10, latar Bg2 (Accent jika aktif), teks 12/400.
 func pkCatChip(gtx layout.Context, th *material.Theme, t Theme, c pkCat) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 	bg := t.Bg2
@@ -191,25 +191,29 @@ func pkCatChip(gtx layout.Context, th *material.Theme, t Theme, c pkCat) layout.
 		fg = white
 	}
 	macro := op.Record(gtx.Ops)
-	dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, 13, c.label)
+	dims := layout.Inset{Top: unit.Dp(4), Bottom: unit.Dp(4), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, 12, c.label)
 		lbl.Color = fg
 		lbl.MaxLines = 1
-		lbl.Font.Weight = font.Medium
+		lbl.Font.Weight = font.Normal
 		return lbl.Layout(gtx)
 	})
 	call := macro.Stop()
-	r := gtx.Dp(9)
+	r := gtx.Dp(12)
 	paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
 }
 
-// pkGrid — .stk-grid: 4 kolom sel placeholder persegi (~90px), gap 6, 2 baris.
+// pkGrid — .stk-grid: grid auto-fill minmax(84px,1fr), gap 6, 2 baris placeholder.
 func pkGrid(gtx layout.Context, t Theme) layout.Dimensions {
-	cols := 4
 	gap := gtx.Dp(6)
 	avail := gtx.Constraints.Max.X
+	minCell := gtx.Dp(84)
+	cols := (avail + gap) / (minCell + gap) // auto-fill: berapa kolom minmax(84px,…) muat
+	if cols < 1 {
+		cols = 1
+	}
 	cell := (avail - (cols-1)*gap) / cols
 	rows := 2
 
@@ -234,7 +238,7 @@ func pkGrid(gtx layout.Context, t Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rowChildren...)
 }
 
-// pkCell — .stk-cell: kotak persegi Bg2, radius 10.
+// pkCell — .stk-cell: kotak persegi (aspect-ratio 1) Bg2, radius 10, padding 6 (isi img).
 func pkCell(gtx layout.Context, t Theme, side int) layout.Dimensions {
 	sz := image.Pt(side, side)
 	r := gtx.Dp(10)

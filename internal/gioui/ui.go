@@ -245,7 +245,8 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 		}
 		// bg hover/active
 		dims := layout.UniformInset(0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// .chat-list pad 4/8 + .chat-row pad 10/12 → vert 10, horiz 8+12=20.
+			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -255,7 +256,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return u.rowLine(gtx, c.Name, c.Time, 16, u.t.Text, u.t.Text2)
+									return u.rowLine(gtx, c.Name, c.Time, 16.5, u.t.Text, u.t.Text2)
 								}),
 								layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {

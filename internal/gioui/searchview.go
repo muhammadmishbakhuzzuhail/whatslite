@@ -65,7 +65,7 @@ func SearchView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return svSearchWrap(gtx, th, t)
 		}),
-		// .sc-types { gap: 6px; padding: 8px 12px; } (override inline ChatList).
+		// .sc-types { gap: 6px; padding: 6px 12px 8px; } (override inline ChatList).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return svChips(gtx, th, t, white, chips)
 		}),
@@ -136,9 +136,9 @@ func svMagnifier(gtx layout.Context, t Theme) layout.Dimensions {
 	return layout.Dimensions{Size: sz}
 }
 
-// svChips — .sc-types { gap 6; padding 8/12 } berisi chip jenis.
+// svChips — .sc-types { gap 6; padding 6px 12px 8px } berisi chip jenis.
 func svChips(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, chips []svChip) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		children := make([]layout.FlexChild, 0, len(chips)*2)
 		for i, c := range chips {
 			if i > 0 {

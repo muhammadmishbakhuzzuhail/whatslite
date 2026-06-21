@@ -3,7 +3,7 @@
 //
 // statuspaneview.go — sidebar pane STATUS (paritas frontend/src/lib/sidebar/
 // StatusPane.svelte + app.css): .pane-head 56px ("Status" 19/SemiBold); baris
-// "My status" (avatar 49 + badge "+" accent kanan-bawah, nama 16/Medium +
+// "My status" (avatar 48 + badge "+" accent kanan-bawah, nama 15/SemiBold +
 // hint text2); label .ct-letter "TERKINI" (accent 12); lalu 3 baris status
 // terkini (avatar dgn cincin accent utk belum dilihat + nama + waktu text2).
 // Fungsi murni, data demo inline (standalone render).
@@ -88,9 +88,9 @@ func stpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title s
 	return layout.Dimensions{Size: sz}
 }
 
-// stpMyStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 49 dgn
-// badge "+" accent kanan-bawah, lalu kolom (nama 16/Medium "Status saya" +
-// hint 13.5 text2 "Ketuk untuk menambahkan").
+// stpMyStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 48 dgn
+// badge "+" accent kanan-bawah, lalu kolom (nama 15/SemiBold "Status saya" +
+// hint 12.5 text2 "Ketuk untuk menambahkan").
 func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -102,15 +102,15 @@ func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dime
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 16, "Status saya")
+						lbl := material.Label(th, 15, "Status saya")
 						lbl.Color = t.Text
 						lbl.MaxLines = 1
-						lbl.Font.Weight = font.Medium
+						lbl.Font.Weight = font.SemiBold
 						return lbl.Layout(gtx)
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(13.5), "Ketuk untuk menambahkan")
+						lbl := material.Label(th, unit.Sp(12.5), "Ketuk untuk menambahkan")
 						lbl.Color = t.Text2
 						lbl.MaxLines = 1
 						return lbl.Layout(gtx)
@@ -121,10 +121,10 @@ func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dime
 	})
 }
 
-// stpMyAvatar — avatar 49 (.status-av) + badge "+" 18px accent di kanan-bawah
+// stpMyAvatar — avatar 48 (.status-av) + badge "+" 18px accent di kanan-bawah
 // (.status-add: right:-2 bottom:-2, border 2px var--bg). Inisial "?".
 func stpMyAvatar(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	d := gtx.Dp(49)
+	d := gtx.Dp(48)
 	badge := gtx.Dp(18)
 	bd := gtx.Dp(2)    // border badge (2px bg)
 	off := gtx.Dp(2)   // right/bottom: -2px → tonjol keluar 2px
@@ -143,7 +143,7 @@ func stpMyAvatar(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensi
 	// badge "+": lingkaran bg (border) lalu lingkaran accent di dalam, "+" putih.
 	bx := d + off - badge // pojok kanan-bawah, tonjol 2px
 	by := d + off - badge
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Min: image.Pt(bx, by), Max: image.Pt(bx+badge, by+badge)}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, t.Bg, clip.Ellipse{Min: image.Pt(bx, by), Max: image.Pt(bx+badge, by+badge)}.Op(gtx.Ops))
 	paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Min: image.Pt(bx+bd, by+bd), Max: image.Pt(bx+badge-bd, by+badge-bd)}.Op(gtx.Ops))
 	// glyph "+": dua batang putih di tengah badge.
 	cx := bx + badge/2
@@ -168,9 +168,9 @@ func stpSectionLabel(gtx layout.Context, th *material.Theme, t Theme, txt string
 	})
 }
 
-// stpStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 49 dgn
+// stpStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 48 dgn
 // cincin (.ring accent utk belum dilihat, var--line utk sudah) + kolom nama
-// 16/Medium + waktu 13.5 text2.
+// 15/SemiBold + waktu 12.5 text2.
 func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -182,15 +182,15 @@ func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem) l
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 16, it.name)
+						lbl := material.Label(th, 15, it.name)
 						lbl.Color = t.Text
 						lbl.MaxLines = 1
-						lbl.Font.Weight = font.Medium
+						lbl.Font.Weight = font.SemiBold
 						return lbl.Layout(gtx)
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(13.5), it.time)
+						lbl := material.Label(th, unit.Sp(12.5), it.time)
 						lbl.Color = t.Text2
 						lbl.MaxLines = 1
 						return lbl.Layout(gtx)
@@ -202,12 +202,12 @@ func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem) l
 }
 
 // stpRingAvatar — .ring { padding: 2.5px } : cincin (accent jika belum dilihat,
-// var--line jika sudah) lalu gap bg lalu avatar 49 (.status-av wrapped).
+// var--line jika sudah) langsung mengelilingi avatar 48 (.status-av), tanpa
+// celah dalam — padding 2.5px = ketebalan cincin.
 func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem) layout.Dimensions {
-	av := gtx.Dp(49)
-	ringW := gtx.Dp(3)    // ketebalan cincin (.ring padding 2.5 → ~3)
-	gap := gtx.Dp(2)      // celah antara cincin & avatar (border bg-warna)
-	pad := ringW + gap
+	av := gtx.Dp(48)
+	ringW := gtx.Dp(unit.Dp(2.5)) // ketebalan cincin (.ring padding 2.5px)
+	pad := ringW
 	full := av + pad*2
 	sz := image.Pt(full, full)
 
@@ -215,11 +215,9 @@ func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem) 
 	if it.seen {
 		col = t.Line
 	}
-	// cincin penuh accent/line.
+	// cincin penuh accent/line (padding 2.5px mengelilingi avatar).
 	paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(full, full)}.Op(gtx.Ops))
-	// celah warna sidebar (.ring background terlihat dari latar pane).
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Min: image.Pt(ringW, ringW), Max: image.Pt(full-ringW, full-ringW)}.Op(gtx.Ops))
-	// avatar di tengah.
+	// avatar di tengah, langsung di dalam cincin.
 	paint.FillShape(gtx.Ops, avatarColor(it.name), clip.Ellipse{Min: image.Pt(pad, pad), Max: image.Pt(pad+av, pad+av)}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

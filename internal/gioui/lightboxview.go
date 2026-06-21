@@ -3,9 +3,10 @@
 //
 // lightboxview.go — lightbox gambar layar penuh (paritas frontend/src/lib/chat/
 // Lightbox.svelte + app.css): backdrop rgba(0,0,0,.92), foto terpusat (aproksimasi
-// gradien sunset oranye→ungu via dua isi bertumpuk) maks 94%/90%, dua tombol bulat
-// 46 rgba(255,255,255,.12) kanan-atas (unduh + ✕), pil keterangan bawah-tengah.
-// Fungsi murni, data demo inline (standalone render).
+// gradien sunset oranye→ungu via dua isi bertumpuk) maks 94vw/90vh radius 6, dua
+// tombol bulat 38 rgba(255,255,255,.12) kanan-atas (unduh right 70 + ✕ right 22,
+// top 18), keterangan teks putih bawah-tengah (tanpa pil). Fungsi murni, data demo
+// inline (standalone render).
 package gioui
 
 import (
@@ -21,7 +22,7 @@ import (
 )
 
 // LightboxView menggambar backdrop redup penuh lalu foto terpusat, tombol unduh/
-// tutup kanan-atas, dan pil keterangan bawah-tengah. Fungsi murni, mandiri.
+// tutup kanan-atas, dan keterangan teks bawah-tengah. Fungsi murni, mandiri.
 func LightboxView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
@@ -33,10 +34,10 @@ func LightboxView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 		return lbPhoto(gtx)
 	})
 
-	// dua tombol bulat 46 kanan-atas: unduh (right 70) + ✕ (right 22), top 18.
+	// dua tombol bulat 38 kanan-atas: unduh (right 70) + ✕ (right 22), top 18.
 	lbTopButtons(gtx, th, white)
 
-	// pil keterangan bawah-tengah (.lb-cap).
+	// keterangan bawah-tengah (.lb-cap) — teks putih saja, tanpa latar pil.
 	lbCaption(gtx, th, white)
 
 	return layout.Dimensions{Size: gtx.Constraints.Max}
@@ -82,26 +83,26 @@ func lbPhoto(gtx layout.Context) layout.Dimensions {
 	return layout.Dimensions{Size: sz}
 }
 
-// lbTopButtons — dua tombol bulat 46 (rgba(255,255,255,.12)) di kanan-atas:
-// glyph unduh lalu ✕ tutup; jarak top 18, ✕ right 22, unduh kiri-nya.
+// lbTopButtons — dua tombol bulat 38 (rgba(255,255,255,.12)) di kanan-atas:
+// glyph unduh lalu ✕ tutup; jarak top 18, ✕ right 22, unduh right 70.
 func lbTopButtons(gtx layout.Context, th *material.Theme, white color.NRGBA) {
-	d := gtx.Dp(46)
+	d := gtx.Dp(38)
 	top := gtx.Dp(18)
-	right := gtx.Dp(22)
-	gap := gtx.Dp(10)
+	xRight := gtx.Dp(22)
+	saveRight := gtx.Dp(70)
 
-	// ✕ tutup — paling kanan.
-	xX := gtx.Constraints.Max.X - right - d
+	// ✕ tutup — .lb-x right 22.
+	xX := gtx.Constraints.Max.X - xRight - d
 	lbCircleAt(gtx, xX, top, d)
 	lbGlyphX(gtx, th, xX, top, d, white)
 
-	// unduh — di kiri tombol ✕.
-	dlX := xX - gap - d
+	// unduh — .lb-save right 70.
+	dlX := gtx.Constraints.Max.X - saveRight - d
 	lbCircleAt(gtx, dlX, top, d)
 	lbDownloadGlyph(gtx, dlX, top, d, white)
 }
 
-// lbCircleAt — lingkaran 46 rgba(255,255,255,.12) pada offset (x,y).
+// lbCircleAt — lingkaran 38 rgba(255,255,255,.12) pada offset (x,y).
 func lbCircleAt(gtx layout.Context, x, y, d int) {
 	bg := color.NRGBA{R: 255, G: 255, B: 255, A: 31} // .12 ≈ 31/255
 	paint.FillShape(gtx.Ops, bg, clip.Ellipse{Min: image.Pt(x, y), Max: image.Pt(x+d, y+d)}.Op(gtx.Ops))
@@ -144,26 +145,41 @@ func lbDownloadGlyph(gtx layout.Context, x, y, d int, white color.NRGBA) {
 	paint.FillShape(gtx.Ops, white, clip.Rect{Min: image.Pt(cx-base, by), Max: image.Pt(cx+base, by+w)}.Op())
 }
 
-// lbCaption — pil keterangan bawah-tengah (.lb-cap): teks putih "Sunset di pantai 🌅",
-// dengan latar redup membulat agar terbaca di atas foto.
+// lbCaption — keterangan bawah-tengah (.lb-cap): teks putih saja "Sunset di pantai 🌅",
+// font-size 14, tanpa latar pil (text-only), text-shadow 0 1px 4px rgba(0,0,0,.7),
+// terpusat horizontal, jarak bottom 26 dari bawah, padding 0 24 kiri/kanan.
 func lbCaption(gtx layout.Context, th *material.Theme, white color.NRGBA) {
+	const cap = "Sunset di pantai 🌅"
 	bottom := gtx.Dp(26)
+	shadow := color.NRGBA{R: 0, G: 0, B: 0, A: 179} // text-shadow .7 ≈ 179/255
+
+	// render teks (padding 0 24 kiri/kanan) ke dalam makro utk mengukur lalu posisi.
 	macro := op.Record(gtx.Ops)
-	dims := layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, 14, "Sunset di pantai 🌅")
+	gtx.Constraints.Min.X = 0
+	dims := layout.Inset{Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, 14, cap)
 		lbl.Color = white
 		lbl.MaxLines = 1
 		return lbl.Layout(gtx)
 	})
 	call := macro.Stop()
 
-	// posisi: terpusat horizontal, jarak `bottom` dari bawah.
+	// posisi: terpusat horizontal, jarak `bottom` dari bawah. Teks saja, tanpa latar.
 	px := (gtx.Constraints.Max.X - dims.Size.X) / 2
 	py := gtx.Constraints.Max.Y - bottom - dims.Size.Y
+
+	// text-shadow 0 1px 4px rgba(0,0,0,.7): bayangan tipis 1px ke bawah.
+	soff := op.Offset(image.Pt(px, py+gtx.Dp(1))).Push(gtx.Ops)
+	layout.Inset{Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, 14, cap)
+		lbl.Color = shadow
+		lbl.MaxLines = 1
+		return lbl.Layout(gtx)
+	})
+	soff.Pop()
+
+	// teks putih di atas bayangan.
 	off := op.Offset(image.Pt(px, py)).Push(gtx.Ops)
-	r := gtx.Dp(14)
-	pill := color.NRGBA{R: 0, G: 0, B: 0, A: 110}
-	paint.FillShape(gtx.Ops, pill, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	off.Pop()
 }

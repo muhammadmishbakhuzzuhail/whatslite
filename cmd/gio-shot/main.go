@@ -45,6 +45,10 @@ func main() {
 	th.Shaper = gioui.NewShaper()
 	t := gioui.DarkTheme()
 	ui := gioui.NewUI(th, nil) // core nil → data demo
+	if os.Getenv("WLGIO_LIGHT") != "" {
+		t = gioui.LightTheme()
+		ui.SetDark(false)
+	}
 
 	draw := func(gtx layout.Context) {
 		switch screen {

@@ -64,7 +64,7 @@ func main() {
 				Switch: &widget.Clickable{}, Submit: &widget.Clickable{}, Code: "K7QM-2XPL",
 			})
 		case "settings":
-			gioui.SettingsView(gtx, th, t)
+			gioui.SettingsView(gtx, th, t, &gioui.SettingsCtl{Dark: os.Getenv("WLGIO_LIGHT") == "", Clicks: make([]widget.Clickable, 8)})
 		case "bubbles":
 			gioui.BubbleTypesView(gtx, th, t)
 		case "states":

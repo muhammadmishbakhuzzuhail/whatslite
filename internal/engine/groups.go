@@ -90,12 +90,18 @@ func (e *Engine) GroupInfo(ctx context.Context, jid string) (*GroupFullInfo, err
 		AdminAddOnly: info.MemberAddMode == types.GroupMemberAddModeAdmin,
 	}
 	for _, p := range info.Participants {
-		name := e.ChatName(p.JID.String())
+		// Pakai bentuk NOMOR bila ada (grup ber-LID: p.JID = @lid) → nama buku-alamat
+		// ter-resolve & JID kanonik, tak terpecah identitas (whatsmeow p.PhoneNumber).
+		pj := p.JID
+		if !p.PhoneNumber.IsEmpty() {
+			pj = p.PhoneNumber
+		}
+		name := e.ChatName(pj.String())
 		if name == "" {
-			name = e.ReadableID(p.JID.String())
+			name = e.ReadableID(pj.String())
 		}
 		out.Participants = append(out.Participants, GroupMember{
-			JID: p.JID.String(), Name: name, IsAdmin: p.IsAdmin || p.IsSuperAdmin,
+			JID: pj.String(), Name: name, IsAdmin: p.IsAdmin || p.IsSuperAdmin,
 		})
 	}
 	return out, nil

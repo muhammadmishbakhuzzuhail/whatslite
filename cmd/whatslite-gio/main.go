@@ -22,6 +22,7 @@ import (
 
 	gioapp "gioui.org/app"
 	"gioui.org/gpu/headless"
+	"gioui.org/io/system"
 	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
@@ -45,8 +46,10 @@ func main() {
 
 	go func() {
 		w := new(gioapp.Window)
+		// Decorated(false): gambar titlebar sendiri (CSD) → tampilan gelap konsisten
+		// (Wayland: ganti libdecor/GTK bar). Pada X11 Gio mengabaikan ini (WM tetap).
 		w.Option(gioapp.Title("WhatsLite"), gioapp.Size(unit.Dp(1000), unit.Dp(680)),
-			gioapp.MinSize(unit.Dp(720), unit.Dp(480)))
+			gioapp.MinSize(unit.Dp(720), unit.Dp(480)), gioapp.Decorated(false))
 		if err := run(w, core); err != nil {
 			log.Fatal(err)
 		}
@@ -86,6 +89,18 @@ func run(w *gioapp.Window, core *app.App) error {
 		}
 		ui.OnSaveMedia = func(chat, id, name string) {
 			go saveMedia(expl, core, chat, id, name)
+		}
+	}
+	ui.OnWinAction = func(a string) { // titlebar custom → aksi window (CSD)
+		switch a {
+		case "minimize":
+			w.Perform(system.ActionMinimize)
+		case "maximize":
+			w.Perform(system.ActionMaximize)
+		case "unmaximize":
+			w.Perform(system.ActionUnmaximize)
+		case "close":
+			w.Perform(system.ActionClose)
 		}
 	}
 

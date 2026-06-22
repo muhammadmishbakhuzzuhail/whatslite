@@ -21,6 +21,7 @@ import (
 	"gioui.org/font"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -235,6 +236,14 @@ type UI struct {
 	// OnSaveMedia: hook simpan media ke disk (di-set cmd/whatslite-gio → x/explorer
 	// CreateFile + tulis MediaBytes). name = nama berkas saran.
 	OnSaveMedia func(chat, id, name string)
+	// OnWinAction: hook aksi window utk titlebar custom (CSD Wayland). action ∈
+	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
+	OnWinAction func(action string)
+
+	winMin     widget.Clickable // tombol minimize titlebar
+	winMax     widget.Clickable // tombol maximize/restore titlebar
+	winClose   widget.Clickable // tombol close titlebar
+	winMaxed   bool             // status maximize (toggle ikon + aksi)
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
@@ -411,6 +420,17 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	// latar
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
+	// Titlebar custom (CSD Wayland) di atas; sisanya = body. Pada X11/headless tetap
+	// digambar (tak merusak) — aksi window hanya jalan bila OnWinAction di-set.
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.titleBar(gtx) }),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.body(gtx) }),
+	)
+}
+
+// body — isi di bawah titlebar: gerbang login/lock atau rail+sidebar+percakapan,
+// dengan overlay popup di atasnya (terbatas area body agar titlebar tetap bisa diklik).
+func (u *UI) body(gtx layout.Context) layout.Dimensions {
 	// Gerbang login: engine tersambung tapi sesi belum siap → layar QR / nomor.
 	if u.core != nil && u.state != "" && u.state != "ready" && u.state != "connected" {
 		u.handleLogin(gtx)
@@ -1548,6 +1568,107 @@ func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
 }
 
 // ---- rail (nav kiri, tombol klik → ganti view) ----
+// titleBar — bilah judul custom (CSD Wayland), tinggi 34: area drag (ActionMove,
+// ditangani compositor) + ikon/judul kiri + tombol minimize/maximize/close kanan.
+// Aksi window jalan hanya bila OnWinAction di-set (cmd/whatslite-gio); pada
+// gio-shot/X11 titlebar tetap digambar tanpa efek.
+func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
+	h := gtx.Dp(34)
+	w := gtx.Constraints.Max.X
+	sz := image.Pt(w, h)
+	paint.FillShape(gtx.Ops, u.t.RailBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
+
+	for u.winMin.Clicked(gtx) {
+		if u.OnWinAction != nil {
+			u.OnWinAction("minimize")
+		}
+	}
+	for u.winMax.Clicked(gtx) {
+		u.winMaxed = !u.winMaxed
+		if u.OnWinAction != nil {
+			if u.winMaxed {
+				u.OnWinAction("maximize")
+			} else {
+				u.OnWinAction("unmaximize")
+			}
+		}
+	}
+	for u.winClose.Clicked(gtx) {
+		if u.OnWinAction != nil {
+			u.OnWinAction("close")
+		}
+	}
+
+	bw := gtx.Dp(46)
+	dragW := w - 3*bw
+	if dragW < 0 {
+		dragW = 0
+	}
+	// area drag = bagian kiri (di luar tombol) → ActionMove (geser jendela).
+	area := clip.Rect{Max: image.Pt(dragW, h)}.Push(gtx.Ops)
+	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
+	area.Pop()
+
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "chats", 16, u.t.Accent) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(u.th, 13, "WhatsLite")
+			lbl.Color = u.t.Text
+			lbl.Font.Weight = font.Medium
+			lbl.MaxLines = 1
+			return lbl.Layout(gtx)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winMin, "min", h, bw) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winMax, "max", h, bw) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winClose, "close", h, bw) }),
+	)
+	return layout.Dimensions{Size: sz}
+}
+
+// winBtn — tombol window bw×h dgn glyph (min: garis, max: kotak, close: ✕). Hover:
+// abu (close → merah, glyph putih). Digambar manual agar tajam di titlebar tipis.
+func (u *UI) winBtn(gtx layout.Context, c *widget.Clickable, kind string, h, bw int) layout.Dimensions {
+	sz := image.Pt(bw, h)
+	return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		col := u.t.Text2
+		if c.Hovered() {
+			bg := u.t.Hover
+			if kind == "close" {
+				bg = color.NRGBA{R: 0xe0, G: 0x3b, B: 0x3b, A: 0xff}
+				col = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			}
+			paint.FillShape(gtx.Ops, bg, clip.Rect{Max: sz}.Op())
+		}
+		cx, cy := bw/2, h/2
+		s := gtx.Dp(5)
+		t := gtx.Dp(1)
+		if t < 1 {
+			t = 1
+		}
+		switch kind {
+		case "min":
+			paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(cx-s, cy), Max: image.Pt(cx+s, cy+t)}.Op())
+		case "max":
+			r := image.Rect(cx-s, cy-s, cx+s, cy+s)
+			paint.FillShape(gtx.Ops, col, clip.Rect{Min: r.Min, Max: image.Pt(r.Max.X, r.Min.Y+t)}.Op())
+			paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(r.Min.X, r.Max.Y-t), Max: r.Max}.Op())
+			paint.FillShape(gtx.Ops, col, clip.Rect{Min: r.Min, Max: image.Pt(r.Min.X+t, r.Max.Y)}.Op())
+			paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(r.Max.X-t, r.Min.Y), Max: r.Max}.Op())
+		case "close":
+			off := op.Offset(image.Pt(cx-gtx.Dp(8), cy-gtx.Dp(8))).Push(gtx.Ops)
+			icon(gtx, "close", 16, col)
+			off.Pop()
+		}
+		return layout.Dimensions{Size: sz}
+	})
+}
+
 func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	w := gtx.Dp(56)
 	sz := image.Pt(w, gtx.Constraints.Max.Y)

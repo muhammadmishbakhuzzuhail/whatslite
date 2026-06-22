@@ -1601,17 +1601,19 @@ func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
 	}
 
 	bw := gtx.Dp(46)
-	dragW := w - 3*bw
-	if dragW < 0 {
-		dragW = 0
+	btnsX := w - 3*bw // tombol window dipatok mutlak di kanan
+	if btnsX < 0 {
+		btnsX = 0
 	}
 	// area drag = bagian kiri (di luar tombol) → ActionMove (geser jendela).
-	area := clip.Rect{Max: image.Pt(dragW, h)}.Push(gtx.Ops)
+	area := clip.Rect{Max: image.Pt(btnsX, h)}.Push(gtx.Ops)
 	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
 	area.Pop()
 
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+	// kiri: ikon + judul (Flex dalam wilayah [0, btnsX], terpusat vertikal).
+	lgtx := gtx
+	lgtx.Constraints.Min, lgtx.Constraints.Max = image.Pt(0, h), image.Pt(btnsX, h)
+	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(lgtx,
 		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "chats", 16, u.t.Accent) }),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
@@ -1622,11 +1624,19 @@ func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
 			lbl.MaxLines = 1
 			return lbl.Layout(gtx)
 		}),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winMin, "min", h, bw) }),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winMax, "max", h, bw) }),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.winBtn(gtx, &u.winClose, "close", h, bw) }),
 	)
+
+	// kanan: tiga tombol dipatok mutlak (Flexed tak melebar andal di Rigid vertikal).
+	bgtx := gtx
+	bgtx.Constraints.Min, bgtx.Constraints.Max = image.Pt(bw, h), image.Pt(bw, h)
+	for i, b := range []struct {
+		c    *widget.Clickable
+		kind string
+	}{{&u.winMin, "min"}, {&u.winMax, "max"}, {&u.winClose, "close"}} {
+		off := op.Offset(image.Pt(btnsX+i*bw, 0)).Push(gtx.Ops)
+		u.winBtn(bgtx, b.c, b.kind, h, bw)
+		off.Pop()
+	}
 	return layout.Dimensions{Size: sz}
 }
 

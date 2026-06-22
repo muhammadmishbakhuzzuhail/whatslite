@@ -94,6 +94,24 @@ func (e *Engine) ResolveName(jid string) (string, bool) {
 	return push, false
 }
 
+// canonSender — JID pengirim ter-kanonik dari MessageSource: bila mode LID pakai
+// SenderAlt (bentuk nomor), strip device (ToNonAD), lalu jika masih @lid resolve
+// via GetPNForLID. Cegah satu orang ter-pecah jadi dua identitas (@lid vs nomor)
+// di reaksi/receipt/status/nama. Best-practice whatsmeow (SenderAlt/AddressingMode).
+func (e *Engine) canonSender(src types.MessageSource) string {
+	s := src.Sender
+	if src.AddressingMode == types.AddressingModeLID && !src.SenderAlt.IsEmpty() {
+		s = src.SenderAlt
+	}
+	s = s.ToNonAD()
+	if s.Server == types.HiddenUserServer && e.Client != nil && e.Client.Store != nil && e.Client.Store.LIDs != nil {
+		if pn, err := e.Client.Store.LIDs.GetPNForLID(context.Background(), s); err == nil && !pn.IsEmpty() {
+			return pn.ToNonAD().String()
+		}
+	}
+	return s.String()
+}
+
 // CanonicalJID menyatukan identitas chat 1:1 ke SATU bentuk kanonik agar tak ada
 // chat ganda. whatsmeow kini sering memakai JID privasi (@lid) untuk percakapan
 // yang sama yang sebelumnya tersimpan sebagai nomor (@s.whatsapp.net) → 2 baris

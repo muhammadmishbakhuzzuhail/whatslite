@@ -50,7 +50,7 @@ func (e *Engine) OnLoggedOut(fn func()) {
 func (e *Engine) OnUndecryptable(fn func(id, chat, sender string, ts time.Time, fromMe bool)) {
 	e.Client.AddEventHandler(func(evt interface{}) {
 		if u, ok := evt.(*events.UndecryptableMessage); ok {
-			fn(u.Info.ID, u.Info.Chat.String(), u.Info.Sender.String(), u.Info.Timestamp, u.Info.IsFromMe)
+			fn(u.Info.ID, u.Info.Chat.String(), e.canonSender(u.Info.MessageSource), u.Info.Timestamp, u.Info.IsFromMe)
 		}
 	})
 }
@@ -143,7 +143,7 @@ func (e *Engine) OnChatPresence(fn func(chat, sender string, composing, recordin
 		if cp, ok := evt.(*events.ChatPresence); ok {
 			composing := cp.State == types.ChatPresenceComposing
 			recording := composing && cp.Media == types.ChatPresenceMediaAudio
-			fn(cp.MessageSource.Chat.String(), cp.MessageSource.Sender.String(), composing, recording)
+			fn(cp.MessageSource.Chat.String(), e.canonSender(cp.MessageSource), composing, recording)
 		}
 	})
 }
@@ -170,6 +170,6 @@ func (e *Engine) OnReceipt(fn func(chat, sender string, ids []string, status str
 		for _, id := range r.MessageIDs {
 			ids = append(ids, string(id))
 		}
-		fn(r.MessageSource.Chat.String(), r.MessageSource.Sender.String(), ids, status, r.Timestamp)
+		fn(r.MessageSource.Chat.String(), e.canonSender(r.MessageSource), ids, status, r.Timestamp)
 	})
 }

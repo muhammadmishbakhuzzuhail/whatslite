@@ -113,8 +113,9 @@ type UI struct {
 	locSend   widget.Clickable
 	locCancel widget.Clickable
 
-	// menu aksi baris chat (klik-kanan): target + item.
-	chatCtxIdx    int
+	// menu aksi baris chat (klik-kanan): SNAPSHOT chat saat menu dibuka (aksi pakai
+	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
+	chatCtxChat   app.ChatDTO
 	chatCtxItems  [5]widget.Clickable
 	headMenuClick widget.Clickable // ikon overflow header → menu chat terbuka
 
@@ -154,8 +155,10 @@ type UI struct {
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
 	msgClicks   []widget.Clickable
-	ctxIdx      int                 // index pesan utk context-menu
-	ctxItems    [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
+	ctxIdx      int            // index pesan utk context-menu (display only)
+	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
+	// index: backfill history prepend & refresh reorder menggeser semua index.
+	ctxItems [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
 
 	// OnPlayVoice/OnPlayVideo: hook media (di-set cmd/whatslite-gio → internal/
 	// voice + internal/video). gioui TETAP bebas-cgo (gio-shot ringan).
@@ -464,10 +467,10 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 // doCtxAction menjalankan aksi context-menu pesan terhadap engine. Bintangi/Hapus
 // langsung; Balas mengaktifkan banner balas di composer (kirim → core.Reply).
 func (u *UI) doCtxAction(label string) {
-	if u.ctxIdx < 0 || u.ctxIdx >= len(u.messages) {
+	m := u.ctxMsg // snapshot saat menu dibuka (bukan index yg bisa bergeser)
+	if m.ID == "" {
 		return
 	}
-	m := u.messages[u.ctxIdx]
 	fromMe := m.Dir == "out"
 	switch label {
 	case "Bintangi":
@@ -951,11 +954,11 @@ func (u *UI) doChatAction(action string, c app.ChatDTO) {
 
 // chatCtxView — menu aksi baris chat (klik-kanan): kartu + baris glyph+label.
 func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
-	if u.chatCtxIdx < 0 || u.chatCtxIdx >= len(u.chats) {
+	if u.chatCtxChat.ID == "" {
 		u.overlay = ""
 		return layout.Dimensions{}
 	}
-	c := u.chats[u.chatCtxIdx]
+	c := u.chatCtxChat // snapshot saat menu dibuka
 	items := chatCtxActions(c)
 	children := make([]layout.FlexChild, 0, len(items))
 	for i := range items {
@@ -1298,7 +1301,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 				break
 			}
 			if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
-				u.chatCtxIdx = i
+				u.chatCtxChat = c // snapshot chat
 				u.overlay = "chatctx"
 			}
 		}
@@ -2235,6 +2238,9 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			return u.convHeader(gtx)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if len(u.msgClicks) < len(u.messages) { // jamin sebelum index (mid-frame GetMessages)
+				u.msgClicks = make([]widget.Clickable, len(u.messages))
+			}
 			return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
 					return u.bubble(gtx, i)
@@ -2261,7 +2267,7 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 	for u.headMenuClick.Clicked(gtx) {
 		for i := range u.chats {
 			if u.chats[i].ID == u.selected {
-				u.chatCtxIdx = i
+				u.chatCtxChat = u.chats[i] // snapshot chat terbuka
 				u.overlay = "chatctx"
 				break
 			}
@@ -2315,8 +2321,8 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			case (m.Type == "video" || m.Type == "gif") && u.OnPlayVideo != nil:
 				u.OnPlayVideo(u.selected, m.ID, m.Type) // tap video/gif → putar
 			default:
-				u.ctxIdx = idx
-				u.overlay = "msgctx" // klik pesan → context-menu
+				u.ctxIdx, u.ctxMsg = idx, m // snapshot pesan (index bisa bergeser)
+				u.overlay = "msgctx"        // klik pesan → context-menu
 			}
 		}
 	}
@@ -2455,10 +2461,19 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			})
 		})
 	}
-	// Pemisah hari di atas bubble bila ganti tanggal (atau pesan pertama).
+	// Pemisah hari di atas bubble bila ganti tanggal (atau pesan pertama). Bandingkan
+	// dgn pesan SEBELUMNYA yg punya Ts>0 (pesan ditarik/sistem bisa Ts==0 → jangan
+	// picu pemisah palsu di hari yg sama).
 	needSep := false
 	if m.Ts > 0 {
-		if idx == 0 || (idx-1 < len(u.messages) && dayKey(u.messages[idx-1].Ts) != dayKey(m.Ts)) {
+		prevDay := int64(-1)
+		for j := idx - 1; j >= 0; j-- {
+			if u.messages[j].Ts > 0 {
+				prevDay = dayKey(u.messages[j].Ts)
+				break
+			}
+		}
+		if prevDay < 0 || prevDay != dayKey(m.Ts) {
 			needSep = true
 		}
 	}

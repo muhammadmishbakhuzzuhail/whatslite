@@ -19,6 +19,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
@@ -27,6 +28,16 @@ type svHit struct {
 	name string
 	text string
 	time string
+	jid  string // chat tujuan (klik → buka)
+}
+
+// SvCtl = state interaktif pencarian pesan global. nil → demo. Query editor +
+// hasil nyata (SearchMessages) + clickable per-hit + tombol kembali.
+type SvCtl struct {
+	Query     *widget.Editor
+	Hits      []svHit
+	HitClicks []widget.Clickable
+	Back      *widget.Clickable
 }
 
 // svChip = satu chip jenis (.chip) di .sc-types.
@@ -36,7 +47,7 @@ type svChip struct {
 }
 
 // SearchView menggambar sidebar 380 dalam state hasil pencarian.
-func SearchView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func SearchView(gtx layout.Context, th *material.Theme, t Theme, ctl *SvCtl) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
 	w := gtx.Dp(380)
@@ -58,12 +69,15 @@ func SearchView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 		{name: "Keluarga", text: "Ibu: jadwal rapat keluarga minggu depan", time: "18.41"},
 		{name: "Tim Proyek X", text: "Budi: notulen rapat sudah aku rapat-kan", time: "16.20"},
 	}
+	if ctl != nil {
+		hits = ctl.Hits
+	}
 
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// .search-wrap { padding: 8px 12px; } berisi pil .search.
+		// .search-wrap { padding: 8px 12px; } berisi pil .search (+ tombol kembali).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return svSearchWrap(gtx, th, t)
+			return svSearchWrap(gtx, th, t, ctl)
 		}),
 		// .sc-types { gap: 6px; padding: 6px 12px 8px; } (override inline ChatList).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -73,13 +87,27 @@ func SearchView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return svListLabel(gtx, th, t, "PESAN")
 		}),
-		// daftar .hit-row.
+		// daftar .hit-row (klik → buka chat).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if len(hits) == 0 {
+				return layout.Inset{Top: unit.Dp(30)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(th, 14, "Ketik untuk mencari pesan")
+						l.Color = t.Text2
+						return l.Layout(gtx)
+					})
+				})
+			}
 			children := make([]layout.FlexChild, 0, len(hits))
-			for _, h := range hits {
-				hh := h
+			for i := range hits {
+				hh, idx := hits[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return svHitRow(gtx, th, t, hh)
+					row := func(gtx layout.Context) layout.Dimensions { return svHitRow(gtx, th, t, hh) }
+					if ctl != nil && idx < len(ctl.HitClicks) {
+						return ctl.HitClicks[idx].Layout(gtx, row)
+					}
+					return row(gtx)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
@@ -90,30 +118,48 @@ func SearchView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 
 // svSearchWrap — .search-wrap padding 8/12 + pil .search (searchBg, r-pill,
 // padding 9/14, gap 10): magnifier 18 text2 + query "rapat".
-func svSearchWrap(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+func svSearchWrap(gtx layout.Context, th *material.Theme, t Theme, ctl *SvCtl) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(6), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		macro := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints.Min.X = gtx.Constraints.Max.X
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return svMagnifier(gtx, t)
-				}),
-				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, unit.Sp(14.5), "rapat")
-					lbl.Color = t.Text
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
-				}),
-			)
-		})
-		call := macro.Stop()
-		r := dims.Size.Y / 2 // r-pill: 999px → pill penuh.
-		paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-		call.Add(gtx.Ops)
-		return dims
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			// tombol kembali (← ) ke daftar chat.
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				b := func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "back", 22, t.Text2)
+					})
+				}
+				if ctl != nil && ctl.Back != nil {
+					return ctl.Back.Layout(gtx, b)
+				}
+				return b(gtx)
+			}),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return svMagnifier(gtx, t) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							if ctl != nil && ctl.Query != nil {
+								e := material.Editor(th, ctl.Query, "Cari pesan")
+								e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(14.5)
+								return e.Layout(gtx)
+							}
+							lbl := material.Label(th, unit.Sp(14.5), "rapat")
+							lbl.Color, lbl.MaxLines = t.Text, 1
+							return lbl.Layout(gtx)
+						}),
+					)
+				})
+				call := macro.Stop()
+				r := dims.Size.Y / 2
+				paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			}),
+		)
 	})
 }
 

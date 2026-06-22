@@ -48,8 +48,9 @@ type UI struct {
 	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
 	olderReqAt   time.Time // waktu permintaan history lama terakhir
 
-	pollClicks   map[string][]widget.Clickable // msgID → clickable per opsi polling
-	mentionState richtext.InteractiveText      // state teks ber-mention (warna inline)
+	pollClicks    map[string][]widget.Clickable // msgID → clickable per opsi polling
+	pollVoteCache map[string]pollVoteEntry      // msgID → hasil suara (TTL — hindari query/frame)
+	mentionState  richtext.InteractiveText      // state teks ber-mention (warna inline)
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
@@ -220,6 +221,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
 	u.pollClicks = map[string][]widget.Clickable{}
+	u.pollVoteCache = map[string]pollVoteEntry{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat + thumb
 		u.photos["Andi Pratama"] = synthPhoto()
 		u.media["m13"] = synthPhoto() // bubble image demo (m14 video = placeholder+play)
@@ -1676,6 +1678,23 @@ func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.Mention
 	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
 }
 
+// pollVoteEntry — hasil suara ter-cache + waktunya (TTL 2s).
+type pollVoteEntry struct {
+	v  app.PollVotesDTO
+	at time.Time
+}
+
+// cachedPollVotes — GetPollVotes dgn TTL 2s per poll → tak query DB tiap frame
+// (mis. saat scroll). Suara baru muncul ≤2s, cukup cepat utuk UI.
+func (u *UI) cachedPollVotes(msgID string) app.PollVotesDTO {
+	if e, ok := u.pollVoteCache[msgID]; ok && time.Since(e.at) < 2*time.Second {
+		return e.v
+	}
+	v := u.core.GetPollVotes(msgID)
+	u.pollVoteCache[msgID] = pollVoteEntry{v: v, at: time.Now()}
+	return v
+}
+
 // pollBubble — kartu polling: ikon+pertanyaan (m.Text) + opsi bordered (m.Thumb =
 // JSON []string). Tampilan (voting = follow-up). Paritas .poll-card.
 func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
@@ -1687,7 +1706,7 @@ func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	var counts map[string]int
 	total := 0
 	if u.core != nil {
-		v := u.core.GetPollVotes(m.ID)
+		v := u.cachedPollVotes(m.ID)
 		counts, total = v.Counts, v.Total
 	}
 	clks := u.pollClicks[m.ID]
@@ -1718,6 +1737,7 @@ func (u *UI) pollBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 		for clk.Clicked(gtx) { // tap opsi → kirim suara
 			if u.core != nil {
 				u.core.VotePoll(u.selected, pollSender, m.ID, []string{o})
+				delete(u.pollVoteCache, m.ID) // invalidasi → hitung baru tampil segera
 			}
 		}
 		cnt := counts[o]

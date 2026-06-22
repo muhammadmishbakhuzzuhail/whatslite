@@ -119,6 +119,9 @@ func main() {
 		case "app-edit":
 			ui.SetEditing("m4", "Iya betul, yang deket stasiun") // banner edit pesan
 			ui.Layout(gtx)
+		case "app-pinned":
+			ui.SetPinnedDemo("Sip. Tempatnya yang kemarin kan?", 2) // bar pesan tersemat
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

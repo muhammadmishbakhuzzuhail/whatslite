@@ -215,6 +215,12 @@ type UI struct {
 	inviteLink      string           // link undangan termuat (modal "invitelink")
 	inviteCopy      widget.Clickable
 	inviteClose     widget.Clickable
+	infoEditC       widget.Clickable // info-drawer: edit info grup
+	gedName         widget.Editor    // editor nama grup (modal groupedit)
+	gedDesc         widget.Editor    // editor deskripsi grup
+	gedSave         widget.Clickable
+	gedCancel       widget.Clickable
+	curGroupDesc    string // deskripsi grup aktif (utk prefill editor)
 
 	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
 	inChatEd     widget.Editor // input cari-dalam-chat
@@ -326,6 +332,13 @@ func (u *UI) SetEditing(id, text string) {
 	u.editor.SetText(text)
 }
 
+// SetGroupEditDemo: utk render-tool menguji modal edit info grup headless.
+func (u *UI) SetGroupEditDemo(name, desc string) {
+	u.gedName.SetText(name)
+	u.gedDesc.SetText(desc)
+	u.overlay = "groupedit"
+}
+
 // SetInviteDemo: utk render-tool menguji modal link undangan headless.
 func (u *UI) SetInviteDemo(link string) { u.inviteLink = link; u.overlay = "invitelink" }
 
@@ -396,6 +409,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.editor.Submit = true
 	u.inChatEd.SingleLine = true
 	u.inChatEd.Submit = true
+	u.gedName.SingleLine = true
 	u.phoneEd.SingleLine = true
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
@@ -867,6 +881,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.scheduleLayer(gtx)
 	case "invitelink":
 		u.inviteLinkLayer(gtx)
+	case "groupedit":
+		u.groupEditLayer(gtx)
 	case "groupcreate":
 		u.groupCreateLayer(gtx)
 	case "pinset":
@@ -3595,9 +3611,11 @@ func (u *UI) infoData() *InfoDrawerData {
 	if u.selGroup {
 		d.Leave = &u.infoLeaveC
 		d.Invite = &u.infoInviteC
+		d.Edit = &u.infoEditC
 		if gi := u.core.GetGroupInfo(u.selected); gi != nil {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
+			u.curGroupDesc = gi.Topic
 		}
 	} else {
 		d.Block = &u.infoBlockC
@@ -3618,6 +3636,11 @@ func (u *UI) handleInfo(gtx layout.Context) {
 			u.core.LeaveGroup(u.selected)
 		}
 		u.overlay, u.selected = "", "" // keluar → tutup drawer + deselect chat
+	}
+	for u.infoEditC.Clicked(gtx) { // edit info grup → modal nama+deskripsi
+		u.gedName.SetText(u.selName)
+		u.gedDesc.SetText(u.curGroupDesc)
+		u.overlay = "groupedit"
 	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""
@@ -3751,6 +3774,88 @@ func (u *UI) syncDraft() {
 	u.clearEdit()
 	u.editor.SetText(u.drafts[u.selected]) // "" bila tak ada draft
 	u.draftChat = u.selected
+}
+
+// groupEditLayer — modal edit info grup: editor Nama + Deskripsi + Simpan/Batal
+// → core.SetGroupSubject + SetGroupDescription.
+func (u *UI) groupEditLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for u.gedCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.gedSave.Clicked(gtx) {
+		if u.core != nil && u.selected != "" {
+			if n := strings.TrimSpace(u.gedName.Text()); n != "" {
+				u.core.SetGroupSubject(u.selected, n)
+			}
+			u.core.SetGroupDescription(u.selected, strings.TrimSpace(u.gedDesc.Text()))
+			u.selName = strings.TrimSpace(u.gedName.Text())
+		}
+		u.overlay = ""
+	}
+	field := func(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			e := material.Editor(u.th, ed, hint)
+			e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(15)
+			return e.Layout(gtx)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(8)
+		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(340)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Edit info grup")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, &u.gedName, "Nama grup") }),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, &u.gedDesc, "Deskripsi") }),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.gedCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Batal")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.gedSave.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Simpan")
+									l.Color, l.Font.Weight = u.t.Accent, font.Medium
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // inviteLinkLayer — modal link undangan grup: tampil link (atau "Memuat…") +

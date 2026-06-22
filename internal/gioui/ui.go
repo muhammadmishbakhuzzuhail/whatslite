@@ -60,6 +60,13 @@ type UI struct {
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
 
+	// cache TTL pembangun data pane (hindari query DB tiap frame saat scroll pane).
+	cgCache                []cpGroup
+	srCache                []stpItem
+	crCache                []spCall
+	chCache                []chnChannel
+	cgAt, srAt, crAt, chAt time.Time
+
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
 	phoneEd     widget.Editor
@@ -1972,6 +1979,9 @@ func (u *UI) contactGroups() []cpGroup {
 	if u.core == nil {
 		return nil
 	}
+	if u.cgCache != nil && time.Since(u.cgAt) < time.Second {
+		return u.cgCache // TTL: pertahankan contactFlat/clicks dari build terakhir
+	}
 	cs := u.core.GetContacts()
 	sort.Slice(cs, func(i, j int) bool {
 		return strings.ToLower(cs[i].Name) < strings.ToLower(cs[j].Name)
@@ -1995,6 +2005,7 @@ func (u *UI) contactGroups() []cpGroup {
 	if len(u.contactPaneClicks) < len(u.contactFlat) {
 		u.contactPaneClicks = make([]widget.Clickable, len(u.contactFlat))
 	}
+	u.cgCache, u.cgAt = groups, time.Now()
 	return groups
 }
 
@@ -2023,11 +2034,15 @@ func (u *UI) channelRows() []chnChannel {
 	if u.core == nil {
 		return nil
 	}
+	if u.chCache != nil && time.Since(u.chAt) < time.Second {
+		return u.chCache
+	}
 	cs := u.core.GetChannels()
 	out := make([]chnChannel, 0, len(cs))
 	for _, c := range cs {
 		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers)})
 	}
+	u.chCache, u.chAt = out, time.Now()
 	return out
 }
 
@@ -2050,6 +2065,9 @@ func (u *UI) statusRows() []stpItem {
 	if u.core == nil {
 		return nil
 	}
+	if u.srCache != nil && time.Since(u.srAt) < time.Second {
+		return u.srCache
+	}
 	gs := u.core.GetStatuses()
 	u.statusGroupsCache = u.statusGroupsCache[:0]
 	out := make([]stpItem, 0, len(gs))
@@ -2063,6 +2081,7 @@ func (u *UI) statusRows() []stpItem {
 	if len(u.statusClicks) < len(out) {
 		u.statusClicks = make([]widget.Clickable, len(out))
 	}
+	u.srCache, u.srAt = out, time.Now()
 	return out
 }
 
@@ -2196,6 +2215,9 @@ func (u *UI) callRows() []spCall {
 	if u.core == nil {
 		return nil
 	}
+	if u.crCache != nil && time.Since(u.crAt) < time.Second {
+		return u.crCache
+	}
 	cs := u.core.GetCalls()
 	out := make([]spCall, 0, len(cs))
 	for _, c := range cs {
@@ -2206,6 +2228,7 @@ func (u *UI) callRows() []spCall {
 			missed: c.Status == "missed",
 		})
 	}
+	u.crCache, u.crAt = out, time.Now()
 	return out
 }
 

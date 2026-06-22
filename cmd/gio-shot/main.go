@@ -139,6 +139,11 @@ func main() {
 		case "app-chatbottom":
 			ui.ScrollMessagesToEnd()
 			ui.Layout(gtx)
+		case "app-newchat":
+			ui.SetView("chats")
+			ui.Deselect()
+			ui.SetSearch("+62 812 3456 7890")
+			ui.Layout(gtx)
 		case "app-attach":
 			ui.SetOverlay("attach")
 			ui.Layout(gtx)

@@ -80,7 +80,8 @@ type UI struct {
 	searchEd     widget.Editor
 	filterSel    int // 0 Semua · 1 Belum dibaca · 2 Favorit · 3 Grup
 	filterClicks [4]widget.Clickable
-	shown        []int // indeks u.chats yg lolos filter+pencarian (urut tampil)
+	shown        []int            // indeks u.chats yg lolos filter+pencarian (urut tampil)
+	newChatClick widget.Clickable // baris "mulai chat baru" (query nomor)
 
 	// mode balas: pesan yg dikutip; "" = kirim biasa.
 	replyTo   string
@@ -192,6 +193,9 @@ func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText =
 
 // ScrollMessagesToEnd: utk render-tool menguji gulir-ke-bawah headless.
 func (u *UI) ScrollMessagesToEnd() { u.msgList.ScrollTo(1 << 20) }
+
+// SetSearch: utk render-tool menguji bilah cari / tawaran chat-baru headless.
+func (u *UI) SetSearch(s string) { u.searchEd.SetText(s) }
 
 // SetSettingsSub: utk render-tool menguji sub-pane setelan headless.
 func (u *UI) SetSettingsSub(s string) { u.view = "settings"; u.setSub = s }
@@ -1118,6 +1122,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 
 	u.handleChatFilter(gtx)
 	u.computeShown()
+	u.handleNewChat(gtx)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.header(gtx, w, "Chat", u.t.Text, 23, font.Bold)
@@ -1128,12 +1133,93 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.filterChips(gtx)
 		}),
+		// query berupa nomor telepon → tawarkan "mulai chat baru".
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if ph := phoneQuery(u.searchEd.Text()); ph != "" {
+				return u.newChatRow(gtx, ph)
+			}
+			return layout.Dimensions{}
+		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return material.List(u.th, &u.chatList).Layout(gtx, len(u.shown), func(gtx layout.Context, i int) layout.Dimensions {
 				return u.chatRow(gtx, u.shown[i])
 			})
 		}),
 	)
+}
+
+// phoneQuery — kembalikan digit nomor bila teks pencarian "mirip nomor" (≥8 digit,
+// hanya digit/+/spasi/strip), atau "" bila bukan. Utk tawaran mulai-chat-baru.
+func phoneQuery(s string) string {
+	s = strings.TrimSpace(s)
+	digits := make([]rune, 0, len(s))
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+			digits = append(digits, r)
+		case r == '+' || r == ' ' || r == '-' || r == '(' || r == ')':
+		default:
+			return "" // ada huruf → bukan nomor
+		}
+	}
+	if len(digits) < 8 {
+		return ""
+	}
+	return string(digits)
+}
+
+// handleNewChat — klik baris "mulai chat baru" → buka chat dgn JID nomor itu.
+func (u *UI) handleNewChat(gtx layout.Context) {
+	for u.newChatClick.Clicked(gtx) {
+		ph := phoneQuery(u.searchEd.Text())
+		if ph == "" {
+			continue
+		}
+		jid := ph + "@s.whatsapp.net"
+		u.selected, u.selName, u.selGroup = jid, "+"+ph, false
+		u.searchEd.SetText("")
+		if u.core != nil {
+			u.core.OpenChat(jid)
+			u.messages = u.core.GetMessages(jid)
+		}
+		u.msgList.ScrollTo(len(u.messages))
+	}
+}
+
+// newChatRow — baris tawaran "Mulai chat baru" dgn nomor (ikon newchat accent).
+func (u *UI) newChatRow(gtx layout.Context, ph string) layout.Dimensions {
+	return u.newChatClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(20), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d := gtx.Dp(40)
+					sz := image.Pt(d, d)
+					paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+					gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+					layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "message", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+					})
+					return layout.Dimensions{Size: sz}
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 15.5, "Mulai chat baru")
+							l.Color, l.Font.Weight = u.t.Text, font.Medium
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 13.5, "+"+ph)
+							l.Color = u.t.Accent
+							return l.Layout(gtx)
+						}),
+					)
+				}),
+			)
+		})
+	})
 }
 
 // chatFilterLabels — chip filter daftar chat (paritas Filters.svelte).

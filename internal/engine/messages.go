@@ -204,13 +204,14 @@ func (e *Engine) OnEdit(fn func(chat, msgID, newText string)) {
 
 // HistoryConversation = satu percakapan dari history sync (sudah disederhanakan).
 type HistoryConversation struct {
-	JID       string
-	Name      string // subjek grup / nama kontak (bila ada)
-	Timestamp int64  // aktivitas terakhir (otoritatif utk urutan sidebar)
-	Unread    int
-	Pinned    bool
-	Archived  bool
-	Messages  []IncomingMessage
+	JID          string
+	Name         string // subjek grup / nama kontak (bila ada)
+	Timestamp    int64  // aktivitas terakhir (otoritatif utk urutan sidebar)
+	Unread       int
+	Pinned       bool
+	Archived     bool
+	EndOfHistory bool // HP tak punya pesan lebih lama utk chat ini → stop minta
+	Messages     []IncomingMessage
 }
 
 // OnHistorySync mendaftarkan callback saat blob history sync tiba dari HP.
@@ -226,12 +227,13 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string,
 		for _, conv := range hs.Data.GetConversations() {
 			chat := conv.GetID()
 			hc := HistoryConversation{
-				JID:       chat,
-				Name:      conv.GetName(),
-				Timestamp: int64(conv.GetConversationTimestamp()),
-				Unread:    int(conv.GetUnreadCount()),
-				Pinned:    conv.GetPinned() > 0,
-				Archived:  conv.GetArchived(),
+				JID:          chat,
+				Name:         conv.GetName(),
+				Timestamp:    int64(conv.GetConversationTimestamp()),
+				Unread:       int(conv.GetUnreadCount()),
+				Pinned:       conv.GetPinned() > 0,
+				Archived:     conv.GetArchived(),
+				EndOfHistory: conv.GetEndOfHistoryTransfer(), // HP: tak ada lagi pesan lama
 			}
 			for _, hmsg := range conv.GetMessages() {
 				wmi := hmsg.GetMessage()

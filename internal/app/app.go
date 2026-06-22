@@ -284,6 +284,9 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				meta = append(meta, storage.HistoryChat{
 					JID: cj, Name: c.Name, TS: c.Timestamp, Unread: c.Unread, Pinned: c.Pinned, Archived: c.Archived,
 				})
+				if c.EndOfHistory { // HP tak punya pesan lebih lama → tandai, stop minta
+					_ = store.SetMeta(a.ctx, "histend:"+cj, "1")
+				}
 			}
 			_ = store.SaveHistory(a.ctx, meta, nil, nil)
 			a.syncChatSettings()                 // pin/arsip/bisukan dari HP (app-state)
@@ -617,7 +620,7 @@ func (a *App) SetKeepDeleted(v bool) {
 // chat ini (history on-demand). Respons tiba via OnHistorySync (ON_DEMAND) →
 // tersimpan → wa:message → UI reload. Dipanggil FE saat scroll mentok ke atas.
 func (a *App) LoadOlderHistory(chatJID string) {
-	if a.eng == nil || a.store == nil || chatJID == "" {
+	if a.eng == nil || a.store == nil || chatJID == "" || !a.HasMoreHistory(chatJID) {
 		return
 	}
 	id, fromMe, ts, ok := a.store.OldestMessage(a.ctx, chatJID)
@@ -625,6 +628,16 @@ func (a *App) LoadOlderHistory(chatJID string) {
 		return
 	}
 	_ = a.eng.RequestOlderHistory(chatJID, id, fromMe, ts, 50)
+}
+
+// HasMoreHistory melaporkan apakah HP MASIH punya pesan lebih lama utk chat ini
+// (false bila EndOfHistoryTransfer sudah diterima → UI berhenti minta). Sumber
+// otoritatif: server WhatsApp tak simpan history, jadi flag ini dari HP.
+func (a *App) HasMoreHistory(chatJID string) bool {
+	if a.store == nil {
+		return true
+	}
+	return a.store.GetMeta(a.ctx, "histend:"+a.canon(chatJID), "") != "1"
 }
 
 func (a *App) dedupChats(eng *engine.Engine, store *storage.Store) {

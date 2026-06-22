@@ -2213,6 +2213,9 @@ func (u *UI) prefetchHistory(jid string) {
 // requestOlder — minta history lama 1× per chat (throttle 3s; respons via
 // OnHistorySync ON_DEMAND → GetMessages, terurut sebelum pesan tertua).
 func (u *UI) requestOlder(jid string) {
+	if u.core == nil || !u.core.HasMoreHistory(jid) { // HP sudah habis → jangan minta
+		return
+	}
 	if u.olderReqChat == jid && time.Since(u.olderReqAt) < 3*time.Second {
 		return
 	}

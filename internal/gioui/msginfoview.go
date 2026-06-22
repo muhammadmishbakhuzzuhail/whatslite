@@ -93,7 +93,7 @@ func miCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 			layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return miBtn(gtx, th, t.Accent, white, "Tutup")
 					}),
@@ -156,7 +156,7 @@ func miRcptRow(gtx layout.Context, th *material.Theme, t Theme, r miRcpt) layout
 				lbl.MaxLines = 1
 				return lbl.Layout(gtx)
 			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, 12, r.time)
 				lbl.Color = t.Text2

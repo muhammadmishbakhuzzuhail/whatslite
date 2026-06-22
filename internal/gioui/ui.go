@@ -216,6 +216,7 @@ type UI struct {
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
 	lightboxClose widget.Clickable // tombol ✕ tutup lightbox
+	lightboxSave  widget.Clickable // tombol unduh → simpan media ke disk
 
 	// OnPlayVoice/OnPlayVideo: hook media (di-set cmd/whatslite-gio → internal/
 	// voice + internal/video). gioui TETAP bebas-cgo (gio-shot ringan).
@@ -225,6 +226,9 @@ type UI struct {
 	// core.SendMedia). category ∈ media|document|contact|location|poll. Pisah dari
 	// gioui agar tetap bebas-window/cgo.
 	OnAttach func(chat, category string)
+	// OnSaveMedia: hook simpan media ke disk (di-set cmd/whatslite-gio → x/explorer
+	// CreateFile + tulis MediaBytes). name = nama berkas saran.
+	OnSaveMedia func(chat, id, name string)
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
@@ -668,14 +672,18 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		for u.lightboxClose.Clicked(gtx) {
 			u.overlay, u.lightboxMsg, u.lightboxCap = "", "", ""
 		}
-		// backdrop redup penuh di sini (case-level) agar menutup rail+sidebar; lalu
-		// LightboxView menggambar foto/tombol di atasnya.
+		for u.lightboxSave.Clicked(gtx) { // unduh → simpan ke disk (dialog native)
+			if u.OnSaveMedia != nil && u.lightboxMsg != "" {
+				u.OnSaveMedia(u.selected, u.lightboxMsg, "whatslite-"+u.lightboxMsg+".jpg")
+			}
+		}
 		// backdrop redup rgba(0,0,0,.92) penuh di sini (case-level) agar menutup
-		// rail+sidebar; LightboxView lalu menggambar foto/tombol di atasnya.
+		// rail+sidebar; LightboxView lalu menggambar foto/tombol di atasnya. Isian
+		// ganda mengompensasi kurva alfa renderer headless (≈ tak tembus).
 		lbRect := clip.Rect{Max: gtx.Constraints.Max}.Op()
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
-		ctl := &LbCtl{Caption: u.lightboxCap, Close: &u.lightboxClose}
+		ctl := &LbCtl{Caption: u.lightboxCap, Close: &u.lightboxClose, Save: &u.lightboxSave}
 		if u.lightboxMsg != "" {
 			u.ensureMedia(u.selected, u.lightboxMsg)
 			u.mediaMu.Lock()

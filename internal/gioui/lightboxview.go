@@ -28,6 +28,7 @@ type LbCtl struct {
 	Has     bool
 	Caption string
 	Close   *widget.Clickable
+	Save    *widget.Clickable
 }
 
 // LightboxView menggambar backdrop redup penuh lalu foto terpusat, tombol unduh/
@@ -131,25 +132,35 @@ func lbTopButtons(gtx layout.Context, th *material.Theme, white color.NRGBA, ctl
 	xRight := gtx.Dp(22)
 	saveRight := gtx.Dp(70)
 
-	// ✕ tutup — .lb-x right 22.
-	xX := gtx.Constraints.Max.X - xRight - d
+	// posisi dihitung dari lebar penuh DULU (jgn pakai gtx.Constraints setelah
+	// area-klik mengubahnya — itu yg sempat menyembunyikan tombol unduh).
+	xX := gtx.Constraints.Max.X - xRight - d   // ✕ tutup — .lb-x right 22.
+	dlX := gtx.Constraints.Max.X - saveRight - d // unduh — .lb-save right 70.
+
 	lbCircleAt(gtx, xX, top, d)
 	lbGlyphX(gtx, th, xX, top, d, white)
-	if ctl != nil && ctl.Close != nil {
-		// area klik d×d di posisi ✕ (transparan; visual sudah digambar di atas).
-		off := op.Offset(image.Pt(xX, top)).Push(gtx.Ops)
-		gtx.Constraints.Min = image.Pt(d, d)
-		gtx.Constraints.Max = image.Pt(d, d)
-		ctl.Close.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	lbCircleAt(gtx, dlX, top, d)
+	lbDownloadGlyph(gtx, dlX, top, d, white)
+
+	// area klik d×d (transparan; visual sudah digambar di atas). gtx lokal agar
+	// mutasi Constraints tak bocor ke perhitungan lain.
+	hit := func(c *widget.Clickable, x int) {
+		if c == nil {
+			return
+		}
+		cgtx := gtx
+		off := op.Offset(image.Pt(x, top)).Push(cgtx.Ops)
+		cgtx.Constraints.Min = image.Pt(d, d)
+		cgtx.Constraints.Max = image.Pt(d, d)
+		c.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Dimensions{Size: image.Pt(d, d)}
 		})
 		off.Pop()
 	}
-
-	// unduh — .lb-save right 70.
-	dlX := gtx.Constraints.Max.X - saveRight - d
-	lbCircleAt(gtx, dlX, top, d)
-	lbDownloadGlyph(gtx, dlX, top, d, white)
+	if ctl != nil {
+		hit(ctl.Close, xX)
+		hit(ctl.Save, dlX)
+	}
 }
 
 // lbCircleAt — lingkaran 38 rgba(255,255,255,.12) pada offset (x,y).

@@ -47,6 +47,7 @@ type App struct {
 	retentionDays int // 0 = simpan selamanya; >0 = prune pesan lebih tua (kec. berbintang/disematkan)
 
 	keepDeleted atomic.Bool // anti-delete: simpan isi pesan yang ditarik (default on)
+	didFullSync atomic.Bool // sudah fullSync snapshot kontak sesi ini? (hindari ulang)
 
 	qrMu   sync.RWMutex // melindungi qrCode
 	qrCode string       // kode QR pairing mentah terbaru (utk UI in-process spt Gio)
@@ -343,11 +344,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 
 	eng.OnConnected(func() {
 		a.emit("wa:ready", eng.SelfJID())
-		// Rekonsiliasi buku alamat tiap reconnect (fullSync snapshot kontak) — tanpa
-		// ini, nama yg berubah saat offline tetap tampil sebagai nomor. Setara
-		// "catch-up on reconnect" Telegram. Setelah selesai → wa:sync agar UI refresh.
+		// Rekonsiliasi buku alamat tiap reconnect (incremental). fullSync snapshot
+		// HANYA sekali per sesi (connect pertama) — reconnect berikutnya cukup
+		// patch incremental agar tak banjir IQ/ratelimit saat jaringan flapping.
+		full := !a.didFullSync.Swap(true)
 		go func() {
-			eng.SyncContacts(true)
+			eng.SyncContacts(full)
 			_ = store.RecomputeSummaries(a.ctx)
 			a.emit("wa:sync", "")
 		}()

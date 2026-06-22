@@ -78,7 +78,7 @@ func main() {
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t, nil)
 		case "search":
-			gioui.SearchView(gtx, th, t)
+			gioui.SearchView(gtx, th, t, nil)
 		case "picker":
 			gioui.PickerView(gtx, th, t, nil)
 		case "reactionpicker":

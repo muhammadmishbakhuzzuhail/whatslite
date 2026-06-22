@@ -110,6 +110,13 @@ type UI struct {
 	shown        []int            // indeks u.chats yg lolos filter+pencarian (urut tampil)
 	newChatClick widget.Clickable // baris "mulai chat baru" (query nomor)
 
+	// pencarian pesan global (ikon cari header → view "search").
+	svEd        widget.Editor
+	svHits      []svHit
+	svHitClicks []widget.Clickable
+	svBack      widget.Clickable
+	svPrevView  string // view sebelum pencarian (utk kembali)
+
 	// mode balas: pesan yg dikutip; "" = kirim biasa.
 	replyTo   string
 	replyName string
@@ -151,9 +158,10 @@ type UI struct {
 
 	// menu aksi baris chat (klik-kanan): SNAPSHOT chat saat menu dibuka (aksi pakai
 	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
-	chatCtxChat   app.ChatDTO
-	chatCtxItems  [5]widget.Clickable
-	headMenuClick widget.Clickable // ikon overflow header → menu chat terbuka
+	chatCtxChat     app.ChatDTO
+	chatCtxItems    [5]widget.Clickable
+	headMenuClick   widget.Clickable // ikon overflow header → menu chat terbuka
+	headSearchClick widget.Clickable // ikon cari header → pencarian pesan global
 
 	// sub-pane setelan (profil/penyimpanan) + navigasi kembali.
 	setSub          string
@@ -259,6 +267,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.locLngEd.SingleLine = true
 	u.gcNameEd.SingleLine = true
 	u.gcSel = map[string]bool{}
+	u.svEd.SingleLine = true
 	u.pinEd.SingleLine, u.pinEd.Submit, u.pinEd.Mask = true, true, '•'
 	u.pinSetEd.SingleLine, u.pinSetEd.Mask = true, '•'
 	u.locked = core != nil && core.HasAppPIN()
@@ -1536,6 +1545,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		return ChannelsPaneView(gtx, u.th, u.t, u.channelRows())
 	case "communities":
 		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows())
+	case "search":
+		return SearchView(gtx, u.th, u.t, u.searchCtl(gtx))
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
@@ -2559,6 +2570,49 @@ func (u *UI) channelRows() []chnChannel {
 	return out
 }
 
+// searchCtl menjalankan pencarian pesan global (FTS5 core.SearchMessages) dari
+// query editor + bangun hit rows (klik → buka chat). Tombol kembali → view semula.
+func (u *UI) searchCtl(gtx layout.Context) *SvCtl {
+	for u.svBack.Clicked(gtx) {
+		u.view = u.svPrevView
+		if u.view == "" || u.view == "search" {
+			u.view = "chats"
+		}
+	}
+	q := strings.TrimSpace(u.svEd.Text())
+	if u.core != nil && len(q) >= 2 {
+		raw := u.core.SearchMessages(q, "")
+		u.svHits = u.svHits[:0]
+		for _, h := range raw {
+			u.svHits = append(u.svHits, svHit{name: h.ChatName, text: h.Text, time: h.Time, jid: h.ChatJID})
+		}
+	} else {
+		u.svHits = u.svHits[:0]
+	}
+	if len(u.svHitClicks) < len(u.svHits) {
+		u.svHitClicks = make([]widget.Clickable, len(u.svHits))
+	}
+	for i := range u.svHits {
+		if i >= len(u.svHitClicks) {
+			break
+		}
+		for u.svHitClicks[i].Clicked(gtx) { // buka chat hit
+			h := u.svHits[i]
+			u.selected, u.selName, u.selGroup = h.jid, h.name, isGroupJIDStr(h.jid)
+			u.view = "chats"
+			if u.core != nil {
+				u.core.OpenChat(h.jid)
+				u.messages = u.core.GetMessages(h.jid)
+			}
+			u.msgList.ScrollTo(len(u.messages))
+		}
+	}
+	return &SvCtl{Query: &u.svEd, Hits: u.svHits, HitClicks: u.svHitClicks, Back: &u.svBack}
+}
+
+// isGroupJIDStr — true bila JID grup (@g.us).
+func isGroupJIDStr(jid string) bool { return strings.HasSuffix(jid, "@g.us") }
+
 // communityRows membangun pane Komunitas dari komunitas nyata (core.GetCommunities).
 // nil = demo. TTL-cache via chCache? pakai gate sendiri (jarang berubah).
 func (u *UI) communityRows() []comItem {
@@ -2858,6 +2912,12 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 			}
 		}
 	}
+	for u.headSearchClick.Clicked(gtx) { // ikon cari → pencarian pesan global
+		u.svPrevView = u.view
+		u.view = "search"
+		u.svEd.SetText("")
+		u.svHits = nil
+	}
 	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(8), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
@@ -2887,8 +2947,8 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 			}),
 			// dorong ikon aksi ke kanan
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "calls") }),  // panggilan (visual)
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "search") }), // cari di chat (visual)
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "calls") }), // panggilan (visual)
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.headSearchClick, "search") }),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.headMenuClick, "overflow") }),
 		)
 	})

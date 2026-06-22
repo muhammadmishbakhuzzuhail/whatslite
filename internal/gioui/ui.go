@@ -202,6 +202,7 @@ type UI struct {
 	overlay     string // popup aktif: ""|info|reaction|forward|msginfo|picker|lightbox|msgctx
 	headerClick widget.Clickable
 	emojiClick  widget.Clickable
+	sendClick   widget.Clickable // tombol kirim (muncul saat ada teks; ganti mic)
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
 	msgClicks   []widget.Clickable
@@ -248,6 +249,9 @@ func (u *UI) SetLightbox(id, cap string) {
 
 // SetHighlight: utk render-tool menyorot pesan (lompatan kutipan) headless.
 func (u *UI) SetHighlight(id string) { u.hlMsg, u.hlAt = id, time.Now() }
+
+// SetComposeText: utk render-tool mengisi composer (uji tombol kirim) headless.
+func (u *UI) SetComposeText(s string) { u.editor.SetText(s) }
 
 // SetReply: utk render-tool menguji banner balas headless.
 func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
@@ -3458,7 +3462,7 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "mic") }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.sendOrMic(gtx) }),
 				)
 			})
 		}),
@@ -3509,6 +3513,27 @@ func (u *UI) replyBanner(gtx layout.Context) layout.Dimensions {
 	})
 }
 
+// sendOrMic — slot kanan composer: tombol KIRIM (lingkaran accent + ikon kirim,
+// klik → sendCurrent) saat ada teks; ikon mikrofon (visual) saat kosong. Cara
+// WhatsApp menukar mic↔kirim mengikuti isi.
+func (u *UI) sendOrMic(gtx layout.Context) layout.Dimensions {
+	for u.sendClick.Clicked(gtx) {
+		u.sendCurrent()
+	}
+	if strings.TrimSpace(u.editor.Text()) == "" {
+		return u.glyphBtn(gtx, nil, "mic") // kosong → mic (visual)
+	}
+	return u.sendClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		d := gtx.Dp(40)
+		sz := image.Pt(d, d)
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return icon(gtx, "send", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		})
+	})
+}
+
 func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) layout.Dimensions {
 	body := func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(40)
@@ -3523,6 +3548,27 @@ func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) 
 		return body(gtx)
 	}
 	return c.Layout(gtx, body)
+}
+
+// sendCurrent — kirim isi composer (teks atau balasan), reset editor + banner +
+// indikator mengetik, lalu gulir ke bawah. Dipakai tombol kirim & tombol Enter.
+func (u *UI) sendCurrent() {
+	txt := strings.TrimSpace(u.editor.Text())
+	if txt != "" && u.core != nil && u.selected != "" {
+		if u.replyTo != "" { // mode balas → kutip pesan
+			u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
+		} else {
+			u.core.SendText(u.selected, txt)
+		}
+		u.messages = u.core.GetMessages(u.selected)
+	}
+	if u.core != nil && u.selected != "" && u.typingSent {
+		u.core.SendTyping(u.selected, false, false) // berhenti mengetik
+		u.typingSent = false
+	}
+	u.editor.SetText("")
+	u.clearReply()
+	u.msgList.ScrollTo(len(u.messages)) // setelah kirim → gulir ke bawah
 }
 
 func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
@@ -3549,22 +3595,7 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 				}
 			}
 		case widget.SubmitEvent:
-			txt := strings.TrimSpace(u.editor.Text())
-			if txt != "" && u.core != nil && u.selected != "" {
-				if u.replyTo != "" { // mode balas → kutip pesan
-					u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
-				} else {
-					u.core.SendText(u.selected, txt)
-				}
-				u.messages = u.core.GetMessages(u.selected)
-			}
-			if u.core != nil && u.selected != "" && u.typingSent {
-				u.core.SendTyping(u.selected, false, false) // berhenti mengetik
-				u.typingSent = false
-			}
-			u.editor.SetText("")
-			u.clearReply()
-			u.msgList.ScrollTo(len(u.messages)) // setelah kirim → gulir ke bawah
+			u.sendCurrent() // Enter → kirim
 		}
 	}
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

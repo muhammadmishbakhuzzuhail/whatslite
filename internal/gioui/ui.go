@@ -35,10 +35,20 @@ import (
 )
 
 type UI struct {
-	th         *material.Theme
-	core       *app.App
-	t          Theme
-	dark       bool
+	th   *material.Theme
+	core *app.App
+	t    Theme
+	dark bool
+
+	// kunci aplikasi (PIN): gate sebelum UI utama + dialog atur/hapus di setelan.
+	locked      bool
+	pinEd       widget.Editor // input PIN di lock-screen
+	pinErr      bool
+	pinSetEd    widget.Editor // input PIN baru (dialog atur)
+	pinSetBtn   widget.Clickable
+	pinClearBtn widget.Clickable
+	pinCancel   widget.Clickable
+
 	state      string
 	qr         string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
 	subtitle   string // subtitle header chat (online/mengetik…/terakhir dilihat)
@@ -91,7 +101,7 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
-	setClicks [8]widget.Clickable // baris pane setelan (0=Tema … 7=Keluar)
+	setClicks [9]widget.Clickable // baris pane setelan (0=Tema … 7=Kunci aplikasi, 8=Keluar)
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -214,6 +224,9 @@ func (u *UI) ScrollMessagesToEnd() { u.msgList.ScrollTo(1 << 20) }
 // SetSearch: utk render-tool menguji bilah cari / tawaran chat-baru headless.
 func (u *UI) SetSearch(s string) { u.searchEd.SetText(s) }
 
+// SetLocked: utk render-tool menguji lock-screen headless.
+func (u *UI) SetLocked(b bool) { u.locked = b }
+
 // SetSettingsSub: utk render-tool menguji sub-pane setelan headless.
 func (u *UI) SetSettingsSub(s string) { u.view = "settings"; u.setSub = s }
 
@@ -246,6 +259,9 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.locLngEd.SingleLine = true
 	u.gcNameEd.SingleLine = true
 	u.gcSel = map[string]bool{}
+	u.pinEd.SingleLine, u.pinEd.Submit, u.pinEd.Mask = true, true, '•'
+	u.pinSetEd.SingleLine, u.pinSetEd.Mask = true, '•'
+	u.locked = core != nil && core.HasAppPIN()
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
@@ -350,6 +366,11 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 		return LoginView(gtx, u.th, u.t, u.qr, u.loginCtl())
 	}
 
+	// Gerbang kunci aplikasi (PIN) → tutup UI utama sampai PIN benar.
+	if u.locked {
+		return u.lockScreen(gtx)
+	}
+
 	dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.rail(gtx) }),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.sidebar(gtx) }),
@@ -398,7 +419,10 @@ func (u *UI) handleSettings(gtx layout.Context) {
 	for u.setClicks[6].Clicked(gtx) { // Penyimpanan → sub-pane
 		u.setSub = "storage"
 	}
-	for u.setClicks[7].Clicked(gtx) { // Keluar
+	for u.setClicks[7].Clicked(gtx) { // Kunci aplikasi → dialog atur/hapus PIN
+		u.overlay = "pinset"
+	}
+	for u.setClicks[8].Clicked(gtx) { // Keluar
 		if u.core != nil {
 			u.core.Logout()
 			u.state = "qr"
@@ -438,6 +462,142 @@ func (u *UI) handleLogin(gtx layout.Context) {
 			u.pairCode = u.core.LinkWithPhone(phone)
 		}
 	}
+}
+
+// lockScreen — gate PIN layar penuh: ikon gembok + judul + input PIN (mask) →
+// CheckAppPIN → buka. Salah → tanda merah.
+func (u *UI) lockScreen(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for {
+		ev, ok := u.pinEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			if u.core == nil || u.core.CheckAppPIN(strings.TrimSpace(u.pinEd.Text())) {
+				u.locked, u.pinErr = false, false
+				u.pinEd.SetText("")
+			} else {
+				u.pinErr = true
+				u.pinEd.SetText("")
+			}
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Max.X = gtx.Dp(300)
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "lock", 44, u.t.Accent) }),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 18, "Aplikasi terkunci")
+				l.Color, l.Font.Weight = u.t.Text, font.Medium
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				msg, col := "Masukkan PIN untuk membuka", u.t.Text2
+				if u.pinErr {
+					msg, col = "PIN salah, coba lagi", color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+				}
+				l := material.Label(u.th, 13.5, msg)
+				l.Color = col
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(18)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Dp(200)
+				gtx.Constraints.Max.X = gtx.Dp(200)
+				return u.gcField(gtx, &u.pinEd, "PIN")
+			}),
+		)
+	})
+}
+
+// pinSetLayer — dialog atur/hapus PIN (dari setelan "Kunci aplikasi").
+func (u *UI) pinSetLayer(gtx layout.Context) {
+	has := u.core != nil && u.core.HasAppPIN()
+	for u.pinCancel.Clicked(gtx) {
+		u.overlay = ""
+		u.pinSetEd.SetText("")
+	}
+	for u.pinClearBtn.Clicked(gtx) { // hapus PIN
+		if u.core != nil {
+			u.core.ClearAppPIN()
+		}
+		u.overlay = ""
+	}
+	for u.pinSetBtn.Clicked(gtx) { // atur PIN baru
+		if p := strings.TrimSpace(u.pinSetEd.Text()); len(p) >= 4 && u.core != nil {
+			u.core.SetAppPIN(p)
+			u.pinSetEd.SetText("")
+			u.overlay = ""
+		}
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(340), gtx.Dp(340)
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			title := "Atur PIN kunci"
+			if has {
+				title = "Kunci aplikasi"
+			}
+			rows := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, title)
+					l.Color, l.Font.Weight = u.t.Text, font.SemiBold
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+			}
+			if !has { // belum ada PIN → input untuk set
+				rows = append(rows,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.gcField(gtx, &u.pinSetEd, "PIN baru (min 4)")
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				)
+			} else {
+				rows = append(rows,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 14, "PIN aktif. Hapus untuk menonaktifkan kunci.")
+						l.Color = u.t.Text2
+						return l.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				)
+			}
+			rows = append(rows, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						b := material.Button(u.th, &u.pinCancel, "Batal")
+						b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Bg2, u.t.Text, unit.Dp(8), unit.Sp(14)
+						return b.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if has {
+							b := material.Button(u.th, &u.pinClearBtn, "Hapus PIN")
+							b.Background, b.Color, b.CornerRadius, b.TextSize = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}, white, unit.Dp(8), unit.Sp(14)
+							return b.Layout(gtx)
+						}
+						b := material.Button(u.th, &u.pinSetBtn, "Atur")
+						b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Accent, white, unit.Dp(8), unit.Sp(14)
+						return b.Layout(gtx)
+					}),
+				)
+			}))
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rows...)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // overlayLayer — popup di atas app (backdrop klik → tutup). Komponen wave dipakai
@@ -503,6 +663,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.locComposeLayer(gtx)
 	case "groupcreate":
 		u.groupCreateLayer(gtx)
+	case "pinset":
+		u.pinSetLayer(gtx)
 	}
 }
 
@@ -1322,12 +1484,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	switch u.view {
 	case "settings":
 		u.handleSettings(gtx)
-		kd, ret := true, 90
+		kd, ret, lock := true, 90, false
 		if u.core != nil {
-			kd, ret = u.core.GetKeepDeleted(), u.core.GetRetention()
+			kd, ret, lock = u.core.GetKeepDeleted(), u.core.GetRetention(), u.core.HasAppPIN()
 		}
 		ctl := &SettingsCtl{
-			Dark: u.dark, KeepDeleted: kd, Retention: ret, Clicks: u.setClicks[:],
+			Dark: u.dark, KeepDeleted: kd, Retention: ret, AppLock: lock, Clicks: u.setClicks[:],
 			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
 		}
 		if u.setSub != "" && u.core != nil { // data sub-pane

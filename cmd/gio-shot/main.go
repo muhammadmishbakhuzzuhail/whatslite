@@ -150,6 +150,13 @@ func main() {
 			ui.SetView("contacts")
 			ui.SetOverlay("groupcreate")
 			ui.Layout(gtx)
+		case "app-lock":
+			ui.SetLocked(true)
+			ui.Layout(gtx)
+		case "app-pinset":
+			ui.SetView("settings")
+			ui.SetOverlay("pinset")
+			ui.Layout(gtx)
 		case "app-attach":
 			ui.SetOverlay("attach")
 			ui.Layout(gtx)

@@ -32,6 +32,7 @@ type SettingsCtl struct {
 	Sub          string // ""|profile|storage
 	Back         *widget.Clickable
 	ProfileClick *widget.Clickable
+	Retention    int // hari retensi (0 = selamanya) — baris "Retensi"
 	// data sub-pane
 	ProfName, ProfAbout, ProfPhone string
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
@@ -113,7 +114,9 @@ func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 		}
 		idx := i
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			row := func(gtx layout.Context) layout.Dimensions { return setProfileField(gtx, th, t, o.label, privValue(val)) }
+			row := func(gtx layout.Context) layout.Dimensions {
+				return setProfileField(gtx, th, t, o.label, privValue(val))
+			}
 			if idx < len(ctl.PrivacyClicks) {
 				return ctl.PrivacyClicks[idx].Layout(gtx, row)
 			}
@@ -128,6 +131,34 @@ func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})
+}
+
+// retentionDesc — keterangan baris Retensi dari nilai aktif (ctl nil = demo 90 hari).
+func retentionDesc(ctl *SettingsCtl) string {
+	d := 90
+	if ctl != nil {
+		d = ctl.Retention
+	}
+	if d <= 0 {
+		return "Simpan pesan selamanya"
+	}
+	return "Hapus pesan setelah " + itoa(d) + " hari"
+}
+
+// nextRetention — siklus retensi 90→180→365→0(selamanya)→30→90.
+func nextRetention(d int) int {
+	switch d {
+	case 30:
+		return 90
+	case 90:
+		return 180
+	case 180:
+		return 365
+	case 365:
+		return 0
+	default: // 0 (selamanya) / lainnya
+		return 30
+	}
 }
 
 // nextPrivacy — siklus nilai privasi all→contacts→none→all.
@@ -399,7 +430,7 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},
 		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},
 		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted},
-		{name: "Retensi", desc: "Hapus pesan setelah 90 hari", icon: "disk"},
+		{name: "Retensi", desc: retentionDesc(ctl), icon: "disk"},
 		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},
 		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},
 		{name: "Keluar", icon: "power", danger: true},

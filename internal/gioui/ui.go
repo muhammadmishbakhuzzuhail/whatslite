@@ -387,6 +387,11 @@ func (u *UI) handleSettings(gtx layout.Context) {
 			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
 		}
 	}
+	for u.setClicks[4].Clicked(gtx) { // Retensi → siklus 30/90/180/365/selamanya
+		if u.core != nil {
+			u.core.SetRetention(nextRetention(u.core.GetRetention()))
+		}
+	}
 	for u.setClicks[5].Clicked(gtx) { // Privasi → sub-pane
 		u.setSub = "privacy"
 	}
@@ -1317,12 +1322,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	switch u.view {
 	case "settings":
 		u.handleSettings(gtx)
-		kd := true
+		kd, ret := true, 90
 		if u.core != nil {
-			kd = u.core.GetKeepDeleted()
+			kd, ret = u.core.GetKeepDeleted(), u.core.GetRetention()
 		}
 		ctl := &SettingsCtl{
-			Dark: u.dark, KeepDeleted: kd, Clicks: u.setClicks[:],
+			Dark: u.dark, KeepDeleted: kd, Retention: ret, Clicks: u.setClicks[:],
 			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
 		}
 		if u.setSub != "" && u.core != nil { // data sub-pane

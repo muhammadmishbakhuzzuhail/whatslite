@@ -26,6 +26,7 @@ var attachItems = []struct{ icon, label, category string }{
 	{"contacts", "Kontak", "contact"},
 	{"locpin", "Lokasi", "location"},
 	{"pollq", "Polling", "poll"},
+	{"clock", "Jadwalkan pesan", "schedule"},
 }
 
 // AttachCtl = state interaktif menu lampiran. nil → statis. Clicks: 1 per baris.

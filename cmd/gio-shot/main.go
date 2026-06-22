@@ -131,6 +131,10 @@ func main() {
 		case "app-select":
 			ui.SetSelectDemo("m2", "m4") // mode-pilih: toolbar + sorot baris
 			ui.Layout(gtx)
+		case "app-schedule":
+			ui.SetComposeText("Jangan lupa meeting jam 10 ya")
+			ui.SetOverlay("schedule") // modal jadwalkan pesan
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

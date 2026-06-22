@@ -205,6 +205,9 @@ type UI struct {
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
 	msgClicks   []widget.Clickable
+	quoteClicks []widget.Clickable // ketuk kutipan balasan → lompat ke pesan asal
+	hlMsg       string             // pesan yg sedang disorot (lompatan kutipan)
+	hlAt        time.Time          // waktu mulai sorot (pudar ~1.6s)
 	ctxIdx      int            // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
@@ -237,6 +240,9 @@ func (u *UI) SetOverlay(o string) { u.overlay = o }
 func (u *UI) SetLightbox(id, cap string) {
 	u.lightboxMsg, u.lightboxCap, u.overlay = id, cap, "lightbox"
 }
+
+// SetHighlight: utk render-tool menyorot pesan (lompatan kutipan) headless.
+func (u *UI) SetHighlight(id string) { u.hlMsg, u.hlAt = id, time.Now() }
 
 // SetReply: utk render-tool menguji banner balas headless.
 func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
@@ -337,6 +343,9 @@ func (u *UI) refresh() {
 	if len(u.msgClicks) < len(u.messages) {
 		u.msgClicks = make([]widget.Clickable, len(u.messages))
 	}
+	if len(u.quoteClicks) < len(u.messages) {
+		u.quoteClicks = make([]widget.Clickable, len(u.messages))
+	}
 }
 
 func demoChats() []app.ChatDTO {
@@ -355,7 +364,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m1", Dir: "in", Type: "text", Text: "Halo! Jadi nanti malam ngumpul jam berapa?", Time: "19.02", Sender: "Budi Santoso", Ts: yest},
 		{ID: "m2", Dir: "out", Type: "text", Text: "Jam 8 ya, di tempat biasa 👍", Time: "19.03", Status: "delivered", Ts: yest},
 		{ID: "m3", Dir: "in", Type: "text", Text: "Sip. Tempatnya yang kemarin kan?", Time: "19.05", Sender: "Budi Santoso", Ts: yest},
-		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?", Reactions: []app.ReactionDTO{{Emoji: "👍", Count: 2}, {Emoji: "🔥", Count: 1, Mine: true}}},
+		{ID: "m4", Dir: "out", Type: "text", Text: "Iya betul, yang deket stasiun", Time: "19.06", Status: "read", Ts: yest, QuoteID: "m3", QuoteName: "Budi Santoso", QuoteText: "Sip. Tempatnya yang kemarin kan?", Reactions: []app.ReactionDTO{{Emoji: "👍", Count: 2}, {Emoji: "🔥", Count: 1, Mine: true}}},
 		{ID: "m5", Dir: "in", Type: "text", Text: "Aku mungkin telat dikit, macet", Time: "19.40", Sender: "Citra Dewi", Ts: yest},
 		{ID: "m6", Dir: "out", Type: "text", Text: "Santai, kita tunggu", Time: "19.41", Status: "read", Ts: yest, Edited: true},
 		{ID: "m6b", Dir: "in", Type: "text", Time: "19.42", Sender: "Citra Dewi", Ts: yest, Revoked: true},
@@ -2414,6 +2423,18 @@ func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.D
 	})
 }
 
+// jumpToMessage menggulir ke pesan asal (ID) yg dikutip balasan & menyorotnya
+// sesaat. Bila pesan belum dimuat (history lama), abaikan diam-diam.
+func (u *UI) jumpToMessage(id string) {
+	for i := range u.messages {
+		if u.messages[i].ID == id {
+			u.msgList.ScrollTo(i)
+			u.hlMsg, u.hlAt = id, time.Now()
+			return
+		}
+	}
+}
+
 // ensureMedia memuat byte media bubble (engine MediaBytes) sekali per msgID di
 // goroutine → decode → cache u.media[id]. Tak memblok UI.
 func (u *UI) ensureMedia(chat, id string) {
@@ -2957,6 +2978,9 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			if len(u.msgClicks) < len(u.messages) { // jamin sebelum index (mid-frame GetMessages)
 				u.msgClicks = make([]widget.Clickable, len(u.messages))
 			}
+			if len(u.quoteClicks) < len(u.messages) {
+				u.quoteClicks = make([]widget.Clickable, len(u.messages))
+			}
 			return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
 					return u.bubble(gtx, i)
@@ -3077,7 +3101,14 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					if m.QuoteName == "" && m.QuoteText == "" {
 						return layout.Dimensions{}
 					}
-					return u.quoteBlock(gtx, m, out) // kutipan pesan dibalas
+					qb := func(gtx layout.Context) layout.Dimensions { return u.quoteBlock(gtx, m, out) }
+					if m.QuoteID != "" && idx < len(u.quoteClicks) { // ketuk → lompat ke pesan asal
+						for u.quoteClicks[idx].Clicked(gtx) {
+							u.jumpToMessage(m.QuoteID)
+						}
+						return u.quoteClicks[idx].Layout(gtx, qb)
+					}
+					return qb(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if m.Revoked { // pesan ditarik pengirim → placeholder miring + ikon
@@ -3166,7 +3197,20 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 		} else {
 			tl = gtx.Dp(6)
 		}
-		paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}.Op(gtx.Ops))
+		rr := clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}
+		paint.FillShape(gtx.Ops, bg, rr.Op(gtx.Ops))
+		// sorot sesaat saat dilompati dari kutipan (pudar ~1.6s), accent tipis di
+		// belakang konten agar tetap terbaca.
+		if u.hlMsg == m.ID {
+			if el := time.Since(u.hlAt); el < 1600*time.Millisecond {
+				hc := u.t.Accent
+				hc.A = uint8(float64(80) * (1 - el.Seconds()/1.6))
+				paint.FillShape(gtx.Ops, hc, rr.Op(gtx.Ops))
+				gtx.Execute(op.InvalidateCmd{}) // animasikan pudar
+			} else {
+				u.hlMsg = ""
+			}
+		}
 		call.Add(gtx.Ops)
 		return dims
 	}

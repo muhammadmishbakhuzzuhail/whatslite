@@ -56,6 +56,9 @@ type App struct {
 	presence map[string]string       // jid → "online"/"terakhir dilihat .."/""
 	typing   map[string]typingStateT // jid → status mengetik (utk subtitle header)
 
+	openMu   sync.RWMutex // melindungi openChat
+	openChat string       // chat yg sedang dibuka (jangan naikkan unread-nya)
+
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
@@ -262,6 +265,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
 				ExpireAt: expireAt,
 			})
+			// Naikkan badge belum-dibaca utk pesan masuk live ke chat yg TIDAK
+			// sedang dibuka (SaveMessage tak melakukannya; tanpa ini badge cuma
+			// muncul setelah resync). Lewati status & pesan sendiri.
+			if !m.FromMe && chat != "status@broadcast" && chat != a.currentOpen() {
+				_ = store.IncrementUnread(a.ctx, chat)
+			}
 			a.emit("wa:message", chat)
 		})
 	})
@@ -656,9 +665,30 @@ func (a *App) dedupChats(eng *engine.Engine, store *storage.Store) {
 }
 
 // OpenChat dipanggil FE saat chat dibuka: subscribe presence + (grup) subtitle anggota.
+// currentOpen — chat yg sedang dibuka (utk lewati saat naikkan unread).
+func (a *App) currentOpen() string {
+	a.openMu.RLock()
+	defer a.openMu.RUnlock()
+	return a.openChat
+}
+
+// CloseChat — UI meninggalkan percakapan (deselect) → tak ada chat terbuka.
+func (a *App) CloseChat() {
+	a.openMu.Lock()
+	a.openChat = ""
+	a.openMu.Unlock()
+}
+
 func (a *App) OpenChat(jid string) {
 	if a.eng == nil {
 		return
+	}
+	jid = a.canon(jid)
+	a.openMu.Lock()
+	a.openChat = jid
+	a.openMu.Unlock()
+	if a.store != nil { // buka chat → bersihkan badge belum-dibaca lokal
+		_ = a.store.SetUnread(a.ctx, jid, 0)
 	}
 	a.eng.SendAvailable()
 	a.eng.SubscribePresence(jid)

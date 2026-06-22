@@ -226,6 +226,13 @@ func (s *Store) SetUnread(ctx context.Context, jid string, n int) error {
 	return err
 }
 
+// IncrementUnread menaikkan jumlah belum-dibaca chat (+1) saat pesan masuk live
+// ke chat yg TIDAK sedang dibuka. Upsert agar tetap jalan walau baris belum ada.
+func (s *Store) IncrementUnread(ctx context.Context, jid string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO chats (jid, unread) VALUES (?, 1) ON CONFLICT(jid) DO UPDATE SET unread = unread + 1`, jid)
+	return err
+}
+
 // UnreadChats menghitung jumlah chat yg punya pesan belum dibaca (unread>0),
 // kecuali yg diarsipkan — utk badge judul window. Satu query ringan.
 func (s *Store) UnreadChats(ctx context.Context) (int, error) {

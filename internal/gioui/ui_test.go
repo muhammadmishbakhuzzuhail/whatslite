@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"gioui.org/layout"
 	"gioui.org/x/richtext"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
@@ -249,6 +250,26 @@ func TestSaveName(t *testing.T) {
 	for name, c := range cases {
 		if got := saveName(c.m); got != c.want {
 			t.Errorf("%s: saveName = %q, mau %q", name, got, c.want)
+		}
+	}
+}
+
+func TestFabHidden(t *testing.T) {
+	cases := []struct {
+		name string
+		pos  layout.Position
+		n    int
+		want bool
+	}{
+		{"kosong", layout.Position{}, 0, true},
+		{"belum-terukur", layout.Position{Count: 0, First: 0}, 20, true},
+		{"di-dasar", layout.Position{First: 11, Count: 9, OffsetLast: 0}, 20, true},
+		{"tergulir-naik", layout.Position{First: 0, Count: 9, OffsetLast: 50}, 20, false},
+		{"dasar-tapi-overflow", layout.Position{First: 11, Count: 9, OffsetLast: 30}, 20, false},
+	}
+	for _, c := range cases {
+		if got := fabHidden(c.pos, c.n); got != c.want {
+			t.Errorf("%s: fabHidden = %v, mau %v", c.name, got, c.want)
 		}
 	}
 }

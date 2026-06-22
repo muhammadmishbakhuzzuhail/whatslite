@@ -124,6 +124,19 @@ func drawImageFill(ops *op.Ops, imgOp paint.ImageOp, d int) {
 	paint.PaintOp{}.Add(ops)
 }
 
+// drawImageRect: gambar img di-scale uniform mengisi sz (dipakai lightbox aspek-
+// fit — sz sudah dihitung sesuai aspek gambar, jadi scale-by-width = scale-by-height).
+func drawImageRect(ops *op.Ops, imgOp paint.ImageOp, sz image.Point) {
+	src := imgOp.Size()
+	if src.X == 0 || src.Y == 0 {
+		return
+	}
+	s := float32(sz.X) / float32(src.X)
+	defer op.Affine(f32.Affine2D{}.Scale(f32.Pt(0, 0), f32.Pt(s, s))).Push(ops).Pop()
+	imgOp.Add(ops)
+	paint.PaintOp{}.Add(ops)
+}
+
 // synthPhoto: foto sintetis (gradient sunset) utk uji render avatar-foto headless
 // tanpa engine. Membuktikan jalur gambar bulat Gio bekerja.
 func synthPhoto() paint.ImageOp {

@@ -204,6 +204,10 @@ type UI struct {
 	// index: backfill history prepend & refresh reorder menggeser semua index.
 	ctxItems [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
 
+	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
+	lightboxCap   string           // caption gambar lightbox
+	lightboxClose widget.Clickable // tombol ✕ tutup lightbox
+
 	// OnPlayVoice/OnPlayVideo: hook media (di-set cmd/whatslite-gio → internal/
 	// voice + internal/video). gioui TETAP bebas-cgo (gio-shot ringan).
 	OnPlayVoice func(chat, id string)
@@ -222,6 +226,11 @@ var ctxMenu = []struct{ icon, label, to string }{
 
 // SetOverlay: utk render-tool menguji popup headless.
 func (u *UI) SetOverlay(o string) { u.overlay = o }
+
+// SetLightbox: utk render-tool membuka lightbox gambar nyata headless.
+func (u *UI) SetLightbox(id, cap string) {
+	u.lightboxMsg, u.lightboxCap, u.overlay = id, cap, "lightbox"
+}
 
 // SetReply: utk render-tool menguji banner balas headless.
 func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
@@ -641,7 +650,26 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks})
 		})
 	case "lightbox":
-		LightboxView(gtx, u.th, u.t)
+		for u.lightboxClose.Clicked(gtx) {
+			u.overlay, u.lightboxMsg, u.lightboxCap = "", "", ""
+		}
+		// backdrop redup penuh di sini (case-level) agar menutup rail+sidebar; lalu
+		// LightboxView menggambar foto/tombol di atasnya.
+		// backdrop redup rgba(0,0,0,.92) penuh di sini (case-level) agar menutup
+		// rail+sidebar; LightboxView lalu menggambar foto/tombol di atasnya.
+		lbRect := clip.Rect{Max: gtx.Constraints.Max}.Op()
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
+		ctl := &LbCtl{Caption: u.lightboxCap, Close: &u.lightboxClose}
+		if u.lightboxMsg != "" {
+			u.ensureMedia(u.selected, u.lightboxMsg)
+			u.mediaMu.Lock()
+			if imgOp, ok := u.media[u.lightboxMsg]; ok {
+				ctl.Img, ctl.Has = imgOp, true
+			}
+			u.mediaMu.Unlock()
+		}
+		LightboxView(gtx, u.th, u.t, ctl)
 	case "picker":
 		PickerView(gtx, u.th, u.t, u.stickerCtl(gtx))
 	case "attach":
@@ -2965,6 +2993,9 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 				u.OnPlayVoice(u.selected, m.ID) // tap voice → putar
 			case (m.Type == "video" || m.Type == "gif") && u.OnPlayVideo != nil:
 				u.OnPlayVideo(u.selected, m.ID, m.Type) // tap video/gif → putar
+			case m.Type == "image":
+				u.lightboxMsg, u.lightboxCap = m.ID, m.Text // tap gambar → lightbox layar penuh
+				u.overlay = "lightbox"
 			default:
 				u.ctxIdx, u.ctxMsg = idx, m // snapshot pesan (index bisa bergeser)
 				u.overlay = "msgctx"        // klik pesan → context-menu

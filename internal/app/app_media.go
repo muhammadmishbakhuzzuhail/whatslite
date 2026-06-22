@@ -44,6 +44,29 @@ func (a *App) AvatarBytes(jid string) []byte {
 	return b
 }
 
+// StickerBytes: byte stiker koleksi (hash.webp) dari dir permanen — IN-PROCESS
+// utk pratinjau di picker Gio (di-decode via x/image/webp).
+func (a *App) StickerBytes(hash string) []byte {
+	if a.stickerDir == "" || hash == "" || strings.ContainsAny(hash, "/\\.") {
+		return nil
+	}
+	b, _ := os.ReadFile(filepath.Join(a.stickerDir, hash+".webp"))
+	return b
+}
+
+// SavedGifBytes: byte GIF koleksi (hash.* — .gif/.mp4) dari dir permanen.
+func (a *App) SavedGifBytes(hash string) []byte {
+	if a.gifDir == "" || hash == "" || strings.ContainsAny(hash, "/\\.") {
+		return nil
+	}
+	hits, _ := filepath.Glob(filepath.Join(a.gifDir, hash+".*"))
+	if len(hits) == 0 {
+		return nil
+	}
+	b, _ := os.ReadFile(hits[0])
+	return b
+}
+
 // DownloadMedia mengunduh media penuh satu pesan → data-URI (atau "").
 func (a *App) DownloadMedia(chatJID, msgID string) string {
 	if a.eng == nil || a.store == nil {

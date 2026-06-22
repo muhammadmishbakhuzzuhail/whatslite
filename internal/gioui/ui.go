@@ -52,6 +52,13 @@ type UI struct {
 	pollVoteCache map[string]pollVoteEntry      // msgID → hasil suara (TTL — hindari query/frame)
 	mentionState  richtext.InteractiveText      // state teks ber-mention (warna inline)
 
+	// picker stiker (tombol stiker composer → overlay "picker").
+	stickerClick  widget.Clickable
+	stickerCache  []app.StickerDTO
+	stickerThumbs map[string]paint.ImageOp // hash → thumbnail
+	stickerTried  map[string]bool
+	stickerClicks []widget.Clickable
+
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
 	statusViewIdx     int
@@ -244,6 +251,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.mediaTried = map[string]bool{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
+	u.stickerThumbs = map[string]paint.ImageOp{}
+	u.stickerTried = map[string]bool{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat + thumb
 		u.photos["Andi Pratama"] = synthPhoto()
 		u.media["m13"] = synthPhoto() // bubble image demo (m14 video = placeholder+play)
@@ -458,7 +467,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	case "lightbox":
 		LightboxView(gtx, u.th, u.t)
 	case "picker":
-		PickerView(gtx, u.th, u.t)
+		PickerView(gtx, u.th, u.t, u.stickerCtl(gtx))
 	case "attach":
 		u.handleAttach(gtx)
 		if len(u.attachClicks) < AttachCount() {
@@ -734,6 +743,60 @@ func (u *UI) gcContactRow(gtx layout.Context, c app.ContactRowDTO, sel bool) lay
 			}),
 		)
 	})
+}
+
+// stickerCtl membangun controller picker stiker (data nyata) + tangani klik kirim.
+// nil bila demo (core nil) → grid placeholder.
+func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
+	if u.core == nil {
+		return nil
+	}
+	if u.stickerCache == nil {
+		u.stickerCache = u.core.ListSavedStickers()
+	}
+	if len(u.stickerClicks) < len(u.stickerCache) {
+		u.stickerClicks = make([]widget.Clickable, len(u.stickerCache))
+	}
+	items := make([]PkItem, len(u.stickerCache))
+	for i, s := range u.stickerCache {
+		u.ensureStickerThumb(s.Hash)
+		u.photoMu.Lock()
+		op, ok := u.stickerThumbs[s.Hash]
+		u.photoMu.Unlock()
+		if ok {
+			items[i] = PkItem{Thumb: op, Has: true}
+		}
+		if i < len(u.stickerClicks) {
+			for u.stickerClicks[i].Clicked(gtx) { // tap stiker → kirim
+				if u.selected != "" {
+					u.core.SendSavedSticker(u.selected, s.Hash)
+					u.messages = u.core.GetMessages(u.selected)
+				}
+				u.overlay, u.stickerCache = "", nil
+				u.msgList.ScrollTo(len(u.messages))
+			}
+		}
+	}
+	return &PkCtl{Items: items, Clicks: u.stickerClicks}
+}
+
+// ensureStickerThumb memuat byte stiker (StickerBytes) sekali per hash → decode
+// (webp) → cache ImageOp. Async agar tak memblok UI.
+func (u *UI) ensureStickerThumb(hash string) {
+	if hash == "" || u.stickerTried[hash] {
+		return
+	}
+	u.stickerTried[hash] = true
+	go func() {
+		img := decodeImage(u.core.StickerBytes(hash))
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.photoMu.Lock() // pakai lock yg sama (akses peta dari goroutine)
+		u.stickerThumbs[hash] = op
+		u.photoMu.Unlock()
+	}()
 }
 
 // contactSendLayer — modal pilih kontak utk dikirim (SendContact).
@@ -2890,6 +2953,9 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	for u.attachClick.Clicked(gtx) {
 		u.overlay = "attach" // tombol "+" → menu lampiran
 	}
+	for u.stickerClick.Clicked(gtx) {
+		u.overlay = "picker" // tombol stiker → picker stiker
+	}
 	for u.replyX.Clicked(gtx) {
 		u.clearReply()
 	}
@@ -2904,6 +2970,8 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.stickerClick, "sticker") }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "plus") }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),

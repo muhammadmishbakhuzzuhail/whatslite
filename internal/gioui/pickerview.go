@@ -18,20 +18,34 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
+// PkItem = satu stiker tersimpan: thumbnail (di-decode in-process) + ada/tidak.
+type PkItem struct {
+	Thumb paint.ImageOp
+	Has   bool
+}
+
+// PkCtl = state interaktif picker stiker. nil → grid placeholder demo. Items +
+// Clicks paralel (tap → kirim stiker).
+type PkCtl struct {
+	Items  []PkItem
+	Clicks []widget.Clickable
+}
+
 // PickerView menggambar kartu pemilih stiker terpusat di atas latar app.
-func PickerView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func PickerView(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
 	paint.FillShape(gtx.Ops, t.Bg2, clip.Rect{Max: gtx.Constraints.Max}.Op())
 
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return pkCard(gtx, th, t)
+		return pkCard(gtx, th, t, ctl)
 	})
 }
 
 // pkCard — .stk-panel: Bg, radius 14, border 1px Line, lebar 520, padding 10, kolom isi.
-func pkCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
 	w := gtx.Dp(520)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
@@ -54,9 +68,9 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 				return pkCats(gtx, th, t)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
-			// .stk-grid — grid sel placeholder.
+			// .stk-grid — grid stiker (thumbnail nyata bila ctl, else placeholder).
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return pkGrid(gtx, t)
+				return pkGrid(gtx, t, ctl)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
 			// .stk-credit — kredit 10/text2 di tengah (margin-top 6).
@@ -205,31 +219,52 @@ func pkCatChip(gtx layout.Context, th *material.Theme, t Theme, c pkCat) layout.
 	return dims
 }
 
-// pkGrid — .stk-grid: grid auto-fill minmax(84px,1fr), gap 6, 2 baris placeholder.
-func pkGrid(gtx layout.Context, t Theme) layout.Dimensions {
+// pkGrid — .stk-grid: grid auto-fill minmax(84px,1fr), gap 6. Render stiker nyata
+// (ctl.Items, tappable) atau 2 baris placeholder (ctl nil = demo).
+func pkGrid(gtx layout.Context, t Theme, ctl *PkCtl) layout.Dimensions {
 	gap := gtx.Dp(6)
 	avail := gtx.Constraints.Max.X
 	minCell := gtx.Dp(84)
-	cols := (avail + gap) / (minCell + gap) // auto-fill: berapa kolom minmax(84px,…) muat
+	cols := (avail + gap) / (minCell + gap)
 	if cols < 1 {
 		cols = 1
 	}
 	cell := (avail - (cols-1)*gap) / cols
-	rows := 2
+
+	n := 2 * cols // placeholder: 2 baris
+	if ctl != nil {
+		n = len(ctl.Items)
+	}
+	rows := (n + cols - 1) / cols
+	if rows < 1 && ctl == nil {
+		rows = 2
+	}
 
 	rowChildren := make([]layout.FlexChild, 0, rows*2)
 	for ri := 0; ri < rows; ri++ {
+		ri := ri
 		if ri > 0 {
 			rowChildren = append(rowChildren, layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout))
 		}
 		rowChildren = append(rowChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			cellChildren := make([]layout.FlexChild, 0, cols*2)
 			for ci := 0; ci < cols; ci++ {
+				idx := ri*cols + ci
 				if ci > 0 {
 					cellChildren = append(cellChildren, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout))
 				}
 				cellChildren = append(cellChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return pkCell(gtx, t, cell)
+					if ctl == nil {
+						return pkCell(gtx, t, cell, PkItem{})
+					}
+					if idx >= len(ctl.Items) {
+						return layout.Dimensions{Size: image.Pt(cell, cell)} // sel kosong
+					}
+					body := func(gtx layout.Context) layout.Dimensions { return pkCell(gtx, t, cell, ctl.Items[idx]) }
+					if idx < len(ctl.Clicks) {
+						return ctl.Clicks[idx].Layout(gtx, body)
+					}
+					return body(gtx)
 				}))
 			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, cellChildren...)
@@ -238,10 +273,15 @@ func pkGrid(gtx layout.Context, t Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rowChildren...)
 }
 
-// pkCell — .stk-cell: kotak persegi (aspect-ratio 1) Bg2, radius 10, padding 6 (isi img).
-func pkCell(gtx layout.Context, t Theme, side int) layout.Dimensions {
+// pkCell — .stk-cell: kotak persegi Bg2 radius 10; gambar thumbnail bila ada.
+func pkCell(gtx layout.Context, t Theme, side int, item PkItem) layout.Dimensions {
 	sz := image.Pt(side, side)
 	r := gtx.Dp(10)
 	paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	if item.Has {
+		cl := clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+		drawImageFill(gtx.Ops, item.Thumb, side)
+		cl.Pop()
+	}
 	return layout.Dimensions{Size: sz}
 }

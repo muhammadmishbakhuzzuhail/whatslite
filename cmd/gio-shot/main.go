@@ -80,7 +80,7 @@ func main() {
 		case "search":
 			gioui.SearchView(gtx, th, t)
 		case "picker":
-			gioui.PickerView(gtx, th, t)
+			gioui.PickerView(gtx, th, t, nil)
 		case "reactionpicker":
 			gioui.ReactionPickerView(gtx, th, t, nil)
 		case "composerdetail":

@@ -18,6 +18,7 @@ import (
 	"gioui.org/f32"
 	"gioui.org/op"
 	"gioui.org/op/paint"
+	_ "golang.org/x/image/webp" // decode stiker .webp (statis) via image.Decode
 )
 
 // gifFrames: byte GIF → frame-frame ter-komposit (paint.ImageOp) + delay(ms) +

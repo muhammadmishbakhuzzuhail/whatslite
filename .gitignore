@@ -24,3 +24,5 @@ real-data.json
 # Gio dev binaries
 /whatslite-gio
 /gio-shot
+/whatslite-engine
+/whatslite

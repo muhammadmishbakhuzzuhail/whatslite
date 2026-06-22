@@ -3371,6 +3371,9 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 
 // ---- bubble pesan (.bubble: in/out, RRect, ekor) ----
 func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
+	if idx < 0 || idx >= len(u.messages) { // u.messages bisa menyusut mid-frame (refresh)
+		return layout.Dimensions{}
+	}
 	m := u.messages[idx]
 	if idx < len(u.msgClicks) {
 		for u.msgClicks[idx].Clicked(gtx) {

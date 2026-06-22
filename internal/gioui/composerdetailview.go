@@ -28,7 +28,9 @@ func ComposerDetailView(gtx layout.Context, th *material.Theme, t Theme) layout.
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Constraints.Min.Y)}
+			// Flex memosisikan by RETURNED size → kembalikan Min penuh agar bar
+			// benar2 terdorong ke dasar (bukan Min.Y saja yg sering 0).
+			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return cdvBar(gtx, th, t)

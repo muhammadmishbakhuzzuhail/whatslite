@@ -121,32 +121,20 @@ func statesSplash(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 	})
 }
 
-// statesLogo — lingkaran 200px head-bg dengan bentuk chat-bubble 96px di tengah,
-// warna text2 opacity .45.
+// statesLogo — lingkaran 200px head-bg dengan glyph chat WhatsApp 92px di tengah
+// (ikon SVG "chats", text2 @ .5) — lebih rapi dari bentuk gambar-tangan lama.
 func statesLogo(gtx layout.Context, t Theme) layout.Dimensions {
 	d := gtx.Dp(200)
 	sz := image.Pt(d, d)
 	paint.FillShape(gtx.Ops, t.HeadBg, clip.Ellipse{Max: sz}.Op(gtx.Ops))
 
-	// warna ikon: text2 @ .45
 	ic := t.Text2
-	ic.A = uint8(float32(ic.A) * 0.45)
+	ic.A = uint8(float32(ic.A) * 0.5)
 
-	// bentuk chat-bubble 96px: RRect membulat + ekor segitiga di bawah-kiri.
-	bw := gtx.Dp(96)
-	bh := gtx.Dp(72) // proporsi badan bubble di dalam kotak 96px
-	off := image.Pt((d-bw)/2, (d-bh-gtx.Dp(12))/2)
-	body := image.Rectangle{Min: off, Max: off.Add(image.Pt(bw, bh))}
-	r := gtx.Dp(20)
-	paint.FillShape(gtx.Ops, ic, clip.RRect{Rect: body, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-	// ekor: kotak kecil di bawah-kiri badan (membentuk siluet balon chat).
-	tw := gtx.Dp(16)
-	tail := image.Rectangle{
-		Min: image.Pt(off.X+gtx.Dp(14), off.Y+bh-gtx.Dp(2)),
-		Max: image.Pt(off.X+gtx.Dp(14)+tw, off.Y+bh+gtx.Dp(12)),
-	}
-	paint.FillShape(gtx.Ops, ic, clip.Rect(tail).Op())
-
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "chats", 92, ic)
+	})
 	return layout.Dimensions{Size: sz}
 }
 

@@ -32,7 +32,8 @@ type SettingsCtl struct {
 	Sub          string // ""|profile|storage
 	Back         *widget.Clickable
 	ProfileClick *widget.Clickable
-	Retention    int // hari retensi (0 = selamanya) — baris "Retensi"
+	Retention    int  // hari retensi (0 = selamanya) — baris "Retensi"
+	AppLock      bool // PIN kunci aplikasi aktif? — baris "Kunci aplikasi"
 	// data sub-pane
 	ProfName, ProfAbout, ProfPhone string
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
@@ -143,6 +144,14 @@ func retentionDesc(ctl *SettingsCtl) string {
 		return "Simpan pesan selamanya"
 	}
 	return "Hapus pesan setelah " + itoa(d) + " hari"
+}
+
+// lockDesc — keterangan baris Kunci aplikasi (aktif/nonaktif).
+func lockDesc(ctl *SettingsCtl) string {
+	if ctl != nil && ctl.AppLock {
+		return "Aktif — ketuk untuk mengelola"
+	}
+	return "Nonaktif — ketuk untuk mengatur PIN"
 }
 
 // nextRetention — siklus retensi 90→180→365→0(selamanya)→30→90.
@@ -433,6 +442,7 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 		{name: "Retensi", desc: retentionDesc(ctl), icon: "disk"},
 		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},
 		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},
+		{name: "Kunci aplikasi", desc: lockDesc(ctl), icon: "lock"},
 		{name: "Keluar", icon: "power", danger: true},
 	}
 	flex := layout.Flex{Axis: layout.Vertical}

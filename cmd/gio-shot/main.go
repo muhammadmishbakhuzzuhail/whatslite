@@ -116,6 +116,9 @@ func main() {
 		case "app-send":
 			ui.SetComposeText("Sampai nanti malam ya!") // composer terisi → tombol kirim
 			ui.Layout(gtx)
+		case "app-edit":
+			ui.SetEditing("m4", "Iya betul, yang deket stasiun") // banner edit pesan
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

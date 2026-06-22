@@ -130,6 +130,10 @@ type UI struct {
 	replyText string
 	replyX    widget.Clickable // tombol batal balas
 
+	editTarget string           // msgID yg sedang diedit ("" = kirim biasa)
+	editText   string           // teks asli (banner edit)
+	editCancel widget.Clickable // tombol batal edit
+
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
 	reactMsgID  string
@@ -265,6 +269,12 @@ func (u *UI) SetHighlight(id string) { u.hlMsg, u.hlAt = id, time.Now() }
 
 // SetComposeText: utk render-tool mengisi composer (uji tombol kirim) headless.
 func (u *UI) SetComposeText(s string) { u.editor.SetText(s) }
+
+// SetEditing: utk render-tool menguji banner edit headless.
+func (u *UI) SetEditing(id, text string) {
+	u.editTarget, u.editText = id, text
+	u.editor.SetText(text)
+}
 
 // SetReply: utk render-tool menguji banner balas headless.
 func (u *UI) SetReply(name, text string) { u.replyTo, u.replyName, u.replyText = "demo", name, text }
@@ -790,6 +800,10 @@ func (u *UI) doCtxAction(label string) {
 		if u.OnSaveMedia != nil {
 			u.OnSaveMedia(u.selected, m.ID, saveName(m))
 		}
+	case "Edit":
+		u.clearReply() // tak bisa edit + balas sekaligus
+		u.editTarget, u.editText = m.ID, m.Text
+		u.editor.SetText(m.Text)
 	}
 }
 
@@ -1426,7 +1440,13 @@ func isMediaType(t string) bool {
 // pesan media, tambahkan baris "Unduh" (simpan byte ke disk via OnSaveMedia).
 func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 	items := ctxMenu
-	if isMediaType(u.ctxMsg.Type) && u.OnSaveMedia != nil {
+	m := u.ctxMsg
+	switch {
+	case m.Dir == "out" && !m.Revoked && (m.Type == "" || m.Type == "text"):
+		// pesan teks sendiri → bisa di-Edit (SendEdit; jendela ~15mnt di engine).
+		items = append(append([]struct{ icon, label, to string }{}, ctxMenu...),
+			struct{ icon, label, to string }{"editpen", "Edit", ""})
+	case isMediaType(m.Type) && u.OnSaveMedia != nil:
 		items = append(append([]struct{ icon, label, to string }{}, ctxMenu...),
 			struct{ icon, label, to string }{"download", "Unduh", ""})
 	}
@@ -3659,8 +3679,15 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	for u.replyX.Clicked(gtx) {
 		u.clearReply()
 	}
+	for u.editCancel.Clicked(gtx) { // batal edit → kosongkan composer
+		u.clearEdit()
+		u.editor.SetText("")
+	}
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if u.editTarget != "" {
+				return u.editBanner(gtx)
+			}
 			if u.replyTo == "" {
 				return layout.Dimensions{}
 			}
@@ -3728,6 +3755,54 @@ func (u *UI) replyBanner(gtx layout.Context) layout.Dimensions {
 	})
 }
 
+// editBanner — bilah "Edit pesan" di atas composer (garis accent + label + teks
+// asli + ✕ batal). Sama gaya replyBanner.
+func (u *UI) editBanner(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(12), Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "editpen", 18, u.t.Accent)
+					})
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 13, "Edit pesan")
+							lbl.Color = u.t.Accent
+							lbl.Font.Weight = font.Medium
+							lbl.MaxLines = 1
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 13, u.editText)
+							lbl.Color = u.t.Text2
+							lbl.MaxLines = 1
+							return lbl.Layout(gtx)
+						}),
+					)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.editCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return icon(gtx, "close", 16, u.t.Text2)
+						})
+					})
+				}),
+			)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(6)
+		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 // sendOrMic — slot kanan composer: tombol KIRIM (lingkaran accent + ikon kirim,
 // klik → sendCurrent) saat ada teks; ikon mikrofon (visual) saat kosong. Cara
 // WhatsApp menukar mic↔kirim mengikuti isi.
@@ -3767,8 +3842,19 @@ func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) 
 
 // sendCurrent — kirim isi composer (teks atau balasan), reset editor + banner +
 // indikator mengetik, lalu gulir ke bawah. Dipakai tombol kirim & tombol Enter.
+func (u *UI) clearEdit() { u.editTarget, u.editText = "", "" }
+
 func (u *UI) sendCurrent() {
 	txt := strings.TrimSpace(u.editor.Text())
+	if u.editTarget != "" { // mode edit → ubah pesan terkirim (SendEdit)
+		if txt != "" && u.core != nil && u.selected != "" {
+			u.core.EditMessage(u.selected, u.editTarget, txt)
+			u.messages = u.core.GetMessages(u.selected)
+		}
+		u.clearEdit()
+		u.editor.SetText("")
+		return
+	}
 	if txt != "" && u.core != nil && u.selected != "" {
 		if u.replyTo != "" { // mode balas → kutip pesan
 			u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)

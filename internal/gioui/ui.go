@@ -1627,17 +1627,19 @@ func fmtBytes(n int64) string {
 
 // docExt — label jenis dari mime ("application/pdf"→"PDF").
 func docExt(mime string) string {
+	// urut: spreadsheet & word DULU sebelum "document" generik — sebab mime OOXML
+	// (xlsx/docx) sama-sama mengandung "officedocument".
 	switch {
-	case strings.Contains(mime, "pdf"):
-		return "PDF"
-	case strings.Contains(mime, "word") || strings.Contains(mime, "document"):
-		return "DOC"
-	case strings.Contains(mime, "sheet") || strings.Contains(mime, "excel"):
-		return "XLS"
-	case strings.Contains(mime, "zip"):
-		return "ZIP"
 	case mime == "":
 		return ""
+	case strings.Contains(mime, "pdf"):
+		return "PDF"
+	case strings.Contains(mime, "sheet") || strings.Contains(mime, "excel"):
+		return "XLS"
+	case strings.Contains(mime, "word"):
+		return "DOC"
+	case strings.Contains(mime, "zip"):
+		return "ZIP"
 	}
 	return "FILE"
 }
@@ -1651,7 +1653,13 @@ func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.Mention
 	acc := base
 	acc.Color = u.t.Accent
 	acc.Font.Weight = font.Medium
-	// token "@Name" per mention.
+	spans := mentionSpans(text, mentions, base, acc)
+	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
+}
+
+// mentionSpans — pisah `text` jadi span normal vs span accent pada token "@Name"
+// (dari mentions). Pure → bisa diuji. Token paling-awal di tiap posisi yg dipilih.
+func mentionSpans(text string, mentions []app.MentionDTO, base, acc richtext.SpanStyle) []richtext.SpanStyle {
 	toks := make([]string, 0, len(mentions))
 	for _, mn := range mentions {
 		if mn.Name != "" {
@@ -1682,7 +1690,7 @@ func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.Mention
 		spans = append(spans, s)
 		i += bestPos + len(bestTok)
 	}
-	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
+	return spans
 }
 
 // pollVoteEntry — hasil suara ter-cache + waktunya (TTL 2s).

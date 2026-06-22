@@ -164,6 +164,10 @@ type UI struct {
 	selDelete widget.Clickable
 	selFwd    widget.Clickable
 
+	// jadwalkan pesan: 3 preset waktu + batal (ScheduleMessage).
+	schedItems  [3]widget.Clickable
+	schedCancel widget.Clickable
+
 	// menu lampiran (tombol "+"): klik per-baris.
 	attachClicks []widget.Clickable
 
@@ -823,6 +827,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.contactSendLayer(gtx)
 	case "loccompose":
 		u.locComposeLayer(gtx)
+	case "schedule":
+		u.scheduleLayer(gtx)
 	case "groupcreate":
 		u.groupCreateLayer(gtx)
 	case "pinset":
@@ -993,6 +999,14 @@ func (u *UI) handleAttach(gtx layout.Context) {
 			}
 			if cat == "location" { // input tempat+koordinat → SendLocation
 				u.overlay = "loccompose"
+				continue
+			}
+			if cat == "schedule" { // jadwalkan teks composer saat ini
+				if strings.TrimSpace(u.editor.Text()) != "" {
+					u.overlay = "schedule"
+				} else {
+					u.overlay = ""
+				}
 				continue
 			}
 			if u.OnAttach != nil && u.selected != "" {
@@ -3505,6 +3519,107 @@ func (u *UI) syncDraft() {
 	u.clearEdit()
 	u.editor.SetText(u.drafts[u.selected]) // "" bila tak ada draft
 	u.draftChat = u.selected
+}
+
+// scheduleLayer — modal jadwalkan pesan: pratinjau teks + 3 preset waktu + batal.
+// Pilih preset → core.ScheduleMessage(chat, teks, unix) lalu kosongkan composer.
+func (u *UI) scheduleLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	now := time.Now()
+	in1h := now.Add(time.Hour)
+	tonight := time.Date(now.Year(), now.Month(), now.Day(), 20, 0, 0, 0, now.Location())
+	if !tonight.After(now) {
+		tonight = tonight.AddDate(0, 0, 1)
+	}
+	tomorrow := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location()).AddDate(0, 0, 1)
+	presets := []struct {
+		label string
+		at    time.Time
+	}{
+		{"1 jam lagi (" + in1h.Format("15.04") + ")", in1h},
+		{"Malam ini, " + tonight.Format("15.04"), tonight},
+		{"Besok pagi, " + tomorrow.Format("15.04"), tomorrow},
+	}
+	for i := range u.schedItems {
+		for u.schedItems[i].Clicked(gtx) {
+			txt := strings.TrimSpace(u.editor.Text())
+			if u.core != nil && u.selected != "" && txt != "" {
+				u.core.ScheduleMessage(u.selected, txt, presets[i].at.Unix())
+			}
+			u.editor.SetText("")
+			delete(u.drafts, u.selected)
+			u.overlay = ""
+		}
+	}
+	for u.schedCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	preview := strings.TrimSpace(u.editor.Text())
+
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(320)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Jadwalkan pesan")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13.5, preview)
+					l.Color, l.MaxLines = u.t.Text2, 2
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+			}
+			for i := range presets {
+				i := i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.schedItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return layout.Inset{Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										return icon(gtx, "clock", 18, u.t.Accent)
+									})
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, presets[i].label)
+									l.Color = u.t.Text
+									return l.Layout(gtx)
+								}),
+							)
+						})
+					})
+				}))
+			}
+			children = append(children,
+				layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return u.schedCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 14.5, "Batal")
+								l.Color = u.t.Text2
+								return l.Layout(gtx)
+							})
+						})
+					})
+				}),
+			)
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // pinnedBarView — bilah pesan-tersemat di bawah header (ikon pin accent + teks

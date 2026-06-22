@@ -183,7 +183,15 @@ type UI struct {
 	chatCtxChat     app.ChatDTO
 	chatCtxItems    [6]widget.Clickable
 	headMenuClick   widget.Clickable // ikon overflow header → menu chat terbuka
-	headSearchClick widget.Clickable // ikon cari header → pencarian pesan global
+	headSearchClick widget.Clickable // ikon cari header → cari DALAM chat aktif
+
+	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
+	inChatEd     widget.Editor // input cari-dalam-chat
+	inChatBack   widget.Clickable
+	inChatPrev   widget.Clickable
+	inChatNext   widget.Clickable
+	inChatMatch  []int // indeks u.messages yg cocok query
+	inChatCur    int   // match aktif (0-based)
 
 	// sub-pane setelan (profil/penyimpanan) + navigasi kembali.
 	setSub          string
@@ -287,6 +295,12 @@ func (u *UI) SetEditing(id, text string) {
 	u.editor.SetText(text)
 }
 
+// SetInChatSearch: utk render-tool menguji bilah cari-dalam-chat headless.
+func (u *UI) SetInChatSearch(q string) {
+	u.inChatSearch = true
+	u.inChatEd.SetText(q)
+}
+
 // SetUnreadDemo: utk render-tool menguji divider "belum dibaca" headless.
 func (u *UI) SetUnreadDemo(id string, n int) { u.unreadDivID, u.unreadDivCount = id, n }
 
@@ -329,6 +343,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
+	u.inChatEd.SingleLine = true
+	u.inChatEd.Submit = true
 	u.phoneEd.SingleLine = true
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
@@ -3512,7 +3528,102 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	)
 }
 
+// inChatSearchHeader — bilah cari-dalam-chat (ganti header): ← kembali + input +
+// "n/total" + navigasi naik/turun. Cocokkan teks pesan chat aktif; nav → lompat +
+// sorot. Submit (Enter) = lompat ke kecocokan berikutnya.
+func (u *UI) inChatSearchHeader(gtx layout.Context) layout.Dimensions {
+	h := gtx.Dp(60)
+	sz := image.Pt(gtx.Constraints.Max.X, h)
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
+
+	// hitung kecocokan (teks pesan mengandung query, case-insensitive).
+	q := strings.ToLower(strings.TrimSpace(u.inChatEd.Text()))
+	u.inChatMatch = u.inChatMatch[:0]
+	if q != "" {
+		for i := range u.messages {
+			if strings.Contains(strings.ToLower(u.messages[i].Text), q) {
+				u.inChatMatch = append(u.inChatMatch, i)
+			}
+		}
+	}
+	if u.inChatCur >= len(u.inChatMatch) {
+		u.inChatCur = 0
+	}
+	jump := func() {
+		if len(u.inChatMatch) > 0 && u.inChatCur < len(u.inChatMatch) {
+			u.jumpToMessage(u.messages[u.inChatMatch[u.inChatCur]].ID)
+		}
+	}
+	for u.inChatBack.Clicked(gtx) {
+		u.inChatSearch = false
+		u.inChatEd.SetText("")
+		u.inChatMatch, u.inChatCur = nil, 0
+	}
+	for u.inChatNext.Clicked(gtx) {
+		if n := len(u.inChatMatch); n > 0 {
+			u.inChatCur = (u.inChatCur + 1) % n
+			jump()
+		}
+	}
+	for u.inChatPrev.Clicked(gtx) {
+		if n := len(u.inChatMatch); n > 0 {
+			u.inChatCur = (u.inChatCur - 1 + n) % n
+			jump()
+		}
+	}
+	for { // Enter → kecocokan berikutnya
+		ev, ok := u.inChatEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			if n := len(u.inChatMatch); n > 0 {
+				u.inChatCur = (u.inChatCur + 1) % n
+				jump()
+			}
+		}
+	}
+
+	counter := ""
+	switch {
+	case q == "":
+	case len(u.inChatMatch) == 0:
+		counter = "0"
+	default:
+		counter = itoa(u.inChatCur+1) + "/" + itoa(len(u.inChatMatch))
+	}
+
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	return layout.Inset{Left: unit.Dp(6), Right: unit.Dp(10), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.inChatBack, "back") }),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				e := material.Editor(u.th, &u.inChatEd, "Cari dalam chat")
+				e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(15)
+				return e.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if counter == "" {
+					return layout.Dimensions{}
+				}
+				return layout.Inset{Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13, counter)
+					l.Color = u.t.Text2
+					l.MaxLines = 1
+					return l.Layout(gtx)
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.inChatPrev, "chevronup") }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.inChatNext, "chevrondown") }),
+		)
+	})
+}
+
 func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
+	if u.inChatSearch {
+		return u.inChatSearchHeader(gtx)
+	}
 	for u.headerClick.Clicked(gtx) {
 		u.overlay = "info" // klik header → info drawer
 	}
@@ -3532,11 +3643,10 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 			}
 		}
 	}
-	for u.headSearchClick.Clicked(gtx) { // ikon cari → pencarian pesan global
-		u.svPrevView = u.view
-		u.view = "search"
-		u.svEd.SetText("")
-		u.svHits = nil
+	for u.headSearchClick.Clicked(gtx) { // ikon cari → cari DALAM chat aktif
+		u.inChatSearch = true
+		u.inChatEd.SetText("")
+		u.inChatMatch, u.inChatCur = nil, 0
 	}
 	// ikon aksi (telepon/cari/overflow) dipatok MUTLAK di kanan — Flexed(1) tak
 	// melebar andal di sini (sama spt titlebar). avatar+nama di kiri [18..btnsX].

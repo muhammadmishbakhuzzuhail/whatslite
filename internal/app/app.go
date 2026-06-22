@@ -28,7 +28,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
-	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/ipc"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
@@ -60,28 +59,14 @@ type App struct {
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
 
-	ipc       *ipc.Server // jembatan IPC ke FE baru (Qt6/QML); nil = belum aktif/Wails saja
-	headless  bool        // true = jalan tanpa Wails (binary whatslite-engine) → skip runtime.*
-	mediaBase string      // base URL media-server (mode headless) → FE muat /media via URL ini
+	headless bool // true = jalan tanpa Wails (UI Gio in-process) → skip runtime.*
 }
 
-// emit menyiarkan event UI ke DUA jalur: Wails (Svelte) DAN IPC (Qt baru, bila
-// aktif). Semua call-site lama dipindahkan ke sini → fan-out transparan, Svelte
-// tetap utuh, FE baru ikut dengar event yang sama. Rollback = nonaktifkan IPC.
+// emit menyiarkan event UI ke Wails (Svelte). Mode headless (Gio) tak pakai event
+// — UI Gio polling state langsung (GetChats/GetMessages/QRCode/ChatSubtitle).
 func (a *App) emit(event string, data ...any) {
 	if !a.headless { // mode Wails: kirim ke JS/Svelte
 		runtime.EventsEmit(a.ctx, event, data...)
-	}
-	if a.ipc != nil {
-		var payload any
-		switch len(data) {
-		case 0:
-		case 1:
-			payload = data[0]
-		default:
-			payload = data
-		}
-		a.ipc.Broadcast(event, payload)
 	}
 }
 
@@ -196,15 +181,6 @@ func (a *App) Startup(ctx context.Context) {
 	_ = os.MkdirAll(a.stickerDir, 0o755)
 	a.gifDir = filepath.Join(dataDir, "gifs")
 	_ = os.MkdirAll(a.gifDir, 0o755)
-
-	// Jembatan IPC ke FE baru (Qt6/QML): stream event via UDS. Berdampingan dgn
-	// Wails (dual-emit) → Svelte tetap jalan; FE baru connect ke socket ini.
-	// Gagal listen tak fatal → app jalan normal (Wails saja).
-	if srv, err := ipc.Listen(filepath.Join(dataDir, "bridge.sock")); err == nil {
-		a.attachIPC(srv) // pasang dispatcher request (FE→engine) + simpan utk emit
-	} else {
-		runtime.LogError(ctx, "ipc bridge: "+err.Error())
-	}
 
 	// Retensi pesan: default 90 hari. Prune + VACUUM sekali saat boot (off-loop)
 	// → app.db tetap ramping walau riwayat besar. Berbintang/disematkan aman.

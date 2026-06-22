@@ -7,8 +7,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-# matikan engine lain agar tak rebut bridge.sock / DB
-pkill -f '/whatslite-engine$' 2>/dev/null || true
+# matikan instance lain agar tak rebut DB (engine in-process, satu proses)
+pkill -f '/whatslite-gio$' 2>/dev/null || true
 
 echo "[gio] building…"
 go build -o whatslite-gio ./cmd/whatslite-gio

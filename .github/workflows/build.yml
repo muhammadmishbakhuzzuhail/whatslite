@@ -57,8 +57,8 @@ jobs:
           name: whatslite-linux
           path: build/bin/whatslite
 
-  # Primary frontend: headless Go engine + Qt6/QML UI (what the Flatpak ships).
-  qt:
+  # Primary frontend: pure-Go Gio UI with the engine IN-PROCESS (what ships).
+  gio:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,30 +69,25 @@ jobs:
           go-version: "1.23"
           cache: true
 
-      - name: Install Qt6 + QML modules
+      - name: Install Gio + media deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build \
-            qt6-base-dev qt6-declarative-dev qt6-svg-dev libqt6svg6 \
-            qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-            qml6-module-qtquick-dialogs qml6-module-qtquick-window \
-            qml6-module-qt5compat-graphicaleffects qml6-module-qtqml-workerscript
+          # Gio (X11/Wayland/GL) + voice (libopus) + video (libmpv) cgo deps.
+          sudo apt-get install -y \
+            libgl1-mesa-dev libegl1-mesa-dev libwayland-dev libxkbcommon-dev \
+            libx11-dev libxcursor-dev libxfixes-dev libvulkan-dev \
+            libopus-dev libmpv-dev pkg-config
 
-      - name: Build headless engine
-        run: go build -o whatslite-engine ./cmd/whatslite-engine
+      - name: Build Gio app
+        run: go build -o whatslite-gio ./cmd/whatslite-gio
 
-      - name: Build Qt UI
-        run: |
-          cmake -B qt-app/build -S qt-app -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build qt-app/build -j
+      - name: Build headless render tool
+        run: go build -o gio-shot ./cmd/gio-shot
 
-      - name: qmllint
-        run: qmllint -I /usr/lib/qt6/qml -I qt-app qt-app/main.qml
-
-      - name: Upload Qt artifacts
+      - name: Upload Gio artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: whatslite-qt-linux
+          name: whatslite-gio-linux
           path: |
-            qt-app/build/walite-qt
-            whatslite-engine
+            whatslite-gio
+            gio-shot

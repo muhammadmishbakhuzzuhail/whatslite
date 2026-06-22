@@ -117,6 +117,12 @@ type UI struct {
 	svBack      widget.Clickable
 	svPrevView  string // view sebelum pencarian (utk kembali)
 
+	// panel pesan berbintang (chat-overflow → "Pesan berbintang", view "starred").
+	starHits      []svHit
+	starHitClicks []widget.Clickable
+	starBack      widget.Clickable
+	starAt        time.Time // TTL cache GetStarred
+
 	// mode balas: pesan yg dikutip; "" = kirim biasa.
 	replyTo   string
 	replyName string
@@ -159,7 +165,7 @@ type UI struct {
 	// menu aksi baris chat (klik-kanan): SNAPSHOT chat saat menu dibuka (aksi pakai
 	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
 	chatCtxChat     app.ChatDTO
-	chatCtxItems    [5]widget.Clickable
+	chatCtxItems    [6]widget.Clickable
 	headMenuClick   widget.Clickable // ikon overflow header → menu chat terbuka
 	headSearchClick widget.Clickable // ikon cari header → pencarian pesan global
 
@@ -1390,6 +1396,7 @@ func chatCtxActions(c app.ChatDTO) []chatCtxAction {
 	return []chatCtxAction{
 		{"pin", pin, "pin", false},
 		{"mute", mute, "mute", false},
+		{"star", "Pesan berbintang", "starred", false},
 		{"archive", "Arsipkan", "archive", false},
 		{"message", "Tandai belum dibaca", "unread", false},
 		{"trash", "Hapus chat", "delete", true},
@@ -1398,6 +1405,11 @@ func chatCtxActions(c app.ChatDTO) []chatCtxAction {
 
 // doChatAction menjalankan aksi baris chat terhadap engine + refresh bila perlu.
 func (u *UI) doChatAction(action string, c app.ChatDTO) {
+	if action == "starred" { // buka panel berbintang (lintas chat) — bukan aksi engine
+		u.view = "starred"
+		u.starAt = time.Time{} // paksa muat ulang
+		return
+	}
 	if u.core == nil {
 		return
 	}
@@ -1575,6 +1587,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows())
 	case "search":
 		return SearchView(gtx, u.th, u.t, u.searchCtl(gtx))
+	case "starred":
+		return StarredPaneView(gtx, u.th, u.t, u.starredCtl(gtx))
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
@@ -2636,6 +2650,41 @@ func (u *UI) searchCtl(gtx layout.Context) *SvCtl {
 		}
 	}
 	return &SvCtl{Query: &u.svEd, Hits: u.svHits, HitClicks: u.svHitClicks, Back: &u.svBack}
+}
+
+// starredCtl membangun panel "Pesan berbintang" dari core.GetStarred (TTL 2s).
+// Klik baris → buka chat di pesan tsb. Tombol kembali → daftar chat.
+func (u *UI) starredCtl(gtx layout.Context) *StarredCtl {
+	for u.starBack.Clicked(gtx) {
+		u.view = "chats"
+	}
+	if u.core != nil && time.Since(u.starAt) > 2*time.Second {
+		raw := u.core.GetStarred()
+		u.starHits = u.starHits[:0]
+		for _, h := range raw {
+			u.starHits = append(u.starHits, svHit{name: h.ChatName, text: h.Text, time: h.Time, jid: h.ChatJID})
+		}
+		u.starAt = time.Now()
+	}
+	if len(u.starHitClicks) < len(u.starHits) {
+		u.starHitClicks = make([]widget.Clickable, len(u.starHits))
+	}
+	for i := range u.starHits {
+		if i >= len(u.starHitClicks) {
+			break
+		}
+		for u.starHitClicks[i].Clicked(gtx) { // buka chat berbintang
+			h := u.starHits[i]
+			u.selected, u.selName, u.selGroup = h.jid, h.name, isGroupJIDStr(h.jid)
+			u.view = "chats"
+			if u.core != nil {
+				u.core.OpenChat(h.jid)
+				u.messages = u.core.GetMessages(h.jid)
+			}
+			u.msgList.ScrollTo(len(u.messages))
+		}
+	}
+	return &StarredCtl{Hits: u.starHits, HitClicks: u.starHitClicks, Back: &u.starBack}
 }
 
 // isGroupJIDStr — true bila JID grup (@g.us).

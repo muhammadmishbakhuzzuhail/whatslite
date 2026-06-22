@@ -105,6 +105,8 @@ func main() {
 			gioui.MsgInfoView(gtx, th, t)
 		case "lightbox":
 			gioui.LightboxView(gtx, th, t, nil)
+		case "starred":
+			gioui.StarredPaneView(gtx, th, t, nil)
 		case "app-lightbox":
 			ui.SetLightbox("m13", "Sunset di pantai 🌅")
 			ui.Layout(gtx)

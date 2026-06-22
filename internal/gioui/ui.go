@@ -153,8 +153,16 @@ type UI struct {
 
 	// teruskan: id pesan sumber + klik per-chat tujuan + batal.
 	fwdMsgID  string
+	fwdMsgIDs []string // teruskan banyak (mode pilih); kosong = pakai fwdMsgID
 	fwdClicks []widget.Clickable
 	fwdCancel widget.Clickable
+
+	// mode pilih (multi-select) → aksi massal hapus/teruskan.
+	selMode   bool
+	selSet    map[string]bool // msgID terpilih
+	selCancel widget.Clickable
+	selDelete widget.Clickable
+	selFwd    widget.Clickable
 
 	// menu lampiran (tombol "+"): klik per-baris.
 	attachClicks []widget.Clickable
@@ -241,7 +249,7 @@ type UI struct {
 	ctxIdx      int            // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
-	ctxItems [8]widget.Clickable // item menu (react/reply/forward/star/info/delete + edit/unduh + pin)
+	ctxItems [9]widget.Clickable // item menu (react/reply/forward/star/info/delete + edit/unduh + pin + pilih)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
@@ -293,6 +301,14 @@ func (u *UI) SetComposeText(s string) { u.editor.SetText(s) }
 func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
+}
+
+// SetSelectDemo: utk render-tool menguji mode-pilih (toolbar + sorot) headless.
+func (u *UI) SetSelectDemo(ids ...string) {
+	u.selMode = true
+	for _, id := range ids {
+		u.selSet[id] = true
+	}
 }
 
 // SetInChatSearch: utk render-tool menguji bilah cari-dalam-chat headless.
@@ -369,6 +385,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
 	u.drafts = map[string]string{}
+	u.selSet = map[string]bool{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -850,6 +867,59 @@ func (u *UI) doCtxAction(label string) {
 			u.core.PinMessage(u.selected, m.ID, m.SenderID, fromMe, label == "Sematkan")
 			u.pinnedAt = time.Time{} // paksa muat ulang cache
 		}
+	case "Pilih":
+		u.selMode = true
+		u.selSet[m.ID] = true
+	}
+}
+
+// toggleSel — pilih/lepas pesan di mode-pilih; kosong → keluar mode.
+func (u *UI) toggleSel(id string) {
+	if u.selSet[id] {
+		delete(u.selSet, id)
+	} else {
+		u.selSet[id] = true
+	}
+	if len(u.selSet) == 0 {
+		u.selMode = false
+	}
+}
+
+// exitSel — keluar mode-pilih + bersihkan pilihan.
+func (u *UI) exitSel() {
+	u.selMode = false
+	for k := range u.selSet {
+		delete(u.selSet, k)
+	}
+}
+
+// deleteSelected — hapus semua pesan terpilih (everyone utk pesan sendiri, else
+// hanya-saya), refresh, lalu keluar mode-pilih.
+func (u *UI) deleteSelected() {
+	if u.core != nil {
+		for i := range u.messages {
+			m := u.messages[i]
+			if u.selSet[m.ID] {
+				own := m.Dir == "out"
+				u.core.DeleteMessage(u.selected, m.ID, m.SenderID, own, own)
+			}
+		}
+		u.messages = u.core.GetMessages(u.selected)
+	}
+	u.exitSel()
+}
+
+// forwardSelected — siapkan teruskan-banyak (urut pesan) lalu buka modal tujuan.
+func (u *UI) forwardSelected() {
+	u.fwdMsgIDs = u.fwdMsgIDs[:0]
+	for i := range u.messages {
+		if u.selSet[u.messages[i].ID] {
+			u.fwdMsgIDs = append(u.fwdMsgIDs, u.messages[i].ID)
+		}
+	}
+	u.exitSel()
+	if len(u.fwdMsgIDs) > 0 {
+		u.overlay = "forward"
 	}
 }
 
@@ -889,10 +959,17 @@ func (u *UI) handleForward(gtx layout.Context) {
 			break
 		}
 		for u.fwdClicks[i].Clicked(gtx) {
-			if u.core != nil && u.fwdMsgID != "" {
-				u.core.Forward(u.selected, u.fwdMsgID, u.chats[i].ID)
+			if u.core != nil {
+				switch {
+				case len(u.fwdMsgIDs) > 0: // teruskan-banyak (mode pilih)
+					for _, id := range u.fwdMsgIDs {
+						u.core.Forward(u.selected, id, u.chats[i].ID)
+					}
+				case u.fwdMsgID != "":
+					u.core.Forward(u.selected, u.fwdMsgID, u.chats[i].ID)
+				}
 			}
-			u.fwdMsgID = ""
+			u.fwdMsgID, u.fwdMsgIDs = "", nil
 			u.overlay = ""
 		}
 	}
@@ -1502,6 +1579,7 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		}
 		items = append(items, ctxItem{"pin", pinLabel, ""})
 	}
+	items = append(items, ctxItem{"message", "Pilih", ""}) // masuk mode pilih (multi)
 	children := make([]layout.FlexChild, 0, len(items))
 	for i := range items {
 		i := i
@@ -3620,7 +3698,43 @@ func (u *UI) inChatSearchHeader(gtx layout.Context) layout.Dimensions {
 	})
 }
 
+// selectionHeader — toolbar mode-pilih: ✕ batal + "N dipilih" + teruskan + hapus.
+func (u *UI) selectionHeader(gtx layout.Context) layout.Dimensions {
+	h := gtx.Dp(60)
+	sz := image.Pt(gtx.Constraints.Max.X, h)
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
+	for u.selCancel.Clicked(gtx) {
+		u.exitSel()
+	}
+	for u.selDelete.Clicked(gtx) {
+		u.deleteSelected()
+	}
+	for u.selFwd.Clicked(gtx) {
+		u.forwardSelected()
+	}
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	return layout.Inset{Left: unit.Dp(6), Right: unit.Dp(10), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.selCancel, "close") }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 17, itoa(len(u.selSet))+" dipilih")
+				lbl.Color = u.t.Text
+				lbl.Font.Weight = font.Medium
+				lbl.MaxLines = 1
+				return lbl.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.selFwd, "forward") }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.selDelete, "trash") }),
+		)
+	})
+}
+
 func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
+	if u.selMode {
+		return u.selectionHeader(gtx)
+	}
 	if u.inChatSearch {
 		return u.inChatSearchHeader(gtx)
 	}
@@ -3716,6 +3830,8 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if idx < len(u.msgClicks) {
 		for u.msgClicks[idx].Clicked(gtx) {
 			switch {
+			case u.selMode:
+				u.toggleSel(m.ID) // mode pilih → tap = pilih/lepas
 			case m.Type == "voice" && u.OnPlayVoice != nil:
 				u.OnPlayVoice(u.selected, m.ID) // tap voice → putar
 			case (m.Type == "video" || m.Type == "gif") && u.OnPlayVideo != nil:
@@ -3913,7 +4029,7 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	}
 	showUnread := u.unreadDivID != "" && m.ID == u.unreadDivID // divider "belum dibaca" di atas pesan ini
 	if !needSep && !showUnread {
-		return u.msgClicks[idx].Layout(gtx, wrap)
+		return u.msgRow(gtx, idx, wrap)
 	}
 	children := make([]layout.FlexChild, 0, 3)
 	if needSep {
@@ -3925,8 +4041,24 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			return u.unreadDivider(gtx, n)
 		}))
 	}
-	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.msgClicks[idx].Layout(gtx, wrap) }))
+	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.msgRow(gtx, idx, wrap) }))
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+}
+
+// msgRow — baris pesan; di mode-pilih & terpilih, beri pita accent tipis selebar
+// baris di belakangnya (penanda seleksi).
+func (u *UI) msgRow(gtx layout.Context, idx int, wrap layout.Widget) layout.Dimensions {
+	if !u.selMode || idx >= len(u.messages) || !u.selSet[u.messages[idx].ID] {
+		return u.msgClicks[idx].Layout(gtx, wrap)
+	}
+	macro := op.Record(gtx.Ops)
+	dims := u.msgClicks[idx].Layout(gtx, wrap)
+	call := macro.Stop()
+	tint := u.t.Accent
+	tint.A = 32
+	paint.FillShape(gtx.Ops, tint, clip.Rect{Max: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}.Op())
+	call.Add(gtx.Ops)
+	return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, dims.Size.Y)}
 }
 
 // unreadDivider — pemisah "N PESAN BELUM DIBACA" (pil accent lembut, lebar penuh).

@@ -177,6 +177,9 @@ type UI struct {
 	profAboutEd     widget.Editor // edit tentang
 	profSave        widget.Clickable
 	profLoaded      bool                // editor sudah diisi nilai saat ini?
+	profName        string              // nama profil sendiri (avatar rail)
+	selfJID         string              // JID sendiri (foto profil avatar rail)
+	profFetched     bool                // profil sudah diambil sekali
 	privacyClicks   [8]widget.Clickable // baris privasi (siklus nilai → SetPrivacy)
 
 	chats     []app.ChatDTO
@@ -189,7 +192,8 @@ type UI struct {
 	chatList   widget.List
 	msgList    widget.List
 	clicks     []widget.Clickable
-	railClicks []widget.Clickable
+	railClicks       []widget.Clickable
+	railProfileClick widget.Clickable // avatar profil di dasar rail → setelan profil
 	editor     widget.Editor
 	photos     map[string]paint.ImageOp // foto avatar in-memory (nama → op)
 	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
@@ -337,8 +341,13 @@ func (u *UI) refresh() {
 		}
 		u.messages = demoMessages()
 		u.subtitle = "online"
+		u.profName = "Saya"
 	} else {
 		u.state = u.core.GetState()
+		if !u.profFetched { // profil sendiri (avatar rail) — ambil sekali
+			p := u.core.GetProfile()
+			u.profName, u.selfJID, u.profFetched = p.Name, p.Jid, true
+		}
 		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
@@ -1543,17 +1552,49 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	w := gtx.Dp(56)
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, u.t.RailBg, clip.Rect{Max: sz}.Op())
+	// garis pemisah tipis kanan (rail | sidebar).
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(w-1, 0), Max: sz}.Op())
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
-	children := []layout.FlexChild{layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout)}
-	for i := range railNav {
+
+	// kelompok atas: nav (chats..contacts); settings (gerigi) + avatar profil
+	// dipisah ke DASAR rail (ala WhatsApp Web). railNav terakhir = "settings".
+	last := len(railNav) - 1
+	top := []layout.FlexChild{layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout)}
+	for i := 0; i < last; i++ {
 		i := i
-		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return u.railBtn(gtx, i)
-		}))
-		children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout))
+		top = append(top, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railBtn(gtx, i) }))
+		top = append(top, layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout))
 	}
-	layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
+
+	for u.railProfileClick.Clicked(gtx) { // avatar profil → setelan profil
+		u.view, u.setSub = "settings", "profile"
+		u.profLoaded = false
+	}
+
+	layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, top...)
+		}),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+		// dasar: garis pemisah halus, gerigi setelan, avatar profil.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railBtn(gtx, last) }),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railProfile(gtx) }),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+	)
 	return layout.Dimensions{Size: sz}
+}
+
+// railProfile — avatar bulat 34 di dasar rail (foto profil sendiri bila ada, else
+// inisial). Klik → setelan profil.
+func (u *UI) railProfile(gtx layout.Context) layout.Dimensions {
+	name := "Saya"
+	if u.profName != "" {
+		name = u.profName
+	}
+	return u.railProfileClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return u.avatar(gtx, name, u.selfJID, 34)
+	})
 }
 
 func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {

@@ -1620,9 +1620,16 @@ func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
 	system.ActionInputOp(system.ActionMove).Add(gtx.Ops)
 	area.Pop()
 
-	// kiri: ikon + judul (Flex dalam wilayah [0, btnsX], terpusat vertikal).
+	// kiri: ikon + judul. Min.Y=0 → anak setinggi natural (logo & label sejajar
+	// satu sama lain). Grup lalu digeser ke tengah vertikal bar (offset (h-20)/2).
+	logoD := gtx.Dp(20)
+	yoff := (h - logoD) / 2
+	if yoff < 0 {
+		yoff = 0
+	}
 	lgtx := gtx
-	lgtx.Constraints.Min, lgtx.Constraints.Max = image.Pt(0, h), image.Pt(btnsX, h)
+	lgtx.Constraints.Min, lgtx.Constraints.Max = image.Pt(0, 0), image.Pt(btnsX, h)
+	lo := op.Offset(image.Pt(0, yoff)).Push(gtx.Ops)
 	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(lgtx,
 		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.waLogo(gtx, 20) }),
@@ -1635,6 +1642,7 @@ func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
 			return lbl.Layout(gtx)
 		}),
 	)
+	lo.Pop()
 
 	// kanan: tiga tombol dipatok mutlak (Flexed tak melebar andal di Rigid vertikal).
 	bgtx := gtx

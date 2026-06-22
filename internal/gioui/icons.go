@@ -32,7 +32,7 @@ var iconPaths = map[string]string{
 	"settings":  `<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.5 7.5 0 0 0 0-3l1.9-1.5-1.9-3.3-2.3 1a7.5 7.5 0 0 0-2.6-1.5L14.1 2H9.9l-.4 2.7a7.5 7.5 0 0 0-2.6 1.5l-2.3-1L2.7 8.5l1.9 1.5a7.5 7.5 0 0 0 0 3l-1.9 1.5 1.9 3.3 2.3-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.7h4.2l.4-2.7a7.5 7.5 0 0 0 2.6-1.5l2.3 1 1.9-3.3-1.9-1.5z"/>`,
 	"emoji":     `<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>`,
 	"plus":      `<path d="M12 5v14M5 12h14"/>`,
-	"mic":       `<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>`,
+	"mic":       `<rect x="9" y="2.5" width="6" height="10.5" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/>`,
 	"send":      `<path d="M3 11l18-8-8 18-2-7-8-3z"/>`,
 	"pin":       `<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>`,
 	"mute":      `<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>`,

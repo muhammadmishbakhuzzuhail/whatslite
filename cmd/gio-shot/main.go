@@ -128,6 +128,9 @@ func main() {
 		case "app-inchatsearch":
 			ui.SetInChatSearch("kemarin") // bilah cari-dalam-chat
 			ui.Layout(gtx)
+		case "app-select":
+			ui.SetSelectDemo("m2", "m4") // mode-pilih: toolbar + sorot baris
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

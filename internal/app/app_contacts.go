@@ -149,6 +149,15 @@ type ContactRowDTO struct {
 	Saved bool   `json:"saved"`
 }
 
+// isPersonJID — true hanya utk JID orang (nomor @s.whatsapp.net / @lid). Menolak
+// grup, newsletter, broadcast, status — agar tak tercampur ke daftar Kontak.
+func isPersonJID(jid string) bool {
+	if jid == "" || jid == "status@broadcast" {
+		return false
+	}
+	return strings.HasSuffix(jid, "@s.whatsapp.net") || strings.HasSuffix(jid, "@lid")
+}
+
 // GetContacts mengembalikan daftar kontak (buku-alamat WA + label lokal) urut
 // abjad — utk panel "Kontak" di sidebar. Lewati diri sendiri.
 func (a *App) GetContacts() []ContactRowDTO {
@@ -157,12 +166,24 @@ func (a *App) GetContacts() []ContactRowDTO {
 		return out
 	}
 	self := userPart(a.eng.SelfJID())
+	blocked := map[string]bool{} // jangan tampilkan kontak terblokir
+	if bl, err := a.eng.Blocklist(a.ctx); err == nil {
+		for _, b := range bl {
+			blocked[userPart(a.canon(b))] = true
+		}
+	}
 	seen := map[string]bool{}
 	add := func(jid string) {
-		if jid == "" || seen[jid] || userPart(jid) == self {
+		// HANYA kontak orang (nomor / @lid) — bukan grup/broadcast/newsletter/status.
+		if !isPersonJID(jid) {
 			return
 		}
-		seen[jid] = true
+		jid = a.canon(jid) // satukan @lid ↔ nomor agar tak dobel
+		key := userPart(jid)
+		if key == "" || key == self || seen[key] || blocked[key] {
+			return
+		}
+		seen[key] = true
 		name, saved := a.nameOf(jid)
 		phone := a.phoneOf(jid)
 		if name == "" {

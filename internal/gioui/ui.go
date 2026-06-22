@@ -134,6 +134,11 @@ type UI struct {
 	editText   string           // teks asli (banner edit)
 	editCancel widget.Clickable // tombol batal edit
 
+	pinnedCache []app.MessageDTO // pesan tersemat chat aktif (GetPinned, TTL 2s)
+	pinnedAt    time.Time
+	pinnedChat  string           // chat yg pinnedCache-nya valid
+	pinnedBar   widget.Clickable // bar pesan-tersemat → lompat ke pesan
+
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
 	reactMsgID  string
@@ -222,7 +227,7 @@ type UI struct {
 	ctxIdx      int            // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
-	ctxItems [7]widget.Clickable // item menu (react/reply/forward/star/info/delete/+unduh)
+	ctxItems [8]widget.Clickable // item menu (react/reply/forward/star/info/delete + edit/unduh + pin)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
@@ -274,6 +279,15 @@ func (u *UI) SetComposeText(s string) { u.editor.SetText(s) }
 func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
+}
+
+// SetPinnedDemo: utk render-tool menguji bar pesan-tersemat headless.
+func (u *UI) SetPinnedDemo(text string, n int) {
+	u.pinnedCache = make([]app.MessageDTO, n)
+	for i := range u.pinnedCache {
+		u.pinnedCache[i] = app.MessageDTO{ID: "m3", Type: "text", Text: text}
+	}
+	u.pinnedChat, u.pinnedAt = u.selected, time.Now().Add(time.Hour) // jaga cache valid
 }
 
 // SetReply: utk render-tool menguji banner balas headless.
@@ -805,6 +819,11 @@ func (u *UI) doCtxAction(label string) {
 		u.clearReply() // tak bisa edit + balas sekaligus
 		u.editTarget, u.editText = m.ID, m.Text
 		u.editor.SetText(m.Text)
+	case "Sematkan", "Lepas sematan":
+		if u.core != nil {
+			u.core.PinMessage(u.selected, m.ID, m.SenderID, fromMe, label == "Sematkan")
+			u.pinnedAt = time.Time{} // paksa muat ulang cache
+		}
 	}
 }
 
@@ -1440,16 +1459,22 @@ func isMediaType(t string) bool {
 // ctxMenuView — menu aksi pesan (.menu): kartu bg + baris glyph+label klik. Untuk
 // pesan media, tambahkan baris "Unduh" (simpan byte ke disk via OnSaveMedia).
 func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
-	items := ctxMenu
+	type ctxItem = struct{ icon, label, to string }
+	items := append([]ctxItem{}, ctxMenu...)
 	m := u.ctxMsg
 	switch {
 	case m.Dir == "out" && !m.Revoked && (m.Type == "" || m.Type == "text"):
 		// pesan teks sendiri → bisa di-Edit (SendEdit; jendela ~15mnt di engine).
-		items = append(append([]struct{ icon, label, to string }{}, ctxMenu...),
-			struct{ icon, label, to string }{"editpen", "Edit", ""})
+		items = append(items, ctxItem{"editpen", "Edit", ""})
 	case isMediaType(m.Type) && u.OnSaveMedia != nil:
-		items = append(append([]struct{ icon, label, to string }{}, ctxMenu...),
-			struct{ icon, label, to string }{"download", "Unduh", ""})
+		items = append(items, ctxItem{"download", "Unduh", ""})
+	}
+	if !m.Revoked { // sematkan / lepas sematan (PinMessage)
+		pinLabel := "Sematkan"
+		if u.isPinned(m.ID) {
+			pinLabel = "Lepas sematan"
+		}
+		items = append(items, ctxItem{"pin", pinLabel, ""})
 	}
 	children := make([]layout.FlexChild, 0, len(items))
 	for i := range items {
@@ -3021,6 +3046,31 @@ func emojiOnlyCount(s string) int {
 	return 0
 }
 
+// pinnedMsgs — pesan tersemat chat aktif (GetPinned, TTL 2s + invalidate saat ganti chat).
+func (u *UI) pinnedMsgs() []app.MessageDTO {
+	if u.core == nil {
+		return u.pinnedCache // demo: di-inject via SetPinnedDemo
+	}
+	if u.selected == "" {
+		return nil
+	}
+	if u.pinnedChat != u.selected || time.Since(u.pinnedAt) > 2*time.Second {
+		u.pinnedCache = u.core.GetPinned(u.selected)
+		u.pinnedChat, u.pinnedAt = u.selected, time.Now()
+	}
+	return u.pinnedCache
+}
+
+// isPinned — true bila msgID tersemat di chat aktif.
+func (u *UI) isPinned(id string) bool {
+	for _, p := range u.pinnedMsgs() {
+		if p.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // isGroupJIDStr — true bila JID grup (@g.us).
 func isGroupJIDStr(jid string) bool { return strings.HasSuffix(jid, "@g.us") }
 
@@ -3316,15 +3366,77 @@ func (u *UI) scrollFab(gtx layout.Context) layout.Dimensions {
 }
 
 // ---- percakapan (header + bubble + composer) ----
+// pinnedBarView — bilah pesan-tersemat di bawah header (ikon pin accent + teks
+// pesan + jumlah bila >1). Ketuk → lompat ke pesan tersemat terbaru.
+func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.Dimensions {
+	h := gtx.Dp(40)
+	w := gtx.Constraints.Max.X
+	sz := image.Pt(w, h)
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), h)}.Op()) // garis accent kiri
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
+
+	top := pinned[0]
+	preview := top.Text
+	if preview == "" && top.Type != "" {
+		preview = "[" + top.Type + "]"
+	}
+	label := "Pesan tersemat"
+	if len(pinned) > 1 {
+		label = itoa(len(pinned)) + " pesan tersemat"
+	}
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	return u.pinnedBar.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(12), Top: unit.Dp(5), Bottom: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "pin", 16, u.t.Accent)
+					})
+				}),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 11.5, label)
+							l.Color = u.t.Accent
+							l.MaxLines = 1
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 13, preview)
+							l.Color = u.t.Text2
+							l.MaxLines = 1
+							return l.Layout(gtx)
+						}),
+					)
+				}),
+			)
+		})
+	})
+}
+
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
 	if u.selected == "" {
 		return StatesView(gtx, u.th, u.t) // splash + divider demo
 	}
 	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)
+	pinned := u.pinnedMsgs()
+	for u.pinnedBar.Clicked(gtx) { // ketuk bar tersemat → lompat ke pesan
+		if len(pinned) > 0 {
+			u.jumpToMessage(pinned[0].ID)
+		}
+	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.convHeader(gtx)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if len(pinned) == 0 {
+				return layout.Dimensions{}
+			}
+			return u.pinnedBarView(gtx, pinned)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			if len(u.msgClicks) < len(u.messages) { // jamin sebelum index (mid-frame GetMessages)

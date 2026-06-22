@@ -1567,9 +1567,26 @@ func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
 	return dims
 }
 
+// waLogo — logo mark ala WhatsApp: lingkaran accent terisi + handset telepon putih
+// di tengah (bukan bubble outline yg terlihat aneh). Ukuran dp.
+func (u *UI) waLogo(gtx layout.Context, dp int) layout.Dimensions {
+	d := gtx.Dp(unit.Dp(dp))
+	sz := image.Pt(d, d)
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	inner := d * 58 / 100
+	if iop, ok := iconOp("calls", inner, white); ok {
+		o := op.Offset(image.Pt((d-inner)/2, (d-inner)/2)).Push(gtx.Ops)
+		iop.Add(gtx.Ops)
+		paint.PaintOp{}.Add(gtx.Ops)
+		o.Pop()
+	}
+	return layout.Dimensions{Size: sz}
+}
+
 // ---- rail (nav kiri, tombol klik → ganti view) ----
 // titleBar — bilah judul custom (CSD Wayland), tinggi 34: area drag (ActionMove,
-// ditangani compositor) + ikon/judul kiri + tombol minimize/maximize/close kanan.
+// ditangani compositor) + logo/judul kiri + tombol minimize/maximize/close kanan.
 // Aksi window jalan hanya bila OnWinAction di-set (cmd/whatslite-gio); pada
 // gio-shot/X11 titlebar tetap digambar tanpa efek.
 func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
@@ -1615,7 +1632,7 @@ func (u *UI) titleBar(gtx layout.Context) layout.Dimensions {
 	lgtx.Constraints.Min, lgtx.Constraints.Max = image.Pt(0, h), image.Pt(btnsX, h)
 	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(lgtx,
 		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "chats", 16, u.t.Accent) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.waLogo(gtx, 20) }),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(u.th, 13, "WhatsLite")

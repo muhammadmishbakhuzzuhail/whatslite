@@ -92,6 +92,16 @@ type ChatDTO struct {
 	Muted   bool   `json:"muted"`
 }
 
+// UnreadTotal: jumlah chat belum-dibaca (badge judul window). Thread-safe (query
+// store) → boleh dipanggil dari goroutine lain (mis. loop judul di cmd Gio).
+func (a *App) UnreadTotal() int {
+	if a.store == nil {
+		return 0
+	}
+	n, _ := a.store.UnreadChats(a.ctx)
+	return n
+}
+
 func (a *App) GetChats() (out []ChatDTO) {
 	out = []ChatDTO{}
 	defer func() {

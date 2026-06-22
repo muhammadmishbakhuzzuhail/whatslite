@@ -76,7 +76,7 @@ func (e *Engine) OnMessage(fn func(IncomingMessage)) {
 		fn(IncomingMessage{
 			ID:           m.Info.ID,
 			Chat:         m.Info.Chat.String(),
-			Sender:       m.Info.Sender.String(),
+			Sender:       e.canonSender(m.Info.MessageSource),
 			PushName:     m.Info.PushName,
 			Text:         txt,
 			Kind:         kind,
@@ -102,7 +102,7 @@ func (e *Engine) OnRevoke(fn func(chat, msgID, sender string)) {
 		}
 		pm := m.Message.GetProtocolMessage()
 		if pm.GetType() == waE2E.ProtocolMessage_REVOKE {
-			fn(m.Info.Chat.String(), pm.GetKey().GetID(), m.Info.Sender.String())
+			fn(m.Info.Chat.String(), pm.GetKey().GetID(), e.canonSender(m.Info.MessageSource))
 		}
 	})
 }
@@ -135,7 +135,7 @@ func (e *Engine) OnReaction(fn func(chat, targetID, sender, emoji string, fromMe
 		if r == nil || r.GetKey() == nil {
 			return
 		}
-		sender := m.Info.Sender.String()
+		sender := e.canonSender(m.Info.MessageSource)
 		if m.Info.IsFromMe {
 			sender = e.SelfJID()
 		}
@@ -160,7 +160,7 @@ func (e *Engine) OnPollVote(fn func(chat, pollID, voter string, selected [][]byt
 		if chat == "" {
 			chat = m.Info.Chat.String()
 		}
-		fn(chat, key.GetID(), m.Info.Sender.String(), pv.GetSelectedOptions())
+		fn(chat, key.GetID(), e.canonSender(m.Info.MessageSource), pv.GetSelectedOptions())
 	})
 }
 
@@ -254,6 +254,7 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string,
 				if sender == "" {
 					sender = chat
 				}
+				sender = e.CanonicalJID(sender) // @lid → nomor (history tak punya SenderAlt)
 				qid, qsender, qtext := extractQuote(wmi.GetMessage())
 				hc.Messages = append(hc.Messages, IncomingMessage{
 					ID:           key.GetID(),
@@ -292,6 +293,7 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string,
 				if sender == "" {
 					sender = key.GetParticipant()
 				}
+				sender = e.CanonicalJID(sender) // @lid → nomor (status grouping konsisten)
 				sc.Messages = append(sc.Messages, IncomingMessage{
 					ID:        key.GetID(),
 					Chat:      "status@broadcast",

@@ -87,7 +87,14 @@ func run(w *gioapp.Window, core *app.App) error {
 	}
 
 	go func() {
+		last := -1
 		for range time.NewTicker(700 * time.Millisecond).C {
+			if core != nil { // judul window dgn badge belum-dibaca ("(3) WhatsLite")
+				if n := core.UnreadTotal(); n != last {
+					last = n
+					w.Option(gioapp.Title(titleFor(n)))
+				}
+			}
 			w.Invalidate()
 		}
 	}()
@@ -111,6 +118,18 @@ func run(w *gioapp.Window, core *app.App) error {
 			shot.maybeCaptureScreens(ui, e)    // atau foto tiap layar bernama
 			e.Frame(gtx.Ops)
 		}
+	}
+}
+
+// titleFor — judul window dgn badge belum-dibaca (ala WhatsApp Web).
+func titleFor(unread int) string {
+	switch {
+	case unread <= 0:
+		return "WhatsLite"
+	case unread > 99:
+		return "(99+) WhatsLite"
+	default:
+		return "(" + strconv.Itoa(unread) + ") WhatsLite"
 	}
 }
 

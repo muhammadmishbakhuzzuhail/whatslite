@@ -226,6 +226,15 @@ func (s *Store) SetUnread(ctx context.Context, jid string, n int) error {
 	return err
 }
 
+// UnreadChats menghitung jumlah chat yg punya pesan belum dibaca (unread>0),
+// kecuali yg diarsipkan — utk badge judul window. Satu query ringan.
+func (s *Store) UnreadChats(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM chats WHERE unread > 0 AND archived = 0 AND jid != 'status@broadcast'`).Scan(&n)
+	return n, err
+}
+
 // MergeChat memindahkan seluruh pesan + metadata dari fromJID ke toJID lalu
 // menghapus baris fromJID. Dipakai utk menyatukan chat ganda @lid↔nomor (lihat
 // engine.CanonicalJID). last_ts/unread mengambil nilai tertinggi; nama non-kosong

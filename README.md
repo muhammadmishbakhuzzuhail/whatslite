@@ -1,13 +1,21 @@
 # WhatsLite
 
-A **lightweight, efficient** desktop WhatsApp client for Linux — **without bundling Chromium**. The UI
-runs in the **system WebView (WebKitGTK)**, not a browser shipped alongside the app like
-Electron/WhatsApp Web. Built on [whatsmeow](https://github.com/tulir/whatsmeow) (the multi-device
-WhatsApp Web protocol, straight over WebSocket). Targets a RAM footprint **on par with a native macOS
-app** and **3–6× lighter than WhatsApp Web**.
+A **lightweight, efficient** desktop WhatsApp client for Linux — **no Chromium, no WebView**. The UI is a
+**native pure-Go [Gio](https://gioui.org) application** running the
+[whatsmeow](https://github.com/tulir/whatsmeow) engine (multi-device WhatsApp Web protocol over WebSocket)
+**in the same process** — one binary, no IPC bridge, no embedded browser. Targets a RAM footprint **on par
+with a native macOS app** and **3–6× lighter than WhatsApp Web**.
 
-> Stack: **web (HTML/CSS/JS + Svelte) + Wails (Go shell) + WebKitGTK**. whatsmeow engine + SQLite storage
-> (pure-Go, FTS5). Media is stored as files (not base64 in the DB), the cache is evicted, avatars load lazily.
+> Stack: **Gio (pure-Go GPU UI) + whatsmeow engine + SQLite (pure-Go, FTS5), all in-process.** Media flows
+> in-memory (bytes → image, no media-server); voice = libopus (cgo), video = libmpv (cgo); WhatsApp SVG
+> icons via oksvg; colors match WhatsApp Web exactly.
+>
+> The frontend was rewritten three times — Svelte/Wails (WebKitGTK), then Qt6/QML, now **Gio**. The
+> **Svelte/Wails** app stays in the repo (`main.go`, `frontend/`) as the design reference + AUR target; the
+> **Qt6/QML** frontend has been removed. The primary/packaged app is **Gio** (`cmd/whatslite-gio`).
+
+Run: `./cmd/whatslite-gio/run.sh` (real session) or `run.sh demo` (static UI). Headless UI render for
+audits: `cmd/gio-shot` / `tools/snap-gio.sh`. Capture the live app: see [`docs/ui-capture.md`](./docs/ui-capture.md).
 
 See [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) for product direction and
 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for architecture.
@@ -55,11 +63,12 @@ machine-translated)**.
 
 | Layer | Choice |
 |---|---|
-| **Engine (BE)** | Go + whatsmeow + SQLite (`modernc.org/sqlite`, pure-Go) |
-| **Shell** | Wails (Go ↔ system WebView) |
-| **Frontend (FE)** | HTML / CSS / JS + Svelte (embedded in the binary) |
-| **Render** | WebKitGTK (system WebView, **not** a bundled Chromium) |
+| **Engine (BE)** | Go + whatsmeow + SQLite (`modernc.org/sqlite`, pure-Go) — **in-process** |
+| **Frontend (FE)** | [Gio](https://gioui.org) — native pure-Go immediate-mode GPU UI (`cmd/whatslite-gio`) |
+| **Render** | Gio GPU backend (OpenGL/Vulkan) — **no WebView, no bundled Chromium** |
+| **Media** | in-memory (bytes→image, no media-server); voice libopus, video libmpv (cgo); SVG icons via oksvg |
 | **Storage** | SQLite for session/keys/messages; media as files (not in the DB) |
+| **Reference FE** | Svelte/Wails (WebKitGTK) kept in `main.go` + `frontend/` (design source; AUR target) |
 
 - Local data: `~/.local/share/whatslite/` · media cache: `~/.cache/whatslite/` (XDG).
 - The key differentiator is the **lean architecture** (local-first, media-as-file instead of base64 in the
@@ -106,41 +115,40 @@ Build from source (below), or use the prebuilt binary from
 
 ## Build prerequisites (Linux)
 
-Requires **Go**, **WebKitGTK + GTK3**, and the **Wails CLI**. On Arch/CachyOS:
+The primary app is **Gio** (`cmd/whatslite-gio`). Requires **Go** + Gio's GPU/windowing libs +
+**libopus** (voice) + **libmpv** (video). On Arch/CachyOS:
 
 ```sh
-sudo pacman -S --needed go webkit2gtk-4.1 gtk3 pkgconf
-go install github.com/wailsapp/wails/v2/cmd/wails@latest   # ensure $(go env GOPATH)/bin is on PATH
+sudo pacman -S --needed go pkgconf opus mpv \
+  libglvnd libxkbcommon wayland libx11 libxcursor vulkan-icd-loader
 ```
 
-(Debian/Ubuntu equivalent: `golang-go libwebkit2gtk-4.1-dev libgtk-3-dev pkg-config build-essential`.)
-WebKitGTK **4.1** is required (the build uses `-tags webkit2_41`). See [Compatibility](#compatibility).
+(Debian/Ubuntu: `golang-go pkg-config build-essential libopus-dev libmpv-dev libgl1-mesa-dev \
+libegl1-mesa-dev libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libvulkan-dev`.)
 
-Check the toolchain:
-
-```sh
-wails doctor
-```
+The legacy **Svelte/Wails** reference frontend additionally needs **WebKitGTK 4.1 + GTK3** and the
+**Wails CLI** (`webkit2gtk-4.1 gtk3`; `go install …/wails/v2/cmd/wails@latest`).
 
 ## Build & run
 
-Build tags are **required** on Arch/CachyOS:
-- `webkit2_41` → use WebKitGTK 4.1 (not 4.0).
-- `netgo` → pure-Go DNS resolver (avoids the `free(): corrupted unsorted chunks` crash from the CGo
-  getaddrinfo resolver clashing with WebKitGTK's C runtime).
-
 ```sh
-# dev mode (UI hot-reload in the WebView):
-wails dev -tags "webkit2_41 netgo"
+# Primary: Gio app (engine in-process). Real WhatsApp session:
+./cmd/whatslite-gio/run.sh
+# …or static demo data (UI without network):
+./cmd/whatslite-gio/run.sh demo
+# manual: go build -o whatslite-gio ./cmd/whatslite-gio && ./whatslite-gio
 
-# release build (single binary):
-wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatslite
-./build/bin/whatslite
+# Headless UI render (audit/screenshots, no GPU window needed):
+go build -o gio-shot ./cmd/gio-shot && ./gio-shot out.png app-chat
 
 # debug CLI (engine only, no UI; static binary):
-CGO_ENABLED=0 go build -o walite-cli ./cmd/walite-cli
-./walite-cli
+CGO_ENABLED=0 go build -o walite-cli ./cmd/walite-cli && ./walite-cli
+
+# legacy reference frontend (Svelte/Wails, needs WebKitGTK 4.1):
+wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatslite
 ```
+
+> `netgo` (pure-Go DNS) is recommended to avoid the CGo getaddrinfo resolver clashing with C runtimes.
 
 On first launch a **QR screen** appears in the window. Scan it via:
 **WhatsApp on your phone → Linked Devices → Link a device.**

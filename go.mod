@@ -12,6 +12,7 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/wailsapp/wails/v2 v2.12.0
 	go.mau.fi/whatsmeow v0.0.0-20260531220358-9ff5508a26c2
+	golang.org/x/image v0.26.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.51.0
 )
@@ -60,7 +61,6 @@ require (
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
-	golang.org/x/image v0.26.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect

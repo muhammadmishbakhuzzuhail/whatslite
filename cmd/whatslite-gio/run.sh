@@ -7,8 +7,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-# matikan instance lain agar tak rebut DB (engine in-process, satu proses)
-pkill -f '/whatslite-gio$' 2>/dev/null || true
+# matikan instance lain agar tak rebut DB (engine in-process, satu proses).
+# SIGTERM → app shutdown bersih (Disconnect whatsmeow + tutup DB); TUNGGU benar2
+# keluar agar tak ada DUA klien tersambung berbarengan (itu merusak sesi Signal →
+# "failed to decrypt"). Eskalasi ke -KILL hanya bila ngeyel >5s.
+pkill -TERM -f '/whatslite-gio$' 2>/dev/null || true
+for _ in $(seq 1 25); do
+    pgrep -f '/whatslite-gio$' >/dev/null 2>&1 || break
+    sleep 0.2
+done
+pkill -KILL -f '/whatslite-gio$' 2>/dev/null || true
 
 echo "[gio] building…"
 go build -o whatslite-gio ./cmd/whatslite-gio

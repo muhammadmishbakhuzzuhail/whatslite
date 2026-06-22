@@ -15,9 +15,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	gioapp "gioui.org/app"
@@ -44,13 +46,34 @@ func main() {
 		core.Connect()
 	}
 
+	// Shutdown bersih saat sinyal (run.sh pakai pkill = SIGTERM). Tanpa ini, app
+	// mati abrupt → whatsmeow tak Disconnect: bila terbunuh di antara ratchet-maju
+	// dan ack ke server, pesan yg di-resend GAGAL DIDEKRIPSI. Disconnect rapi
+	// mencegah desync sesi Signal tsb.
+	shutdown := func() {
+		if core != nil {
+			core.Shutdown(context.Background())
+		}
+	}
+	if core != nil {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-sigCh
+			shutdown()
+			os.Exit(0)
+		}()
+	}
+
 	go func() {
 		w := new(gioapp.Window)
 		// Decorated(false): gambar titlebar sendiri (CSD) → tampilan gelap konsisten
 		// (Wayland: ganti libdecor/GTK bar). Pada X11 Gio mengabaikan ini (WM tetap).
 		w.Option(gioapp.Title("WhatsLite"), gioapp.Size(unit.Dp(1000), unit.Dp(680)),
 			gioapp.MinSize(unit.Dp(720), unit.Dp(480)), gioapp.Decorated(false))
-		if err := run(w, core); err != nil {
+		err := run(w, core)
+		shutdown() // tutup window → Disconnect + tutup DB sebelum keluar
+		if err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)

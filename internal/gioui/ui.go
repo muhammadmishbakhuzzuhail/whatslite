@@ -12,6 +12,7 @@ import (
 	"image"
 	"image/color"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -101,6 +102,13 @@ type UI struct {
 	contactSendClicks []widget.Clickable
 	contactSendCancel widget.Clickable
 	contactSendList   widget.List
+
+	// kirim lokasi (lampiran → Lokasi): nama tempat + lat/lng.
+	locNameEd widget.Editor
+	locLatEd  widget.Editor
+	locLngEd  widget.Editor
+	locSend   widget.Clickable
+	locCancel widget.Clickable
 
 	// menu aksi baris chat (klik-kanan): target + item.
 	chatCtxIdx    int
@@ -197,6 +205,9 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	for i := range u.pollOptEds {
 		u.pollOptEds[i].SingleLine = true
 	}
+	u.locNameEd.SingleLine = true
+	u.locLatEd.SingleLine = true
+	u.locLngEd.SingleLine = true
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
@@ -442,6 +453,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.pollComposeLayer(gtx)
 	case "contactsend":
 		u.contactSendLayer(gtx)
+	case "loccompose":
+		u.locComposeLayer(gtx)
 	}
 }
 
@@ -508,6 +521,10 @@ func (u *UI) handleAttach(gtx layout.Context) {
 			}
 			if cat == "contact" { // pilih kontak → SendContact
 				u.overlay = "contactsend"
+				continue
+			}
+			if cat == "location" { // input tempat+koordinat → SendLocation
+				u.overlay = "loccompose"
 				continue
 			}
 			if u.OnAttach != nil && u.selected != "" {
@@ -613,6 +630,100 @@ func (u *UI) contactSendLayer(gtx layout.Context) {
 		call.Add(gtx.Ops)
 		return dims
 	})
+}
+
+// locComposeLayer — modal susun lokasi: nama tempat + lat + lng → SendLocation.
+func (u *UI) locComposeLayer(gtx layout.Context) {
+	for u.locCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.locSend.Clicked(gtx) {
+		name := strings.TrimSpace(u.locNameEd.Text())
+		lat, _ := strconv.ParseFloat(strings.TrimSpace(u.locLatEd.Text()), 64)
+		lng, _ := strconv.ParseFloat(strings.TrimSpace(u.locLngEd.Text()), 64)
+		if u.core != nil && u.selected != "" && (name != "" || lat != 0 || lng != 0) {
+			u.core.SendLocation(u.selected, lat, lng, name)
+			u.locNameEd.SetText("")
+			u.locLatEd.SetText("")
+			u.locLngEd.SetText("")
+			u.messages = u.core.GetMessages(u.selected)
+		}
+		u.overlay = ""
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(360), gtx.Dp(360)
+		return composeCard(gtx, u.th, u.t, "Bagikan lokasi", []composeField{
+			{&u.locNameEd, "Nama tempat (mis. Kantor)"},
+			{&u.locLatEd, "Lintang (lat, mis. -6.2088)"},
+			{&u.locLngEd, "Bujur (lng, mis. 106.8456)"},
+		}, &u.locCancel, &u.locSend, "Kirim")
+	})
+}
+
+// composeField + composeCard — kartu modal generik (judul + input + Batal/aksi).
+type composeField struct {
+	ed   *widget.Editor
+	hint string
+}
+
+func composeCard(gtx layout.Context, th *material.Theme, t Theme, title string, fields []composeField, cancel, action *widget.Clickable, actionLabel string) layout.Dimensions {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	field := func(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			e := material.Editor(th, ed, hint)
+			e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(14.5)
+			return e.Layout(gtx)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(8)
+		paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	}
+	macro := op.Record(gtx.Ops)
+	dims := layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		children := []layout.FlexChild{
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 17, title)
+				l.Color, l.Font.Weight = t.Text, font.SemiBold
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		}
+		for i := range fields {
+			f := fields[i]
+			children = append(children,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, f.ed, f.hint) }),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+			)
+		}
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					b := material.Button(th, cancel, "Batal")
+					b.Background, b.Color, b.CornerRadius, b.TextSize = t.Bg2, t.Text, unit.Dp(8), unit.Sp(14)
+					return b.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					b := material.Button(th, action, actionLabel)
+					b.Background, b.Color, b.CornerRadius, b.TextSize = t.Accent, white, unit.Dp(8), unit.Sp(14)
+					return b.Layout(gtx)
+				}),
+			)
+		}))
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(12)
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
 }
 
 // pollComposeLayer — modal susun polling: pertanyaan + 4 opsi + Buat/Batal.

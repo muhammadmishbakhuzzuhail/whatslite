@@ -21,7 +21,7 @@ import (
 // StatesView mengisi seluruh area gtx dengan latar wallpaper, lalu menumpuk
 // pill day-chip + unread-divider di atas dan splash kosong di tengah.
 func StatesView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	paint.FillShape(gtx.Ops, t.Wallpaper, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	drawWallpaper(gtx, t)
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// .day-chip span — margin 8px 0

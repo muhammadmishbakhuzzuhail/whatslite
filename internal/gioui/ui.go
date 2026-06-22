@@ -3100,7 +3100,7 @@ func (u *UI) scrollFab(gtx layout.Context) layout.Dimensions {
 
 // ---- percakapan (header + bubble + composer) ----
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, u.t.Wallpaper, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	drawWallpaper(gtx, u.t)
 	if u.selected == "" {
 		return StatesView(gtx, u.th, u.t) // splash + divider demo
 	}

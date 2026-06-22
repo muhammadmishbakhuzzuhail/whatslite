@@ -140,6 +140,48 @@ func TestNextPrivacyPrivValue(t *testing.T) {
 	}
 }
 
+func TestPhoneQuery(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"+62 812-3456-7890", "6281234567890"},
+		{"08123456789", "08123456789"},
+		{"(021) 555 1234", "0215551234"},
+		{"halo budi", ""},  // huruf → bukan nomor
+		{"12345", ""},      // <8 digit
+		{"", ""},           // kosong
+		{"  +1 555  ", ""}, // <8 digit setelah strip
+	} {
+		if got := phoneQuery(c.in); got != c.want {
+			t.Errorf("phoneQuery(%q)=%q want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestNextRetention(t *testing.T) {
+	// siklus penuh 30→90→180→365→0→30
+	seq := []int{30, 90, 180, 365, 0}
+	for i, d := range seq {
+		want := seq[(i+1)%len(seq)]
+		if got := nextRetention(d); got != want {
+			t.Errorf("nextRetention(%d)=%d want %d", d, got, want)
+		}
+	}
+	if nextRetention(7) != 30 { // nilai tak dikenal → 30
+		t.Errorf("nextRetention(unknown) want 30")
+	}
+}
+
+func TestRetentionDesc(t *testing.T) {
+	if got := retentionDesc(&SettingsCtl{Retention: 0}); got != "Simpan pesan selamanya" {
+		t.Errorf("retensi 0 = %q", got)
+	}
+	if got := retentionDesc(&SettingsCtl{Retention: 90}); got != "Hapus pesan setelah 90 hari" {
+		t.Errorf("retensi 90 = %q", got)
+	}
+	if got := retentionDesc(nil); got != "Hapus pesan setelah 90 hari" {
+		t.Errorf("retensi nil(demo) = %q want 90 hari", got)
+	}
+}
+
 func TestMentionSpans(t *testing.T) {
 	base := richtext.SpanStyle{Color: color.NRGBA{R: 1}}
 	acc := richtext.SpanStyle{Color: color.NRGBA{G: 1}}

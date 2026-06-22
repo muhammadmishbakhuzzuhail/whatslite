@@ -88,7 +88,7 @@ func main() {
 		case "gif":
 			gioui.GifView(gtx, th, t)
 		case "contacts":
-			gioui.ContactsPaneView(gtx, th, t, nil, nil)
+			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil)
 		case "status":
 			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":
@@ -143,6 +143,10 @@ func main() {
 			ui.SetView("chats")
 			ui.Deselect()
 			ui.SetSearch("+62 812 3456 7890")
+			ui.Layout(gtx)
+		case "app-groupcreate":
+			ui.SetView("contacts")
+			ui.SetOverlay("groupcreate")
 			ui.Layout(gtx)
 		case "app-attach":
 			ui.SetOverlay("attach")

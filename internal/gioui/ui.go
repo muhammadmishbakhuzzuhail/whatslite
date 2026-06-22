@@ -1567,21 +1567,14 @@ func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
 	return dims
 }
 
-// waLogo — logo mark ala WhatsApp: lingkaran accent terisi + handset telepon putih
-// di tengah (bukan bubble outline yg terlihat aneh). Ukuran dp.
+// waLogo — logo aplikasi WhatsLite (aset SVG penuh-warna: kotak hijau + bubble).
 func (u *UI) waLogo(gtx layout.Context, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
-	sz := image.Pt(d, d)
-	paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
-	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	inner := d * 58 / 100
-	if iop, ok := iconOp("calls", inner, white); ok {
-		o := op.Offset(image.Pt((d-inner)/2, (d-inner)/2)).Push(gtx.Ops)
+	if iop, ok := logoOp(d); ok {
 		iop.Add(gtx.Ops)
 		paint.PaintOp{}.Add(gtx.Ops)
-		o.Pop()
 	}
-	return layout.Dimensions{Size: sz}
+	return layout.Dimensions{Size: image.Pt(d, d)}
 }
 
 // ---- rail (nav kiri, tombol klik → ganti view) ----

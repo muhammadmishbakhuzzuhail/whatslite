@@ -3310,40 +3310,62 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 		u.svEd.SetText("")
 		u.svHits = nil
 	}
-	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(8), Top: unit.Dp(10), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(u.th, 16, u.selName)
-						lbl.Color = u.t.Text
-						lbl.Font.Weight = font.Medium
-						return lbl.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if u.subtitle == "" {
-							return layout.Dimensions{}
-						}
-						col := u.t.Text2 // presence → text2; mengetik/merekam → accent
-						if strings.Contains(u.subtitle, "mengetik") || strings.Contains(u.subtitle, "merekam") {
-							col = u.t.Accent
-						}
-						lbl := material.Label(u.th, 12.5, u.subtitle)
-						lbl.Color = col
-						lbl.MaxLines = 1
-						return lbl.Layout(gtx)
-					}),
-				)
-			}),
-			// dorong ikon aksi ke kanan
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, nil, "calls") }), // panggilan (visual)
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.headSearchClick, "search") }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.headMenuClick, "overflow") }),
-		)
-	})
+	// ikon aksi (telepon/cari/overflow) dipatok MUTLAK di kanan — Flexed(1) tak
+	// melebar andal di sini (sama spt titlebar). avatar+nama di kiri [18..btnsX].
+	btnW := gtx.Dp(40)
+	rpad := gtx.Dp(8)
+	hpad := gtx.Dp(18)
+	btnsX := sz.X - rpad - 3*btnW
+	if btnsX < hpad {
+		btnsX = hpad
+	}
+	// kiri: avatar + nama/subtitle (terpusat vertikal via offset).
+	avD := gtx.Dp(40)
+	ly := (h - avD) / 2
+	lgtx := gtx
+	lgtx.Constraints.Min, lgtx.Constraints.Max = image.Pt(0, 0), image.Pt(btnsX-hpad, h)
+	lo := op.Offset(image.Pt(hpad, ly)).Push(gtx.Ops)
+	layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(lgtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.selName, u.selected, 40) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 16, u.selName)
+					lbl.Color = u.t.Text
+					lbl.Font.Weight = font.Medium
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if u.subtitle == "" {
+						return layout.Dimensions{}
+					}
+					col := u.t.Text2 // presence → text2; mengetik/merekam → accent
+					if strings.Contains(u.subtitle, "mengetik") || strings.Contains(u.subtitle, "merekam") {
+						col = u.t.Accent
+					}
+					lbl := material.Label(u.th, 12.5, u.subtitle)
+					lbl.Color = col
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+			)
+		}),
+	)
+	lo.Pop()
+
+	// kanan: 3 ikon aksi dipatok mutlak, terpusat vertikal.
+	by := (h - btnW) / 2
+	acts := []struct {
+		c  *widget.Clickable
+		ic string
+	}{{nil, "calls"}, {&u.headSearchClick, "search"}, {&u.headMenuClick, "overflow"}}
+	for i, a := range acts {
+		o := op.Offset(image.Pt(btnsX+i*btnW, by)).Push(gtx.Ops)
+		u.glyphBtn(gtx, a.c, a.ic)
+		o.Pop()
+	}
 	return layout.Dimensions{Size: sz}
 }
 

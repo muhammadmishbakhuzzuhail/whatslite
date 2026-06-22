@@ -28,10 +28,12 @@ type InfoDrawerData struct {
 	Sub   string // "N anggota" (grup) / presence (DM)
 	Desc  string // topik grup / about kontak
 	Group bool
-	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup).
+	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
+	// Edit (info grup: nama+deskripsi).
 	Block  *widget.Clickable
 	Leave  *widget.Clickable
 	Invite *widget.Clickable
+	Edit   *widget.Clickable
 }
 
 func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
@@ -83,6 +85,12 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
 				return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Blokir kontak", dangerCol, dangerCol, d.Block)
+			}
+			return infoDrawerRow(gtx, th, t, infoDrawerEditIcon, "Edit info grup", t.Text2, t.Text, d.Edit)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group {
+				return layout.Dimensions{}
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text, nil)
 		}),
@@ -251,6 +259,11 @@ func infoDrawerAddIcon(gtx layout.Context, col color.NRGBA) {
 // infoDrawerLinkIcon: link undangan → ikon "invitelink".
 func infoDrawerLinkIcon(gtx layout.Context, col color.NRGBA) {
 	icon(gtx, "invitelink", 22, col)
+}
+
+// infoDrawerEditIcon: edit info grup → ikon "editpen".
+func infoDrawerEditIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "editpen", 22, col)
 }
 
 // infoDrawerLeaveIcon: keluar grup → ikon "leavegroup".

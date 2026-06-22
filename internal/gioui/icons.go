@@ -85,6 +85,7 @@ var iconPaths = map[string]string{
 	"callArrowOut": `<path d="M7 17L17 7M17 7H9M17 7v8"/>`,
 	"wallpaperico": `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>`,
 	"archive":      `<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M9 13h6"/>`,
+	"communities":  `<rect x="4" y="3" width="16" height="6" rx="2"/><rect x="3" y="13" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/>`,
 }
 
 type iconKey struct {

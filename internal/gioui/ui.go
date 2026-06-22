@@ -97,6 +97,12 @@ type UI struct {
 	comCache                      []comItem
 	cgAt, srAt, crAt, chAt, comAt time.Time
 
+	chnTab       int                 // 0=Diikuti, 1=Jelajahi
+	chnTabClicks [2]widget.Clickable // tombol tab channels
+	chnRowClicks []widget.Clickable  // aksi per-baris channel
+	chnExpCache  []chnChannel        // cache saluran jelajah
+	chnExpAt     time.Time
+
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
 	phoneEd     widget.Editor
@@ -2032,7 +2038,9 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		u.handleStatus(gtx)
 		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks)
 	case "channels":
-		return ChannelsPaneView(gtx, u.th, u.t, u.channelRows())
+		rows := u.channelRows()
+		u.handleChannels(gtx, rows)
+		return ChannelsPaneView(gtx, u.th, u.t, rows, u.chnCtl(rows))
 	case "communities":
 		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows())
 	case "search":
@@ -3063,16 +3071,64 @@ func (u *UI) channelRows() []chnChannel {
 	if u.core == nil {
 		return nil
 	}
+	if u.chnTab == 1 { // Jelajahi → saluran rekomendasi (TTL 5s)
+		if u.chnExpCache != nil && time.Since(u.chnExpAt) < 5*time.Second {
+			return u.chnExpCache
+		}
+		cs := u.core.GetRecommendedChannels("")
+		out := make([]chnChannel, 0, len(cs))
+		for _, c := range cs {
+			out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true})
+		}
+		u.chnExpCache, u.chnExpAt = out, time.Now()
+		return out
+	}
 	if u.chCache != nil && time.Since(u.chAt) < time.Second {
 		return u.chCache
 	}
 	cs := u.core.GetChannels()
 	out := make([]chnChannel, 0, len(cs))
 	for _, c := range cs {
-		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers)})
+		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID})
 	}
 	u.chCache, u.chAt = out, time.Now()
 	return out
+}
+
+// chnCtl — state interaktif pane channels (tab aktif + clickable tab/baris).
+func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
+	if len(u.chnRowClicks) < len(rows) {
+		u.chnRowClicks = make([]widget.Clickable, len(rows))
+	}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks}
+}
+
+// handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).
+func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
+	for i := range u.chnTabClicks {
+		for u.chnTabClicks[i].Clicked(gtx) {
+			if u.chnTab != i {
+				u.chnTab = i
+				u.chCache, u.chnExpCache = nil, nil // muat ulang daftar tab baru
+			}
+		}
+	}
+	for i := range rows {
+		if i >= len(u.chnRowClicks) {
+			break
+		}
+		for u.chnRowClicks[i].Clicked(gtx) {
+			if u.core == nil || rows[i].jid == "" {
+				continue
+			}
+			if rows[i].follow {
+				u.core.FollowChannelByJID(rows[i].jid)
+			} else {
+				u.core.UnfollowChannel(rows[i].jid)
+			}
+			u.chCache, u.chnExpCache = nil, nil
+		}
+	}
 }
 
 // searchCtl menjalankan pencarian pesan global (FTS5 core.SearchMessages) dari

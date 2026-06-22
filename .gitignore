@@ -21,9 +21,6 @@ real-data.json
 *.swp
 # Wails build cache (md5 package.json — regenerated)
 /frontend/package.json.md5
-# Qt/CMake build artifacts (FE baru)
-qt-app/build/
-qt-poc/build/
-/whatslite-engine
+# Gio dev binaries
 /whatslite-gio
 /gio-shot

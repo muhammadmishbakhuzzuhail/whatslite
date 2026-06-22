@@ -39,7 +39,7 @@ type cpGroup struct {
 
 // ContactsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane KONTAK.
 // Fungsi murni, mandiri (standalone render).
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -62,7 +62,7 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 		}),
 		// .ct-top { gap: 8px; padding: 6px 12px 10px } : pil cari + tombol baru.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return cpTop(gtx, th, t)
+			return cpTop(gtx, th, t, newGroup)
 		}),
 		// .ct-list : pemisah huruf + baris kontak.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -109,7 +109,7 @@ func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title st
 
 // cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian
 // (searchBg, r-pill, magnifier + placeholder) + tombol accent "Kontak baru".
-func cpTop(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -118,7 +118,7 @@ func cpTop(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout), // gap: 8px
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpNewBtn(gtx, th, t)
+				return cpNewBtn(gtx, th, t, newGroup)
 			}),
 		)
 	})
@@ -153,28 +153,34 @@ func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 
 // cpNewBtn — .ct-new { background: accent; color: #fff; border-radius: 10px;
 // padding: 8px 11px; gap: 6px; font-size: 13px } : ikon tambah-kontak + "Kontak baru".
-func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	macro := op.Record(gtx.Ops)
-	dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return icon(gtx, "addmember", 17, white)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout), // gap: 6px
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 13, "Kontak baru")
-				lbl.Color = white
-				lbl.MaxLines = 1
-				return lbl.Layout(gtx)
-			}),
-		)
-	})
-	call := macro.Stop()
-	r := gtx.Dp(10) // border-radius: 10px
-	paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-	call.Add(gtx.Ops)
-	return dims
+	body := func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "addmember", 17, white)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout), // gap: 6px
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, 13, "Grup baru")
+					lbl.Color = white
+					lbl.MaxLines = 1
+					return lbl.Layout(gtx)
+				}),
+			)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(10) // border-radius: 10px
+		paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	}
+	if newGroup != nil {
+		return newGroup.Layout(gtx, body)
+	}
+	return body(gtx)
 }
 
 // cpLetter — .ct-letter { background: var(--bg); color: var(--accent);

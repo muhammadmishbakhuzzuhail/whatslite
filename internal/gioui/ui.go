@@ -60,6 +60,15 @@ type UI struct {
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
 
+	// buat grup (Kontak → "Grup baru"): nama + multi-pilih kontak.
+	gcNewBtn widget.Clickable
+	gcNameEd widget.Editor
+	gcSel    map[string]bool // jid → terpilih
+	gcClicks []widget.Clickable
+	gcCreate widget.Clickable
+	gcCancel widget.Clickable
+	gcList   widget.List
+
 	// cache TTL pembangun data pane (hindari query DB tiap frame saat scroll pane).
 	cgCache                []cpGroup
 	srCache                []stpItem
@@ -226,6 +235,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.locNameEd.SingleLine = true
 	u.locLatEd.SingleLine = true
 	u.locLngEd.SingleLine = true
+	u.gcNameEd.SingleLine = true
+	u.gcSel = map[string]bool{}
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]bool{}
@@ -474,6 +485,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.contactSendLayer(gtx)
 	case "loccompose":
 		u.locComposeLayer(gtx)
+	case "groupcreate":
+		u.groupCreateLayer(gtx)
 	}
 }
 
@@ -552,6 +565,175 @@ func (u *UI) handleAttach(gtx layout.Context) {
 			u.overlay = ""
 		}
 	}
+}
+
+// groupCreateLayer — modal buat grup: nama + daftar kontak multi-pilih + Buat.
+func (u *UI) groupCreateLayer(gtx layout.Context) {
+	if u.core != nil && u.contactSendCache == nil { // pakai cache kontak yg sama
+		u.contactSendCache = u.core.GetContacts()
+		sort.Slice(u.contactSendCache, func(i, j int) bool {
+			return strings.ToLower(u.contactSendCache[i].Name) < strings.ToLower(u.contactSendCache[j].Name)
+		})
+	}
+	if len(u.gcClicks) < len(u.contactSendCache) {
+		u.gcClicks = make([]widget.Clickable, len(u.contactSendCache))
+	}
+	for u.gcCancel.Clicked(gtx) {
+		u.overlay, u.contactSendCache = "", nil
+		u.gcNameEd.SetText("")
+		u.gcSel = map[string]bool{}
+	}
+	for i := range u.contactSendCache {
+		if i >= len(u.gcClicks) {
+			break
+		}
+		for u.gcClicks[i].Clicked(gtx) { // toggle pilih
+			j := u.contactSendCache[i].JID
+			u.gcSel[j] = !u.gcSel[j]
+		}
+	}
+	for u.gcCreate.Clicked(gtx) {
+		name := strings.TrimSpace(u.gcNameEd.Text())
+		var members []string
+		for _, c := range u.contactSendCache {
+			if u.gcSel[c.JID] {
+				members = append(members, c.JID)
+			}
+		}
+		if name != "" && len(members) >= 1 && u.core != nil {
+			if jid := u.core.CreateGroup(name, members); jid != "" {
+				u.selected, u.selName, u.selGroup = jid, name, true
+				u.view = "chats"
+				u.core.OpenChat(jid)
+				u.messages = u.core.GetMessages(jid)
+			}
+		}
+		u.overlay, u.contactSendCache = "", nil
+		u.gcNameEd.SetText("")
+		u.gcSel = map[string]bool{}
+	}
+	u.gcList.Axis = layout.Vertical
+	selCount := 0
+	for _, v := range u.gcSel {
+		if v {
+			selCount++
+		}
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w, h := gtx.Dp(390), gtx.Dp(520)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		gtx.Constraints.Max.Y = h
+		macro := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(14), Left: unit.Dp(16), Right: unit.Dp(16), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Grup baru")
+					l.Color, l.Font.Weight = u.t.Text, font.SemiBold
+					return l.Layout(gtx)
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // nama grup
+				return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return u.gcField(gtx, &u.gcNameEd, "Nama grup")
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: unit.Dp(16), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 12.5, itoa(selCount)+" anggota dipilih")
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				})
+			}),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				if len(u.contactSendCache) == 0 {
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 14, "Tak ada kontak")
+						l.Color = u.t.Text2
+						return l.Layout(gtx)
+					})
+				}
+				return material.List(u.th, &u.gcList).Layout(gtx, len(u.contactSendCache), func(gtx layout.Context, i int) layout.Dimensions {
+					c := u.contactSendCache[i]
+					return u.gcClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return u.gcContactRow(gtx, c, u.gcSel[c.JID])
+					})
+				})
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(14), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							b := material.Button(u.th, &u.gcCancel, "Batal")
+							b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Bg2, u.t.Text, unit.Dp(8), unit.Sp(14)
+							return b.Layout(gtx)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							b := material.Button(u.th, &u.gcCreate, "Buat")
+							b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Accent, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, unit.Dp(8), unit.Sp(14)
+							return b.Layout(gtx)
+						}),
+					)
+				})
+			}),
+		)
+		call := macro.Stop()
+		r := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+func (u *UI) gcField(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
+	macro := op.Record(gtx.Ops)
+	dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		e := material.Editor(u.th, ed, hint)
+		e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(14.5)
+		return e.Layout(gtx)
+	})
+	call := macro.Stop()
+	r := gtx.Dp(8)
+	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// gcContactRow — baris kontak buat-grup: avatar + nama + tanda centang bila dipilih.
+func (u *UI) gcContactRow(gtx layout.Context, c app.ContactRowDTO, sel bool) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, c.Name, c.JID, 38) }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 15, c.Name)
+				l.Color, l.MaxLines = u.t.Text, 1
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(22)
+				sz := image.Pt(d, d)
+				if sel {
+					paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+					gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+					layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "check", 14, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+					})
+				} else {
+					paint.FillShape(gtx.Ops, u.t.Line, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+					bw := gtx.Dp(2)
+					in := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(d-bw, d-bw)}
+					paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Ellipse{Min: in.Min, Max: in.Max}.Op(gtx.Ops))
+				}
+				return layout.Dimensions{Size: sz}
+			}),
+		)
+	})
 }
 
 // contactSendLayer — modal pilih kontak utk dikirim (SendContact).
@@ -1110,7 +1292,10 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "contacts":
 		groups := u.contactGroups()
 		u.handleContactsPane(gtx)
-		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks)
+		for u.gcNewBtn.Clicked(gtx) { // "Grup baru" → modal buat grup
+			u.overlay = "groupcreate"
+		}
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)

@@ -142,6 +142,9 @@ type UI struct {
 	drafts    map[string]string // draft composer per-chat (jid → teks belum terkirim)
 	draftChat string            // chat yg draft-nya sedang ada di editor
 
+	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
+	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
+
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
 	reactMsgID  string
@@ -283,6 +286,9 @@ func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
 }
+
+// SetUnreadDemo: utk render-tool menguji divider "belum dibaca" headless.
+func (u *UI) SetUnreadDemo(id string, n int) { u.unreadDivID, u.unreadDivCount = id, n }
 
 // SetPinnedDemo: utk render-tool menguji bar pesan-tersemat headless.
 func (u *UI) SetPinnedDemo(text string, n int) {
@@ -2136,6 +2142,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 				u.messages = u.core.GetMessages(c.ID)
 				u.prefetchHistory(c.ID) // history tipis → backfill lama terurut
 			}
+			u.captureUnreadDivider(c.Badge) // batas "belum dibaca" SEBELUM ditandai-baca
 			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
 		}
 		// bg hover/active
@@ -3050,6 +3057,21 @@ func emojiOnlyCount(s string) int {
 	return 0
 }
 
+// captureUnreadDivider — saat buka chat, tandai pesan tempat divider "belum dibaca"
+// digambar (sebelum OpenChat menandai-baca). Boundary ≈ pesan ke-(len-unread); tetap
+// sampai pindah chat. unread<=0 → tak ada divider.
+func (u *UI) captureUnreadDivider(unread int) {
+	u.unreadDivID, u.unreadDivCount = "", 0
+	if unread <= 0 {
+		return
+	}
+	n := len(u.messages) - unread
+	if n < 0 || n >= len(u.messages) {
+		return
+	}
+	u.unreadDivID, u.unreadDivCount = u.messages[n].ID, unread
+}
+
 // pinnedMsgs — pesan tersemat chat aktif (GetPinned, TTL 2s + invalidate saat ganti chat).
 func (u *UI) pinnedMsgs() []app.MessageDTO {
 	if u.core == nil {
@@ -3779,13 +3801,50 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			needSep = true
 		}
 	}
-	if !needSep {
+	showUnread := u.unreadDivID != "" && m.ID == u.unreadDivID // divider "belum dibaca" di atas pesan ini
+	if !needSep && !showUnread {
 		return u.msgClicks[idx].Layout(gtx, wrap)
 	}
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.daySeparator(gtx, dayLabel(m.Ts)) }),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.msgClicks[idx].Layout(gtx, wrap) }),
-	)
+	children := make([]layout.FlexChild, 0, 3)
+	if needSep {
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.daySeparator(gtx, dayLabel(m.Ts)) }))
+	}
+	if showUnread {
+		n := u.unreadDivCount
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.unreadDivider(gtx, n)
+		}))
+	}
+	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.msgClicks[idx].Layout(gtx, wrap) }))
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+}
+
+// unreadDivider — pemisah "N PESAN BELUM DIBACA" (pil accent lembut, lebar penuh).
+func (u *UI) unreadDivider(gtx layout.Context, n int) layout.Dimensions {
+	label := "PESAN BELUM DIBACA"
+	if n > 0 {
+		label = itoa(n) + " PESAN BELUM DIBACA"
+	}
+	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 12, label)
+				l.Color = u.t.Accent
+				l.Font.Weight = font.Medium
+				l.MaxLines = 1
+				return l.Layout(gtx)
+			})
+		})
+		call := macro.Stop()
+		bg := u.t.Accent
+		bg.A = 28 // pita accent sangat lembut selebar layar
+		paint.FillShape(gtx.Ops, bg, clip.Rect{Max: dims.Size}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // statusTick — centang status pesan keluar (✓ sent, ✓✓ delivered/read; biru=read).

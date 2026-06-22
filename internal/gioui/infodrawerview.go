@@ -28,9 +28,10 @@ type InfoDrawerData struct {
 	Sub   string // "N anggota" (grup) / presence (DM)
 	Desc  string // topik grup / about kontak
 	Group bool
-	// aksi (nil = baris statis/demo): Block (DM), Leave (grup).
-	Block *widget.Clickable
-	Leave *widget.Clickable
+	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup).
+	Block  *widget.Clickable
+	Leave  *widget.Clickable
+	Invite *widget.Clickable
 }
 
 func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
@@ -89,7 +90,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			if !d.Group {
 				return layout.Dimensions{}
 			}
-			return infoDrawerRow(gtx, th, t, infoDrawerLinkIcon, "Link undangan", t.Text2, t.Text, nil)
+			return infoDrawerRow(gtx, th, t, infoDrawerLinkIcon, "Link undangan", t.Text2, t.Text, d.Invite)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {

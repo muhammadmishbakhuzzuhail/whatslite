@@ -1260,6 +1260,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			if u.core != nil {
 				u.core.OpenChat(c.ID)
 				u.messages = u.core.GetMessages(c.ID)
+				u.prefetchHistory(c.ID) // history tipis → backfill lama terurut
 			}
 			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
 		}
@@ -1987,6 +1988,7 @@ func (u *UI) handleContactsPane(gtx layout.Context) {
 			if u.core != nil {
 				u.core.OpenChat(c.JID)
 				u.messages = u.core.GetMessages(c.JID)
+				u.prefetchHistory(c.JID) // history tipis → backfill lama terurut
 			}
 			u.msgList.ScrollTo(len(u.messages))
 		}
@@ -2188,18 +2190,34 @@ func (u *UI) callRows() []spCall {
 // lama dari engine (history on-demand WhatsApp; prinsip lazy-history Telegram).
 // Throttle per-chat 3s; respons tiba via OnHistorySync ON_DEMAND → GetMessages.
 func (u *UI) maybeLoadOlder() {
-	if u.core == nil || u.selected == "" || len(u.messages) < 15 {
+	if u.core == nil || u.selected == "" || len(u.messages) < 3 {
 		return
 	}
 	if u.msgList.Position.First > 3 { // belum di dekat atas
 		return
 	}
-	if u.olderReqChat == u.selected && time.Since(u.olderReqAt) < 3*time.Second {
-		return // baru saja minta utk chat ini
+	u.requestOlder(u.selected)
+}
+
+// prefetchHistory — saat buka chat dgn history lokal TIPIS (cuma bootstrap recent),
+// tarik satu halaman lama SEGERA → user lihat backfill TERURUT, bukan "cuma pesan
+// baru". Constraint WhatsApp: server tak simpan history → minta ke HP; tiru UX
+// Telegram = local store permanen + lazy ordered paging.
+func (u *UI) prefetchHistory(jid string) {
+	if u.core == nil || jid == "" || len(u.messages) >= 25 {
+		return
 	}
-	u.olderReqChat, u.olderReqAt = u.selected, time.Now()
-	chat := u.selected
-	go u.core.LoadOlderHistory(chat)
+	u.requestOlder(jid)
+}
+
+// requestOlder — minta history lama 1× per chat (throttle 3s; respons via
+// OnHistorySync ON_DEMAND → GetMessages, terurut sebelum pesan tertua).
+func (u *UI) requestOlder(jid string) {
+	if u.olderReqChat == jid && time.Since(u.olderReqAt) < 3*time.Second {
+		return
+	}
+	u.olderReqChat, u.olderReqAt = jid, time.Now()
+	go u.core.LoadOlderHistory(jid)
 }
 
 // ---- percakapan (header + bubble + composer) ----

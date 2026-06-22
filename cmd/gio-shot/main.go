@@ -113,6 +113,9 @@ func main() {
 		case "app-quotejump":
 			ui.SetHighlight("m3") // sorot pesan asal (hasil lompat dari kutipan)
 			ui.Layout(gtx)
+		case "app-send":
+			ui.SetComposeText("Sampai nanti malam ya!") // composer terisi → tombol kirim
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

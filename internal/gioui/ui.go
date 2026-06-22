@@ -211,7 +211,7 @@ type UI struct {
 	ctxIdx      int            // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
-	ctxItems [6]widget.Clickable // item menu (react/reply/forward/star/info/delete)
+	ctxItems [7]widget.Clickable // item menu (react/reply/forward/star/info/delete/+unduh)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
@@ -752,7 +752,34 @@ func (u *UI) doCtxAction(label string) {
 		u.reactMsgID, u.reactSender, u.reactFromMe = m.ID, m.SenderID, fromMe // target reaksi
 	case "Teruskan":
 		u.fwdMsgID = m.ID // pesan sumber utk diteruskan (sumber = u.selected)
+	case "Unduh":
+		if u.OnSaveMedia != nil {
+			u.OnSaveMedia(u.selected, m.ID, saveName(m))
+		}
 	}
+}
+
+// saveName — nama berkas saran utk simpan media (ekstensi sesuai tipe).
+func saveName(m app.MessageDTO) string {
+	ext := ".bin"
+	switch m.Type {
+	case "image":
+		ext = ".jpg"
+	case "video":
+		ext = ".mp4"
+	case "gif":
+		ext = ".gif"
+	case "voice", "audio", "ptt":
+		ext = ".ogg"
+	case "sticker":
+		ext = ".webp"
+	case "document":
+		ext = "" // pakai nama dokumen asli bila ada
+		if m.Text != "" {
+			return "whatslite-" + m.Text
+		}
+	}
+	return "whatslite-" + m.ID + ext
 }
 
 // handleForward memproses modal teruskan: ketuk chat tujuan → core.Forward; batal.
@@ -1352,12 +1379,27 @@ func (u *UI) replyDisplayName(m app.MessageDTO) string {
 	return u.selName
 }
 
-// ctxMenuView — menu aksi pesan (.menu): kartu bg + baris glyph+label klik.
+// isMediaType — pesan yg byte-nya bisa disimpan ke disk (tambah baris "Unduh").
+func isMediaType(t string) bool {
+	switch t {
+	case "image", "video", "gif", "document", "voice", "audio", "ptt", "sticker":
+		return true
+	}
+	return false
+}
+
+// ctxMenuView — menu aksi pesan (.menu): kartu bg + baris glyph+label klik. Untuk
+// pesan media, tambahkan baris "Unduh" (simpan byte ke disk via OnSaveMedia).
 func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
-	children := make([]layout.FlexChild, 0, len(ctxMenu))
-	for i := range ctxMenu {
+	items := ctxMenu
+	if isMediaType(u.ctxMsg.Type) && u.OnSaveMedia != nil {
+		items = append(append([]struct{ icon, label, to string }{}, ctxMenu...),
+			struct{ icon, label, to string }{"download", "Unduh", ""})
+	}
+	children := make([]layout.FlexChild, 0, len(items))
+	for i := range items {
 		i := i
-		it := ctxMenu[i]
+		it := items[i]
 		for u.ctxItems[i].Clicked(gtx) {
 			u.doCtxAction(it.label) // jalankan aksi engine bila ada
 			u.overlay = it.to       // pindah ke popup tujuan ("" = tutup)

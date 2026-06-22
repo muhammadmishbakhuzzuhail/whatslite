@@ -64,13 +64,18 @@ func doodleTile(col color.NRGBA) paint.ImageOp {
 		name    string
 		x, y, s int
 	}
+	// motif kecil & rapat (mirip doodle WhatsApp) — hindari dashed-circle yg aneh
+	// saat di-tile; ukuran 20-26, tersebar agar tak ada celah besar.
 	places := []place{
-		{"chats", 8, 22, 36}, {"locpin", 132, 50, 30}, {"mic", 262, 26, 26},
-		{"emoji", 322, 128, 32}, {"status", 36, 150, 34}, {"sticker", 188, 150, 32},
-		{"calls", 300, 214, 28}, {"pollq", 92, 256, 32}, {"contacts", 232, 286, 30},
-		{"docfile", 18, 322, 28}, {"star", 330, 320, 26}, {"send", 158, 338, 26},
+		{"chats", 10, 16, 24}, {"locpin", 96, 40, 22}, {"mic", 176, 18, 20},
+		{"emoji", 246, 44, 24}, {"sticker", 322, 20, 22}, {"send", 60, 100, 22},
+		{"pollq", 150, 110, 24}, {"calls", 232, 120, 20}, {"docfile", 318, 110, 22},
+		{"star", 24, 188, 20}, {"contacts", 110, 198, 24}, {"emoji", 210, 196, 20},
+		{"locpin", 300, 200, 22}, {"chats", 40, 286, 22}, {"mic", 130, 300, 20},
+		{"pollq", 224, 292, 24}, {"sticker", 312, 300, 22}, {"send", 178, 350, 20},
+		{"contacts", 350, 348, 22}, {"calls", 14, 348, 20},
 	}
-	const alpha = 0.028
+	const alpha = 0.024
 	for _, pl := range places {
 		sub := rasterIcon(pl.name, pl.s, col)
 		if sub == nil {

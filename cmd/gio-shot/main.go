@@ -125,6 +125,9 @@ func main() {
 		case "app-unread":
 			ui.SetUnreadDemo("m3", 3) // divider "belum dibaca" di atas m3
 			ui.Layout(gtx)
+		case "app-inchatsearch":
+			ui.SetInChatSearch("kemarin") // bilah cari-dalam-chat
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

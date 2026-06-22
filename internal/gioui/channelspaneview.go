@@ -18,13 +18,25 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
-// chnChannel = satu baris saluran demo (.ch-row).
+// chnChannel = satu baris saluran (.ch-row). follow=true → baris jelajah (tombol
+// "Ikuti"); jid utk aksi engine.
 type chnChannel struct {
-	name string
-	subs string
+	name   string
+	subs   string
+	jid    string
+	follow bool
+}
+
+// ChnCtl = state interaktif pane channels (nil → statis/demo). Tab Diikuti/Jelajahi
+// + aksi per-baris (ikuti/batal-ikuti).
+type ChnCtl struct {
+	Tabs   []widget.Clickable // 0=Diikuti, 1=Jelajahi
+	Active int
+	Rows   []widget.Clickable // aksi per-channel (ikuti/unfollow)
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -35,7 +47,7 @@ type chnTab struct {
 
 // ChannelsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane CHANNELS:
 // .pane-head + .ch-tabs + daftar .ch-row. Fungsi murni, mandiri (standalone).
-func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels []chnChannel) layout.Dimensions {
+func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels []chnChannel, ctl *ChnCtl) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
 	w := gtx.Dp(380)
@@ -44,14 +56,18 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
+	active := 0
+	if ctl != nil {
+		active = ctl.Active
+	}
 	tabs := []chnTab{
-		{label: "Diikuti", active: true},
-		{label: "Jelajahi", active: false},
+		{label: "Diikuti", active: active == 0},
+		{label: "Jelajahi", active: active == 1},
 	}
 	if channels == nil { // data demo (render standalone / gio-shot)
 		channels = []chnChannel{
-			{name: "WhatsLite News", subs: "0 subscriber"},
-			{name: "Tech Daily", subs: "0 subscriber"},
+			{name: "WhatsLite News", subs: "1,2 jt pengikut"},
+			{name: "Tech Daily", subs: "850 rb pengikut", follow: true}, // baris jelajah → "Ikuti"
 		}
 	}
 
@@ -63,15 +79,19 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 		}),
 		// .ch-tabs { gap: 6px; padding: 2px 12px 10px } : Diikuti / Jelajahi.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return chnTabs(gtx, th, t, white, tabs)
+			return chnTabs(gtx, th, t, white, tabs, ctl)
 		}),
 		// daftar .ch-row.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, len(channels))
-			for _, c := range channels {
-				cc := c
+			for i, c := range channels {
+				cc, idx := c, i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return chnChannelRow(gtx, th, t, cc)
+					var rc *widget.Clickable
+					if ctl != nil && idx < len(ctl.Rows) {
+						rc = &ctl.Rows[idx]
+					}
+					return chnChannelRow(gtx, th, t, cc, rc)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
@@ -99,7 +119,7 @@ func chnPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title s
 }
 
 // chnTabs — .ch-tabs { gap: 6px; padding: 2px 12px 10px } : dua tombol flex-1.
-func chnTabs(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, tabs []chnTab) layout.Dimensions {
+func chnTabs(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, tabs []chnTab, ctl *ChnCtl) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		children := make([]layout.FlexChild, 0, len(tabs)*2)
@@ -107,9 +127,13 @@ func chnTabs(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA,
 			if i > 0 {
 				children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout)) // gap: 6px
 			}
-			tt := tab
+			tt, idx := tab, i
 			children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return chnTabBtn(gtx, th, t, white, tt)
+				btn := func(gtx layout.Context) layout.Dimensions { return chnTabBtn(gtx, th, t, white, tt) }
+				if ctl != nil && idx < len(ctl.Tabs) {
+					return ctl.Tabs[idx].Layout(gtx, btn)
+				}
+				return btn(gtx)
 			}))
 		}
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
@@ -146,7 +170,8 @@ func chnTabBtn(gtx layout.Context, th *material.Theme, t Theme, white color.NRGB
 
 // chnChannelRow — .ch-row { padding 14; gap 13; align center } : avatar 48 +
 // kolom (nama 15/SemiBold + sub 13.5 text2) + ikon lonceng + "✕" batal-ikuti.
-func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel) layout.Dimensions {
+func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel, rc *widget.Clickable) layout.Dimensions {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -174,15 +199,40 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 					}),
 				)
 			}),
-			// .ch-act lonceng (text2).
+			// kanan: baris jelajah → tombol "Ikuti" (accent); baris diikuti → lonceng + ✕.
 			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return chnBell(gtx, t)
-			}),
-			// .ch-act "✕" batal-ikuti (text2).
-			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return chnUnfollow(gtx, th, t)
+				if c.follow { // jelajah → tombol Ikuti
+					btn := func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 13, "Ikuti")
+							l.Color, l.Font.Weight = white, font.SemiBold
+							return l.Layout(gtx)
+						})
+						call := macro.Stop()
+						r := dims.Size.Y / 2
+						paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+						call.Add(gtx.Ops)
+						return dims
+					}
+					if rc != nil {
+						return rc.Layout(gtx, btn)
+					}
+					return btn(gtx)
+				}
+				// diikuti → lonceng + ✕ (✕ batal-ikuti via rc).
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return chnBell(gtx, t) }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						x := func(gtx layout.Context) layout.Dimensions { return chnUnfollow(gtx, th, t) }
+						if rc != nil {
+							return rc.Layout(gtx, x)
+						}
+						return x(gtx)
+					}),
+				)
 			}),
 		)
 	})

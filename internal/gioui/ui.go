@@ -56,6 +56,9 @@ type UI struct {
 	statusViewIdx     int
 	statusClose       widget.Clickable
 
+	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
+	contactPaneClicks []widget.Clickable
+
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
 	phoneEd     widget.Editor
@@ -1089,7 +1092,9 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "calls":
 		return SidePanesView(gtx, u.th, u.t, u.callRows())
 	case "contacts":
-		return ContactsPaneView(gtx, u.th, u.t, u.contactGroups())
+		groups := u.contactGroups()
+		u.handleContactsPane(gtx)
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
@@ -1947,6 +1952,7 @@ func (u *UI) contactGroups() []cpGroup {
 	sort.Slice(cs, func(i, j int) bool {
 		return strings.ToLower(cs[i].Name) < strings.ToLower(cs[j].Name)
 	})
+	u.contactFlat = u.contactFlat[:0]
 	var groups []cpGroup
 	var cur *cpGroup
 	for _, c := range cs {
@@ -1958,9 +1964,33 @@ func (u *UI) contactGroups() []cpGroup {
 			groups = append(groups, cpGroup{letter: letter})
 			cur = &groups[len(groups)-1]
 		}
-		cur.items = append(cur.items, cpContact{name: c.Name, about: c.Phone})
+		idx := len(u.contactFlat)
+		u.contactFlat = append(u.contactFlat, c)
+		cur.items = append(cur.items, cpContact{name: c.Name, about: c.Phone, idx: idx})
+	}
+	if len(u.contactPaneClicks) < len(u.contactFlat) {
+		u.contactPaneClicks = make([]widget.Clickable, len(u.contactFlat))
 	}
 	return groups
+}
+
+// handleContactsPane — ketuk kontak → buka/mulai chat (pindah ke pane chats).
+func (u *UI) handleContactsPane(gtx layout.Context) {
+	for i := range u.contactFlat {
+		if i >= len(u.contactPaneClicks) {
+			break
+		}
+		for u.contactPaneClicks[i].Clicked(gtx) {
+			c := u.contactFlat[i]
+			u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+			u.view = "chats"
+			if u.core != nil {
+				u.core.OpenChat(c.JID)
+				u.messages = u.core.GetMessages(c.JID)
+			}
+			u.msgList.ScrollTo(len(u.messages))
+		}
+	}
 }
 
 // channelRows membangun pane Saluran dari saluran nyata (core.GetChannels). nil = demo.

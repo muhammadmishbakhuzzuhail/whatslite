@@ -19,14 +19,16 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
-// cpContact = satu kontak demo (.ct-row).
+// cpContact = satu kontak (.ct-row). idx = indeks clickable datar (buka chat).
 type cpContact struct {
 	name   string
 	about  string
 	online bool // .ct-dot (titik hijau online)
+	idx    int  // indeks ke dalam clicks (untuk buka chat); -1 = tak bisa diklik
 }
 
 // cpGroup = satu kelompok huruf (.ct-letter + items).
@@ -37,7 +39,7 @@ type cpGroup struct {
 
 // ContactsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane KONTAK.
 // Fungsi murni, mandiri (standalone render).
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -46,9 +48,9 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 
 	if groups == nil { // data demo (render standalone / gio-shot)
 		groups = []cpGroup{
-			{letter: "A", items: []cpContact{{name: "Alice", about: "Tersedia", online: true}}},
-			{letter: "B", items: []cpContact{{name: "Bob", about: "Di tempat kerja"}}},
-			{letter: "C", items: []cpContact{{name: "Carol", about: "Sibuk · jangan ganggu"}}},
+			{letter: "A", items: []cpContact{{name: "Alice", about: "Tersedia", online: true, idx: -1}}},
+			{letter: "B", items: []cpContact{{name: "Bob", about: "Di tempat kerja", idx: -1}}},
+			{letter: "C", items: []cpContact{{name: "Carol", about: "Sibuk · jangan ganggu", idx: -1}}},
 		}
 	}
 
@@ -73,7 +75,11 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 				for _, c := range gg.items {
 					cc := c
 					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return cpRow(gtx, th, t, cc)
+						row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, cc) }
+						if cc.idx >= 0 && cc.idx < len(clicks) { // ketuk → buka chat
+							return clicks[cc.idx].Layout(gtx, row)
+						}
+						return row(gtx)
 					}))
 				}
 			}

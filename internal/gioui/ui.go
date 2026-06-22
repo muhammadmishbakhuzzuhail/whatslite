@@ -139,6 +139,9 @@ type UI struct {
 	pinnedChat  string           // chat yg pinnedCache-nya valid
 	pinnedBar   widget.Clickable // bar pesan-tersemat → lompat ke pesan
 
+	drafts    map[string]string // draft composer per-chat (jid → teks belum terkirim)
+	draftChat string            // chat yg draft-nya sedang ada di editor
+
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
 	reactMsgID  string
@@ -343,6 +346,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.photoTried = map[string]bool{}
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
+	u.drafts = map[string]string{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -3366,6 +3370,27 @@ func (u *UI) scrollFab(gtx layout.Context) layout.Dimensions {
 }
 
 // ---- percakapan (header + bubble + composer) ----
+// syncDraft — saat chat aktif berganti: simpan teks composer chat lama ke drafts,
+// lalu muat draft chat baru ke editor (ala WhatsApp draft per-chat). Batalkan
+// mode edit/balas yg melekat ke chat lama.
+func (u *UI) syncDraft() {
+	if u.selected == u.draftChat {
+		return
+	}
+	if u.draftChat != "" { // simpan draft chat sebelumnya
+		t := u.editor.Text()
+		if strings.TrimSpace(t) == "" {
+			delete(u.drafts, u.draftChat)
+		} else {
+			u.drafts[u.draftChat] = t
+		}
+	}
+	u.clearReply()
+	u.clearEdit()
+	u.editor.SetText(u.drafts[u.selected]) // "" bila tak ada draft
+	u.draftChat = u.selected
+}
+
 // pinnedBarView — bilah pesan-tersemat di bawah header (ikon pin accent + teks
 // pesan + jumlah bila >1). Ketuk → lompat ke pesan tersemat terbaru.
 func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.Dimensions {
@@ -3421,6 +3446,7 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	if u.selected == "" {
 		return StatesView(gtx, u.th, u.t) // splash + divider demo
 	}
+	u.syncDraft()      // ganti chat → simpan draft lama, muat draft chat baru
 	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)
 	pinned := u.pinnedMsgs()
 	for u.pinnedBar.Clicked(gtx) { // ketuk bar tersemat → lompat ke pesan
@@ -4039,6 +4065,7 @@ func (u *UI) sendCurrent() {
 		u.typingSent = false
 	}
 	u.editor.SetText("")
+	delete(u.drafts, u.selected) // terkirim → buang draft chat ini
 	u.clearReply()
 	u.msgList.ScrollTo(len(u.messages)) // setelah kirim → gulir ke bawah
 }

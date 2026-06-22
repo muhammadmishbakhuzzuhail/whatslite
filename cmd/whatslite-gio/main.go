@@ -84,6 +84,9 @@ func run(w *gioapp.Window, core *app.App) error {
 		ui.OnAttach = func(chat, category string) {
 			go pickAndSend(expl, core, chat, category)
 		}
+		ui.OnSaveMedia = func(chat, id, name string) {
+			go saveMedia(expl, core, chat, id, name)
+		}
 	}
 
 	go func() {
@@ -166,6 +169,21 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, chat, category string) 
 	}
 	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
 	core.SendMedia(chat, kind, "", "", uri, false, 0)
+}
+
+// saveMedia membuka dialog "simpan sebagai" native (x/explorer), lalu menulis byte
+// media penuh (core.MediaBytes) ke berkas pilihan. name = saran nama awal.
+func saveMedia(expl *explorer.Explorer, core *app.App, chat, id, name string) {
+	b := core.MediaBytes(chat, id)
+	if len(b) == 0 {
+		return
+	}
+	wc, err := expl.CreateFile(name)
+	if err != nil || wc == nil {
+		return
+	}
+	defer wc.Close()
+	_, _ = wc.Write(b)
 }
 
 // shooter mengambil PNG frame aplikasi yg sedang berjalan (data nyata) ke

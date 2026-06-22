@@ -196,7 +196,7 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	if name == "" {
 		name = "Saya"
 	}
-	editable := ctl.ProfNameEd != nil
+	editable := ctl.ProfNameEd != nil && ctl.ProfAboutEd != nil
 	return layout.Inset{Top: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,

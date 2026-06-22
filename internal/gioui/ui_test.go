@@ -220,3 +220,35 @@ func TestWithAlpha(t *testing.T) {
 		t.Errorf("withAlpha salah: %+v", c)
 	}
 }
+
+func TestIsMediaType(t *testing.T) {
+	for _, ty := range []string{"image", "video", "gif", "document", "voice", "audio", "ptt", "sticker"} {
+		if !isMediaType(ty) {
+			t.Errorf("isMediaType(%q) = false, mau true", ty)
+		}
+	}
+	for _, ty := range []string{"text", "", "poll", "location", "contact"} {
+		if isMediaType(ty) {
+			t.Errorf("isMediaType(%q) = true, mau false", ty)
+		}
+	}
+}
+
+func TestSaveName(t *testing.T) {
+	cases := map[string]struct {
+		m    app.MessageDTO
+		want string
+	}{
+		"image":   {app.MessageDTO{ID: "m1", Type: "image"}, "whatslite-m1.jpg"},
+		"video":   {app.MessageDTO{ID: "m2", Type: "video"}, "whatslite-m2.mp4"},
+		"voice":   {app.MessageDTO{ID: "m3", Type: "ptt"}, "whatslite-m3.ogg"},
+		"doctxt":  {app.MessageDTO{ID: "m4", Type: "document", Text: "rapat.pdf"}, "whatslite-rapat.pdf"},
+		"docnone": {app.MessageDTO{ID: "m5", Type: "document"}, "whatslite-m5"},
+		"sticker": {app.MessageDTO{ID: "m6", Type: "sticker"}, "whatslite-m6.webp"},
+	}
+	for name, c := range cases {
+		if got := saveName(c.m); got != c.want {
+			t.Errorf("%s: saveName = %q, mau %q", name, got, c.want)
+		}
+	}
+}

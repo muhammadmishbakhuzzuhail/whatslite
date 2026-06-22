@@ -3,7 +3,10 @@
 
 package app
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // ChatSubtitle: prioritas mengetik/merekam DI ATAS presence; typing off → presence.
 func TestChatSubtitle(t *testing.T) {
@@ -43,5 +46,19 @@ func TestChatSubtitle(t *testing.T) {
 	a.setTyping(jid, typingStateT{on: false})
 	if got := a.ChatSubtitle(jid); got != "online" {
 		t.Errorf("typing off = %q want online (presence)", got)
+	}
+}
+
+// typing yang basi (lewat TTL) → tak ditampilkan, jatuh ke presence.
+func TestChatSubtitleTypingExpiry(t *testing.T) {
+	a := &App{}
+	const jid = "y@s.whatsapp.net"
+	a.setPresence(jid, "online")
+	// suntik status mengetik yg sudah kedaluwarsa.
+	a.presMu.Lock()
+	a.typing = map[string]typingStateT{jid: {on: true, at: time.Now().Add(-2 * typingTTL)}}
+	a.presMu.Unlock()
+	if got := a.ChatSubtitle(jid); got != "online" {
+		t.Errorf("typing basi = %q want online (jatuh ke presence)", got)
 	}
 }

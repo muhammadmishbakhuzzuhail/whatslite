@@ -77,11 +77,12 @@ type UI struct {
 	gcList   widget.List
 
 	// cache TTL pembangun data pane (hindari query DB tiap frame saat scroll pane).
-	cgCache                []cpGroup
-	srCache                []stpItem
-	crCache                []spCall
-	chCache                []chnChannel
-	cgAt, srAt, crAt, chAt time.Time
+	cgCache                       []cpGroup
+	srCache                       []stpItem
+	crCache                       []spCall
+	chCache                       []chnChannel
+	comCache                      []comItem
+	cgAt, srAt, crAt, chAt, comAt time.Time
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -219,7 +220,8 @@ func (u *UI) SetSettingsSub(s string) { u.view = "settings"; u.setSub = s }
 // railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
 var railNav = []struct{ view, icon string }{
 	{"chats", "chats"}, {"status", "status"}, {"channels", "channels"},
-	{"calls", "calls"}, {"contacts", "contacts"}, {"settings", "settings"},
+	{"communities", "communities"}, {"calls", "calls"}, {"contacts", "contacts"},
+	{"settings", "settings"},
 }
 
 func NewUI(th *material.Theme, core *app.App) *UI {
@@ -1365,6 +1367,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks)
 	case "channels":
 		return ChannelsPaneView(gtx, u.th, u.t, u.channelRows())
+	case "communities":
+		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows())
 	}
 	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 
@@ -2385,6 +2389,35 @@ func (u *UI) channelRows() []chnChannel {
 		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers)})
 	}
 	u.chCache, u.chAt = out, time.Now()
+	return out
+}
+
+// communityRows membangun pane Komunitas dari komunitas nyata (core.GetCommunities).
+// nil = demo. TTL-cache via chCache? pakai gate sendiri (jarang berubah).
+func (u *UI) communityRows() []comItem {
+	if u.core == nil {
+		return nil
+	}
+	if u.comCache != nil && time.Since(u.comAt) < 2*time.Second {
+		return u.comCache
+	}
+	cs := u.core.GetCommunities()
+	out := make([]comItem, 0, len(cs))
+	for _, c := range cs {
+		sub := itoa(len(c.Groups)) + " grup"
+		names := make([]string, 0, 3)
+		for i, g := range c.Groups {
+			if i >= 3 {
+				break
+			}
+			names = append(names, g.Name)
+		}
+		if len(names) > 0 {
+			sub += " · " + strings.Join(names, ", ")
+		}
+		out = append(out, comItem{name: c.Name, sub: sub})
+	}
+	u.comCache, u.comAt = out, time.Now()
 	return out
 }
 

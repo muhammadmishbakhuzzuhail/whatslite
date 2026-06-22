@@ -205,6 +205,7 @@ type UI struct {
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
 	msgClicks   []widget.Clickable
+	fabClick    widget.Clickable   // tombol bulat gulir-ke-bawah (tampil saat tergulir naik)
 	quoteClicks []widget.Clickable // ketuk kutipan balasan → lompat ke pesan asal
 	hlMsg       string             // pesan yg sedang disorot (lompatan kutipan)
 	hlAt        time.Time          // waktu mulai sorot (pudar ~1.6s)
@@ -3013,6 +3014,45 @@ func (u *UI) requestOlder(jid string) {
 	go u.core.LoadOlderHistory(jid)
 }
 
+// scrollFab — tombol bulat gulir-ke-bawah (.scroll-fab: 42, in-bg, text2, kanan-
+// bawah 18/16). Tampil hanya saat daftar tergulir naik (belum di dasar viewport).
+// Diletakkan absolut di pojok kanan-bawah area daftar. (Badge "pesan baru" Svelte
+// di-skip: butuh pelacakan newCount andal; FAB polos = perilaku WA paling umum.)
+// fabHidden — true bila tombol gulir-ke-bawah harus disembunyikan: tak ada pesan,
+// daftar belum terukur (Count==0, hindari kedip saat buka), atau pesan terakhir
+// sudah tampak penuh (di dasar). Pure → bisa diuji.
+func fabHidden(pos layout.Position, n int) bool {
+	if n == 0 || pos.Count == 0 {
+		return true
+	}
+	return pos.First+pos.Count >= n && pos.OffsetLast <= 0
+}
+
+func (u *UI) scrollFab(gtx layout.Context) layout.Dimensions {
+	full := gtx.Constraints.Max
+	for u.fabClick.Clicked(gtx) {
+		u.msgList.ScrollTo(len(u.messages)) // lompat ke pesan terbaru
+	}
+	if fabHidden(u.msgList.Position, len(u.messages)) {
+		return layout.Dimensions{Size: full}
+	}
+	d := gtx.Dp(42)
+	x := full.X - gtx.Dp(18) - d
+	y := full.Y - gtx.Dp(16) - d
+
+	off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
+	cgtx := gtx
+	cgtx.Constraints.Min, cgtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+	u.fabClick.Layout(cgtx, func(gtx layout.Context) layout.Dimensions {
+		paint.FillShape(gtx.Ops, u.t.InBg, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return icon(gtx, "chevrondown", 24, u.t.Text2)
+		})
+	})
+	off.Pop()
+	return layout.Dimensions{Size: full}
+}
+
 // ---- percakapan (header + bubble + composer) ----
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.Wallpaper, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -3031,11 +3071,18 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			if len(u.quoteClicks) < len(u.messages) {
 				u.quoteClicks = make([]widget.Clickable, len(u.messages))
 			}
-			return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
-					return u.bubble(gtx, i)
-				})
-			})
+			return layout.Stack{}.Layout(gtx,
+				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
+							return u.bubble(gtx, i)
+						})
+					})
+				}),
+				layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+					return u.scrollFab(gtx)
+				}),
+			)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.composer(gtx)

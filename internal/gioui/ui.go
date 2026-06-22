@@ -454,7 +454,12 @@ func (u *UI) SetDark(d bool) { u.dark = d; u.t = newTheme(d) }
 
 // SetView/Deselect: utk render-tool menguji state navigasi headless.
 func (u *UI) SetView(v string) { u.view = v }
-func (u *UI) Deselect()        { u.selected = "" }
+func (u *UI) Deselect() {
+	u.selected = ""
+	if u.core != nil {
+		u.core.CloseChat()
+	}
+}
 
 // View/Overlay — getter agar render-tool bisa simpan+pulihkan state saat memotret
 // layar bernama dari app yg sedang berjalan (WLGIO_SHOT_SCREENS).

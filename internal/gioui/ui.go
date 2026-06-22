@@ -201,6 +201,8 @@ type UI struct {
 	chatCtxItems    [6]widget.Clickable
 	headMenuClick   widget.Clickable // ikon overflow header → menu chat terbuka
 	headSearchClick widget.Clickable // ikon cari header → cari DALAM chat aktif
+	infoBlockC      widget.Clickable // info-drawer: blokir kontak
+	infoLeaveC      widget.Clickable // info-drawer: keluar grup
 
 	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
 	inChatEd     widget.Editor // input cari-dalam-chat
@@ -773,6 +775,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	})
 	switch u.overlay {
 	case "info":
+		u.handleInfo(gtx) // aksi blokir/keluar grup
 		// drawer kanan 400px + dim di kiri-nya
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		w := gtx.Dp(400)
@@ -3523,12 +3526,31 @@ func (u *UI) infoData() *InfoDrawerData {
 	}
 	d := &InfoDrawerData{Name: u.selName, Group: u.selGroup, Sub: u.subtitle}
 	if u.selGroup {
+		d.Leave = &u.infoLeaveC
 		if gi := u.core.GetGroupInfo(u.selected); gi != nil {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
 		}
+	} else {
+		d.Block = &u.infoBlockC
 	}
 	return d
+}
+
+// handleInfo — aksi tombol info-drawer: blokir kontak / keluar grup, lalu tutup.
+func (u *UI) handleInfo(gtx layout.Context) {
+	for u.infoBlockC.Clicked(gtx) {
+		if u.core != nil {
+			u.core.Block(u.selected, true)
+		}
+		u.overlay = ""
+	}
+	for u.infoLeaveC.Clicked(gtx) {
+		if u.core != nil {
+			u.core.LeaveGroup(u.selected)
+		}
+		u.overlay, u.selected = "", "" // keluar → tutup drawer + deselect chat
+	}
 }
 
 // callRows membangun baris pane Panggilan dari log nyata (core.GetCalls). nil =

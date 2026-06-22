@@ -17,6 +17,7 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
@@ -27,6 +28,9 @@ type InfoDrawerData struct {
 	Sub   string // "N anggota" (grup) / presence (DM)
 	Desc  string // topik grup / about kontak
 	Group bool
+	// aksi (nil = baris statis/demo): Block (DM), Leave (grup).
+	Block *widget.Clickable
+	Leave *widget.Clickable
 }
 
 func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
@@ -77,21 +81,21 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		// baris aksi (.info-row): grup → tambah/link/keluar; DM → blokir.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
-				return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Blokir kontak", dangerCol, dangerCol)
+				return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Blokir kontak", dangerCol, dangerCol, d.Block)
 			}
-			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text)
+			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text, nil)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
 				return layout.Dimensions{}
 			}
-			return infoDrawerRow(gtx, th, t, infoDrawerLinkIcon, "Link undangan", t.Text2, t.Text)
+			return infoDrawerRow(gtx, th, t, infoDrawerLinkIcon, "Link undangan", t.Text2, t.Text, nil)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
 				return layout.Dimensions{}
 			}
-			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol)
+			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol, d.Leave)
 		}),
 	)
 }
@@ -197,7 +201,15 @@ func infoDrawerBlock(gtx layout.Context, th *material.Theme, t Theme, label, val
 }
 
 // infoDrawerRow: .info-row — pad 14/24, gap 18, ikon 22 + label 15.
-func infoDrawerRow(gtx layout.Context, th *material.Theme, t Theme, icon func(layout.Context, color.NRGBA), label string, iconCol, textCol color.NRGBA) layout.Dimensions {
+func infoDrawerRow(gtx layout.Context, th *material.Theme, t Theme, icon func(layout.Context, color.NRGBA), label string, iconCol, textCol color.NRGBA, c *widget.Clickable) layout.Dimensions {
+	body := func(gtx layout.Context) layout.Dimensions { return infoDrawerRowBody(gtx, th, t, icon, label, iconCol, textCol) }
+	if c != nil {
+		return c.Layout(gtx, body)
+	}
+	return body(gtx)
+}
+
+func infoDrawerRowBody(gtx layout.Context, th *material.Theme, t Theme, icon func(layout.Context, color.NRGBA), label string, iconCol, textCol color.NRGBA) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X

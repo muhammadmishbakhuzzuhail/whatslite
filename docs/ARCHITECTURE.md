@@ -1,8 +1,18 @@
 # WhatsLite — Target Architecture (proper, lightweight, Linux-optimized)
 
-Goal: ~100% similar to WhatsApp (Web/macOS) **and more optimal on Linux**. Lean:
-a Go/whatsmeow engine, a web UI (Svelte) in WebKitGTK via Wails. This document is
-the source of truth for the architecture + a phased roadmap.
+Goal: ~100% similar to WhatsApp (Web/macOS) **and more optimal on Linux**.
+
+> **Current implementation (2026): the FE is [Gio](https://gioui.org), in-process.**
+> The frontend was rewritten Svelte/Wails → Qt6/QML → **Gio**. The primary app
+> (`cmd/whatslite-gio`) runs the whatsmeow engine + SQLite **in the same process** —
+> no Wails shell, no WebView, no media-server HTTP, no IPC bridge. Media flows
+> in-memory (`MediaBytes`/`AvatarBytes` → `image.Decode` → GPU texture). The UI
+> **polls** the store/engine (`GetChats`/`GetMessages`/`QRCode`/`ChatSubtitle`) rather
+> than reacting to emitted events. The Svelte/Wails description below is the original
+> design (kept as the reference frontend); the Qt6/QML frontend was removed. The lean
+> principles, schema, and roadmap below still apply.
+
+This document is the source of truth for the architecture + a phased roadmap.
 
 ---
 
@@ -17,14 +27,22 @@ the source of truth for the architecture + a phased roadmap.
 
 ## 1. Layers
 
+Current (Gio, in-process — one binary, no shell/bridge/media-server):
 ```
-┌─ Frontend (Svelte in WebKitGTK) ── virtualized list, lazy media, thin state
-│
-├─ App/Service (Go, Wails bindings) ── orchestrate engine↔store↔UI,
-│                                       media-server, alerts, dedup
+┌─ Frontend (Gio, pure-Go GPU)      ── widget.List virtualization, lazy in-memory
+│                                       media (MediaBytes→texture), polls the store
+├─ App/Service (Go, internal/app)   ── orchestrate engine↔store↔UI, dedup, sync
+│                                       reconcile; exposes Get*/Send*/… methods
 ├─ Engine (Go, whatsmeow)           ── WA protocol, connection, event stream
 │
 └─ Store (SQLite, modernc)          ── normalized schema, FTS5, WAL, file-refs
+```
+
+Original / reference FE (Svelte in WebKitGTK via Wails — `main.go` + `frontend/`):
+```
+┌─ Frontend (Svelte in WebKitGTK) ── virtualized list, lazy media, thin state
+├─ App/Service (Go, Wails bindings) ── + media-server (AssetServer ServeHTTP), alerts
+├─ Engine / └─ Store                ── (shared with the Gio app)
 ```
 
 Rules: whatsmeow types don't leak outside the engine; the UI doesn't know SQL; media never

@@ -142,6 +142,11 @@ type UI struct {
 	drafts    map[string]string // draft composer per-chat (jid → teks belum terkirim)
 	draftChat string            // chat yg draft-nya sedang ada di editor
 
+	linkMu    sync.Mutex
+	linkPrev  map[string]*app.LinkPreviewDTO // pratinjau tautan per-URL (async)
+	linkImg   map[string]paint.ImageOp       // thumbnail pratinjau (decode async)
+	linkTried map[string]bool                // URL sudah dicoba ambil
+
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
 
@@ -307,6 +312,15 @@ func (u *UI) SetEditing(id, text string) {
 	u.editor.SetText(text)
 }
 
+// SetLinkPreviewDemo: utk render-tool menguji kartu pratinjau tautan headless
+// (inject preview + thumbnail sintetis, gulir ke bawah agar terlihat).
+func (u *UI) SetLinkPreviewDemo(url, title, desc string) {
+	u.linkPrev[url] = &app.LinkPreviewDTO{URL: url, Title: title, Desc: desc, Image: "x"}
+	u.linkImg[url] = synthPhoto()
+	u.linkTried[url] = true
+	u.msgList.ScrollTo(9999)
+}
+
 // SetSelectDemo: utk render-tool menguji mode-pilih (toolbar + sorot) headless.
 func (u *UI) SetSelectDemo(ids ...string) {
 	u.selMode = true
@@ -390,6 +404,9 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.mediaTried = map[string]bool{}
 	u.drafts = map[string]string{}
 	u.selSet = map[string]bool{}
+	u.linkPrev = map[string]*app.LinkPreviewDTO{}
+	u.linkImg = map[string]paint.ImageOp{}
+	u.linkTried = map[string]bool{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -481,6 +498,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m19", Dir: "in", Type: "contact", Text: "Dewi Anggraini", Thumb: "+62 812-3456-7890", Time: "08.16", Sender: "Citra Dewi", Ts: now},
 		{ID: "m20", Dir: "in", Type: "text", Text: "Setuju sama @Budi Santoso, nanti @Citra Dewi yang bawa kamera ya", Time: "08.17", Sender: "Rian", Ts: now, Mentions: []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra Dewi"}}},
 		{ID: "m21", Dir: "out", Type: "text", Text: "🔥👍", Time: "08.18", Status: "read", Ts: now}, // emoji-saja → bubble diperbesar
+		{ID: "m22", Dir: "in", Type: "text", Text: "Cek artikelnya https://example.com/artikel", Time: "08.19", Sender: "Budi Santoso", Ts: now},
 	}
 }
 
@@ -3205,6 +3223,119 @@ func (u *UI) isPinned(id string) bool {
 	return false
 }
 
+// firstURL — URL http(s) pertama dalam teks (buang tanda baca ekor). "" bila tak ada.
+func firstURL(s string) string {
+	for _, f := range strings.Fields(s) {
+		if strings.HasPrefix(f, "http://") || strings.HasPrefix(f, "https://") {
+			return strings.TrimRight(f, ".,)!?:;\"'")
+		}
+	}
+	return ""
+}
+
+// urlHost — host (domain) dari URL utk label kartu pratinjau.
+func urlHost(u string) string {
+	s := strings.TrimPrefix(strings.TrimPrefix(u, "https://"), "http://")
+	if i := strings.IndexAny(s, "/?#"); i >= 0 {
+		s = s[:i]
+	}
+	return strings.TrimPrefix(s, "www.")
+}
+
+// ensureLinkPreview — ambil pratinjau tautan + thumbnail (async, sekali per URL).
+func (u *UI) ensureLinkPreview(url string) {
+	if u.core == nil || url == "" {
+		return
+	}
+	u.linkMu.Lock()
+	if u.linkTried[url] {
+		u.linkMu.Unlock()
+		return
+	}
+	u.linkTried[url] = true
+	u.linkMu.Unlock()
+	go func() {
+		dto := u.core.GetLinkPreview(url)
+		if dto == nil {
+			return
+		}
+		u.linkMu.Lock()
+		u.linkPrev[url] = dto
+		u.linkMu.Unlock()
+		if dto.Image != "" {
+			if img := decodeImage(decodeDataURI(u.core.FetchRemoteMedia(dto.Image))); img != nil {
+				op := paint.NewImageOp(img)
+				u.linkMu.Lock()
+				u.linkImg[url] = op
+				u.linkMu.Unlock()
+			}
+		}
+	}()
+}
+
+// linkCardWidget — widget kartu pratinjau tautan bila sudah termuat; nil bila belum.
+func (u *UI) linkCardWidget(url string) layout.Widget {
+	u.linkMu.Lock()
+	dto := u.linkPrev[url]
+	img, hasImg := u.linkImg[url]
+	u.linkMu.Unlock()
+	if dto == nil {
+		return nil
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		rr := gtx.Dp(8)
+		macro := op.Record(gtx.Ops)
+		dims := func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{}
+			if hasImg {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					w := gtx.Constraints.Max.X
+					h := gtx.Dp(120)
+					box := image.Pt(w, h)
+					cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: rr, NE: rr}.Push(gtx.Ops)
+					drawImageFill(gtx.Ops, img, w)
+					cl.Pop()
+					return layout.Dimensions{Size: box}
+				}))
+			}
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					col := []layout.FlexChild{}
+					if dto.Title != "" {
+						col = append(col, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 13.5, dto.Title)
+							l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 2
+							return l.Layout(gtx)
+						}))
+					}
+					if dto.Desc != "" {
+						col = append(col, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 12.5, dto.Desc)
+							l.Color, l.MaxLines = u.t.Text2, 2
+							return l.Layout(gtx)
+						}))
+					}
+					col = append(col, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 11.5, urlHost(url))
+						l.Color, l.MaxLines = u.t.Accent, 1
+						return l.Layout(gtx)
+					}))
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, col...)
+				})
+			}))
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		}(gtx)
+		call := macro.Stop()
+		bg := color.NRGBA{R: 0, G: 0, B: 0, A: 36}
+		paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), dims.Size.Y)}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	}
+}
+
 // isGroupJIDStr — true bila JID grup (@g.us).
 func isGroupJIDStr(jid string) bool { return strings.HasSuffix(jid, "@g.us") }
 
@@ -4026,23 +4157,36 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					if txt == "" && m.Type != "" && m.Type != "text" {
 						txt = "[" + m.Type + "]"
 					}
-					if len(m.Mentions) > 0 { // @mention berwarna accent (inline, wrap)
-						return u.mentionText(gtx, txt, m.Mentions)
+					textW := func(gtx layout.Context) layout.Dimensions {
+						if len(m.Mentions) > 0 { // @mention berwarna accent (inline, wrap)
+							return u.mentionText(gtx, txt, m.Mentions)
+						}
+						sz := unit.Sp(15)
+						if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA)
+							switch n {
+							case 1:
+								sz = unit.Sp(40)
+							case 2:
+								sz = unit.Sp(32)
+							default:
+								sz = unit.Sp(26)
+							}
+						}
+						lbl := material.Label(u.th, sz, txt)
+						lbl.Color = u.t.Text
+						return lbl.Layout(gtx)
 					}
-					sz := unit.Sp(15)
-					if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA)
-						switch n {
-						case 1:
-							sz = unit.Sp(40)
-						case 2:
-							sz = unit.Sp(32)
-						default:
-							sz = unit.Sp(26)
+					if url := firstURL(txt); url != "" { // pratinjau tautan di atas teks
+						u.ensureLinkPreview(url)
+						if card := u.linkCardWidget(url); card != nil {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Rigid(card),
+								layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
+								layout.Rigid(textW),
+							)
 						}
 					}
-					lbl := material.Label(u.th, sz, txt)
-					lbl.Color = u.t.Text
-					return lbl.Layout(gtx)
+					return textW(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// .meta: jam + (utk pesan keluar) centang status.

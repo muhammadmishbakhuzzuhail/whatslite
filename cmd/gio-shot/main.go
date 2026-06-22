@@ -135,6 +135,9 @@ func main() {
 			ui.SetComposeText("Jangan lupa meeting jam 10 ya")
 			ui.SetOverlay("schedule") // modal jadwalkan pesan
 			ui.Layout(gtx)
+		case "app-linkpreview":
+			ui.SetLinkPreviewDemo("https://example.com/artikel", "Artikel Menarik tentang Go", "Ringkasan singkat artikel ini membahas Gio dan UI native.")
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

@@ -108,9 +108,14 @@ func (a *App) QRCode() string {
 // typingStateT — status "mengetik" terakhir per chat (utk subtitle header in-process).
 type typingStateT struct {
 	on  bool
-	who string // nama (grup) atau "" (DM)
-	rec bool   // merekam audio
+	who string    // nama (grup) atau "" (DM)
+	rec bool       // merekam audio
+	at  time.Time // kapan status "mengetik" diterima (utk kedaluwarsa)
 }
+
+// typingTTL — "mengetik…" dianggap basi setelah ini bila tak ada event "paused"
+// (peer tutup app / putus jaringan). WhatsApp meng-auto-expire komposisi.
+const typingTTL = 12 * time.Second
 
 func (a *App) setPresence(jid, txt string) {
 	a.presMu.Lock()
@@ -126,6 +131,9 @@ func (a *App) setTyping(jid string, st typingStateT) {
 	if a.typing == nil {
 		a.typing = map[string]typingStateT{}
 	}
+	if st.on {
+		st.at = time.Now()
+	}
 	a.typing[jid] = st
 	a.presMu.Unlock()
 }
@@ -136,7 +144,7 @@ func (a *App) setTyping(jid string, st typingStateT) {
 func (a *App) ChatSubtitle(jid string) string {
 	a.presMu.RLock()
 	defer a.presMu.RUnlock()
-	if st, ok := a.typing[jid]; ok && st.on {
+	if st, ok := a.typing[jid]; ok && st.on && time.Since(st.at) < typingTTL {
 		if st.rec {
 			if st.who != "" {
 				return st.who + " sedang merekam audio…"

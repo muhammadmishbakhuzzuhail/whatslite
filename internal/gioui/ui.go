@@ -419,6 +419,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m18", Dir: "in", Type: "location", Text: "Jl. Sudirman No. 12, Jakarta", Time: "08.15", Sender: "Budi Santoso", Ts: now},
 		{ID: "m19", Dir: "in", Type: "contact", Text: "Dewi Anggraini", Thumb: "+62 812-3456-7890", Time: "08.16", Sender: "Citra Dewi", Ts: now},
 		{ID: "m20", Dir: "in", Type: "text", Text: "Setuju sama @Budi Santoso, nanti @Citra Dewi yang bawa kamera ya", Time: "08.17", Sender: "Rian", Ts: now, Mentions: []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra Dewi"}}},
+		{ID: "m21", Dir: "out", Type: "text", Text: "🔥👍", Time: "08.18", Status: "read", Ts: now}, // emoji-saja → bubble diperbesar
 	}
 }
 
@@ -2973,6 +2974,53 @@ func (u *UI) starredCtl(gtx layout.Context) *StarredCtl {
 	return &StarredCtl{Hits: u.starHits, HitClicks: u.starHitClicks, Back: &u.starBack}
 }
 
+// emojiOnlyCount — jumlah emoji bila `s` HANYA berisi emoji (+ spasi/modifier),
+// else 0. Dipakai memperbesar bubble emoji-saja (1-3) ala WhatsApp. Heuristik
+// rentang Unicode emoji umum; karakter biasa apa pun → 0.
+func emojiOnlyCount(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	count := 0
+	prevZWJ := false
+	// emoji dasar: tambah count KECUALI digabung ZWJ ke emoji sebelumnya (1 grafem).
+	emoji := func() {
+		if !prevZWJ {
+			count++
+		}
+		prevZWJ = false
+	}
+	for _, r := range s {
+		switch {
+		case r == 0x200D: // ZWJ → emoji berikut bagian dari grafem yg sama
+			prevZWJ = true
+		case r == 0xFE0F || r == 0xFE0E: // variation selector — tak ubah status
+		case r >= 0x1F3FB && r <= 0x1F3FF: // skin-tone modifier (bagian emoji sebelum)
+		case r >= 0x1F1E6 && r <= 0x1F1FF: // regional indicator (bendera)
+			emoji()
+		case r >= 0x1F300 && r <= 0x1FAFF: // blok emoji utama
+			emoji()
+		case r >= 0x2600 && r <= 0x27BF: // simbol misc + dingbats
+			emoji()
+		case r >= 0x1F000 && r <= 0x1F0FF: // mahjong/domino/kartu
+			emoji()
+		case r == 0x2B50 || r == 0x2B55 || r == 0x2934 || r == 0x2935:
+			emoji()
+		case r == 0x203C || r == 0x2049 || (r >= 0x2190 && r <= 0x21AA):
+			emoji()
+		case unicode.IsSpace(r):
+			prevZWJ = false
+		default:
+			return 0 // karakter biasa → bukan emoji-saja
+		}
+	}
+	if count >= 1 && count <= 3 {
+		return count
+	}
+	return 0
+}
+
 // isGroupJIDStr — true bila JID grup (@g.us).
 func isGroupJIDStr(jid string) bool { return strings.HasSuffix(jid, "@g.us") }
 
@@ -3480,7 +3528,18 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					if len(m.Mentions) > 0 { // @mention berwarna accent (inline, wrap)
 						return u.mentionText(gtx, txt, m.Mentions)
 					}
-					lbl := material.Label(u.th, 15, txt)
+					sz := unit.Sp(15)
+					if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA)
+						switch n {
+						case 1:
+							sz = unit.Sp(40)
+						case 2:
+							sz = unit.Sp(32)
+						default:
+							sz = unit.Sp(26)
+						}
+					}
+					lbl := material.Label(u.th, sz, txt)
 					lbl.Color = u.t.Text
 					return lbl.Layout(gtx)
 				}),

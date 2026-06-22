@@ -110,6 +110,9 @@ func main() {
 		case "app-lightbox":
 			ui.SetLightbox("m13", "Sunset di pantai 🌅")
 			ui.Layout(gtx)
+		case "app-quotejump":
+			ui.SetHighlight("m3") // sorot pesan asal (hasil lompat dari kutipan)
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

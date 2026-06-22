@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/color"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"unicode"
 
 	"gioui.org/font"
+	"gioui.org/io/clipboard"
 	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
@@ -203,6 +205,10 @@ type UI struct {
 	headSearchClick widget.Clickable // ikon cari header → cari DALAM chat aktif
 	infoBlockC      widget.Clickable // info-drawer: blokir kontak
 	infoLeaveC      widget.Clickable // info-drawer: keluar grup
+	infoInviteC     widget.Clickable // info-drawer: link undangan grup
+	inviteLink      string           // link undangan termuat (modal "invitelink")
+	inviteCopy      widget.Clickable
+	inviteClose     widget.Clickable
 
 	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
 	inChatEd     widget.Editor // input cari-dalam-chat
@@ -313,6 +319,9 @@ func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
 }
+
+// SetInviteDemo: utk render-tool menguji modal link undangan headless.
+func (u *UI) SetInviteDemo(link string) { u.inviteLink = link; u.overlay = "invitelink" }
 
 // SetLinkPreviewDemo: utk render-tool menguji kartu pratinjau tautan headless
 // (inject preview + thumbnail sintetis, gulir ke bawah agar terlihat).
@@ -850,6 +859,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.locComposeLayer(gtx)
 	case "schedule":
 		u.scheduleLayer(gtx)
+	case "invitelink":
+		u.inviteLinkLayer(gtx)
 	case "groupcreate":
 		u.groupCreateLayer(gtx)
 	case "pinset":
@@ -3527,6 +3538,7 @@ func (u *UI) infoData() *InfoDrawerData {
 	d := &InfoDrawerData{Name: u.selName, Group: u.selGroup, Sub: u.subtitle}
 	if u.selGroup {
 		d.Leave = &u.infoLeaveC
+		d.Invite = &u.infoInviteC
 		if gi := u.core.GetGroupInfo(u.selected); gi != nil {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
@@ -3550,6 +3562,17 @@ func (u *UI) handleInfo(gtx layout.Context) {
 			u.core.LeaveGroup(u.selected)
 		}
 		u.overlay, u.selected = "", "" // keluar → tutup drawer + deselect chat
+	}
+	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
+		u.inviteLink = ""
+		u.overlay = "invitelink"
+		if u.core != nil {
+			jid := u.selected
+			go func() {
+				link := u.core.GroupInviteLink(jid, false)
+				u.inviteLink = link
+			}()
+		}
 	}
 }
 
@@ -3672,6 +3695,76 @@ func (u *UI) syncDraft() {
 	u.clearEdit()
 	u.editor.SetText(u.drafts[u.selected]) // "" bila tak ada draft
 	u.draftChat = u.selected
+}
+
+// inviteLinkLayer — modal link undangan grup: tampil link (atau "Memuat…") +
+// tombol Salin (clipboard) + Tutup.
+func (u *UI) inviteLinkLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	link := u.inviteLink
+	shown := link
+	if shown == "" {
+		shown = "Memuat…"
+	}
+	for u.inviteClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.inviteCopy.Clicked(gtx) {
+		if link != "" {
+			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(link))})
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(340)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Link undangan grup")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13.5, shown)
+					l.Color, l.MaxLines = u.t.Accent, 2
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.inviteClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Tutup")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.inviteCopy.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Salin")
+									l.Color, l.Font.Weight = u.t.Accent, font.Medium
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // scheduleLayer — modal jadwalkan pesan: pratinjau teks + 3 preset waktu + batal.

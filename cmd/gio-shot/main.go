@@ -138,6 +138,9 @@ func main() {
 		case "app-linkpreview":
 			ui.SetLinkPreviewDemo("https://example.com/artikel", "Artikel Menarik tentang Go", "Ringkasan singkat artikel ini membahas Gio dan UI native.")
 			ui.Layout(gtx)
+		case "app-invitelink":
+			ui.SetInviteDemo("https://chat.whatsapp.com/AbC123dEfG456") // modal link undangan
+			ui.Layout(gtx)
 		case "app-settings":
 			ui.SetView("settings")
 			ui.Layout(gtx)

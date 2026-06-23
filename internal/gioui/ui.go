@@ -355,6 +355,8 @@ type UI struct {
 	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
 	aboutOpen        bool                 // dropdown saran Tentang terbuka?
 	demoTypingJID    string               // render-tool: paksa indikator mengetik utk jid ini
+	demoTypingWho    string               // render-tool: nama pengetik grup (avatar bubble)
+	demoTypingWhoJID string               // render-tool: jid pengetik grup
 	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
 	editor           widget.Editor
 	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
@@ -680,7 +682,12 @@ func (u *UI) refresh() {
 			// grup: presence per-pengguna tak berlaku → tampil daftar anggota, KECUALI
 			// ada yg mengetik/merekam (override). DM: tetap presence.
 			if u.selGroup && !strings.Contains(sub, "mengetik") && !strings.Contains(sub, "merekam") {
-				sub = u.groupSub
+				if u.groupSub == "" { // belum dihitung (mis. seleksi dipulihkan tanpa klik)
+					u.groupSub = u.groupMembersSummary(u.selected)
+				}
+				if u.groupSub != "" {
+					sub = u.groupSub
+				}
 			}
 			u.subtitle = sub
 		}
@@ -5185,6 +5192,18 @@ func (u *UI) typingOf(jid string) string {
 	return ""
 }
 
+// typingWhoOf — (nama, jid) pengirim grup yg mengetik (utk avatar di bubble). DM
+// / demo → ("",""): bubble tanpa avatar.
+func (u *UI) typingWhoOf(jid string) (string, string) {
+	if u.demoTypingWhoJID != "" {
+		return u.demoTypingWho, u.demoTypingWhoJID
+	}
+	if u.core == nil || u.demoTypingJID != "" {
+		return "", ""
+	}
+	return u.core.TypingWho(jid)
+}
+
 // SetRenameDemo — render-tool: pilih DM + buka modal edit nama kontak.
 func (u *UI) SetRenameDemo() {
 	for i := range u.chats {
@@ -5251,6 +5270,26 @@ func (u *UI) SetTypingDemo(jid string) {
 		jid = u.chats[0].ID
 	}
 	u.selected, u.demoTypingJID = jid, jid
+	if u.core != nil {
+		u.messages = u.core.GetMessages(jid)
+	}
+}
+
+// SetTypingDemoGroup — render-tool: indikator mengetik grup + avatar pengetik.
+func (u *UI) SetTypingDemoGroup() {
+	jid := ""
+	for i := range u.chats {
+		if u.chats[i].Group {
+			jid = u.chats[i].ID
+			u.selGroup = true
+			break
+		}
+	}
+	if jid == "" && len(u.chats) > 0 {
+		jid = u.chats[0].ID
+	}
+	u.selected, u.demoTypingJID = jid, jid
+	u.demoTypingWho, u.demoTypingWhoJID = "Andi", "111@s.whatsapp.net"
 	if u.core != nil {
 		u.messages = u.core.GetMessages(jid)
 	}
@@ -6767,7 +6806,9 @@ func (u *UI) typingBubble(gtx layout.Context) layout.Dimensions {
 	if !gtx.Now.IsZero() {
 		phase = int(gtx.Now.UnixNano()/int64(280*time.Millisecond)) % 3
 	}
-	return layout.Inset{Left: unit.Dp(14), Top: unit.Dp(2), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	// grup → avatar pengirim di kiri bubble (ala WhatsApp: tahu siapa yg mengetik).
+	whoName, whoJID := u.typingWhoOf(u.selected)
+	bub := func(gtx layout.Context) layout.Dimensions {
 		macro := op.Record(gtx.Ops)
 		dims := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, 5)
@@ -6794,6 +6835,19 @@ func (u *UI) typingBubble(gtx layout.Context) layout.Dimensions {
 		paint.FillShape(gtx.Ops, u.t.InBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: gtx.Dp(4), NE: r, SE: r, SW: r}.Op(gtx.Ops))
 		call.Add(gtx.Ops)
 		return dims
+	}
+	return layout.Inset{Left: unit.Dp(14), Top: unit.Dp(2), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		if whoJID == "" { // DM → bubble saja (tanpa avatar)
+			return bub(gtx)
+		}
+		// grup → avatar kecil + bubble berdampingan (Bottom-align ke ekor).
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.avatar(gtx, whoName, whoJID, 26)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+			layout.Rigid(bub),
+		)
 	})
 }
 

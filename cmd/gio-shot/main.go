@@ -219,6 +219,9 @@ func main() {
 		case "app-typing":
 			ui.SetTypingDemo("") // bubble mengetik + preview mengetik
 			ui.Layout(gtx)
+		case "app-typinggroup":
+			ui.SetTypingDemoGroup() // bubble mengetik grup + avatar pengetik
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

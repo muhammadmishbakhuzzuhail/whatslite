@@ -107,10 +107,11 @@ func (a *App) QRCode() string {
 
 // typingStateT — status "mengetik" terakhir per chat (utk subtitle header in-process).
 type typingStateT struct {
-	on  bool
-	who string    // nama (grup) atau "" (DM)
-	rec bool       // merekam audio
-	at  time.Time // kapan status "mengetik" diterima (utk kedaluwarsa)
+	on     bool
+	who    string    // nama (grup) atau "" (DM)
+	whoJID string    // jid pengirim (grup) → avatar di bubble mengetik
+	rec    bool      // merekam audio
+	at     time.Time // kapan status "mengetik" diterima (utk kedaluwarsa)
 }
 
 // typingTTL — "mengetik…" dianggap basi setelah ini bila tak ada event "paused"
@@ -178,6 +179,18 @@ func (a *App) TypingLabel(jid string) string {
 		return st.who + " mengetik…"
 	}
 	return "mengetik…"
+}
+
+// TypingWho mengembalikan (nama, jid) pengirim yg sedang mengetik di grup, atau
+// ("","") bila tak ada / DM. Dipakai UI utk menampilkan avatar di bubble mengetik.
+func (a *App) TypingWho(jid string) (string, string) {
+	a.presMu.RLock()
+	defer a.presMu.RUnlock()
+	st, ok := a.typing[jid]
+	if !ok || !st.on || time.Since(st.at) >= typingTTL {
+		return "", ""
+	}
+	return st.who, st.whoJID
 }
 
 // GetState: "offline" | "qr" | "ready".

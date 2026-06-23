@@ -515,11 +515,12 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 	})
 	eng.OnChatPresence(func(chat, sender string, composing, recording bool) {
 		chat = eng.CanonicalJID(chat) // samakan dgn id chat di UI (cegah @lid mismatch)
-		who := ""
+		who, whoJID := "", ""
 		if composing && isGroupJID(chat) && sender != "" {
 			who = a.displayName(sender) // grup → "Budi sedang mengetik…"
+			whoJID = eng.CanonicalJID(sender)
 		}
-		a.setTyping(chat, typingStateT{on: composing, who: who, rec: recording})
+		a.setTyping(chat, typingStateT{on: composing, who: who, whoJID: whoJID, rec: recording})
 		a.emit("wa:typing", map[string]interface{}{"chat": chat, "on": composing, "who": who, "rec": recording})
 	})
 	eng.OnReceipt(func(chat, sender string, ids []string, status string, ts time.Time) {

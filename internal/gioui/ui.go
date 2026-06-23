@@ -155,6 +155,10 @@ type UI struct {
 	linkImg   map[string]paint.ImageOp       // thumbnail pratinjau (decode async)
 	linkTried map[string]bool                // URL sudah dicoba ambil
 
+	transMu    sync.Mutex
+	transText  map[string]string // msgID → teks terjemahan (async)
+	transTried map[string]bool   // msgID sudah dicoba terjemah
+
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
 
@@ -282,7 +286,7 @@ type UI struct {
 	ctxIdx      int            // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
-	ctxItems [9]widget.Clickable // item menu (react/reply/forward/star/info/delete + edit/unduh + pin + pilih)
+	ctxItems [10]widget.Clickable // item menu (base6 + edit/unduh + pin + pilih + terjemah)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
@@ -335,6 +339,9 @@ func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
 }
+
+// SetTranslateDemo: utk render-tool menguji baris terjemahan headless.
+func (u *UI) SetTranslateDemo(id, text string) { u.transText[id] = text }
 
 // SetRecordingDemo: utk render-tool menguji bar rekam voice note headless.
 func (u *UI) SetRecordingDemo() { u.recDemo = true }
@@ -445,6 +452,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.linkPrev = map[string]*app.LinkPreviewDTO{}
 	u.linkImg = map[string]paint.ImageOp{}
 	u.linkTried = map[string]bool{}
+	u.transText = map[string]string{}
+	u.transTried = map[string]bool{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -942,6 +951,8 @@ func (u *UI) doCtxAction(label string) {
 	case "Pilih":
 		u.selMode = true
 		u.selSet[m.ID] = true
+	case "Terjemah":
+		u.ensureTranslate(m.ID, m.Text)
 	}
 }
 
@@ -1658,6 +1669,9 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 			pinLabel = "Lepas sematan"
 		}
 		items = append(items, ctxItem{"pin", pinLabel, ""})
+	}
+	if !m.Revoked && (m.Type == "" || m.Type == "text") && strings.TrimSpace(m.Text) != "" {
+		items = append(items, ctxItem{"globe", "Terjemah", ""}) // terjemah teks
 	}
 	items = append(items, ctxItem{"message", "Pilih", ""}) // masuk mode pilih (multi)
 	children := make([]layout.FlexChild, 0, len(items))
@@ -3321,6 +3335,53 @@ func (u *UI) isPinned(id string) bool {
 	return false
 }
 
+// ensureTranslate — terjemahkan teks pesan (async, sekali per msgID) ke bahasa app
+// (id). Bila hasil == asli (sudah berbahasa id), tak disimpan (tak ada baris).
+func (u *UI) ensureTranslate(id, text string) {
+	if u.core == nil || strings.TrimSpace(text) == "" {
+		return
+	}
+	u.transMu.Lock()
+	if u.transTried[id] {
+		u.transMu.Unlock()
+		return
+	}
+	u.transTried[id] = true
+	u.transMu.Unlock()
+	go func() {
+		out := u.core.Translate(text, "id")
+		if out != "" && out != text {
+			u.transMu.Lock()
+			u.transText[id] = out
+			u.transMu.Unlock()
+		}
+	}()
+}
+
+// translatedWidget — widget baris terjemahan ("Diterjemahkan" + teks) bila ada.
+func (u *UI) translatedWidget(id string) layout.Widget {
+	u.transMu.Lock()
+	tr := u.transText[id]
+	u.transMu.Unlock()
+	if tr == "" {
+		return nil
+	}
+	return func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 11, "Diterjemahkan")
+				l.Color = u.t.Accent
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 15, tr)
+				l.Color = u.t.Text
+				return l.Layout(gtx)
+			}),
+		)
+	}
+}
+
 // firstURL — URL http(s) pertama dalam teks (buang tanda baca ekor). "" bila tak ada.
 func firstURL(s string) string {
 	for _, f := range strings.Fields(s) {
@@ -4469,17 +4530,24 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 						lbl.Color = u.t.Text
 						return lbl.Layout(gtx)
 					}
+					var card layout.Widget
 					if url := firstURL(txt); url != "" { // pratinjau tautan di atas teks
 						u.ensureLinkPreview(url)
-						if card := u.linkCardWidget(url); card != nil {
-							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-								layout.Rigid(card),
-								layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
-								layout.Rigid(textW),
-							)
-						}
+						card = u.linkCardWidget(url)
 					}
-					return textW(gtx)
+					trBlock := u.translatedWidget(m.ID) // terjemahan di bawah teks
+					if card == nil && trBlock == nil {
+						return textW(gtx)
+					}
+					children := make([]layout.FlexChild, 0, 4)
+					if card != nil {
+						children = append(children, layout.Rigid(card), layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout))
+					}
+					children = append(children, layout.Rigid(textW))
+					if trBlock != nil {
+						children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout), layout.Rigid(trBlock))
+					}
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// .meta: jam + (utk pesan keluar) centang status.

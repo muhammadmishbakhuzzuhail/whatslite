@@ -3036,6 +3036,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	u.handleChatFilter(gtx)
 	u.computeShown()
 	u.handleNewChat(gtx)
+	u.handleChatClicks(gtx) // klik baris chat diproses DI LUAR layout (ala kontak)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return paneHead(gtx, u.th, u.t, w, "Chat")
@@ -3267,20 +3268,58 @@ func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
 // ---- baris chat (.chat-row) ----
 func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 	c := u.chats[i]
-	return u.clicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	// row (clickable + konten) direkam → tag klik-kanan jadi INDUK (push clip +
+	// event.Op + replay) supaya clickable di dalam dapat PRIMARY (buka chat) &
+	// tag dapat SECONDARY (menu). Tag sebagai sibling/di-atas mencuri primary → klik mati.
+	// row direkam → tag klik-kanan jadi INDUK (push clip + event.Op + replay) → klik
+	// PRIMARY tetap ke baris (lewat handleChatClicks), SECONDARY → menu konteks.
+	rowMacro := op.Record(gtx.Ops)
+	dims := u.rowInner(gtx, i, c)
+	rowCall := rowMacro.Stop()
+	tag := chatTag(i)
+	for {
+		ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+		if !ok {
+			break
+		}
+		if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+			u.chatCtxChat = c
+			u.overlay = "chatctx"
+		}
+	}
+	area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+	event.Op(gtx.Ops, tag)
+	rowCall.Add(gtx.Ops)
+	area.Pop()
+	return dims
+}
+
+// handleChatClicks — proses klik baris chat DI LUAR layout (ala handleContactsPane).
+// Memanggil Clicked() di dalam Clickable.Layout sendiri ternyata tak terpicu di
+// dalam material.List → pindah ke sini (klik bisa, section 3 muncul).
+func (u *UI) handleChatClicks(gtx layout.Context) {
+	for i := range u.chats {
+		if i >= len(u.clicks) {
+			break
+		}
 		for u.clicks[i].Clicked(gtx) {
-			u.selected = c.ID
-			u.selName = c.Name
-			u.selGroup = c.Group
-			u.view, u.openChannel = "chats", "" // pastikan section 3 = percakapan (bukan reader channel/splash)
+			c := u.chats[i]
+			u.selected, u.selName, u.selGroup = c.ID, c.Name, c.Group
+			u.view, u.openChannel = "chats", ""
 			if u.core != nil {
 				u.core.OpenChat(c.ID)
 				u.messages = u.core.GetMessages(c.ID)
-				u.prefetchHistory(c.ID) // history tipis → backfill lama terurut
+				u.prefetchHistory(c.ID)
 			}
-			u.captureUnreadDivider(c.Badge)     // batas "belum dibaca" SEBELUM ditandai-baca
-			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
+			u.captureUnreadDivider(c.Badge)
+			u.msgList.ScrollTo(len(u.messages))
 		}
+	}
+}
+
+// rowInner — isi baris chat (clickable buka-chat + konten + bg hover/aktif).
+func (u *UI) rowInner(gtx layout.Context, i int, c app.ChatDTO) layout.Dimensions {
+	return u.clicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		// rekam konten dulu → tahu ukuran baris → gambar bg hover/aktif di BELAKANG.
 		macro := op.Record(gtx.Ops)
 		// modern (Telegram/Linear): baris lebih lega (vert 12), avatar 54, tanpa divider.
@@ -3324,22 +3363,6 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		}
 		call.Add(gtx.Ops)
-		// modern: tanpa divider — pemisahan oleh spasi + kartu rounded saat hover/aktif.
-		// klik-kanan (secondary) di baris → menu aksi chat.
-		tag := chatTag(i)
-		for {
-			ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
-			if !ok {
-				break
-			}
-			if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
-				u.chatCtxChat = c // snapshot chat
-				u.overlay = "chatctx"
-			}
-		}
-		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-		event.Op(gtx.Ops, tag)
-		area.Pop()
 		return dims
 	})
 }

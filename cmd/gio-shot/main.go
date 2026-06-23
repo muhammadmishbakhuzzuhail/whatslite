@@ -264,6 +264,11 @@ func main() {
 			ui.SetView("contacts")
 			ui.SetOverlay("groupcreate")
 			ui.Layout(gtx)
+		case "app-searchmsg": // baris "Cari pesan" di daftar chat (query teks)
+			ui.SetView("chats")
+			ui.Deselect()
+			ui.SetSearch("rapat")
+			ui.Layout(gtx)
 		case "app-lock":
 			ui.SetLocked(true)
 			ui.Layout(gtx)

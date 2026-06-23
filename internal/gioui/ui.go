@@ -24,6 +24,7 @@ import (
 	"gioui.org/font"
 	"gioui.org/io/clipboard"
 	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	"gioui.org/layout"
@@ -64,9 +65,9 @@ type UI struct {
 	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
 	olderReqAt   time.Time // waktu permintaan history lama terakhir
 
-	pollClicks    map[string][]widget.Clickable // msgID → clickable per opsi polling
-	pollVoteCache map[string]pollVoteEntry      // msgID → hasil suara (TTL — hindari query/frame)
-	mentionState  richtext.InteractiveText      // state teks ber-mention (warna inline)
+	pollClicks    map[string][]widget.Clickable        // msgID → clickable per opsi polling
+	pollVoteCache map[string]pollVoteEntry             // msgID → hasil suara (TTL — hindari query/frame)
+	mentionState  richtext.InteractiveText             // state teks ber-mention (warna inline)
 	linkStates    map[string]*richtext.InteractiveText // state per-pesan utk URL klik
 
 	// picker stiker (tombol stiker composer → overlay "picker").
@@ -101,7 +102,7 @@ type UI struct {
 	scEd              widget.Editor       // editor teks status (composer post)
 	scPost            widget.Clickable
 	scCancel          widget.Clickable
-	scMedia           widget.Clickable    // composer: pilih foto/video → status media
+	scMedia           widget.Clickable // composer: pilih foto/video → status media
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -135,7 +136,7 @@ type UI struct {
 	chMsgsCache  []app.ChannelMsgDTO // cache post channel terbuka
 	chMsgsJID    string              // jid cache di atas
 	chMsgsAt     time.Time
-	chnExpCache  []chnChannel        // cache saluran jelajah
+	chnExpCache  []chnChannel // cache saluran jelajah
 	chnExpAt     time.Time
 	chnExpQuery  string        // query terakhir direktori jelajah (invalidasi cache)
 	chnSearchEd  widget.Editor // kotak cari direktori channels (tab Jelajahi)
@@ -159,11 +160,12 @@ type UI struct {
 	newChatClick widget.Clickable // baris "mulai chat baru" (query nomor)
 
 	// pencarian pesan global (ikon cari header → view "search").
-	svEd        widget.Editor
-	svHits      []svHit
-	svHitClicks []widget.Clickable
-	svBack      widget.Clickable
-	svPrevView  string // view sebelum pencarian (utk kembali)
+	svEd           widget.Editor
+	svHits         []svHit
+	svHitClicks    []widget.Clickable
+	svBack         widget.Clickable
+	svPrevView     string           // view sebelum pencarian (utk kembali)
+	searchMsgClick widget.Clickable // baris "Cari pesan '<q>'" → masuk view search
 
 	// panel pesan berbintang (chat-overflow → "Pesan berbintang", view "starred").
 	starHits      []svHit
@@ -283,7 +285,7 @@ type UI struct {
 	renameEd         widget.Editor    // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
 	renameCancel     widget.Clickable
-	delTarget        app.MessageDTO   // pesan yg akan dihapus (dialog hapus untuk saya/semua)
+	delTarget        app.MessageDTO // pesan yg akan dihapus (dialog hapus untuk saya/semua)
 	delForMe         widget.Clickable
 	delForAll        widget.Clickable
 	delCancel        widget.Clickable
@@ -2591,7 +2593,7 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		it := items[i]
 		for u.ctxItems[i].Clicked(gtx) {
 			u.doCtxAction(gtx, it.label) // jalankan aksi engine bila ada
-			u.overlay = it.to       // pindah ke popup tujuan ("" = tutup)
+			u.overlay = it.to            // pindah ke popup tujuan ("" = tutup)
 		}
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.ctxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -3142,6 +3144,14 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	u.computeShown()
 	u.handleNewChat(gtx)
 	u.handleChatClicks(gtx) // klik baris chat diproses DI LUAR layout (ala kontak)
+	cfQuery := strings.TrimSpace(u.searchEd.Text())
+	for u.searchMsgClick.Clicked(gtx) { // "Cari pesan" → pencarian isi pesan global
+		u.svPrevView = "chats"
+		u.svEd.SetText(cfQuery)
+		u.svHits = u.svHits[:0]
+		u.view = "search"
+		gtx.Execute(key.FocusCmd{Tag: &u.svEd})
+	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return paneHead(gtx, u.th, u.t, w, "Chat")
@@ -3151,6 +3161,26 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.filterChips(gtx)
+		}),
+		// query teks (≥2 char) → tawarkan cari ISI pesan (global, FTS) selain filter chat.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if len([]rune(cfQuery)) < 2 || phoneQuery(cfQuery) != "" {
+				return layout.Dimensions{}
+			}
+			return u.searchMsgClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(14), Top: unit.Dp(8), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "search", 18, u.t.Accent) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 14, "Cari pesan \""+cfQuery+"\"")
+							l.Color, l.MaxLines = u.t.Accent, 1
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			})
 		}),
 		// query berupa nomor telepon → tawarkan "mulai chat baru".
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -4077,10 +4107,10 @@ type fmtMark struct {
 }
 
 var fmtMarks = []fmtMark{
-	{ch: "```", mono: true},  // monospace (triple backtick) — cek DULU sebelum '`'
-	{ch: "*", bold: true},    // *tebal*
-	{ch: "_", italic: true},  // _miring_
-	{ch: "~", strike: true},  // ~coret~
+	{ch: "```", mono: true}, // monospace (triple backtick) — cek DULU sebelum '`'
+	{ch: "*", bold: true},   // *tebal*
+	{ch: "_", italic: true}, // _miring_
+	{ch: "~", strike: true}, // ~coret~
 }
 
 // fmtRuns — pisah `s` jadi run bergaya menurut marker WhatsApp (rekursif → nested,
@@ -5593,7 +5623,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 		}
 	}
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 0x0b, G: 0x14, B: 0x1a, A: 0xff}, clip.Rect{Max: gtx.Constraints.Max}.Op()) // latar solid (tanpa app tembus)
-	gtx.Constraints.Min = gtx.Constraints.Max // isi penuh layar → konten ter-center vertikal
+	gtx.Constraints.Min = gtx.Constraints.Max                                                                           // isi penuh layar → konten ter-center vertikal
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// progress bar tersegmen (1 per item; <=current penuh, sisanya redup).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {

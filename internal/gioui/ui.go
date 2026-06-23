@@ -185,6 +185,7 @@ type UI struct {
 	pinnedAt    time.Time
 	pinnedChat  string           // chat yg pinnedCache-nya valid
 	pinnedBar   widget.Clickable // bar pesan-tersemat → lompat ke pesan
+	pinnedIdx   int              // pin yg sedang ditampilkan (ketuk = siklus berikutnya)
 
 	drafts    map[string]string // draft composer per-chat (jid → teks belum terkirim)
 	draftChat string            // chat yg draft-nya sedang ada di editor
@@ -6693,17 +6694,42 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 	w := gtx.Constraints.Max.X
 	sz := image.Pt(w, h)
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
-	paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(gtx.Dp(3), h)}.Op()) // garis accent kiri
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
 
-	top := pinned[0]
+	cur := u.pinnedIdx
+	if cur >= len(pinned) {
+		cur = 0
+	}
+	// indikator segmen kiri (satu segmen per pin, segmen aktif terang) — ala WhatsApp.
+	bw := gtx.Dp(3)
+	if n := len(pinned); n > 1 {
+		gap := gtx.Dp(2)
+		pad := gtx.Dp(6)
+		seg := (h - 2*pad - (n-1)*gap) / n
+		if seg < gtx.Dp(3) {
+			seg = gtx.Dp(3)
+		}
+		y := pad
+		for i := 0; i < n; i++ {
+			c := withAlpha(u.t.Accent, 0x55)
+			if i == cur {
+				c = u.t.Accent
+			}
+			paint.FillShape(gtx.Ops, c, clip.RRect{Rect: image.Rect(0, y, bw, y+seg), NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
+			y += seg + gap
+		}
+	} else {
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(bw, h)}.Op())
+	}
+
+	top := pinned[cur]
 	preview := top.Text
 	if preview == "" && top.Type != "" {
 		preview = "[" + top.Type + "]"
 	}
 	label := "Pesan tersemat"
 	if len(pinned) > 1 {
-		label = itoa(len(pinned)) + " pesan tersemat"
+		label = "Pesan tersemat " + itoa(cur+1) + "/" + itoa(len(pinned))
 	}
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	return u.pinnedBar.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -6750,9 +6776,13 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	u.syncDraft()      // ganti chat → simpan draft lama, muat draft chat baru
 	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)
 	pinned := u.pinnedMsgs()
-	for u.pinnedBar.Clicked(gtx) { // ketuk bar tersemat → lompat ke pesan
+	if u.pinnedIdx >= len(pinned) {
+		u.pinnedIdx = 0
+	}
+	for u.pinnedBar.Clicked(gtx) { // ketuk bar tersemat → lompat + siklus ke pin berikut
 		if len(pinned) > 0 {
-			u.jumpToMessage(pinned[0].ID)
+			u.jumpToMessage(pinned[u.pinnedIdx].ID)
+			u.pinnedIdx = (u.pinnedIdx + 1) % len(pinned)
 		}
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,

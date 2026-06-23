@@ -2437,7 +2437,8 @@ func (u *UI) railTooltip(gtx layout.Context, btnH int, txt string) {
 	gap := gtx.Dp(8)
 	macro := op.Record(gtx.Ops)
 	cg := gtx
-	cg.Constraints.Min = image.Point{}
+	// tombol membatasi Max ke 44px → label ter-elipsis "S...". Beri ruang ukur.
+	cg.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(240), gtx.Dp(48))}
 	dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
 		l := material.Label(u.th, 13, txt)
 		l.Color, l.MaxLines = u.t.Text, 1

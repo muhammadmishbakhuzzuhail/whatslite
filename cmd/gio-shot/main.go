@@ -10,12 +10,16 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/png"
 	"os"
 	"strconv"
 
+	"gioui.org/f32"
 	"gioui.org/gpu/headless"
+	"gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -231,12 +235,27 @@ func main() {
 	}
 
 	ops := new(op.Ops)
-	// dua frame: frame-1 memicu refresh() (load data demo), frame-2 menggambarnya.
+	var rtr input.Router
+	// WLGIO_HOVER="x,y" → suntik hover utk uji tooltip headless.
+	var hov f32.Point
+	hovOn := false
+	if hs := os.Getenv("WLGIO_HOVER"); hs != "" {
+		var hx, hy int
+		if _, e := fmt.Sscanf(hs, "%d,%d", &hx, &hy); e == nil {
+			hov, hovOn = f32.Pt(float32(hx), float32(hy)), true
+		}
+	}
+	// dua frame: frame-1 memicu refresh() (load data demo) + daftar area; frame-2
+	// menggambarnya (dgn hover bila disuntik).
 	for i := 0; i < 2; i++ {
 		ops.Reset()
-		gtx := layout.Context{Ops: ops, Constraints: layout.Exact(image.Pt(w, h)), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
+		gtx := layout.Context{Ops: ops, Source: rtr.Source(), Constraints: layout.Exact(image.Pt(w, h)), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}}
 		draw(gtx)
+		rtr.Frame(ops)
 		must(hw.Frame(ops))
+		if i == 0 && hovOn {
+			rtr.Queue(pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Position: hov})
+		}
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	must(hw.Screenshot(img))

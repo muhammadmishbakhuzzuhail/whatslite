@@ -69,7 +69,7 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 func spPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
 	h := gtx.Dp(60)
 	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	// border-bottom: 1px solid var(--divider)
 	bh := gtx.Dp(1)
 	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-bh), Max: image.Pt(w, h)}.Op())

@@ -212,7 +212,7 @@ func privValue(v string) string {
 func setSubHead(gtx layout.Context, th *material.Theme, t Theme, title string, back *widget.Clickable) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(12), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -467,7 +467,7 @@ func setBytes(n int64) string {
 func setHead(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

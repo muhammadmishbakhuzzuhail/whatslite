@@ -106,7 +106,7 @@ func comNewRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimension
 func comPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	bh := gtx.Dp(1)
 	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-bh), Max: image.Pt(w, h)}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz

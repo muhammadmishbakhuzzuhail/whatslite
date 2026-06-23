@@ -66,7 +66,7 @@ func ArchivedPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Di
 func avPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int) layout.Dimensions {
 	h := gtx.Dp(56)
 	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,

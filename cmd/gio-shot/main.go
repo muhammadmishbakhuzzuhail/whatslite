@@ -96,7 +96,9 @@ func main() {
 				Members: []gioui.InfoMember{{Name: "Andi", Admin: true}, {Name: "Sarah"}}})
 		case "contactinfo":
 			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
-				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false})
+				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false,
+				CommonGroups: []gioui.InfoMember{{Name: "Grup Kerja"}, {Name: "Keluarga Besar"}},
+				CommonClicks: make([]widget.Clickable, 2)})
 		case "contactinfo-blocked":
 			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
 				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false, Blocked: true})

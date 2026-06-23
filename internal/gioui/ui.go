@@ -300,44 +300,54 @@ type UI struct {
 	ncPhone          widget.Editor      // modal newcontact: nomor
 	ncSave           widget.Clickable
 	ncCancel         widget.Clickable
-	ncErr            string              // pesan galat modal newcontact (nomor tak terdaftar)
-	cctContact       app.ContactRowDTO   // snapshot kontak utk menu konteks (klik-kanan)
-	cctMsg           widget.Clickable    // menu konteks kontak: kirim pesan
-	cctInfo          widget.Clickable    // menu konteks kontak: info kontak
-	cctRename        widget.Clickable    // menu konteks kontak: edit nama
-	cctBlock         widget.Clickable    // menu konteks kontak: blokir/buka blokir
-	cctDelete        widget.Clickable    // menu konteks kontak: hapus kontak
-	infoMuteC        widget.Clickable    // info-drawer: bisukan/aktifkan notifikasi
-	infoMediaC       widget.Clickable    // info-drawer: buka galeri media
-	infoEncC         widget.Clickable    // info-drawer: info enkripsi
-	infoMemberClicks []widget.Clickable  // info-drawer: anggota grup
-	infoMemberJIDs   []string            // jid anggota (paralel infoMemberClicks)
-	infoMemberNames  []string            // nama anggota (paralel)
-	infoMemberAdmin  []bool              // status admin anggota (paralel)
-	infoAddC         widget.Clickable    // info-drawer: "Tambah anggota" (grup)
-	infoAnnounceC    widget.Clickable    // toggle: hanya admin boleh kirim
-	infoLockedC      widget.Clickable    // toggle: hanya admin boleh ubah info
-	infoApprovalC    widget.Clickable    // toggle: setujui anggota baru
-	curGroupAmAdmin  bool                // saya admin grup terbuka? (gate aksi admin)
-	mctJID           string              // menu konteks anggota: jid sasaran
-	mctName          string              // nama sasaran
-	mctAdmin         bool                // sasaran sudah admin?
-	mctMsg           widget.Clickable    // "Kirim pesan"
-	mctPromote       widget.Clickable    // "Jadikan admin" / "Hapus admin"
-	mctRemove        widget.Clickable    // "Keluarkan dari grup"
-	mctClose         widget.Clickable    // "Tutup"
-	encClose         widget.Clickable    // overlay enkripsi/galeri: tutup
-	mediaCellClicks  []widget.Clickable  // sel grid galeri media
-	mediaGalList     widget.List         // scroll galeri media
-	infoTimerC       widget.Clickable    // info-drawer: pesan sementara (buka picker)
-	dispClicks       [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
-	dispClose        widget.Clickable    // picker pesan sementara: tutup
-	dispTimer        map[string]int      // jid → timer detik terpilih (label drawer)
-	gedName          widget.Editor       // editor nama grup (modal groupedit)
-	gedDesc          widget.Editor       // editor deskripsi grup
-	gedSave          widget.Clickable
-	gedCancel        widget.Clickable
-	curGroupDesc     string // deskripsi grup aktif (utk prefill editor)
+	ncErr            string                  // pesan galat modal newcontact (nomor tak terdaftar)
+	cctContact       app.ContactRowDTO       // snapshot kontak utk menu konteks (klik-kanan)
+	cctMsg           widget.Clickable        // menu konteks kontak: kirim pesan
+	cctInfo          widget.Clickable        // menu konteks kontak: info kontak
+	cctRename        widget.Clickable        // menu konteks kontak: edit nama
+	cctBlock         widget.Clickable        // menu konteks kontak: blokir/buka blokir
+	cctDelete        widget.Clickable        // menu konteks kontak: hapus kontak
+	infoMuteC        widget.Clickable        // info-drawer: bisukan/aktifkan notifikasi
+	infoMediaC       widget.Clickable        // info-drawer: buka galeri media
+	infoEncC         widget.Clickable        // info-drawer: info enkripsi
+	infoMemberClicks []widget.Clickable      // info-drawer: anggota grup
+	infoMemberJIDs   []string                // jid anggota (paralel infoMemberClicks)
+	commonGroups     map[string][]InfoMember // jid kontak → grup bersama (cache async)
+	commonTried      map[string]time.Time    // cooldown fetch grup bersama
+	commonMu         sync.Mutex
+	commonClicks     []widget.Clickable // paralel grup-bersama DM terbuka (tap → buka grup)
+	// gabung grup lewat tautan undangan:
+	joinLink        string              // tautan/kode yg sedang dipratinjau
+	joinPreview     string              // nama grup hasil PreviewGroupLink (async)
+	joinClick       widget.Clickable    // baris "Gabung grup lewat tautan" di daftar chat
+	joinConfirm     widget.Clickable    // tombol Gabung di modal
+	joinCancel      widget.Clickable    // tombol Batal di modal
+	infoMemberNames []string            // nama anggota (paralel)
+	infoMemberAdmin []bool              // status admin anggota (paralel)
+	infoAddC        widget.Clickable    // info-drawer: "Tambah anggota" (grup)
+	infoAnnounceC   widget.Clickable    // toggle: hanya admin boleh kirim
+	infoLockedC     widget.Clickable    // toggle: hanya admin boleh ubah info
+	infoApprovalC   widget.Clickable    // toggle: setujui anggota baru
+	curGroupAmAdmin bool                // saya admin grup terbuka? (gate aksi admin)
+	mctJID          string              // menu konteks anggota: jid sasaran
+	mctName         string              // nama sasaran
+	mctAdmin        bool                // sasaran sudah admin?
+	mctMsg          widget.Clickable    // "Kirim pesan"
+	mctPromote      widget.Clickable    // "Jadikan admin" / "Hapus admin"
+	mctRemove       widget.Clickable    // "Keluarkan dari grup"
+	mctClose        widget.Clickable    // "Tutup"
+	encClose        widget.Clickable    // overlay enkripsi/galeri: tutup
+	mediaCellClicks []widget.Clickable  // sel grid galeri media
+	mediaGalList    widget.List         // scroll galeri media
+	infoTimerC      widget.Clickable    // info-drawer: pesan sementara (buka picker)
+	dispClicks      [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
+	dispClose       widget.Clickable    // picker pesan sementara: tutup
+	dispTimer       map[string]int      // jid → timer detik terpilih (label drawer)
+	gedName         widget.Editor       // editor nama grup (modal groupedit)
+	gedDesc         widget.Editor       // editor deskripsi grup
+	gedSave         widget.Clickable
+	gedCancel       widget.Clickable
+	curGroupDesc    string // deskripsi grup aktif (utk prefill editor)
 
 	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
 	inChatEd     widget.Editor // input cari-dalam-chat
@@ -683,6 +693,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.dispTimer = map[string]int{}
 	u.drafts = map[string]string{}
 	u.selSet = map[string]bool{}
+	u.commonGroups = map[string][]InfoMember{}
+	u.commonTried = map[string]time.Time{}
 	u.linkPrev = map[string]*app.LinkPreviewDTO{}
 	u.linkImg = map[string]paint.ImageOp{}
 	u.linkTried = map[string]bool{}
@@ -3826,6 +3838,35 @@ func (u *UI) badge(gtx layout.Context, n int, muted bool) layout.Dimensions {
 // ensureAvatar memuat foto profil (engine AvatarBytes) sekali per jid di goroutine
 // latar → decode → cache di u.photos[name]. Tak memblok thread UI; sekali gagal
 // tetap ditandai agar tak refetch terus.
+// ensureCommonGroups memuat grup bersama dgn kontak (async, cache + cooldown 30s).
+// Hasil di u.commonGroups[jid] → dibaca infoData (DM).
+func (u *UI) ensureCommonGroups(jid string) {
+	if u.core == nil || jid == "" {
+		return
+	}
+	u.commonMu.Lock()
+	if _, ok := u.commonGroups[jid]; ok {
+		u.commonMu.Unlock()
+		return
+	}
+	if t, ok := u.commonTried[jid]; ok && time.Since(t) < 30*time.Second {
+		u.commonMu.Unlock()
+		return
+	}
+	u.commonTried[jid] = time.Now()
+	u.commonMu.Unlock()
+	go func() {
+		gs := u.core.GetCommonGroups(jid)
+		out := make([]InfoMember, 0, len(gs))
+		for _, g := range gs {
+			out = append(out, InfoMember{Name: g.Name, JID: g.JID})
+		}
+		u.commonMu.Lock()
+		u.commonGroups[jid] = out
+		u.commonMu.Unlock()
+	}()
+}
+
 func (u *UI) ensureAvatar(name, jid string) {
 	if u.core == nil || jid == "" {
 		return
@@ -6335,6 +6376,14 @@ func (u *UI) infoData() *InfoDrawerData {
 		if d.Desc == "" { // "Tentang" kontak (about) bila ada
 			d.Desc = sub
 		}
+		u.ensureCommonGroups(jid) // grup bersama (async)
+		u.commonMu.Lock()
+		d.CommonGroups = u.commonGroups[jid]
+		u.commonMu.Unlock()
+		if len(u.commonClicks) < len(d.CommonGroups) {
+			u.commonClicks = make([]widget.Clickable, len(d.CommonGroups))
+		}
+		d.CommonClicks = u.commonClicks[:len(d.CommonGroups)]
 	}
 	return d
 }
@@ -6425,6 +6474,24 @@ func (u *UI) handleInfo(gtx layout.Context) {
 		}
 	}
 	u.handleMemberCtx(gtx)
+	for i := range u.commonClicks { // grup bersama → buka grup itu
+		dmJID := u.infoJID()
+		u.commonMu.Lock()
+		gs := u.commonGroups[dmJID]
+		u.commonMu.Unlock()
+		if i >= len(gs) {
+			break
+		}
+		if u.commonClicks[i].Clicked(gtx) {
+			g := gs[i]
+			u.selected, u.selName, u.selGroup = g.JID, g.Name, true
+			u.overlay, u.infoCJID = "", ""
+			if u.core != nil {
+				u.core.OpenChat(g.JID)
+				u.messages = u.core.GetMessages(g.JID)
+			}
+		}
+	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""
 		u.overlay = "invitelink"

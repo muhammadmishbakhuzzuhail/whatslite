@@ -53,6 +53,9 @@ type InfoDrawerData struct {
 	AnnounceC *widget.Clickable
 	LockedC   *widget.Clickable
 	ApprovalC *widget.Clickable
+	// grup bersama (DM): daftar + clickable paralel (tap → buka grup).
+	CommonGroups []InfoMember
+	CommonClicks []widget.Clickable
 }
 
 // InfoMember = satu anggota grup di laci info (nama + admin + jid utk buka DM).
@@ -192,6 +195,13 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				return layout.Dimensions{}
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol, d.Leave)
+		}),
+		// grup bersama (DM): daftar grup yg sama-sama diikuti (tap → buka grup).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if d.Group || len(d.CommonGroups) == 0 {
+				return layout.Dimensions{}
+			}
+			return infoDrawerCommonGroups(gtx, th, t, w, d.CommonGroups, d.CommonClicks)
 		}),
 		// Blokir / Buka blokir (DM, merah/accent sesuai status).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -395,6 +405,56 @@ func infoDrawerRowBody(gtx layout.Context, th *material.Theme, t Theme, icon fun
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: dims.Size}.Op())
 	call.Add(gtx.Ops)
 	return dims
+}
+
+// infoDrawerCommonGroups — DM: pemisah + "N grup bersama" + baris grup (ikon +
+// nama, tap → buka grup). clicks paralel groups.
+func infoDrawerCommonGroups(gtx layout.Context, th *material.Theme, t Theme, w int, groups []InfoMember, clicks []widget.Clickable) layout.Dimensions {
+	children := make([]layout.FlexChild, 0, len(groups)+2)
+	children = append(children,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return infoDrawerSep(gtx, t, w) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(2), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 13, itoa(len(groups))+" grup bersama")
+				l.Color = t.Accent
+				return l.Layout(gtx)
+			})
+		}),
+	)
+	for i := range groups {
+		g, idx := groups[i], i
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			row := func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							d := gtx.Dp(40)
+							bsz := image.Pt(d, d)
+							r := gtx.Dp(10)
+							paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: bsz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+							gtx.Constraints.Min, gtx.Constraints.Max = bsz, bsz
+							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "communities", 20, t.Accent)
+							})
+							return layout.Dimensions{Size: bsz}
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 15, g.Name)
+							l.Color, l.MaxLines = t.Text, 1
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			}
+			if idx < len(clicks) {
+				return clicks[idx].Layout(gtx, row)
+			}
+			return row(gtx)
+		}))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
 // infoDrawerToggleRow — baris pengaturan admin: ikon + label (+ sub) + switch kanan.

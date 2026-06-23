@@ -195,6 +195,12 @@ func main() {
 		case "app-info":
 			ui.SetOverlay("info")
 			ui.Layout(gtx)
+		case "app-encryption":
+			ui.SetOverlay("encryption")
+			ui.Layout(gtx)
+		case "app-media":
+			ui.SetOverlay("media")
+			ui.Layout(gtx)
 		case "app-reaction":
 			ui.SetOverlay("reaction")
 			ui.Layout(gtx)

@@ -268,6 +268,10 @@ type UI struct {
 	headerClick widget.Clickable
 	emojiClick  widget.Clickable
 	sendClick   widget.Clickable // tombol kirim (muncul saat ada teks; ganti mic)
+	micClick    widget.Clickable // tombol mic → mulai rekam voice note
+	recDemo     bool             // render-tool: paksa bar rekam
+	recCancel   widget.Clickable // batal rekam
+	recSend     widget.Clickable // kirim rekaman
 	attachClick widget.Clickable
 	backdrop    widget.Clickable
 	msgClicks   []widget.Clickable
@@ -331,6 +335,9 @@ func (u *UI) SetEditing(id, text string) {
 	u.editTarget, u.editText = id, text
 	u.editor.SetText(text)
 }
+
+// SetRecordingDemo: utk render-tool menguji bar rekam voice note headless.
+func (u *UI) SetRecordingDemo() { u.recDemo = true }
 
 // SetGroupEditDemo: utk render-tool menguji modal edit info grup headless.
 func (u *UI) SetGroupEditDemo(name, desc string) {
@@ -4700,6 +4707,9 @@ func dayLabel(ts int64) string {
 func (u *UI) clearReply() { u.replyTo, u.replyName, u.replyText = "", "", "" }
 
 func (u *UI) composer(gtx layout.Context) layout.Dimensions {
+	if u.recDemo || (u.core != nil && u.core.VoiceRecording()) {
+		return u.recordingBar(gtx)
+	}
 	barH := 0
 	if u.replyTo != "" {
 		barH = gtx.Dp(46)
@@ -4849,12 +4859,86 @@ func (u *UI) editBanner(gtx layout.Context) layout.Dimensions {
 // sendOrMic — slot kanan composer: tombol KIRIM (lingkaran accent + ikon kirim,
 // klik → sendCurrent) saat ada teks; ikon mikrofon (visual) saat kosong. Cara
 // WhatsApp menukar mic↔kirim mengikuti isi.
+// recordingBar — bar composer saat merekam voice note: ikon batal (trash) + titik
+// merah + timer + label "Merekam…" + tombol kirim (accent). Ketuk batal → buang,
+// kirim → finalisasi + SendMedia voice.
+func (u *UI) recordingBar(gtx layout.Context) layout.Dimensions {
+	h := gtx.Dp(62)
+	sz := image.Pt(gtx.Constraints.Max.X, h)
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
+	for u.recCancel.Clicked(gtx) {
+		if u.core != nil {
+			u.core.CancelVoiceRecord()
+		}
+	}
+	for u.recSend.Clicked(gtx) {
+		if u.core != nil {
+			u.core.StopVoiceRecordAndSend(u.selected)
+		}
+	}
+	secs := 0
+	if u.core != nil {
+		secs = u.core.VoiceRecordSeconds()
+	}
+	timer := itoa(secs/60) + ":" + pad2(secs%60)
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(10), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.recCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "trash", 22, color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff})
+					})
+				})
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // titik merah
+				d := gtx.Dp(10)
+				paint.FillShape(gtx.Ops, color.NRGBA{R: 0xe3, G: 0x4d, B: 0x4d, A: 0xff}, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+				return layout.Dimensions{Size: image.Pt(d, d)}
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 15, timer+"  Merekam…")
+				l.Color = u.t.Text
+				return l.Layout(gtx)
+			}),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.recSend.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					d := gtx.Dp(40)
+					s := image.Pt(d, d)
+					paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: s}.Op(gtx.Ops))
+					gtx.Constraints.Min, gtx.Constraints.Max = s, s
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "send", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+					})
+				})
+			}),
+		)
+	})
+}
+
+// pad2 — angka 0-59 → 2 digit ("03").
+func pad2(n int) string {
+	if n < 10 {
+		return "0" + itoa(n)
+	}
+	return itoa(n)
+}
+
 func (u *UI) sendOrMic(gtx layout.Context) layout.Dimensions {
 	for u.sendClick.Clicked(gtx) {
 		u.sendCurrent()
 	}
+	for u.micClick.Clicked(gtx) { // ketuk mic → mulai rekam voice note
+		if u.core != nil && u.selected != "" {
+			u.core.StartVoiceRecord()
+		}
+	}
 	if strings.TrimSpace(u.editor.Text()) == "" {
-		return u.glyphBtn(gtx, nil, "mic") // kosong → mic (visual)
+		return u.glyphBtn(gtx, &u.micClick, "mic") // kosong → mic (ketuk = rekam)
 	}
 	return u.sendClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(40)

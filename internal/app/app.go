@@ -59,6 +59,8 @@ type App struct {
 	openMu   sync.RWMutex // melindungi openChat
 	openChat string       // chat yg sedang dibuka (jangan naikkan unread-nya)
 
+	vrec voiceRec // perekam voice note (ffmpeg capture → ogg/opus)
+
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)

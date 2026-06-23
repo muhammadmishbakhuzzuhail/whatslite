@@ -95,7 +95,7 @@ func main() {
 		case "gif":
 			gioui.GifView(gtx, th, t)
 		case "contacts":
-			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil, nil)
+			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil, nil, nil)
 		case "status":
 			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":

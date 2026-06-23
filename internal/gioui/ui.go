@@ -2576,7 +2576,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		for u.gcNewBtn.Clicked(gtx) { // "Grup baru" → modal buat grup
 			u.overlay = "groupcreate"
 		}
-		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList)
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList, u.avatar)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
@@ -2800,9 +2800,9 @@ func (u *UI) filterChips(gtx layout.Context) layout.Dimensions {
 
 func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
 	active := u.filterSel == i
-	// modern: inaktif TRANSPARAN (teks saja) + hover halus; aktif = pil accent lembut.
+	// inaktif = pil abu (jelas TOMBOL, bukan teks statis); aktif = pil accent.
 	txtCol := u.t.Text2
-	chipBg := color.NRGBA{} // transparan
+	chipBg := u.t.Bg2
 	switch {
 	case active:
 		txtCol = u.t.Accent
@@ -3650,7 +3650,7 @@ func (u *UI) contactGroups() []cpGroup {
 		}
 		idx := len(u.contactFlat)
 		u.contactFlat = append(u.contactFlat, c)
-		cur.items = append(cur.items, cpContact{name: c.Name, about: c.Phone, idx: idx})
+		cur.items = append(cur.items, cpContact{name: c.Name, about: c.Phone, jid: c.JID, idx: idx})
 	}
 	if len(u.contactPaneClicks) < len(u.contactFlat) {
 		u.contactPaneClicks = make([]widget.Clickable, len(u.contactFlat))
@@ -4329,6 +4329,7 @@ func (u *UI) infoData() *InfoDrawerData {
 		}
 	} else {
 		d.Block = &u.infoBlockC
+		d.Blocked = u.core.IsBlocked(u.selected)
 	}
 	return d
 }
@@ -4337,7 +4338,7 @@ func (u *UI) infoData() *InfoDrawerData {
 func (u *UI) handleInfo(gtx layout.Context) {
 	for u.infoBlockC.Clicked(gtx) {
 		if u.core != nil {
-			u.core.Block(u.selected, true)
+			u.core.Block(u.selected, !u.core.IsBlocked(u.selected)) // toggle blokir
 		}
 		u.overlay = ""
 	}

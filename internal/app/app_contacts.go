@@ -139,6 +139,21 @@ func (a *App) Block(jid string, block bool) {
 	if err := a.eng.Block(a.ctx, jid, block); err != nil {
 		a.emit("wa:error", err.Error())
 	}
+	a.emit("wa:sync", "")
+}
+
+// IsBlocked — true bila jid ada di daftar blokir (cocok per user-part, abai @lid/@s).
+func (a *App) IsBlocked(jid string) bool {
+	u := userPart(jid)
+	if u == "" {
+		return false
+	}
+	for _, b := range a.GetBlockedContacts() {
+		if userPart(b.JID) == u {
+			return true
+		}
+	}
+	return false
 }
 
 // ContactRowDTO = kontak ringkas (daftar blokir / daftar Kontak sidebar).

@@ -27,9 +27,13 @@ import (
 type cpContact struct {
 	name   string
 	about  string
-	online bool // .ct-dot (titik hijau online)
-	idx    int  // indeks ke dalam clicks (untuk buka chat); -1 = tak bisa diklik
+	jid    string // utk muat foto profil asli (bukan fallback inisial)
+	online bool   // .ct-dot (titik hijau online)
+	idx    int    // indeks ke dalam clicks (untuk buka chat); -1 = tak bisa diklik
 }
+
+// cpAvatarFn — penggambar avatar (foto asli + fallback inisial). nil = inisial saja.
+type cpAvatarFn func(gtx layout.Context, name, jid string, dp int) layout.Dimensions
 
 // cpGroup = satu kelompok huruf (.ct-letter + items).
 type cpGroup struct {
@@ -47,7 +51,7 @@ type cpFlat struct {
 	c        cpContact
 }
 
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List, avFn cpAvatarFn) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -90,7 +94,7 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 				if it.isLetter {
 					return cpLetter(gtx, th, t, it.letter)
 				}
-				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c) }
+				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c, avFn) }
 				if it.c.idx >= 0 && it.c.idx < len(clicks) { // ketuk → buka chat
 					return clicks[it.c.idx].Layout(gtx, row)
 				}
@@ -217,12 +221,12 @@ func cpLetter(gtx layout.Context, th *material.Theme, t Theme, letter string) la
 // cpRow — .ct-row { gap: 12px; padding: 8px 14px } : avatar 40 (.avatar.sm) +
 // .ct-av (titik online .ct-dot) + kolom .ct-meta (.ct-name 15/Normal text +
 // .ct-sub 12.5 text2) + ikon info "i" .ct-info text2 kanan.
-func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact) layout.Dimensions {
+func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpAvatarDot(gtx, th, t, c)
+				return cpAvatarDot(gtx, th, t, c, avFn)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout), // gap: 12px
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -253,8 +257,13 @@ func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact) layout.
 
 // cpAvatarDot — .ct-av { position: relative } : avatar 40 (.avatar.sm) + titik
 // online .ct-dot { right:-1; bottom:-1; 12x12; bg:#28c840; border:2px var(--bg) }.
-func cpAvatarDot(gtx layout.Context, th *material.Theme, t Theme, c cpContact) layout.Dimensions {
-	av := cpAvatar(gtx, th, t, c.name, 40)
+func cpAvatarDot(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn) layout.Dimensions {
+	var av layout.Dimensions
+	if avFn != nil {
+		av = avFn(gtx, c.name, c.jid, 40) // foto profil asli (fallback inisial di dalam)
+	} else {
+		av = cpAvatar(gtx, th, t, c.name, 40)
+	}
 	if c.online {
 		dot := gtx.Dp(12)
 		bw := gtx.Dp(2)

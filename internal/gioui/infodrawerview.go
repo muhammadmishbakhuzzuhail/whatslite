@@ -31,13 +31,15 @@ type InfoDrawerData struct {
 	Muted bool          // status bisu chat (label baris Bisukan)
 	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
 	// Edit (info grup: nama+deskripsi), Mute (toggle bisu), Media (galeri), Enc (info enkripsi).
-	Block   *widget.Clickable
-	Leave   *widget.Clickable
-	Invite  *widget.Clickable
-	Edit    *widget.Clickable
-	Mute    *widget.Clickable
-	Media   *widget.Clickable
-	Enc     *widget.Clickable
+	Block      *widget.Clickable
+	Leave      *widget.Clickable
+	Invite     *widget.Clickable
+	Edit       *widget.Clickable
+	Mute       *widget.Clickable
+	Media      *widget.Clickable
+	Enc        *widget.Clickable
+	Timer      *widget.Clickable // pesan sementara (buka picker)
+	TimerLabel string            // label aktif: "Mati" / "24 jam" / "7 hari" / "90 hari"
 	Members []InfoMember        // grup: daftar anggota
 	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
 }
@@ -109,7 +111,11 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			return infoDrawerRow(gtx, th, t, infoDrawerMuteIcon, lbl, t.Text2, t.Text, d.Mute)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerRow(gtx, th, t, infoDrawerTimerIcon, "Pesan sementara", t.Text2, t.Text, nil)
+			lbl := "Pesan sementara"
+			if d.TimerLabel != "" {
+				lbl += " — " + d.TimerLabel
+			}
+			return infoDrawerRow(gtx, th, t, infoDrawerTimerIcon, lbl, t.Text2, t.Text, d.Timer)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerRow(gtx, th, t, infoDrawerLockIcon, "Enkripsi", t.Text2, t.Text, d.Enc)

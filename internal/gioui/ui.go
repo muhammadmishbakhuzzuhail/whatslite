@@ -4338,6 +4338,37 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 			call.Add(gtx.Ops)
 			off.Pop()
 		}
+		// chip waktu + centang di kanan-bawah thumbnail (tanpa caption → overlay ala WA).
+		if m.Text == "" {
+			white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			cg := gtx
+			cg.Constraints.Min = image.Point{} // play-overlay set Min=box → reset agar chip hug-content
+			macro := op.Record(cg.Ops)
+			ch := layout.Inset{Top: unit.Dp(3), Bottom: unit.Dp(3), Left: unit.Dp(7), Right: unit.Dp(7)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 11, m.Time)
+						lbl.Color = white
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if m.Dir != "out" {
+							return layout.Dimensions{}
+						}
+						return layout.Inset{Left: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return icon(gtx, "checks", 14, white)
+						})
+					}),
+				)
+			})
+			call := macro.Stop()
+			mgn := gtx.Dp(6)
+			off := op.Offset(image.Pt(box.X-ch.Size.X-mgn, box.Y-ch.Size.Y-mgn)).Push(gtx.Ops)
+			rr := ch.Size.Y / 2
+			paint.FillShape(gtx.Ops, color.NRGBA{A: 0x66}, clip.RRect{Rect: image.Rectangle{Max: ch.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+			call.Add(gtx.Ops)
+			off.Pop()
+		}
 		return layout.Dimensions{Size: box}
 	}
 
@@ -4566,11 +4597,48 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensi
 		macro := op.Record(gtx.Ops)
 		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				// thumbnail media (image/video/sticker) dari m.Thumb (data-URI), bila ada.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if m.Type != "image" && m.Type != "video" && m.Type != "sticker" {
+						return layout.Dimensions{}
+					}
+					img := decodeImage(decodeDataURI(m.Thumb))
+					if img == nil {
+						return layout.Dimensions{}
+					}
+					iop := paint.NewImageOp(img)
+					sz := iop.Size()
+					w := gtx.Dp(220)
+					h := w * 3 / 4
+					if sz.X > 0 && sz.Y > 0 {
+						h = w * sz.Y / sz.X
+						if mx := gtx.Dp(280); h > mx {
+							h = mx
+						}
+					}
+					box := image.Pt(w, h)
+					rr := gtx.Dp(8)
+					cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: rr, NE: rr, SE: rr, SW: rr}.Push(gtx.Ops)
+					drawImageFill(gtx.Ops, iop, w)
+					cl.Pop()
+					if m.Type == "video" { // play overlay
+						gtx.Constraints.Min, gtx.Constraints.Max = box, box
+						layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							d := gtx.Dp(44)
+							ps := image.Pt(d, d)
+							paint.FillShape(gtx.Ops, color.NRGBA{A: 0xaa}, clip.Ellipse{Max: ps}.Op(gtx.Ops))
+							gtx.Constraints.Min, gtx.Constraints.Max = ps, ps
+							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "play", 24, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+							return layout.Dimensions{Size: ps}
+						})
+					}
+					return layout.Inset{Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: box} })
+				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if m.Text == "" && m.Type != "" && m.Type != "text" {
-						lbl := material.Label(u.th, 15, "["+m.Type+"]") // media post: thumbnail = follow-up
-						lbl.Color = u.t.Text
-						return lbl.Layout(gtx)
+						return layout.Dimensions{} // media tanpa caption → tak ada baris teks
 					}
 					return u.formattedText(gtx, m.Text, nil, unit.Sp(15)) // format + URL biru
 				}),
@@ -6948,6 +7016,9 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					}
 					switch m.Type {
 					case "image", "video", "gif":
+						if m.Text == "" {
+							inlineMeta = true // waktu jadi chip overlay di thumbnail → tak ada baris meta bawah
+						}
 						return u.mediaThumb(gtx, m) // thumbnail + caption (lebar diatur di dalam)
 					case "sticker":
 						return u.stickerBubble(gtx, m) // transparan, tanpa gelembung

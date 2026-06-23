@@ -28,7 +28,8 @@ type InfoDrawerData struct {
 	Sub   string // "N anggota" (grup) / presence (DM)
 	Desc  string // topik grup / about kontak
 	Group bool
-	Muted bool          // status bisu chat (label baris Bisukan)
+	Muted   bool        // status bisu chat (label baris Bisukan)
+	Blocked bool        // status blokir kontak (label baris Blokir / Buka blokir)
 	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
 	// Edit (info grup: nama+deskripsi), Mute (toggle bisu), Media (galeri), Enc (info enkripsi).
 	Block      *widget.Clickable
@@ -128,7 +129,11 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		// baris aksi (.info-row): grup → tambah/link/keluar; DM → blokir.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
-				return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Blokir kontak", dangerCol, dangerCol, d.Block)
+				lbl, col := "Blokir kontak", dangerCol
+				if d.Blocked {
+					lbl, col = "Buka blokir", t.Accent // sudah diblokir → aksi buka
+				}
+				return infoDrawerRow(gtx, th, t, infoDrawerBlockIcon, lbl, col, col, d.Block)
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerEditIcon, "Edit info grup", t.Text2, t.Text, d.Edit)
 		}),
@@ -395,6 +400,11 @@ func infoDrawerTimerIcon(gtx layout.Context, col color.NRGBA) {
 // infoDrawerLockIcon: enkripsi → ikon "lock".
 func infoDrawerLockIcon(gtx layout.Context, col color.NRGBA) {
 	icon(gtx, "lock", 22, col)
+}
+
+// infoDrawerBlockIcon: blokir/buka blokir → ikon "block".
+func infoDrawerBlockIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "block", 22, col)
 }
 
 // infoDrawerReportIcon: laporkan → ikon "report" (bendera).

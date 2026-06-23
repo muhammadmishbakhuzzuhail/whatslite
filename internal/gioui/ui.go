@@ -3478,9 +3478,20 @@ func (u *UI) locationBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensi
 			h := gtx.Dp(120)
 			box := image.Pt(w, h)
 			r := gtx.Dp(10)
-			paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+			// peta gaya: latar + "jalan" (garis terang) + 2 blok samar.
+			paint.FillShape(gtx.Ops, u.t.Bg2, clip.Rect{Max: box}.Op())
+			road := withAlpha(u.t.Text2, 0x33)
+			rw := gtx.Dp(3)
+			// jalan horizontal + vertikal + diagonal.
+			paint.FillShape(gtx.Ops, road, clip.Rect{Min: image.Pt(0, h*2/5), Max: image.Pt(w, h*2/5+rw)}.Op())
+			paint.FillShape(gtx.Ops, road, clip.Rect{Min: image.Pt(w*3/5, 0), Max: image.Pt(w*3/5+rw, h)}.Op())
+			blk := withAlpha(u.t.Text2, 0x1f)
+			paint.FillShape(gtx.Ops, blk, clip.Rect{Min: image.Pt(gtx.Dp(12), gtx.Dp(10)), Max: image.Pt(w*3/5-gtx.Dp(8), h*2/5-gtx.Dp(6))}.Op())
+			paint.FillShape(gtx.Ops, blk, clip.Rect{Min: image.Pt(w*3/5+gtx.Dp(10), h*2/5+gtx.Dp(8)), Max: image.Pt(w-gtx.Dp(12), h-gtx.Dp(10))}.Op())
+			cl.Pop()
 			gtx.Constraints.Min, gtx.Constraints.Max = box, box
-			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "locpin", 30, u.t.Accent) })
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "locpin", 32, u.t.Accent) })
 			return layout.Dimensions{Size: box}
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
@@ -6034,15 +6045,50 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	}
 	groupIn := u.selGroup && m.Dir == "in"
 
+	// grouping (ala WhatsApp/IG): pesan beruntun dari pengirim sama → rapatkan jarak,
+	// ekor hanya di bubble PERTAMA run, nama pengirim (grup) hanya di pertama.
+	sameRun := func(a, b app.MessageDTO) bool {
+		return a.Dir == b.Dir && a.Sender == b.Sender && !a.Revoked && !b.Revoked &&
+			a.Type != "sticker" && b.Type != "sticker"
+	}
+	firstOfRun := idx == 0 || !sameRun(u.messages[idx-1], m)
+
 	maxW := gtx.Constraints.Max.X * 66 / 100
 	// susun konten bubble
 	content := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = maxW
 		return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// metaRow — jam + "diedit" + centang status (dipakai inline ATAU baris bawah).
+			metaRow := func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !m.Edited || m.Revoked {
+							return layout.Dimensions{}
+						}
+						lbl := material.Label(u.th, 11, "Diedit  ")
+						lbl.Color, lbl.Font.Style = u.t.Text2, font.Italic
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 11, m.Time)
+						lbl.Color = u.t.Text2
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !out {
+							return layout.Dimensions{}
+						}
+						return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return u.statusTick(gtx, m.Status)
+						})
+					}),
+				)
+			}
+			var inlineMeta bool // diset di body teks pendek → meta ikut di baris yg sama
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if !groupIn || m.Sender == "" {
-						return layout.Dimensions{}
+					if !groupIn || m.Sender == "" || !firstOfRun {
+						return layout.Dimensions{} // nama pengirim hanya di bubble pertama run
 					}
 					lbl := material.Label(u.th, 13, m.Sender)
 					lbl.Color = avatarColor(m.Sender)
@@ -6135,6 +6181,27 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					}
 					trBlock := u.translatedWidget(m.ID) // terjemahan di bawah teks
 					if card == nil && trBlock == nil {
+						// teks 1-baris pendek → jam INLINE di kanan baris (ala WhatsApp).
+						if (m.Type == "" || m.Type == "text") && !m.Revoked {
+							cg := gtx
+							cg.Constraints.Min = image.Point{}
+							tmac := op.Record(gtx.Ops)
+							td := textW(cg)
+							tmac.Stop()
+							lh := gtx.Dp(20) // tinggi ~1 baris (15sp)
+							mmac := op.Record(gtx.Ops)
+							md := metaRow(cg)
+							mmac.Stop()
+							gap := gtx.Dp(8)
+							if td.Size.Y <= lh && td.Size.X+gap+md.Size.X <= gtx.Constraints.Max.X {
+								inlineMeta = true
+								return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+									layout.Rigid(textW),
+									layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+									layout.Rigid(metaRow),
+								)
+							}
+						}
 						return textW(gtx)
 					}
 					children := make([]layout.FlexChild, 0, 4)
@@ -6148,33 +6215,11 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					// .meta: jam + (utk pesan keluar) centang status.
-					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								if !m.Edited || m.Revoked {
-									return layout.Dimensions{}
-								}
-								lbl := material.Label(u.th, 11, "Diedit  ")
-								lbl.Color = u.t.Text2
-								lbl.Font.Style = font.Italic
-								return lbl.Layout(gtx)
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								lbl := material.Label(u.th, 11, m.Time)
-								lbl.Color = u.t.Text2
-								return lbl.Layout(gtx)
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								if !out {
-									return layout.Dimensions{}
-								}
-								return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-									return u.statusTick(gtx, m.Status)
-								})
-							}),
-						)
-					})
+					if inlineMeta { // sudah ditaruh inline di baris teks → tak ada baris meta bawah
+						return layout.Dimensions{}
+					}
+					// .meta: jam + centang status, rata kanan-bawah.
+					return layout.E.Layout(gtx, metaRow)
 				}),
 			)
 		})
@@ -6196,12 +6241,14 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			return dims
 		}
 		r := gtx.Dp(14)   // radius modern (lebih lembut dari 18)
-		tail := gtx.Dp(4) // sudut "ekor" dekat pengirim
+		tail := gtx.Dp(4) // sudut "ekor" dekat pengirim — HANYA di bubble pertama run
 		tl, tr := r, r
-		if out {
-			tr = tail
-		} else {
-			tl = tail
+		if firstOfRun {
+			if out {
+				tr = tail
+			} else {
+				tl = tail
+			}
 		}
 		rr := clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}
 		paint.FillShape(gtx.Ops, bg, rr.Op(gtx.Ops))
@@ -6224,8 +6271,13 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if out {
 		colAlign = layout.End
 	}
+	// jarak antar-bubble: lebar antar pengirim beda (firstOfRun), rapat dlm satu run.
+	gapTop := unit.Dp(2)
+	if firstOfRun {
+		gapTop = unit.Dp(8)
+	}
 	wrap := func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: gapTop, Bottom: unit.Dp(1)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical, Alignment: colAlign}.Layout(gtx,
 					layout.Rigid(bubbleBody),

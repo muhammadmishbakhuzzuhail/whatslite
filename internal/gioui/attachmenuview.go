@@ -21,6 +21,7 @@ import (
 
 // attachItems — baris menu lampiran (ikon, label, kategori utk OnAttach).
 var attachItems = []struct{ icon, label, category string }{
+	{"camera", "Kamera", "camera"},
 	{"wallpaperico", "Foto & Video", "media"},
 	{"docfile", "Dokumen", "document"},
 	{"contacts", "Kontak", "contact"},

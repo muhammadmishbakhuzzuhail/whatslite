@@ -177,6 +177,12 @@ func titleFor(unread int) string {
 // pickAndSend membuka dialog berkas, baca byte, deteksi mime → kind, lalu kirim
 // via core.SendMedia (data-URI base64, in-process). category: media|document.
 func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, category string) {
+	if category == "camera" { // tangkap foto webcam (ffmpeg) → pratinjau, bukan dialog
+		if uri := core.CapturePhoto(); uri != "" {
+			ui.SetPendingMedia("image", uri)
+		}
+		return
+	}
 	var exts []string
 	switch category {
 	case "media":

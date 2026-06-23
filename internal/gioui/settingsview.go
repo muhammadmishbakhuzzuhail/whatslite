@@ -269,7 +269,8 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 				return setProfileField(gtx, th, t, "Tentang", orDash(ctl.ProfAbout))
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if !editable || len(ctl.AboutClicks) == 0 {
+				// Saran HANYA muncul saat field Tentang difokus (klik dahulu), bukan statis.
+				if !editable || len(ctl.AboutClicks) == 0 || !gtx.Focused(ctl.ProfAboutEd) {
 					return layout.Dimensions{}
 				}
 				return setAboutPresets(gtx, th, t, ctl)

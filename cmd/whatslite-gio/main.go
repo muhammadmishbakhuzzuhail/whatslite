@@ -120,6 +120,18 @@ func run(w *gioapp.Window, core *app.App) error {
 		ui.OnStatusMedia = func() {
 			go pickAndPostStatus(expl, core, ui)
 		}
+		ui.OnStatusVideo = func(id string) gioui.StatusVideo {
+			b := core.MediaBytes("status@broadcast", id)
+			if len(b) == 0 {
+				return nil
+			}
+			fs, err := video.OpenFrames(b, ".mp4", 480)
+			if err != nil {
+				return nil
+			}
+			au, _ := video.PlayAudioOnly(b, ".mp4") // suara (best-effort, no window)
+			return &statusVideoSession{fs: fs, au: au}
+		}
 	}
 	ui.OnWinAction = func(a string) { // titlebar custom → aksi window (CSD)
 		switch a {
@@ -224,6 +236,33 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, cat
 		return
 	}
 	ui.SetPendingMedia(kind, uri) // media → pratinjau (caption + sekali-lihat) di UI
+}
+
+// statusVideoSession — adapter gioui.StatusVideo: frame (ffmpeg) + audio (libmpv
+// vid=no). Memenuhi interface tanpa menyeret cgo ke paket gioui.
+type statusVideoSession struct {
+	fs *video.FrameStream
+	au *video.Player
+}
+
+func (s *statusVideoSession) Frame(el time.Duration) (image.Image, bool) {
+	fr, ended := s.fs.Frame(el)
+	if fr == nil {
+		return nil, ended
+	}
+	return fr, ended
+}
+func (s *statusVideoSession) Duration() time.Duration { return s.fs.Duration() }
+func (s *statusVideoSession) SetPause(p bool) {
+	if s.au != nil {
+		s.au.SetPause(p)
+	}
+}
+func (s *statusVideoSession) Close() {
+	s.fs.Close()
+	if s.au != nil {
+		s.au.Stop()
+	}
 }
 
 // pickAndPostStatus — dialog berkas (foto/video) → unggah sbg STATUS sendiri via

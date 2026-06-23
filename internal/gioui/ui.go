@@ -89,8 +89,9 @@ type UI struct {
 	stReplied         string              // emoji terkirim terakhir (umpan balik singkat)
 	stPaused          bool                // jeda auto-advance (tombol pause)
 	stPause           widget.Clickable    // toggle pause/main
-	stVideoPlay       widget.Clickable    // tombol play video status (pemutar eksternal)
 	stItemStart       time.Time           // waktu item kini mulai (utk progress auto-advance)
+	stVid             StatusVideo         // sesi video status inline (frame+audio); nil = tak ada
+	stVidID           string              // id item video yg sedang dimuat
 	stFwd             widget.Clickable    // tombol forward status → chat
 	fwdSrc            string              // chat sumber forward ("" = u.selected; status → status@broadcast)
 	stMyClick         widget.Clickable    // baris "Status saya" → composer post status
@@ -398,6 +399,9 @@ type UI struct {
 	// OnStatusMedia: hook pilih foto/video + unggah sbg status sendiri (di-set
 	// cmd/whatslite-gio → x/explorer + core.PostMediaStatus).
 	OnStatusMedia func()
+	// OnStatusVideo: buka video status utk putar INLINE (frame ffmpeg + audio mpv),
+	// di-set cmd/whatslite-gio → internal/video. nil → video pakai thumbnail saja.
+	OnStatusVideo func(id string) StatusVideo
 	// OnWinAction: hook aksi window utk titlebar custom (CSD Wayland). action ∈
 	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
 	OnWinAction func(action string)
@@ -4822,6 +4826,24 @@ func (u *UI) SetRenameDemo() {
 	u.overlay = "renamecontact"
 }
 
+// StatusVideo — sesi pemutaran video status inline (impl di cmd/whatslite-gio →
+// internal/video: frame ffmpeg + audio libmpv). gioui tetap bebas-cgo via interface.
+type StatusVideo interface {
+	Frame(elapsed time.Duration) (img image.Image, ended bool) // frame utk waktu-main
+	Duration() time.Duration
+	SetPause(bool)
+	Close()
+}
+
+// closeStatusVid — tutup sesi video status aktif (ganti item / tutup viewer).
+func (u *UI) closeStatusVid() {
+	if u.stVid != nil {
+		u.stVid.Close()
+		u.stVid = nil
+	}
+	u.stVidID = ""
+}
+
 // CloseStatusCompose — tutup composer status (dipanggil dari goroutine pick media).
 func (u *UI) CloseStatusCompose() {
 	if u.overlay == "statuscompose" {
@@ -4969,6 +4991,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 		}
 		if ni >= n {
 			u.overlay = "" // habis → tutup
+			u.closeStatusVid()
 			return
 		}
 		u.statusItemIdx = ni
@@ -4980,6 +5003,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 	}
 	for u.statusClose.Clicked(gtx) {
 		u.overlay = ""
+		u.closeStatusVid()
 	}
 	for u.stPause.Clicked(gtx) { // jeda / lanjut auto-advance
 		u.stPaused = !u.stPaused
@@ -4993,33 +5017,45 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 	}
 	item := g.Items[u.statusItemIdx]
 	isVideo := item.Type == "video"
-	for u.stVideoPlay.Clicked(gtx) { // play video status → pemutar eksternal
-		if u.OnPlayVideo != nil {
-			u.OnPlayVideo("status@broadcast", item.ID, "video")
+	// video → buka sesi inline (frame+audio) sekali per item; ganti item tutup lama.
+	if isVideo && u.stVidID != item.ID {
+		u.closeStatusVid()
+		if u.OnStatusVideo != nil {
+			u.stVid = u.OnStatusVideo(item.ID)
+			u.stVidID = item.ID
 		}
-		u.stPaused = true // jeda progress selama nonton
+	} else if !isVideo && u.stVid != nil {
+		u.closeStatusVid()
 	}
 	for u.stFwd.Clicked(gtx) { // forward isi status → pilih chat
 		u.fwdMsgID, u.fwdSrc = item.ID, "status@broadcast"
 		u.stPaused = true
 		u.overlay = "forward"
+		u.closeStatusVid()
 	}
-	// auto-advance: teks/gambar ~5 dtk (video tidak — diputar eksternal). Animasikan
-	// progress; saat penuh → item berikut. Pause/fokus-balas menghentikan.
-	const itemDur = 5 * time.Second
+	if gtx.Focused(&u.stReplyEd) { // sedang mengetik balasan → jeda (jangan loncat)
+		u.stPaused = true
+	}
+	if u.stVid != nil {
+		u.stVid.SetPause(u.stPaused) // sinkron audio dgn pause viewer
+	}
+	// durasi item: video = durasi klip; lainnya = 5 dtk. Auto-advance saat penuh.
+	itemDur := 5 * time.Second
+	if isVideo && u.stVid != nil {
+		if d := u.stVid.Duration(); d > 0 {
+			itemDur = d
+		}
+	}
 	dur := float32(0)
-	if !u.stPaused && !isVideo {
+	if !u.stPaused {
 		el := gtx.Now.Sub(u.stItemStart)
 		dur = float32(el) / float32(itemDur)
 		if dur >= 1 {
 			goItem(1)
 			dur = 0
 		} else {
-			gtx.Execute(op.InvalidateCmd{}) // animasikan bar
+			gtx.Execute(op.InvalidateCmd{}) // animasikan bar + frame video
 		}
-	}
-	if gtx.Focused(&u.stReplyEd) { // sedang mengetik balasan → jeda (jangan loncat)
-		u.stPaused = true
 	}
 	// reaksi emoji cepat (ala IG story) → ReactStatus.
 	for i := range u.stEmoji {
@@ -5033,6 +5069,9 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 	}
 	for u.stEmojiMore.Clicked(gtx) { // "+" → picker emoji lengkap utk reaksi status
 		u.stPaused = true
+		if u.stVid != nil {
+			u.stVid.SetPause(true) // jeda audio video selama picker terbuka
+		}
 		u.overlay = "statusemoji"
 	}
 	// balas teks → ReplyStatus (DM ke poster, mengutip status).
@@ -5153,10 +5192,15 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min = gtx.Constraints.Max // isi penuh → konten ter-center
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						// gambar: unduh media penuh (status@broadcast) → fallback thumb tertanam.
+						// gambar/video: video → frame inline (ffmpeg) per waktu-main;
+						// image/sticker → unduh media penuh. Fallback thumb tertanam.
 						var iop paint.ImageOp
 						haveImg := false
-						if item.Type == "image" || item.Type == "sticker" { // video pakai thumb (putar eksternal)
+						if isVideo && u.stVid != nil {
+							if fr, _ := u.stVid.Frame(gtx.Now.Sub(u.stItemStart)); fr != nil {
+								iop, haveImg = paint.NewImageOp(fr), true
+							}
+						} else if item.Type == "image" || item.Type == "sticker" {
 							u.ensureMedia("status@broadcast", item.ID)
 							u.mediaMu.Lock()
 							if op2, ok := u.media[item.ID]; ok {
@@ -5205,23 +5249,6 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 						layout.Flexed(0.32, func(gtx layout.Context) layout.Dimensions { return u.stPrevZone.Layout(gtx, fill) }),
 						layout.Flexed(0.68, func(gtx layout.Context) layout.Dimensions { return u.stNextZone.Layout(gtx, fill) }),
 					)
-				}),
-				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-					if !isVideo {
-						return layout.Dimensions{}
-					}
-					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return u.stVideoPlay.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							d := gtx.Dp(64)
-							sz := image.Pt(d, d)
-							paint.FillShape(gtx.Ops, color.NRGBA{A: 0xaa}, clip.Ellipse{Max: sz}.Op(gtx.Ops))
-							gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return icon(gtx, "play", 30, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
-							})
-							return layout.Dimensions{Size: sz}
-						})
-					})
 				}),
 			)
 		}),

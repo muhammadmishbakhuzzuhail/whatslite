@@ -54,6 +54,70 @@ func PlayBytes(data []byte, ext string) (*Player, error) {
 	return p, nil
 }
 
+// PlayAudioOnly: putar HANYA audio dari byte video (vid=no → TANPA window mpv).
+// Dipakai utk video status inline (frame digambar Gio, suara dari sini).
+func PlayAudioOnly(data []byte, ext string) (*Player, error) {
+	if len(data) == 0 {
+		return nil, errors.New("video: data kosong")
+	}
+	f, err := os.CreateTemp("", "wlaud-*"+ext)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return nil, err
+	}
+	f.Close()
+	ctx := C.mpv_create()
+	if ctx == nil {
+		os.Remove(f.Name())
+		return nil, errors.New("video: mpv_create gagal")
+	}
+	setOpt := func(k, v string) {
+		ck, cv := C.CString(k), C.CString(v)
+		C.mpv_set_option_string(ctx, ck, cv)
+		C.free(unsafe.Pointer(ck))
+		C.free(unsafe.Pointer(cv))
+	}
+	setOpt("vid", "no")     // tanpa video → tak buka window
+	setOpt("force-window", "no")
+	if rc := C.mpv_initialize(ctx); rc < 0 {
+		C.mpv_terminate_destroy(ctx)
+		os.Remove(f.Name())
+		return nil, errors.New("video: mpv_initialize gagal")
+	}
+	cpath := C.CString(f.Name())
+	defer C.free(unsafe.Pointer(cpath))
+	cload := C.CString("loadfile")
+	defer C.free(unsafe.Pointer(cload))
+	args := []*C.char{cload, cpath, nil}
+	if rc := C.mpv_command(ctx, &args[0]); rc < 0 {
+		C.mpv_terminate_destroy(ctx)
+		os.Remove(f.Name())
+		return nil, errors.New("video: loadfile gagal")
+	}
+	return &Player{ctx: ctx, tmp: f.Name()}, nil
+}
+
+// SetPause menjeda/melanjutkan pemutaran (sinkron dgn pause viewer).
+func (p *Player) SetPause(pause bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.ctx == nil {
+		return
+	}
+	v := "no"
+	if pause {
+		v = "yes"
+	}
+	ck, cv := C.CString("pause"), C.CString(v)
+	C.mpv_set_property_string(p.ctx, ck, cv)
+	C.free(unsafe.Pointer(ck))
+	C.free(unsafe.Pointer(cv))
+}
+
 // PlayFile: putar file video lewat libmpv.
 func PlayFile(path string) (*Player, error) {
 	ctx := C.mpv_create()

@@ -76,7 +76,7 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// .pane-head { height: 56px; padding: 0 16px; background: head-bg } h2 19/SemiBold.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return chnPaneHead(gtx, th, t, w, "Channels")
+			return chnPaneHead(gtx, th, t, w, "Saluran")
 		}),
 		// .ch-tabs { gap: 6px; padding: 2px 12px 10px } : Diikuti / Jelajahi.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {

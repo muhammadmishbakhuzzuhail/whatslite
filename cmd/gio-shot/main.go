@@ -177,6 +177,18 @@ func main() {
 		case "app-calls":
 			ui.SetView("calls")
 			ui.Layout(gtx)
+		case "app-status":
+			ui.SetView("status")
+			ui.Layout(gtx)
+		case "app-channels":
+			ui.SetView("channels")
+			ui.Layout(gtx)
+		case "app-communities":
+			ui.SetView("communities")
+			ui.Layout(gtx)
+		case "app-contacts":
+			ui.SetView("contacts")
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

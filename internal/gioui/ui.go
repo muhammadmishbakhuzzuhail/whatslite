@@ -103,6 +103,8 @@ type UI struct {
 	chnRowClicks []widget.Clickable  // aksi per-baris channel
 	chnExpCache  []chnChannel        // cache saluran jelajah
 	chnExpAt     time.Time
+	chnExpQuery  string              // query terakhir direktori jelajah (invalidasi cache)
+	chnSearchEd  widget.Editor       // kotak cari direktori channels (tab Jelajahi)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -483,6 +485,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.msgList.Axis = layout.Vertical
 	u.contactList.Axis = layout.Vertical
 	u.mediaGalList.Axis = layout.Vertical
+	u.chnSearchEd.SingleLine = true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -3392,16 +3395,17 @@ func (u *UI) channelRows() []chnChannel {
 	if u.core == nil {
 		return nil
 	}
-	if u.chnTab == 1 { // Jelajahi → saluran rekomendasi (TTL 5s)
-		if u.chnExpCache != nil && time.Since(u.chnExpAt) < 5*time.Second {
+	if u.chnTab == 1 { // Jelajahi → direktori cari (query) atau rekomendasi (TTL 5s)
+		q := strings.TrimSpace(u.chnSearchEd.Text())
+		if u.chnExpCache != nil && u.chnExpQuery == q && time.Since(u.chnExpAt) < 5*time.Second {
 			return u.chnExpCache
 		}
-		cs := u.core.GetRecommendedChannels("")
+		cs := u.core.GetRecommendedChannels(q)
 		out := make([]chnChannel, 0, len(cs))
 		for _, c := range cs {
 			out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true})
 		}
-		u.chnExpCache, u.chnExpAt = out, time.Now()
+		u.chnExpCache, u.chnExpAt, u.chnExpQuery = out, time.Now(), q
 		return out
 	}
 	if u.chCache != nil && time.Since(u.chAt) < time.Second {
@@ -3421,7 +3425,7 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 	if len(u.chnRowClicks) < len(rows) {
 		u.chnRowClicks = make([]widget.Clickable, len(rows))
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Search: &u.chnSearchEd}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).

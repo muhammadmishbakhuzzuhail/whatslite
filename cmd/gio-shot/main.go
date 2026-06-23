@@ -263,6 +263,15 @@ func main() {
 			hov, hovOn = f32.Pt(float32(hx), float32(hy)), true
 		}
 	}
+	// WLGIO_CLICK="x,y" → suntik klik (Press+Release) utk uji fokus/aktif headless.
+	var clk f32.Point
+	clkOn := false
+	if cs := os.Getenv("WLGIO_CLICK"); cs != "" {
+		var cx, cy int
+		if _, e := fmt.Sscanf(cs, "%d,%d", &cx, &cy); e == nil {
+			clk, clkOn = f32.Pt(float32(cx), float32(cy)), true
+		}
+	}
 	// dua frame: frame-1 memicu refresh() (load data demo) + daftar area; frame-2
 	// menggambarnya (dgn hover bila disuntik).
 	for i := 0; i < 2; i++ {
@@ -273,6 +282,12 @@ func main() {
 		must(hw.Frame(ops))
 		if i == 0 && hovOn {
 			rtr.Queue(pointer.Event{Kind: pointer.Move, Source: pointer.Mouse, Position: hov})
+		}
+		if i == 0 && clkOn {
+			rtr.Queue(
+				pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: clk},
+				pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: clk},
+			)
 		}
 	}
 	img := image.NewRGBA(image.Rect(0, 0, w, h))

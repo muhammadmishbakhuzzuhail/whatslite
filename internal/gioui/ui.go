@@ -2684,11 +2684,16 @@ func (u *UI) computeShown() {
 // searchBar — input pencarian membulat (ikon + editor) di var(--search-bg).
 func (u *UI) searchBar(gtx layout.Context) layout.Dimensions {
 	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(8), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		focused := gtx.Focused(&u.searchEd)
+		ico := u.t.Text2
+		if focused {
+			ico = u.t.Accent // ikon ikut accent saat fokus (modern)
+		}
 		macro := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return icon(gtx, "search", 18, u.t.Text2)
+					return icon(gtx, "search", 18, ico)
 				}),
 				layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -2701,12 +2706,21 @@ func (u *UI) searchBar(gtx layout.Context) layout.Dimensions {
 			)
 		})
 		call := macro.Stop()
-		r := gtx.Dp(18)
 		w := gtx.Constraints.Max.X
-		bg := clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, dims.Size.Y)}, NW: r, NE: r, SE: r, SW: r}
-		paint.FillShape(gtx.Ops, u.t.SearchBg, bg.Op(gtx.Ops))
+		sz := image.Pt(w, dims.Size.Y)
+		r := dims.Size.Y / 2 // pil penuh (modern)
+		// fokus → cincin accent tipis (focus ring), else bg polos.
+		if focused {
+			paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+			bw := gtx.Dp(2)
+			in := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(w-bw, dims.Size.Y-bw)}
+			ir := r - bw
+			paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: in, NW: ir, NE: ir, SE: ir, SW: ir}.Op(gtx.Ops))
+		} else {
+			paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		}
 		call.Add(gtx.Ops)
-		return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
+		return layout.Dimensions{Size: sz}
 	})
 }
 
@@ -2729,22 +2743,29 @@ func (u *UI) filterChips(gtx layout.Context) layout.Dimensions {
 
 func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
 	active := u.filterSel == i
+	// modern: inaktif TRANSPARAN (teks saja) + hover halus; aktif = pil accent lembut.
 	txtCol := u.t.Text2
-	chipBg := u.t.SearchBg
-	if active {
-		txtCol = color.NRGBA{R: 0x00, G: 0xa8, B: 0x84, A: 0xff} // accent
+	chipBg := color.NRGBA{} // transparan
+	switch {
+	case active:
+		txtCol = u.t.Accent
 		chipBg = color.NRGBA{R: 0x00, G: 0xa8, B: 0x84, A: 0x2e} // accent lembut
+	case u.filterClicks[i].Hovered():
+		chipBg = u.t.Hover
+		txtCol = u.t.Text
 	}
 	return u.filterClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		macro := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		dims := layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(u.th, 13, chatFilterLabels[i])
 			lbl.Color = txtCol
 			return lbl.Layout(gtx)
 		})
 		call := macro.Stop()
 		r := dims.Size.Y / 2
-		paint.FillShape(gtx.Ops, chipBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		if chipBg.A > 0 {
+			paint.FillShape(gtx.Ops, chipBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		}
 		call.Add(gtx.Ops)
 		return dims
 	})
@@ -2817,9 +2838,9 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 		} else if hov {
 			bg = u.t.Hover
 		}
-		m := gtx.Dp(7)      // margin kiri+kanan (simetris)
-		vy := gtx.Dp(3)     // margin atas+bawah kartu
-		rr := gtx.Dp(12)    // sudut membulat
+		m := gtx.Dp(7)   // margin kiri+kanan (simetris)
+		vy := gtx.Dp(3)  // margin atas+bawah kartu
+		rr := gtx.Dp(12) // sudut membulat
 		if bg.A > 0 {
 			rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
 			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))

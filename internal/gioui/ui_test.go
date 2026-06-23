@@ -276,16 +276,16 @@ func TestFabHidden(t *testing.T) {
 
 func TestEmojiOnlyCount(t *testing.T) {
 	cases := map[string]int{
-		"👍":            1,
-		"🔥🔥":           2,
-		"😀😃😄":          3,
-		"😀😃😄😁":         0, // >3 → tak diperbesar
-		"halo":         0,
-		"oke 👍":        0, // ada teks biasa
-		"":             0,
-		"   ":          0,
-		"👍🏽":           1, // skin tone modifier
-		"👨‍👩‍👧":          1, // ZWJ family = satu emoji
+		"👍":     1,
+		"🔥🔥":    2,
+		"😀😃😄":   3,
+		"😀😃😄😁":  0, // >3 → tak diperbesar
+		"halo":  0,
+		"oke 👍": 0, // ada teks biasa
+		"":      0,
+		"   ":   0,
+		"👍🏽":    1, // skin tone modifier
+		"👨‍👩‍👧": 1, // ZWJ family = satu emoji
 	}
 	for in, want := range cases {
 		if got := emojiOnlyCount(in); got != want {

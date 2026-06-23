@@ -88,6 +88,12 @@ func main() {
 			gioui.ModalsView(gtx, th, t, nil)
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t, nil)
+		case "groupadmin":
+			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
+				Name: "Grup Kerja", Sub: "4 anggota", Desc: "Koordinasi tim", Group: true,
+				AmAdmin: true, Announce: true, Locked: false, Approval: true,
+				AnnounceC: &widget.Clickable{}, LockedC: &widget.Clickable{}, ApprovalC: &widget.Clickable{},
+				Members: []gioui.InfoMember{{Name: "Andi", Admin: true}, {Name: "Sarah"}}})
 		case "contactinfo":
 			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
 				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false})

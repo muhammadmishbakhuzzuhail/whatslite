@@ -134,7 +134,7 @@ func lbTopButtons(gtx layout.Context, th *material.Theme, white color.NRGBA, ctl
 
 	// posisi dihitung dari lebar penuh DULU (jgn pakai gtx.Constraints setelah
 	// area-klik mengubahnya — itu yg sempat menyembunyikan tombol unduh).
-	xX := gtx.Constraints.Max.X - xRight - d   // ✕ tutup — .lb-x right 22.
+	xX := gtx.Constraints.Max.X - xRight - d     // ✕ tutup — .lb-x right 22.
 	dlX := gtx.Constraints.Max.X - saveRight - d // unduh — .lb-save right 70.
 
 	lbCircleAt(gtx, xX, top, d)

@@ -27,11 +27,11 @@ import (
 // LoginCtl = state interaktif layar login (alur nomor telepon). nil → render QR
 // statis saja (dipakai render-tool gio-shot). Disuplai UI.loginCtl() saat hidup.
 type LoginCtl struct {
-	PhoneMode bool             // true = panel nomor telepon; false = QR
-	Phone     *widget.Editor   // input nomor (mode telepon)
+	PhoneMode bool              // true = panel nomor telepon; false = QR
+	Phone     *widget.Editor    // input nomor (mode telepon)
 	Switch    *widget.Clickable // link toggle QR↔nomor
 	Submit    *widget.Clickable // tombol "Minta kode"
-	Code      string           // kode pairing 8-karakter (hasil LinkWithPhone)
+	Code      string            // kode pairing 8-karakter (hasil LinkWithPhone)
 }
 
 // LoginView menggambar layar login penuh (bar accent + kartu QR + hint).

@@ -315,6 +315,9 @@ type UI struct {
 	infoMemberNames  []string            // nama anggota (paralel)
 	infoMemberAdmin  []bool              // status admin anggota (paralel)
 	infoAddC         widget.Clickable    // info-drawer: "Tambah anggota" (grup)
+	infoAnnounceC    widget.Clickable    // toggle: hanya admin boleh kirim
+	infoLockedC      widget.Clickable    // toggle: hanya admin boleh ubah info
+	infoApprovalC    widget.Clickable    // toggle: setujui anggota baru
 	curGroupAmAdmin  bool                // saya admin grup terbuka? (gate aksi admin)
 	mctJID           string              // menu konteks anggota: jid sasaran
 	mctName          string              // nama sasaran
@@ -6303,6 +6306,9 @@ func (u *UI) infoData() *InfoDrawerData {
 			d.Desc = gi.Topic
 			u.curGroupDesc = gi.Topic
 			u.curGroupAmAdmin = gi.AmAdmin
+			d.AmAdmin = gi.AmAdmin
+			d.Announce, d.Locked, d.Approval = gi.Announce, gi.Locked, gi.JoinApproval
+			d.AnnounceC, d.LockedC, d.ApprovalC = &u.infoAnnounceC, &u.infoLockedC, &u.infoApprovalC
 			d.Members = make([]InfoMember, 0, len(gi.Participants))
 			u.infoMemberJIDs = u.infoMemberJIDs[:0]
 			u.infoMemberNames = u.infoMemberNames[:0]
@@ -6371,6 +6377,27 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	}
 	for u.infoTimerC.Clicked(gtx) { // pesan sementara → picker
 		u.overlay = "disappearing"
+	}
+	for u.infoAnnounceC.Clicked(gtx) { // toggle hanya-admin-boleh-kirim
+		if u.core != nil {
+			if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+				u.core.SetGroupAnnounce(u.selected, !gi.Announce)
+			}
+		}
+	}
+	for u.infoLockedC.Clicked(gtx) { // toggle hanya-admin-boleh-ubah-info
+		if u.core != nil {
+			if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+				u.core.SetGroupLocked(u.selected, !gi.Locked)
+			}
+		}
+	}
+	for u.infoApprovalC.Clicked(gtx) { // toggle setujui-anggota-baru
+		if u.core != nil {
+			if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+				u.core.SetGroupJoinApproval(u.selected, !gi.JoinApproval)
+			}
+		}
 	}
 	for u.infoAddC.Clicked(gtx) { // "Tambah anggota" → pemilih kontak (mode addmember)
 		u.gcMode, u.gcGroupJID = "addmember", u.selected

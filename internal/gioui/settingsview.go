@@ -590,17 +590,17 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 	// Bahasa, Penyimpanan, lalu fitur WhatsLite (Retensi, Simpan-dihapus,
 	// Kunci), Bantuan, Keluar. Indeks = indeks clickable (lihat handleSettings).
 	items := []setItem{
-		{name: "Akun", desc: "Notifikasi keamanan, info akun", icon: "info"},                            // 0
-		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},               // 1
-		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},                      // 2
-		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},                // 3
-		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},                                       // 4
-		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},                                // 5
-		{name: "Retensi", desc: retentionDesc(ctl), icon: "clock"},                                      // 6
+		{name: "Akun", desc: "Notifikasi keamanan, info akun", icon: "info"},                                                                        // 0
+		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},                                                           // 1
+		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},                                                                  // 2
+		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},                                                            // 3
+		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},                                                                                   // 4
+		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},                                                                            // 5
+		{name: "Retensi", desc: retentionDesc(ctl), icon: "clock"},                                                                                  // 6
 		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted}, // 7
-		{name: "Kunci aplikasi", desc: lockDesc(ctl), icon: "lock"},                                     // 8
-		{name: "Bantuan", desc: "Pusat bantuan, ketentuan, lisensi", icon: "info"},                      // 9
-		{name: "Keluar", icon: "power", danger: true},                                                   // 10
+		{name: "Kunci aplikasi", desc: lockDesc(ctl), icon: "lock"},                                                                                 // 8
+		{name: "Bantuan", desc: "Pusat bantuan, ketentuan, lisensi", icon: "info"},                                                                  // 9
+		{name: "Keluar", icon: "power", danger: true},                                                                                               // 10
 	}
 	flex := layout.Flex{Axis: layout.Vertical}
 	children := make([]layout.FlexChild, len(items))

@@ -109,8 +109,8 @@ func chvIconBtn(gtx layout.Context, t Theme, glyph func(gtx layout.Context, t Th
 // gagang diagonal, warna text2. Disusun dari ellipse + rect (API ui.go).
 func chvSearchGlyph(gtx layout.Context, t Theme, cx, cy int) layout.Context {
 	// (helper murni efek-samping menggambar; tipe balik diabaikan)
-	r := gtx.Dp(7)        // jari-jari cincin (viewBox r=7)
-	bw := gtx.Dp(2)       // tebal garis (stroke)
+	r := gtx.Dp(7)  // jari-jari cincin (viewBox r=7)
+	bw := gtx.Dp(2) // tebal garis (stroke)
 	ringCX := cx - gtx.Dp(2)
 	ringCY := cy - gtx.Dp(2)
 	// cincin: ellipse penuh text2, lalu lubang dgn warna head-bg di dalam.

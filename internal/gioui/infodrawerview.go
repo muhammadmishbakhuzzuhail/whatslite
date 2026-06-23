@@ -45,6 +45,14 @@ type InfoDrawerData struct {
 	TimerLabel   string             // label aktif: "Mati" / "24 jam" / "7 hari" / "90 hari"
 	Members      []InfoMember       // grup: daftar anggota
 	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
+	// pengaturan admin grup (hanya tampil bila Group && AmAdmin):
+	AmAdmin   bool
+	Announce  bool // hanya admin boleh kirim pesan
+	Locked    bool // hanya admin boleh ubah info grup
+	Approval  bool // anggota baru butuh persetujuan
+	AnnounceC *widget.Clickable
+	LockedC   *widget.Clickable
+	ApprovalC *widget.Clickable
 }
 
 // InfoMember = satu anggota grup di laci info (nama + admin + jid utk buka DM).
@@ -147,6 +155,31 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				return layout.Dimensions{}
 			}
 			return infoDrawerMembers(gtx, th, t, d.Members, d.MemberClicks)
+		}),
+		// pengaturan admin grup (hanya admin) — kirim/ubah-info/persetujuan.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group || !d.AmAdmin {
+				return layout.Dimensions{}
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return infoDrawerSep(gtx, t, w) }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(2), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(th, 12.5, "PENGATURAN ADMIN")
+						l.Color = t.Text2
+						return l.Layout(gtx)
+					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return infoDrawerToggleRow(gtx, th, t, "channels", "Kirim pesan", "Hanya admin yang boleh kirim", d.Announce, d.AnnounceC)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return infoDrawerToggleRow(gtx, th, t, "editpen", "Edit info grup", "Hanya admin yang boleh ubah", d.Locked, d.LockedC)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return infoDrawerToggleRow(gtx, th, t, "verif", "Setujui anggota baru", "Admin menyetujui yang bergabung", d.Approval, d.ApprovalC)
+				}),
+			)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
@@ -362,6 +395,53 @@ func infoDrawerRowBody(gtx layout.Context, th *material.Theme, t Theme, icon fun
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: dims.Size}.Op())
 	call.Add(gtx.Ops)
 	return dims
+}
+
+// infoDrawerToggleRow — baris pengaturan admin: ikon + label (+ sub) + switch kanan.
+func infoDrawerToggleRow(gtx layout.Context, th *material.Theme, t Theme, glyph, label, sub string, on bool, c *widget.Clickable) layout.Dimensions {
+	body := func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d := gtx.Dp(22)
+					icon(gtx, glyph, 22, t.Text2)
+					return layout.Dimensions{Size: image.Pt(d, d)}
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(18)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 15, label)
+							l.Color, l.MaxLines = t.Text, 1
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if sub == "" {
+								return layout.Dimensions{}
+							}
+							l := material.Label(th, 12.5, sub)
+							l.Color, l.MaxLines = t.Text2, 1
+							return l.Layout(gtx)
+						}),
+					)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return setSwitch(gtx, t, on)
+				}),
+			)
+		})
+		call := macro.Stop()
+		paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: dims.Size}.Op())
+		call.Add(gtx.Ops)
+		return dims
+	}
+	if c != nil {
+		return c.Layout(gtx, body)
+	}
+	return body(gtx)
 }
 
 // infoDrawerIconBox: kotak ikon 22x22 (.info-row svg) — gambar ikon WhatsApp via helper.

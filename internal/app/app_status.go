@@ -8,6 +8,7 @@ package app
 // Di sini dikelompokkan per pengirim (24 jam terakhir) untuk panel Status.
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ type StatusGroupDTO struct {
 	Name  string          `json:"name"`
 	Time  string          `json:"time"` // waktu update terbaru
 	Mine  bool            `json:"mine"`
+	Seen  bool            `json:"seen"` // semua item sudah dilihat → cincin abu
 	Count int             `json:"count"`
 	Items []StatusItemDTO `json:"items"` // urut lama→baru (utk tap-through viewer)
 }
@@ -83,13 +85,24 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(),
 		})
 	}
-	// Items per grup saat ini baru→lama; viewer ingin lama→baru → balik.
+	// Items per grup saat ini baru→lama; viewer ingin lama→baru → balik. Hitung pula
+	// status DILIHAT: grup dianggap dilihat bila item terbaru <= waktu-lihat tersimpan.
 	for _, k := range order {
 		g := groups[k]
+		var maxTs int64
+		for _, it := range g.Items {
+			if it.Ts > maxTs {
+				maxTs = it.Ts
+			}
+		}
 		for i, j := 0, len(g.Items)-1; i < j; i, j = i+1, j-1 {
 			g.Items[i], g.Items[j] = g.Items[j], g.Items[i]
 		}
 		g.Count = len(g.Items)
+		if !g.Mine {
+			seenTs, _ := strconv.ParseInt(a.store.GetMeta(a.ctx, "status_seen:"+g.Jid, "0"), 10, 64)
+			g.Seen = maxTs > 0 && seenTs >= maxTs
+		}
 	}
 	// Milik sendiri ke depan.
 	var mine, others []StatusGroupDTO
@@ -104,6 +117,18 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 	out = append(out, mine...)
 	out = append(out, others...)
 	return out
+}
+
+// MarkStatusSeen menandai status seorang author sudah dilihat sampai waktu `ts`
+// (cincin jadi abu). Disimpan di meta agar persist antar-sesi.
+func (a *App) MarkStatusSeen(authorJID string, ts int64) {
+	if a.store == nil || authorJID == "" || ts <= 0 {
+		return
+	}
+	cur, _ := strconv.ParseInt(a.store.GetMeta(a.ctx, "status_seen:"+authorJID, "0"), 10, 64)
+	if ts > cur {
+		_ = a.store.SetMeta(a.ctx, "status_seen:"+authorJID, strconv.FormatInt(ts, 10))
+	}
 }
 
 // GetStatusViewers mengembalikan siapa saja yang sudah melihat status kita.

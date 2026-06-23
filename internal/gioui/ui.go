@@ -3489,7 +3489,7 @@ func (u *UI) statusRows() []stpItem {
 			continue // status sendiri tampil di baris My-status, bukan daftar
 		}
 		u.statusGroupsCache = append(u.statusGroupsCache, g)
-		out = append(out, stpItem{name: g.Name, time: g.Time, seen: false})
+		out = append(out, stpItem{name: g.Name, time: g.Time, seen: g.Seen})
 	}
 	if len(u.statusClicks) < len(out) {
 		u.statusClicks = make([]widget.Clickable, len(out))
@@ -3602,6 +3602,11 @@ func (u *UI) handleStatus(gtx layout.Context) {
 		for u.statusClicks[i].Clicked(gtx) {
 			u.statusViewIdx = i
 			u.overlay = "statusview"
+			g := u.statusGroupsCache[i] // tandai dilihat sampai item terbaru → cincin abu
+			if u.core != nil && len(g.Items) > 0 {
+				u.core.MarkStatusSeen(g.Jid, g.Items[len(g.Items)-1].Ts)
+				u.srAt = time.Time{} // invalidasi cache agar cincin segera berubah
+			}
 		}
 	}
 }

@@ -68,7 +68,7 @@ func newTheme(dark bool) Theme {
 		// bubble-out #005c4b, wallpaper #0b141a, accent #00a884, border #2a3942.
 		return Theme{
 			Dark: true, RailBg: hex("#202c33"), RailIco: hex("#aebac1"),
-			SidebarBg: hex("#111b21"), Bg: hex("#111b21"), Bg2: hex("#202c33"),
+			SidebarBg: hex("#0b141a"), Bg: hex("#0b141a"), Bg2: hex("#202c33"),
 			HeadBg: hex("#202c33"), Line: hex("#2a3942"), Divider: hex("#222d34"),
 			SearchBg: hex("#202c33"), Wallpaper: hex("#0b141a"), InBg: hex("#202c33"),
 			OutBg: hex("#005c4b"), Text: hex("#e9edef"), Text2: hex("#8696a0"),
@@ -80,7 +80,7 @@ func newTheme(dark bool) Theme {
 	// #d9fdd3, wallpaper #efeae2, accent #00a884, border #e9edef.
 	return Theme{
 		Dark: false, RailBg: hex("#f0f2f5"), RailIco: hex("#54656f"),
-		SidebarBg: hex("#ffffff"), Bg: hex("#ffffff"), Bg2: hex("#f0f2f5"),
+		SidebarBg: hex("#efeae2"), Bg: hex("#efeae2"), Bg2: hex("#f0f2f5"),
 		HeadBg: hex("#f0f2f5"), Line: hex("#e9edef"), Divider: hex("#f0f2f5"),
 		SearchBg: hex("#f0f2f5"), Wallpaper: hex("#efeae2"), InBg: hex("#ffffff"),
 		OutBg: hex("#d9fdd3"), Text: hex("#111b21"), Text2: hex("#667781"),

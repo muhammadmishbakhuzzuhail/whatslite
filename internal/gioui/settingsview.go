@@ -243,7 +243,7 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X // avatar TERPUSAT (baris lain lebar-penuh)
 				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return setAvatar(gtx, th, name, "#00a884", 120)
+					return setProfileAvatar(gtx, th, t, name, "#00a884", 120)
 				})
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(20)}.Layout),
@@ -543,6 +543,32 @@ func setSwitch(gtx layout.Context, t Theme, on bool) layout.Dimensions {
 	knob := image.Rectangle{Min: image.Pt(kx, ky), Max: image.Pt(kx+k, ky+k)}
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}, clip.Ellipse{Min: knob.Min, Max: knob.Max}.Op(gtx.Ops))
 	return layout.Dimensions{Size: sz}
+}
+
+// setProfileAvatar — avatar besar + lencana kamera bulat di pojok kanan-bawah
+// (paritas WhatsApp: ketuk foto utk ganti). Stack: avatar lalu badge di sudut.
+func setProfileAvatar(gtx layout.Context, th *material.Theme, t Theme, name, accent string, dp int) layout.Dimensions {
+	bd := gtx.Dp(34) // diameter lencana kamera
+	return layout.Stack{Alignment: layout.SE}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return setAvatar(gtx, th, name, accent, dp)
+		}),
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			sz := image.Pt(bd, bd)
+			// cincin warna pane di belakang agar lencana "menempel" rapi
+			rd := gtx.Dp(3)
+			ring := image.Pt(bd+rd*2, bd+rd*2)
+			paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Max: ring}.Op(gtx.Ops))
+			off := op.Offset(image.Pt(rd, rd)).Push(gtx.Ops)
+			paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return icon(gtx, "camera", 18, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff})
+			})
+			off.Pop()
+			return layout.Dimensions{Size: ring}
+		}),
+	)
 }
 
 // avatar profil: lingkaran warna aksen + inisial (paritas .avatar)

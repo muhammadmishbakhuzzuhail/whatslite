@@ -4169,18 +4169,23 @@ func (u *UI) handleInfo(gtx layout.Context) {
 		}
 		if u.infoMemberClicks[i].Clicked(gtx) {
 			jid := u.infoMemberJIDs[i]
-			if u.core != nil && jid != "" && !isGroupJIDStr(jid) {
-				u.selected, u.selGroup, u.overlay = jid, false, ""
-				u.selName = jidUser(jid)
-				for k := range u.chats { // nama asli bila chat sudah ada
-					if u.chats[k].ID == jid {
-						u.selName = u.chats[k].Name
-						break
-					}
-				}
-				u.core.OpenChat(jid)
-				u.messages = u.core.GetMessages(jid)
+			// hanya DM pengguna normal (@s.whatsapp.net); lewati @lid/@g.us + diri sendiri.
+			if u.core == nil || !strings.HasSuffix(jid, "@s.whatsapp.net") {
+				continue
 			}
+			if u.selfJID != "" && jidUser(jid) == jidUser(u.selfJID) {
+				continue
+			}
+			u.selected, u.selGroup, u.overlay = jid, false, ""
+			u.selName = jidUser(jid)
+			for k := range u.chats { // nama asli bila chat sudah ada
+				if u.chats[k].ID == jid {
+					u.selName = u.chats[k].Name
+					break
+				}
+			}
+			u.core.OpenChat(jid)
+			u.messages = u.core.GetMessages(jid)
 		}
 	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal

@@ -76,8 +76,11 @@ type UI struct {
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
 	statusViewIdx     int
+	statusItemIdx     int       // item ke-berapa dlm grup yg sedang dilihat (tap-through)
 	statusViewAt      time.Time // waktu buka viewer (redraw terbatas saat unduh media)
 	statusClose       widget.Clickable
+	stPrevZone        widget.Clickable // zona tap kiri → item sebelumnya
+	stNextZone        widget.Clickable // zona tap kanan → item berikut / tutup
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -244,18 +247,18 @@ type UI struct {
 	inviteLink       string           // link undangan termuat (modal "invitelink")
 	inviteCopy       widget.Clickable
 	inviteClose      widget.Clickable
-	infoEditC        widget.Clickable    // info-drawer: edit info grup
-	infoRenameC      widget.Clickable    // info-drawer: edit nama kontak (DM)
-	renameEd         widget.Editor       // editor nama kontak (modal renamecontact)
+	infoEditC        widget.Clickable // info-drawer: edit info grup
+	infoRenameC      widget.Clickable // info-drawer: edit nama kontak (DM)
+	renameEd         widget.Editor    // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
 	renameCancel     widget.Clickable
-	renameTarget     string              // jid sasaran rename (kontak peek / ctx); "" = pakai selected
-	infoCJID         string              // "intip-info" kontak (drawer TANPA buka chat); "" = pakai selected
-	infoCName        string              // nama kontak utk intip-info
-	infoClicks       []widget.Clickable  // pane Kontak: ikon "i" per-baris → info-drawer
-	ctNewContactBtn  widget.Clickable    // pane Kontak: tombol "Kontak baru"
-	ncName           widget.Editor       // modal newcontact: nama
-	ncPhone          widget.Editor       // modal newcontact: nomor
+	renameTarget     string             // jid sasaran rename (kontak peek / ctx); "" = pakai selected
+	infoCJID         string             // "intip-info" kontak (drawer TANPA buka chat); "" = pakai selected
+	infoCName        string             // nama kontak utk intip-info
+	infoClicks       []widget.Clickable // pane Kontak: ikon "i" per-baris → info-drawer
+	ctNewContactBtn  widget.Clickable   // pane Kontak: tombol "Kontak baru"
+	ncName           widget.Editor      // modal newcontact: nama
+	ncPhone          widget.Editor      // modal newcontact: nomor
 	ncSave           widget.Clickable
 	ncCancel         widget.Clickable
 	ncErr            string              // pesan galat modal newcontact (nomor tak terdaftar)
@@ -3282,9 +3285,11 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 
 // avatarPresence — avatar 54 chat list + titik presence (DM saja) di kanan-bawah.
 // 3-keadaan SESUAI yg diketahui (bukan tebakan):
-//   "online"  → hijau #28c840
-//   "offline" → abu (last-seen terlihat → memang offline)
-//   ""        → TANPA titik (disembunyikan/privacy/reciprocity/belum ada data)
+//
+//	"online"  → hijau #28c840
+//	"offline" → abu (last-seen terlihat → memang offline)
+//	""        → TANPA titik (disembunyikan/privacy/reciprocity/belum ada data)
+//
 // Grup tak punya presence → tanpa titik. Tak ada "merah offline": WhatsApp pun tak
 // menampilkannya & aturan reciprocity bisa menyembunyikan presence semua kontak.
 func (u *UI) avatarPresence(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
@@ -4666,6 +4671,21 @@ func (u *UI) SetRenameDemo() {
 	u.overlay = "renamecontact"
 }
 
+// SetStatusViewDemo — render-tool: buka viewer status (progress bar + item ke-2).
+func (u *UI) SetStatusViewDemo() {
+	u.statusGroupsCache = []app.StatusGroupDTO{{
+		Jid: "x@s.whatsapp.net", Name: "Andi Pratama", Time: "2 menit lalu", Count: 4,
+		Items: []app.StatusItemDTO{
+			{ID: "s1", Type: "text", Text: "Status pertama 👋", Time: "08.00", Ts: 1},
+			{ID: "s2", Type: "text", Text: "Lagi di pantai hari ini, cuaca cerah banget!", Time: "08.01", Ts: 2},
+			{ID: "s3", Type: "text", Text: "Ketiga", Time: "08.02", Ts: 3},
+			{ID: "s4", Type: "text", Text: "Keempat", Time: "08.03", Ts: 4},
+		},
+	}}
+	u.statusViewIdx, u.statusItemIdx = 0, 1 // di item ke-2 → 2 bar penuh, 2 redup
+	u.overlay = "statusview"
+}
+
 // SetContactCtxDemo — render-tool: buka menu konteks kontak (klik-kanan) demo.
 func (u *UI) SetContactCtxDemo() {
 	u.view = "contacts"
@@ -4770,15 +4790,63 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 		return
 	}
 	g := u.statusGroupsCache[u.statusViewIdx]
+	n := len(g.Items)
+	if n == 0 {
+		u.overlay = ""
+		return
+	}
+	if u.statusItemIdx >= n {
+		u.statusItemIdx = n - 1
+	}
+	if u.statusItemIdx < 0 {
+		u.statusItemIdx = 0
+	}
 	for u.statusClose.Clicked(gtx) {
 		u.overlay = ""
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 0xee}, clip.Rect{Max: gtx.Constraints.Max}.Op())
-	var item app.StatusItemDTO
-	if len(g.Items) > 0 {
-		item = g.Items[len(g.Items)-1] // terbaru
+	// navigasi tap: kanan → item berikut (di akhir → tutup); kiri → item sebelumnya.
+	for u.stNextZone.Clicked(gtx) {
+		if u.statusItemIdx < n-1 {
+			u.statusItemIdx++
+			if u.core != nil { // tandai item baru dilihat (cincin abu bertambah)
+				u.core.MarkStatusSeen(g.Jid, g.Items[u.statusItemIdx].Ts)
+				u.srAt = time.Time{}
+			}
+		} else {
+			u.overlay = "" // habis → tutup
+		}
 	}
+	for u.stPrevZone.Clicked(gtx) {
+		if u.statusItemIdx > 0 {
+			u.statusItemIdx--
+		}
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 0x0b, G: 0x14, B: 0x1a, A: 0xff}, clip.Rect{Max: gtx.Constraints.Max}.Op()) // latar solid (tanpa app tembus)
+	item := g.Items[u.statusItemIdx]
+	gtx.Constraints.Min = gtx.Constraints.Max // isi penuh layar → konten ter-center vertikal
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// progress bar tersegmen (1 per item; <=current penuh, sisanya redup).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				gap := gtx.Dp(3)
+				h := gtx.Dp(3)
+				total := gtx.Constraints.Max.X
+				bw := (total - gap*(n-1)) / n
+				if bw < 1 {
+					bw = 1
+				}
+				for i := 0; i < n; i++ {
+					x := i * (bw + gap)
+					col := color.NRGBA{R: 255, G: 255, B: 255, A: 0x55} // upcoming redup
+					if i <= u.statusItemIdx {
+						col = color.NRGBA{R: 255, G: 255, B: 255, A: 0xff} // dilihat/aktif
+					}
+					paint.FillShape(gtx.Ops, col, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x, 0), Max: image.Pt(x+bw, h)}, NW: h / 2, NE: h / 2, SE: h / 2, SW: h / 2}.Op(gtx.Ops))
+				}
+				return layout.Dimensions{Size: image.Pt(total, h)}
+			})
+		}),
 		// bar atas: avatar + nama + waktu + tutup
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -4810,55 +4878,67 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				)
 			})
 		}),
-		// isi: media penuh (image/video/sticker) atau teks besar.
+		// isi: media penuh (image/video/sticker) atau teks besar + zona tap navigasi.
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				// gambar: unduh media penuh (status@broadcast) → fallback thumb tertanam.
-				var iop paint.ImageOp
-				haveImg := false
-				if item.Type == "image" || item.Type == "video" || item.Type == "sticker" {
-					u.ensureMedia("status@broadcast", item.ID)
-					u.mediaMu.Lock()
-					if op2, ok := u.media[item.ID]; ok {
-						iop, haveImg = op2, true
-					}
-					u.mediaMu.Unlock()
-					// belum termuat → redraw terbatas ~5s agar muncul saat unduh selesai.
-					if !haveImg && gtx.Now.Sub(u.statusViewAt) < 5*time.Second {
-						gtx.Execute(op.InvalidateCmd{})
-					}
-				}
-				if !haveImg {
-					if img := decodeImage(decodeDataURI(item.Thumb)); img != nil {
-						iop, haveImg = paint.NewImageOp(img), true
-					}
-				}
-				if haveImg {
-					sz := iop.Size()
-					maxW, maxH := gtx.Dp(420), gtx.Constraints.Max.Y-gtx.Dp(80)
-					w := maxW
-					h := w * sz.Y / sz.X
-					if h > maxH {
-						h = maxH
-						w = h * sz.X / sz.Y
-					}
-					box := image.Pt(w, h)
-					cl := clip.Rect{Max: box}.Push(gtx.Ops)
-					drawImageFill(gtx.Ops, iop, w)
-					cl.Pop()
-					return layout.Dimensions{Size: box}
-				}
-				txt := item.Text
-				if txt == "" {
-					txt = "Status"
-				}
-				return layout.Inset{Left: unit.Dp(40), Right: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					l := material.Label(u.th, 26, txt)
-					l.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-					l.Alignment = text.Middle
-					return l.Layout(gtx)
-				})
-			})
+			fill := func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} }
+			return layout.Stack{}.Layout(gtx,
+				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min = gtx.Constraints.Max // isi penuh → konten ter-center
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						// gambar: unduh media penuh (status@broadcast) → fallback thumb tertanam.
+						var iop paint.ImageOp
+						haveImg := false
+						if item.Type == "image" || item.Type == "video" || item.Type == "sticker" {
+							u.ensureMedia("status@broadcast", item.ID)
+							u.mediaMu.Lock()
+							if op2, ok := u.media[item.ID]; ok {
+								iop, haveImg = op2, true
+							}
+							u.mediaMu.Unlock()
+							// belum termuat → redraw terbatas ~5s agar muncul saat unduh selesai.
+							if !haveImg && gtx.Now.Sub(u.statusViewAt) < 5*time.Second {
+								gtx.Execute(op.InvalidateCmd{})
+							}
+						}
+						if !haveImg {
+							if img := decodeImage(decodeDataURI(item.Thumb)); img != nil {
+								iop, haveImg = paint.NewImageOp(img), true
+							}
+						}
+						if haveImg {
+							sz := iop.Size()
+							maxW, maxH := gtx.Dp(420), gtx.Constraints.Max.Y-gtx.Dp(80)
+							w := maxW
+							h := w * sz.Y / sz.X
+							if h > maxH {
+								h = maxH
+								w = h * sz.X / sz.Y
+							}
+							box := image.Pt(w, h)
+							cl := clip.Rect{Max: box}.Push(gtx.Ops)
+							drawImageFill(gtx.Ops, iop, w)
+							cl.Pop()
+							return layout.Dimensions{Size: box}
+						}
+						txt := item.Text
+						if txt == "" {
+							txt = "Status"
+						}
+						return layout.Inset{Left: unit.Dp(40), Right: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 26, txt)
+							l.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+							l.Alignment = text.Middle
+							return l.Layout(gtx)
+						})
+					})
+				}),
+				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(0.32, func(gtx layout.Context) layout.Dimensions { return u.stPrevZone.Layout(gtx, fill) }),
+						layout.Flexed(0.68, func(gtx layout.Context) layout.Dimensions { return u.stNextZone.Layout(gtx, fill) }),
+					)
+				}),
+			)
 		}),
 	)
 }
@@ -4884,12 +4964,13 @@ func (u *UI) handleStatus(gtx layout.Context) {
 		}
 		for u.statusClicks[i].Clicked(gtx) {
 			u.statusViewIdx = i
+			u.statusItemIdx = 0 // mulai dari item paling lama
 			u.statusViewAt = gtx.Now
 			u.overlay = "statusview"
-			g := u.statusGroupsCache[i] // tandai dilihat sampai item terbaru → cincin abu
+			g := u.statusGroupsCache[i] // tandai item pertama dilihat
 			if u.core != nil && len(g.Items) > 0 {
-				u.core.MarkStatusSeen(g.Jid, g.Items[len(g.Items)-1].Ts)
-				u.srAt = time.Time{} // invalidasi cache agar cincin segera berubah
+				u.core.MarkStatusSeen(g.Jid, g.Items[0].Ts)
+				u.srAt = time.Time{} // invalidasi cache cincin
 			}
 		}
 	}

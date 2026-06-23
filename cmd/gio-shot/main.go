@@ -209,6 +209,9 @@ func main() {
 		case "app-contactctx":
 			ui.SetContactCtxDemo() // menu konteks kontak (klik-kanan)
 			ui.Layout(gtx)
+		case "app-statusview":
+			ui.SetStatusViewDemo() // viewer status: progress bar + tap-through
+			ui.Layout(gtx)
 		case "app-typing":
 			ui.SetTypingDemo("") // bubble mengetik + preview mengetik
 			ui.Layout(gtx)

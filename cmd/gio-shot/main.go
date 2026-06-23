@@ -141,6 +141,9 @@ func main() {
 		case "app-invitelink":
 			ui.SetInviteDemo("https://chat.whatsapp.com/AbC123dEfG456") // modal link undangan
 			ui.Layout(gtx)
+		case "app-mediapreview":
+			ui.SetMediaPreviewDemo()
+			ui.Layout(gtx)
 		case "app-translate":
 			ui.SetTranslateDemo("m1", "Hi! So what time are we gathering tonight?")
 			ui.Layout(gtx)

@@ -159,6 +159,19 @@ type UI struct {
 	transText  map[string]string // msgID → teks terjemahan (async)
 	transTried map[string]bool   // msgID sudah dicoba terjemah
 
+	// pratinjau media sebelum kirim (pilih berkas → overlay caption + sekali-lihat).
+	pendMu      sync.Mutex
+	pendHas     bool
+	pendKind    string // image | video | document
+	pendURI     string // data-URI berkas terpilih
+	pendImg     paint.ImageOp
+	pendImgHas  bool
+	capEd       widget.Editor    // caption media
+	pendVO      bool             // sekali-lihat (view-once)
+	pendVOClick widget.Clickable // toggle sekali-lihat
+	pendSend    widget.Clickable
+	pendCancel  widget.Clickable
+
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
 
@@ -342,6 +355,38 @@ func (u *UI) SetEditing(id, text string) {
 
 // SetTranslateDemo: utk render-tool menguji baris terjemahan headless.
 func (u *UI) SetTranslateDemo(id, text string) { u.transText[id] = text }
+
+// SetMediaPreviewDemo: utk render-tool menguji pratinjau media headless.
+func (u *UI) SetMediaPreviewDemo() {
+	u.pendKind, u.pendImg, u.pendImgHas, u.pendHas = "image", synthPhoto(), true, true
+	u.capEd.SetText("Foto liburan kemarin")
+	u.overlay = "mediapreview"
+}
+
+// SetPendingMedia — dipanggil cmd setelah pilih berkas (media): simpan untuk
+// pratinjau (caption + sekali-lihat) sebelum kirim. Aman dari goroutine (mutex);
+// overlay dibuka di Layout (thread UI). kind: image|video|document.
+func (u *UI) SetPendingMedia(kind, dataURI string) {
+	var op paint.ImageOp
+	hasImg := false
+	if kind == "image" {
+		if img := decodeImage(decodeDataURI(dataURI)); img != nil {
+			op, hasImg = paint.NewImageOp(img), true
+		}
+	}
+	u.pendMu.Lock()
+	u.pendKind, u.pendURI, u.pendImg, u.pendImgHas = kind, dataURI, op, hasImg
+	u.pendHas, u.pendVO = true, false
+	u.pendMu.Unlock()
+	u.capEd.SetText("")
+}
+
+func (u *UI) clearPending() {
+	u.pendMu.Lock()
+	u.pendHas, u.pendURI, u.pendImgHas, u.pendVO = false, "", false, false
+	u.pendMu.Unlock()
+	u.capEd.SetText("")
+}
 
 // SetRecordingDemo: utk render-tool menguji bar rekam voice note headless.
 func (u *UI) SetRecordingDemo() { u.recDemo = true }
@@ -561,6 +606,13 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	// latar
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
+
+	// Media terpilih (dari dialog berkas, thread lain) → buka pratinjau di thread UI.
+	u.pendMu.Lock()
+	if u.pendHas && u.overlay == "" {
+		u.overlay = "mediapreview"
+	}
+	u.pendMu.Unlock()
 
 	// Titlebar custom (CSD Wayland) di atas; sisanya = body. Pada X11/headless tetap
 	// digambar (tak merusak) — aksi window hanya jalan bila OnWinAction di-set.
@@ -902,6 +954,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.scheduleLayer(gtx)
 	case "invitelink":
 		u.inviteLinkLayer(gtx)
+	case "mediapreview":
+		u.mediaPreviewLayer(gtx)
 	case "groupedit":
 		u.groupEditLayer(gtx)
 	case "groupcreate":
@@ -3852,6 +3906,153 @@ func (u *UI) syncDraft() {
 	u.clearEdit()
 	u.editor.SetText(u.drafts[u.selected]) // "" bila tak ada draft
 	u.draftChat = u.selected
+}
+
+// mediaPreviewLayer — pratinjau media sebelum kirim: thumbnail + caption + toggle
+// sekali-lihat (image/video) + Batal/Kirim. Kirim → SendMedia(caption, viewOnce).
+func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	u.pendMu.Lock()
+	kind, uri, img, hasImg, vo := u.pendKind, u.pendURI, u.pendImg, u.pendImgHas, u.pendVO
+	u.pendMu.Unlock()
+
+	for u.pendCancel.Clicked(gtx) {
+		u.clearPending()
+		u.overlay = ""
+	}
+	for u.pendVOClick.Clicked(gtx) {
+		u.pendMu.Lock()
+		u.pendVO = !u.pendVO
+		u.pendMu.Unlock()
+	}
+	for u.pendSend.Clicked(gtx) {
+		if u.core != nil && u.selected != "" {
+			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), "", uri, vo, 0)
+			u.messages = u.core.GetMessages(u.selected)
+			u.msgList.ScrollTo(len(u.messages))
+		}
+		u.clearPending()
+		u.overlay = ""
+	}
+	canVO := kind == "image" || kind == "video"
+
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(360)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				// thumbnail (image) atau kotak ikon+jenis.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					bw := gtx.Constraints.Max.X
+					bh := gtx.Dp(200)
+					box := image.Pt(bw, bh)
+					r := gtx.Dp(8)
+					cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+					paint.FillShape(gtx.Ops, u.t.Bg2, clip.Rect{Max: box}.Op())
+					if hasImg {
+						drawImageFill(gtx.Ops, img, bw)
+					} else {
+						gtx.Constraints.Min, gtx.Constraints.Max = box, box
+						layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							ic := "docfile"
+							if kind == "video" {
+								ic = "play"
+							}
+							return icon(gtx, ic, 48, u.t.Text2)
+						})
+					}
+					cl.Pop()
+					return layout.Dimensions{Size: box}
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				// caption.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					macro := op.Record(gtx.Ops)
+					d := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						e := material.Editor(u.th, &u.capEd, "Tambah keterangan…")
+						e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(15)
+						return e.Layout(gtx)
+					})
+					call := macro.Stop()
+					rr := gtx.Dp(8)
+					paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+					call.Add(gtx.Ops)
+					return d
+				}),
+			}
+			if canVO { // toggle sekali-lihat.
+				children = append(children,
+					layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.pendVOClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									col := u.t.Text2
+									if vo {
+										col = u.t.Accent
+									}
+									return icon(gtx, "eyeoff", 20, col)
+								}),
+								layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14, "Sekali lihat")
+									l.Color = u.t.Text
+									return l.Layout(gtx)
+								}),
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									s := "Mati"
+									col := u.t.Text2
+									if vo {
+										s, col = "Aktif", u.t.Accent
+									}
+									l := material.Label(u.th, 13, s)
+									l.Color = col
+									return l.Layout(gtx)
+								}),
+							)
+						})
+					}),
+				)
+			}
+			children = append(children,
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.pendCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Batal")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.pendSend.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Kirim")
+									l.Color, l.Font.Weight = u.t.Accent, font.Medium
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // groupEditLayer — modal edit info grup: editor Nama + Deskripsi + Simpan/Batal

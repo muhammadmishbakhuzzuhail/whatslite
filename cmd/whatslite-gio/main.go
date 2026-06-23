@@ -65,6 +65,10 @@ func main() {
 		}()
 	}
 
+	// app-id Wayland / kelas X11 — default-nya nama biner ("whatslite-gio") yg muncul
+	// di panel atas GNOME. Set ke "WhatsLite" agar nama app benar di taskbar/panel.
+	gioapp.ID = "WhatsLite"
+
 	go func() {
 		w := new(gioapp.Window)
 		// Decorated(false): gambar titlebar sendiri (CSD) → tampilan gelap konsisten

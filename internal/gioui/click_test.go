@@ -11,10 +11,12 @@ import (
 	"testing"
 
 	"gioui.org/f32"
+	"gioui.org/io/event"
 	"gioui.org/io/input"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -70,28 +72,50 @@ func TestHeadlessClickMiss(t *testing.T) {
 	}
 }
 
-// TestContactInfoTapSeparate — bukti: ikon "i" = clickable TERPISAH dari area
-// buka-chat. Klik "i" memicu infoC (info-drawer) TANPA memicu rowC (buka chat);
-// klik nama memicu rowC saja. Regresi: dulu "i" nested di dalam rowC → klik "i"
-// ikut buka chat. Uji cpRow langsung (tanpa material.List) — lebar 468.
+// TestContactInfoTapSeparate — bukti baris kontak: (1) klik "i" memicu infoC saja
+// (info-drawer), (2) klik nama memicu rowC saja (buka chat), (3) klik-kanan memicu
+// onCtx. Mereplika kode per-baris NYATA: cpRow + tag klik-kanan didaftar DI BAWAH
+// (rekam→tag→replay). Regresi: dulu (a) "i" nested → ikut buka chat, lalu (b) tag
+// di ATAS mencuri SEMUA press primary → "i" & baris jadi tak bisa diklik.
 func TestContactInfoTapSeparate(t *testing.T) {
 	th := material.NewTheme()
 	th.Shaper = NewShaper()
 	tm := DarkTheme()
 	c := cpContact{name: "Alice", about: "Tersedia", jid: "a@s", idx: 0}
 	const W, H = 468, 60
-	// probe: klik (x,y) di baris segar → (rowFired, infoFired). Pola clickAt:
-	// frame1 daftar area, suntik klik, frame2 cek Clicked sebelum re-layout.
-	probe := func(x, y float32) (bool, bool) {
+	// item — kode per-baris identik ContactsPaneView (cpRow + tag di bawah).
+	gotCtx := false
+	item := func(gtx layout.Context, rowC, infoC *widget.Clickable) {
+		tag := ctRowTag(0)
+		macro := op.Record(gtx.Ops)
+		dims := cpRow(gtx, th, tm, c, nil, rowC, infoC)
+		call := macro.Stop()
+		for {
+			ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+			if !ok {
+				break
+			}
+			if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+				gotCtx = true
+			}
+		}
+		area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+		event.Op(gtx.Ops, tag) // tag = induk
+		call.Add(gtx.Ops)      // clickable = anak (nested)
+		area.Pop()
+	}
+	// probe: klik (x,y) tombol btn di baris segar → (rowFired, infoFired, ctxFired).
+	probe := func(x, y float32, btn pointer.Buttons) (bool, bool, bool) {
+		gotCtx = false
 		var rowC, infoC widget.Clickable
 		var r input.Router
 		ops := new(op.Ops)
 		gtx := layout.Context{Ops: ops, Source: r.Source(), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Exact(image.Pt(W, H))}
-		cpRow(gtx, th, tm, c, nil, &rowC, &infoC)
+		item(gtx, &rowC, &infoC)
 		r.Frame(ops)
 		r.Queue(
-			pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
-			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
+			pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: btn, Position: f32.Pt(x, y)},
+			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: btn, Position: f32.Pt(x, y)},
 		)
 		ops.Reset()
 		gtx = layout.Context{Ops: ops, Source: r.Source(), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Exact(image.Pt(W, H))}
@@ -102,17 +126,21 @@ func TestContactInfoTapSeparate(t *testing.T) {
 		for infoC.Clicked(gtx) {
 			infoFired = true
 		}
-		cpRow(gtx, th, tm, c, nil, &rowC, &infoC)
+		item(gtx, &rowC, &infoC)
 		r.Frame(ops)
-		return rowFired, infoFired
+		return rowFired, infoFired, gotCtx
 	}
 	// "i" di kanan (lebar 468, inset kanan 14, box ikon ~32 → center ≈ 445).
-	if rowF, infoF := probe(445, 30); !infoF || rowF {
+	if rowF, infoF, _ := probe(445, 30, pointer.ButtonPrimary); !infoF || rowF {
 		t.Fatalf("klik \"i\": rowFired=%v infoFired=%v (harusnya row=false info=true)", rowF, infoF)
 	}
 	// klik area nama (kiri) → buka chat (rowC), bukan info.
-	if rowF, infoF := probe(120, 30); !rowF || infoF {
+	if rowF, infoF, _ := probe(120, 30, pointer.ButtonPrimary); !rowF || infoF {
 		t.Fatalf("klik nama: rowFired=%v infoFired=%v (harusnya row=true info=false)", rowF, infoF)
+	}
+	// klik-kanan baris → menu konteks (onCtx).
+	if _, _, ctx := probe(120, 30, pointer.ButtonSecondary); !ctx {
+		t.Fatalf("klik-kanan baris TIDAK memicu onCtx (menu konteks)")
 	}
 }
 

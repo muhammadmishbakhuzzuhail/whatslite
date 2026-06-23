@@ -108,7 +108,14 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 				}
 				// rowC & infoC = clickable BERSEBELAHAN (bukan nested) → klik "i" tak
 				// memicu buka-chat. idx<0 (demo) → keduanya nil (tak bisa diklik).
+				// PENTING (routing pointer Gio): event jatuh ke area TERDALAM lalu
+				// merambat ke induk. Tag klik-kanan harus jadi INDUK clickable: push
+				// clip baris + event.Op(tag), lalu REPLAY cpRow di dalamnya. Maka klik
+				// di baris → clickable (anak) dapat primary, tag (induk) dapat secondary.
+				// (Tag sebagai sibling di atas/bawah hanya bikin salah satu jalan.)
+				macro := op.Record(gtx.Ops)
 				dims := cpRow(gtx, th, t, it.c, avFn, rowC, infoC)
+				call := macro.Stop()
 				if onCtx != nil && it.c.idx >= 0 {
 					tag := ctRowTag(it.c.idx)
 					for {
@@ -121,8 +128,11 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 						}
 					}
 					area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-					event.Op(gtx.Ops, tag)
+					event.Op(gtx.Ops, tag) // tag = induk area baris
+					call.Add(gtx.Ops)      // clickable = anak (nested di dalam clip tag)
 					area.Pop()
+				} else {
+					call.Add(gtx.Ops)
 				}
 				return dims
 			})

@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -119,6 +120,11 @@ func run(w *gioapp.Window, core *app.App) error {
 		}
 		ui.OnStatusMedia = func() {
 			go pickAndPostStatus(expl, core, ui)
+		}
+		ui.OnOpenURL = func(url string) {
+			if url != "" {
+				_ = exec.Command("xdg-open", url).Start()
+			}
 		}
 		ui.OnStatusVideo = func(id string) gioui.StatusVideo {
 			b := core.MediaBytes("status@broadcast", id)

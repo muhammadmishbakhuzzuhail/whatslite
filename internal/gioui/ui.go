@@ -66,6 +66,7 @@ type UI struct {
 	pollClicks    map[string][]widget.Clickable // msgID → clickable per opsi polling
 	pollVoteCache map[string]pollVoteEntry      // msgID → hasil suara (TTL — hindari query/frame)
 	mentionState  richtext.InteractiveText      // state teks ber-mention (warna inline)
+	linkStates    map[string]*richtext.InteractiveText // state per-pesan utk URL klik
 
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick  widget.Clickable
@@ -405,6 +406,8 @@ type UI struct {
 	// OnStatusVideo: buka video status utk putar INLINE (frame ffmpeg + audio mpv),
 	// di-set cmd/whatslite-gio → internal/video. nil → video pakai thumbnail saja.
 	OnStatusVideo func(id string) StatusVideo
+	// OnOpenURL: buka URL di browser (di-set cmd/whatslite-gio → xdg-open). nil → tak diklik.
+	OnOpenURL func(url string)
 	// OnWinAction: hook aksi window utk titlebar custom (CSD Wayland). action ∈
 	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
 	OnWinAction func(action string)
@@ -3866,15 +3869,38 @@ func withAlpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 // mentionText — render teks pesan dgn FORMAT WhatsApp (*tebal* _miring_ ~coret~
 // ```mono```), URL biru, @mention accent. richtext → wrap benar.
 func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.MentionDTO) layout.Dimensions {
-	return u.formattedText(gtx, text, mentions, unit.Sp(15))
+	return u.formattedText(gtx, text, mentions, unit.Sp(15), "")
 }
 
-// formattedText — renderer teks kaya: parse marker WhatsApp → run bergaya, lalu
-// warnai URL (link) + @mention (accent). Dipakai bubble chat & post channel.
-func (u *UI) formattedText(gtx layout.Context, text string, mentions []app.MentionDTO, size unit.Sp) layout.Dimensions {
+// formattedText — renderer teks kaya: parse marker WhatsApp → run bergaya, warnai
+// URL (link, bisa diklik) + @mention (accent). id != "" → state interaktif per-pesan
+// (deteksi klik URL → OnOpenURL). Dipakai bubble chat & post channel.
+func (u *UI) formattedText(gtx layout.Context, text string, mentions []app.MentionDTO, size unit.Sp, id string) layout.Dimensions {
 	base := richtext.SpanStyle{Size: size, Color: u.t.Text}
 	spans := u.richSpans(text, mentions, base)
-	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
+	st := &u.mentionState
+	if id != "" {
+		if u.linkStates == nil {
+			u.linkStates = map[string]*richtext.InteractiveText{}
+		}
+		if u.linkStates[id] == nil {
+			u.linkStates[id] = &richtext.InteractiveText{}
+		}
+		st = u.linkStates[id]
+	}
+	dims := richtext.Text(st, u.th.Shaper, spans...).Layout(gtx)
+	for { // klik URL → buka browser
+		span, ev, ok := st.Update(gtx)
+		if !ok {
+			break
+		}
+		if ev.Type == richtext.Click && span != nil && u.OnOpenURL != nil {
+			if url, _ := span.Get("url").(string); url != "" {
+				u.OnOpenURL(url)
+			}
+		}
+	}
+	return dims
 }
 
 // fmtRun — potongan teks dgn gaya format WhatsApp aktif.
@@ -3949,7 +3975,7 @@ func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.Spa
 			st.Font.Style = font.Italic
 		}
 		if r.mono {
-			st.Font.Typeface = "monospace"
+			st.Font.Typeface = "Go Mono"
 		}
 		acc := st
 		acc.Color = u.t.Accent
@@ -3971,10 +3997,13 @@ func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.Spa
 // coloredSpans — pisah `text` pada token accent (URL via reURL + "@Name" mention),
 // warna accent; sisanya pakai `base`. Pertahankan Font dari base (gaya format).
 func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.SpanStyle) []richtext.SpanStyle {
-	type tok struct{ s, e int }
+	type tok struct {
+		s, e  int
+		isURL bool
+	}
 	var toks []tok
 	for _, m := range reURL.FindAllStringIndex(text, -1) {
-		toks = append(toks, tok{m[0], m[1]})
+		toks = append(toks, tok{m[0], m[1], true})
 	}
 	for _, mn := range mentions {
 		if mn.Name == "" {
@@ -3986,7 +4015,7 @@ func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.Spa
 			if p < 0 {
 				break
 			}
-			toks = append(toks, tok{from + p, from + p + len(t)})
+			toks = append(toks, tok{from + p, from + p + len(t), false})
 			from += p + len(t)
 		}
 	}
@@ -4009,6 +4038,10 @@ func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.Spa
 		}
 		a := acc
 		a.Content = text[t.s:t.e]
+		if t.isURL { // URL → bisa diklik (buka browser) + metadata url
+			a.Interactive = true
+			a.Set("url", text[t.s:t.e])
+		}
 		spans = append(spans, a)
 		i = t.e
 	}
@@ -4640,7 +4673,7 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensi
 					if m.Text == "" && m.Type != "" && m.Type != "text" {
 						return layout.Dimensions{} // media tanpa caption → tak ada baris teks
 					}
-					return u.formattedText(gtx, m.Text, nil, unit.Sp(15)) // format + URL biru
+					return u.formattedText(gtx, m.Text, nil, unit.Sp(15), m.ID) // format + URL biru
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -7058,7 +7091,7 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 							return lbl.Layout(gtx)
 						}
 						// format WhatsApp (*tebal* _miring_ ~coret~ ```mono```) + URL biru + @mention.
-						return u.formattedText(gtx, txt, m.Mentions, unit.Sp(15))
+						return u.formattedText(gtx, txt, m.Mentions, unit.Sp(15), m.ID)
 					}
 					var card layout.Widget
 					if url := firstURL(txt); url != "" { // pratinjau tautan di atas teks

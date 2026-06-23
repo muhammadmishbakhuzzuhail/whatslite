@@ -13,6 +13,7 @@ import (
 	"gioui.org/font/gofont"
 	"gioui.org/font/opentype"
 	"gioui.org/text"
+	"golang.org/x/image/font/gofont/gomono"
 )
 
 // emojiPaths = lokasi umum NotoColorEmoji per-distro (fallback bila tak ada).
@@ -26,6 +27,10 @@ var emojiPaths = []string{
 // NewShaper: gofont + emoji warna (bila font emoji ada di sistem).
 func NewShaper() *text.Shaper {
 	col := gofont.Collection()
+	// Go Mono → typeface "Go Mono" (utk teks ```monospace``` ala WhatsApp).
+	if face, err := opentype.Parse(gomono.TTF); err == nil {
+		col = append(col, font.FontFace{Font: font.Font{Typeface: "Go Mono"}, Face: face})
+	}
 	for _, p := range emojiPaths {
 		b, err := os.ReadFile(p)
 		if err != nil {

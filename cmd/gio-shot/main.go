@@ -107,7 +107,7 @@ func main() {
 		case "contacts":
 			gioui.ContactsPaneView(gtx, th, t, nil, ctClicks, nil, nil, nil, nil, ctInfo, nil, func(int) {})
 		case "status":
-			gioui.StatusPaneView(gtx, th, t, nil, nil, nil, "", "")
+			gioui.StatusPaneView(gtx, th, t, nil, nil, nil, "", "", nil)
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil, nil)
 		case "channels-explore":

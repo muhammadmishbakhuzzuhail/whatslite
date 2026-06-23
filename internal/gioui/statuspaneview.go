@@ -39,7 +39,7 @@ type stpItem struct {
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
 // header .pane-head + baris "My status" + label "TERKINI" + 3 baris status.
 // Fungsi murni, mandiri (standalone render).
-func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable, avFn cpAvatarFn, selfName, selfJID string) layout.Dimensions {
+func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable, avFn cpAvatarFn, selfName, selfJID string, list *widget.List) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -53,33 +53,33 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 		}
 	}
 
+	if list == nil {
+		list = &widget.List{}
+		list.Axis = layout.Vertical
+	}
+	// daftar gulir: [My status][label TERKINI][baris status...]. Header pane tetap.
+	const head = 2 // My-status + label
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		// .pane-head 56px — "Status" 19/SemiBold.
+		// .pane-head — "Status" (tetap, tak ikut gulir).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return stpPaneHead(gtx, th, t, w, "Status")
 		}),
-		// Baris "My status" (avatar + badge "+").
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID)
-		}),
-		// .ct-letter label "TERKINI" (accent 12/Bold).
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return stpSectionLabel(gtx, th, t, "TERKINI")
-		}),
-		// daftar baris status terkini.
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			children := make([]layout.FlexChild, 0, len(items))
-			for i := range items {
-				it, idx := items[i], i
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it, avFn) }
-					if idx < len(clicks) {
-						return clicks[idx].Layout(gtx, row)
-					}
-					return row(gtx)
-				}))
-			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return material.List(th, list).Layout(gtx, head+len(items), func(gtx layout.Context, i int) layout.Dimensions {
+				switch i {
+				case 0:
+					return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID)
+				case 1:
+					return stpSectionLabel(gtx, th, t, "TERKINI")
+				}
+				idx := i - head
+				it := items[idx]
+				row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it, avFn) }
+				if idx < len(clicks) {
+					return clicks[idx].Layout(gtx, row)
+				}
+				return row(gtx)
+			})
 		}),
 	)
 }

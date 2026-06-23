@@ -75,6 +75,7 @@ type UI struct {
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
+	statusList        widget.List // gulir daftar status (section 2)
 	statusViewIdx     int
 	statusItemIdx     int       // item ke-berapa dlm grup yg sedang dilihat (tap-through)
 	statusViewAt      time.Time // waktu buka viewer (redraw terbatas saat unduh media)
@@ -536,6 +537,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
 	u.contactList.Axis = layout.Vertical
+	u.statusList.Axis = layout.Vertical
 	u.mediaGalList.Axis = layout.Vertical
 	u.chnSearchEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
@@ -2956,7 +2958,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
-		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks, u.avatar, u.profName, u.selfJID)
+		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks, u.avatar, u.profName, u.selfJID, &u.statusList)
 	case "channels":
 		rows := u.channelRows()
 		u.handleChannels(gtx, rows)

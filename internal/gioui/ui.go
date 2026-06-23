@@ -121,7 +121,14 @@ type UI struct {
 
 	chnTab       int                 // 0=Diikuti, 1=Jelajahi
 	chnTabClicks [2]widget.Clickable // tombol tab channels
-	chnRowClicks []widget.Clickable  // aksi per-baris channel
+	chnRowClicks []widget.Clickable  // aksi per-baris channel (ikuti/unfollow)
+	chnRowOpens  []widget.Clickable  // buka channel per-baris → reader
+	openChannel  string              // jid channel terbuka (reader di section 3); "" = tak ada
+	openChanName string              // nama channel terbuka
+	chMsgList    widget.List         // gulir post channel reader
+	chMsgsCache  []app.ChannelMsgDTO // cache post channel terbuka
+	chMsgsJID    string              // jid cache di atas
+	chMsgsAt     time.Time
 	chnExpCache  []chnChannel        // cache saluran jelajah
 	chnExpAt     time.Time
 	chnExpQuery  string        // query terakhir direktori jelajah (invalidasi cache)
@@ -4287,7 +4294,7 @@ func (u *UI) channelRows() []chnChannel {
 		cs := u.core.GetRecommendedChannels(q)
 		out := make([]chnChannel, 0, len(cs))
 		for _, c := range cs {
-			out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true})
+			out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true, verified: c.Verified})
 		}
 		u.chnExpCache, u.chnExpAt, u.chnExpQuery = out, time.Now(), q
 		return out
@@ -4298,10 +4305,99 @@ func (u *UI) channelRows() []chnChannel {
 	cs := u.core.GetChannels()
 	out := make([]chnChannel, 0, len(cs))
 	for _, c := range cs {
-		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID})
+		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, verified: c.Verified})
 	}
 	u.chCache, u.chAt = out, time.Now()
 	return out
+}
+
+// channelMsgs — post channel terbuka (cache TTL 3s).
+func (u *UI) channelMsgs() []app.ChannelMsgDTO {
+	if u.core == nil || u.openChannel == "" {
+		return nil
+	}
+	if u.chMsgsJID == u.openChannel && time.Since(u.chMsgsAt) < 3*time.Second {
+		return u.chMsgsCache
+	}
+	u.chMsgsCache = u.core.GetChannelMessages(u.openChannel)
+	u.chMsgsJID, u.chMsgsAt = u.openChannel, time.Now()
+	return u.chMsgsCache
+}
+
+// channelReader — pembaca post channel (read-only) di section 3: header
+// (avatar + nama) + daftar post (teks/thumb + waktu + views).
+func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
+	msgs := u.channelMsgs()
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// header: avatar + nama channel.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			h := gtx.Dp(60)
+			sz := image.Pt(gtx.Constraints.Max.X, h)
+			paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+			paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-gtx.Dp(1)), Max: sz}.Op())
+			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.openChanName, u.openChannel, 40) }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 16, u.openChanName)
+						lbl.Color, lbl.Font.Weight, lbl.MaxLines = u.t.Text, font.Medium, 1
+						return lbl.Layout(gtx)
+					}),
+				)
+			})
+		}),
+		// daftar post (scroll).
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if len(msgs) == 0 {
+				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 14, "Belum ada postingan")
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				})
+			}
+			u.chMsgList.Axis = layout.Vertical
+			return material.List(u.th, &u.chMsgList).Layout(gtx, len(msgs), func(gtx layout.Context, i int) layout.Dimensions {
+				return u.channelPost(gtx, msgs[i])
+			})
+		}),
+	)
+}
+
+// channelPost — satu kartu post channel: teks + (waktu · N views).
+func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(14), Right: unit.Dp(60)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					txt := m.Text
+					if txt == "" && m.Type != "" && m.Type != "text" {
+						txt = "[" + m.Type + "]"
+					}
+					lbl := material.Label(u.th, 15, txt)
+					lbl.Color = u.t.Text
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					meta := m.Time
+					if m.Views > 0 {
+						meta += "  ·  " + fmtSubs(m.Views) + " dilihat"
+					}
+					lbl := material.Label(u.th, 11.5, meta)
+					lbl.Color = u.t.Text2
+					return lbl.Layout(gtx)
+				}),
+			)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.InBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // chnCtl — state interaktif pane channels (tab aktif + clickable tab/baris).
@@ -4309,7 +4405,10 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 	if len(u.chnRowClicks) < len(rows) {
 		u.chnRowClicks = make([]widget.Clickable, len(rows))
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Search: &u.chnSearchEd}
+	if len(u.chnRowOpens) < len(rows) {
+		u.chnRowOpens = make([]widget.Clickable, len(rows))
+	}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Search: &u.chnSearchEd, Av: u.avatar}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).
@@ -4336,6 +4435,14 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 				u.core.UnfollowChannel(rows[i].jid)
 			}
 			u.chCache, u.chnExpCache = nil, nil
+		}
+		if i < len(u.chnRowOpens) { // tap baris diikuti → buka reader channel
+			for u.chnRowOpens[i].Clicked(gtx) {
+				if rows[i].jid != "" {
+					u.openChannel, u.openChanName = rows[i].jid, rows[i].name
+					u.chMsgsJID = "" // paksa muat post
+				}
+			}
 		}
 	}
 }
@@ -6192,6 +6299,12 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
+	if u.view != "channels" {
+		u.openChannel = "" // keluar dari pane channels → tutup reader
+	}
+	if u.view == "channels" && u.openChannel != "" {
+		return u.channelReader(gtx) // pembaca post channel
+	}
 	if u.selected == "" {
 		return EmptyConversationView(gtx, u.th, u.t) // splash saja (tanpa pil demo)
 	}

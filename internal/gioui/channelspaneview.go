@@ -25,10 +25,11 @@ import (
 // chnChannel = satu baris saluran (.ch-row). follow=true → baris jelajah (tombol
 // "Ikuti"); jid utk aksi engine.
 type chnChannel struct {
-	name   string
-	subs   string
-	jid    string
-	follow bool
+	name     string
+	subs     string
+	jid      string
+	follow   bool
+	verified bool // lencana centang (channel terverifikasi)
 }
 
 // ChnCtl = state interaktif pane channels (nil → statis/demo). Tab Diikuti/Jelajahi
@@ -37,7 +38,9 @@ type ChnCtl struct {
 	Tabs   []widget.Clickable // 0=Diikuti, 1=Jelajahi
 	Active int
 	Rows   []widget.Clickable // aksi per-channel (ikuti/unfollow)
+	Opens  []widget.Clickable // buka channel (tap baris diikuti → reader)
 	Search *widget.Editor     // kotak cari direktori (hanya tab Jelajahi; nil = tak ditampilkan)
+	Av     cpAvatarFn         // penggambar avatar (foto channel asli); nil = inisial
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -91,15 +94,36 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 		}),
 		// daftar .ch-row.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if len(channels) == 0 { // kosong → ajak jelajah
+				return layout.Inset{Top: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						msg := "Belum mengikuti channel"
+						if active == 1 {
+							msg = "Tak ada channel ditemukan"
+						}
+						l := material.Label(th, 14, msg)
+						l.Color = t.Text2
+						return l.Layout(gtx)
+					})
+				})
+			}
+			var avFn cpAvatarFn
+			if ctl != nil {
+				avFn = ctl.Av
+			}
 			children := make([]layout.FlexChild, 0, len(channels))
 			for i, c := range channels {
 				cc, idx := c, i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					var rc *widget.Clickable
+					var rc, oc *widget.Clickable
 					if ctl != nil && idx < len(ctl.Rows) {
 						rc = &ctl.Rows[idx]
 					}
-					return chnChannelRow(gtx, th, t, cc, rc)
+					if ctl != nil && idx < len(ctl.Opens) {
+						oc = &ctl.Opens[idx]
+					}
+					return chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
@@ -190,34 +214,56 @@ func chnTabBtn(gtx layout.Context, th *material.Theme, t Theme, white color.NRGB
 
 // chnChannelRow — .ch-row { padding 14; gap 13; align center } : avatar 48 +
 // kolom (nama 15/SemiBold + sub 13.5 text2) + ikon lonceng + "✕" batal-ikuti.
-func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel, rc *widget.Clickable) layout.Dimensions {
+func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel, rc, oc *widget.Clickable, avFn cpAvatarFn) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			// .ch-av 48.
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return chnAvatar(gtx, th, c.name, 48)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout), // gap: 13px
-			// .ch-meta : nama 15/SemiBold + sub 13.5 text2.
+			// area buka channel (avatar + meta), flexed; tap → reader (oc). Tombol aksi terpisah.
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 15, c.name)
-						lbl.Color = t.Text
-						lbl.MaxLines = 1
-						lbl.Font.Weight = font.SemiBold
-						return lbl.Layout(gtx)
-					}),
-					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(12.5), c.subs)
-						lbl.Color = t.Text2
-						lbl.MaxLines = 1
-						return lbl.Layout(gtx)
-					}),
-				)
+				open := func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if avFn != nil { // foto channel asli (fallback inisial di dalam)
+								return avFn(gtx, c.name, c.jid, 48)
+							}
+							return chnAvatar(gtx, th, c.name, 48)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout), // gap: 13px
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											lbl := material.Label(th, 15, c.name)
+											lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
+											return lbl.Layout(gtx)
+										}),
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											if !c.verified {
+												return layout.Dimensions{}
+											}
+											return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+												return icon(gtx, "verif", 15, t.Accent)
+											})
+										}),
+									)
+								}),
+								layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, unit.Sp(12.5), c.subs)
+									lbl.Color, lbl.MaxLines = t.Text2, 1
+									return lbl.Layout(gtx)
+								}),
+							)
+						}),
+					)
+				}
+				if oc != nil && !c.follow { // hanya channel diikuti yg bisa dibuka
+					return oc.Layout(gtx, open)
+				}
+				return open(gtx)
 			}),
 			// kanan: baris jelajah → tombol "Ikuti" (accent); baris diikuti → lonceng + ✕.
 			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),

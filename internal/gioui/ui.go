@@ -3343,10 +3343,12 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 // menampilkannya & aturan reciprocity bisa menyembunyikan presence semua kontak.
 func (u *UI) avatarPresence(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 	av := u.avatar(gtx, c.Name, c.ID, 54)
-	if c.Group || c.Presence == "" {
-		return av // grup / presence tak diketahui → tanpa titik
+	if c.Group {
+		return av // grup: tak ada presence per-pengguna → tanpa titik
 	}
-	col := u.t.Text2 // abu = offline (known, last-seen terlihat)
+	// DM selalu punya titik: hijau bila online, abu bila selainnya (offline/belum
+	// diketahui). Tak pakai "tanpa-titik" — presence sering sparse → DM jadi polos.
+	col := u.t.Text2 // abu = tak online (offline / belum ada data)
 	if c.Presence == "online" {
 		col = color.NRGBA{R: 0x28, G: 0xc8, B: 0x40, A: 0xff} // #28c840 online (hijau)
 	}

@@ -24,25 +24,26 @@ import (
 // InfoDrawerView menggambar laci info grup 400px di sisi kanan (sidebarBg).
 // InfoDrawerData = data nyata drawer info (nil → demo grup statis).
 type InfoDrawerData struct {
-	Name  string
-	Sub   string // "N anggota" (grup) / presence (DM)
-	Desc  string // topik grup / about kontak
-	Group bool
-	Muted   bool        // status bisu chat (label baris Bisukan)
-	Blocked bool        // status blokir kontak (label baris Blokir / Buka blokir)
+	Name    string
+	Sub     string // "N anggota" (grup) / presence (DM)
+	Desc    string // topik grup / about kontak
+	Group   bool
+	Muted   bool // status bisu chat (label baris Bisukan)
+	Blocked bool // status blokir kontak (label baris Blokir / Buka blokir)
 	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
 	// Edit (info grup: nama+deskripsi), Mute (toggle bisu), Media (galeri), Enc (info enkripsi).
-	Block      *widget.Clickable
-	Leave      *widget.Clickable
-	Invite     *widget.Clickable
-	Edit       *widget.Clickable
-	Mute       *widget.Clickable
-	Media      *widget.Clickable
-	Enc        *widget.Clickable
-	Timer      *widget.Clickable // pesan sementara (buka picker)
-	Rename     *widget.Clickable // edit nama kontak (DM)
-	TimerLabel string            // label aktif: "Mati" / "24 jam" / "7 hari" / "90 hari"
-	Members []InfoMember        // grup: daftar anggota
+	Block        *widget.Clickable
+	Leave        *widget.Clickable
+	Invite       *widget.Clickable
+	Edit         *widget.Clickable
+	Mute         *widget.Clickable
+	Media        *widget.Clickable
+	Enc          *widget.Clickable
+	Timer        *widget.Clickable  // pesan sementara (buka picker)
+	Rename       *widget.Clickable  // edit nama kontak (DM)
+	Add          *widget.Clickable  // tambah anggota (grup)
+	TimerLabel   string             // label aktif: "Mati" / "24 jam" / "7 hari" / "90 hari"
+	Members      []InfoMember       // grup: daftar anggota
 	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
 }
 
@@ -138,7 +139,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			if !d.Group {
 				return layout.Dimensions{}
 			}
-			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text, nil)
+			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text, d.Add)
 		}),
 		// daftar anggota grup (avatar + nama + lencana admin).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -330,7 +331,9 @@ func infoDrawerBlock(gtx layout.Context, th *material.Theme, t Theme, label, val
 
 // infoDrawerRow: .info-row — pad 14/24, gap 18, ikon 22 + label 15.
 func infoDrawerRow(gtx layout.Context, th *material.Theme, t Theme, icon func(layout.Context, color.NRGBA), label string, iconCol, textCol color.NRGBA, c *widget.Clickable) layout.Dimensions {
-	body := func(gtx layout.Context) layout.Dimensions { return infoDrawerRowBody(gtx, th, t, icon, label, iconCol, textCol) }
+	body := func(gtx layout.Context) layout.Dimensions {
+		return infoDrawerRowBody(gtx, th, t, icon, label, iconCol, textCol)
+	}
 	if c != nil {
 		return c.Layout(gtx, body)
 	}

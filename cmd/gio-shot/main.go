@@ -225,6 +225,9 @@ func main() {
 		case "app-delconfirm":
 			ui.SetDeleteConfirmDemo() // dialog hapus untuk saya / semua
 			ui.Layout(gtx)
+		case "app-memberctx":
+			ui.SetMemberCtxDemo() // menu konteks anggota grup
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

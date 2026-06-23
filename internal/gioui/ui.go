@@ -108,13 +108,15 @@ type UI struct {
 	contactPaneClicks []widget.Clickable
 
 	// buat grup (Kontak → "Grup baru"): nama + multi-pilih kontak.
-	gcNewBtn widget.Clickable
-	gcNameEd widget.Editor
-	gcSel    map[string]bool // jid → terpilih
-	gcClicks []widget.Clickable
-	gcCreate widget.Clickable
-	gcCancel widget.Clickable
-	gcList   widget.List
+	gcNewBtn   widget.Clickable
+	gcNameEd   widget.Editor
+	gcSel      map[string]bool // jid → terpilih
+	gcClicks   []widget.Clickable
+	gcCreate   widget.Clickable
+	gcMode     string // ""/"create" = buat grup; "addmember" = tambah anggota ke gcGroupJID
+	gcGroupJID string // grup sasaran saat gcMode == "addmember"
+	gcCancel   widget.Clickable
+	gcList     widget.List
 
 	// cache TTL pembangun data pane (hindari query DB tiap frame saat scroll pane).
 	cgCache                       []cpGroup
@@ -310,6 +312,17 @@ type UI struct {
 	infoEncC         widget.Clickable    // info-drawer: info enkripsi
 	infoMemberClicks []widget.Clickable  // info-drawer: anggota grup
 	infoMemberJIDs   []string            // jid anggota (paralel infoMemberClicks)
+	infoMemberNames  []string            // nama anggota (paralel)
+	infoMemberAdmin  []bool              // status admin anggota (paralel)
+	infoAddC         widget.Clickable    // info-drawer: "Tambah anggota" (grup)
+	curGroupAmAdmin  bool                // saya admin grup terbuka? (gate aksi admin)
+	mctJID           string              // menu konteks anggota: jid sasaran
+	mctName          string              // nama sasaran
+	mctAdmin         bool                // sasaran sudah admin?
+	mctMsg           widget.Clickable    // "Kirim pesan"
+	mctPromote       widget.Clickable    // "Jadikan admin" / "Hapus admin"
+	mctRemove        widget.Clickable    // "Keluarkan dari grup"
+	mctClose         widget.Clickable    // "Tutup"
 	encClose         widget.Clickable    // overlay enkripsi/galeri: tutup
 	mediaCellClicks  []widget.Clickable  // sel grid galeri media
 	mediaGalList     widget.List         // scroll galeri media
@@ -445,6 +458,13 @@ func (u *UI) SetOverlay(o string) { u.overlay = o }
 func (u *UI) SetDeleteConfirmDemo() {
 	u.delTarget = app.MessageDTO{ID: "m2", Dir: "out", Type: "text", Text: "halo"}
 	u.overlay = "delconfirm"
+}
+
+// SetMemberCtxDemo: render-tool — menu konteks anggota grup (admin → semua aksi).
+func (u *UI) SetMemberCtxDemo() {
+	u.mctJID, u.mctName, u.mctAdmin = "62811@s.whatsapp.net", "Sarah", false
+	u.curGroupAmAdmin = true
+	u.overlay = "memberctx"
 }
 
 // SetLightbox: utk render-tool membuka lightbox gambar nyata headless.
@@ -1190,6 +1210,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.contactCtxLayer(gtx)
 	case "delconfirm":
 		u.deleteConfirmLayer(gtx)
+	case "memberctx":
+		u.memberCtxLayer(gtx)
 	}
 }
 
@@ -1286,6 +1308,94 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 
 // renameContactLayer — modal edit nama kontak (label lokal, ala simpan/edit kontak
 // di HP). Simpan → core.SaveContactLabel; kosong → RemoveContactLabel.
+// handleMemberCtx — aksi menu konteks anggota grup (kirim pesan / admin / keluarkan).
+func (u *UI) handleMemberCtx(gtx layout.Context) {
+	for u.mctMsg.Clicked(gtx) { // kirim pesan → buka DM anggota
+		jid := u.mctJID
+		u.overlay = ""
+		if u.core != nil && strings.HasSuffix(jid, "@s.whatsapp.net") {
+			u.selected, u.selGroup, u.selName = jid, false, u.mctName
+			u.core.OpenChat(jid)
+			u.messages = u.core.GetMessages(jid)
+		}
+	}
+	for u.mctPromote.Clicked(gtx) { // jadikan/hapus admin
+		if u.core != nil {
+			act := "promote"
+			if u.mctAdmin {
+				act = "demote"
+			}
+			u.core.UpdateGroupParticipants(u.selected, []string{u.mctJID}, act)
+		}
+		u.overlay = ""
+	}
+	for u.mctRemove.Clicked(gtx) { // keluarkan dari grup
+		if u.core != nil {
+			u.core.UpdateGroupParticipants(u.selected, []string{u.mctJID}, "remove")
+		}
+		u.overlay = ""
+	}
+	for u.mctClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+}
+
+// memberCtxLayer — menu konteks anggota grup: kirim pesan, (admin saja) jadikan/
+// hapus admin + keluarkan. Aksi admin hanya muncul bila saya admin grup ini.
+func (u *UI) memberCtxLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	normalUser := strings.HasSuffix(u.mctJID, "@s.whatsapp.net")
+	row := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(300)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, u.mctName)
+					l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 1
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+			}
+			if normalUser {
+				children = append(children, row(&u.mctMsg, "Kirim pesan", u.t.Text))
+			}
+			if u.curGroupAmAdmin && normalUser {
+				lbl := "Jadikan admin"
+				if u.mctAdmin {
+					lbl = "Hapus admin"
+				}
+				children = append(children,
+					row(&u.mctPromote, lbl, u.t.Text),
+					row(&u.mctRemove, "Keluarkan dari grup", red),
+				)
+			}
+			children = append(children, row(&u.mctClose, "Tutup", u.t.Text2))
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 // deleteConfirmLayer — dialog konfirmasi hapus pesan: "Hapus untuk saya" selalu;
 // "Hapus untuk semua orang" hanya bila pesan SENDIRI (revoke). Paritas WhatsApp.
 func (u *UI) deleteConfirmLayer(gtx layout.Context) layout.Dimensions {
@@ -2012,13 +2122,30 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 			return strings.ToLower(u.contactSendCache[i].Name) < strings.ToLower(u.contactSendCache[j].Name)
 		})
 	}
+	addMode := u.gcMode == "addmember"
+	existing := map[string]bool{} // anggota yg sudah ada → disembunyikan (addmember)
+	if addMode {
+		for _, j := range u.infoMemberJIDs {
+			existing[j] = true
+		}
+	}
+	visible := make([]int, 0, len(u.contactSendCache)) // indeks kontak yg tampil
+	for i, c := range u.contactSendCache {
+		if !existing[c.JID] {
+			visible = append(visible, i)
+		}
+	}
 	if len(u.gcClicks) < len(u.contactSendCache) {
 		u.gcClicks = make([]widget.Clickable, len(u.contactSendCache))
 	}
-	for u.gcCancel.Clicked(gtx) {
+	resetGC := func() {
 		u.overlay, u.contactSendCache = "", nil
 		u.gcNameEd.SetText("")
 		u.gcSel = map[string]bool{}
+		u.gcMode, u.gcGroupJID = "", ""
+	}
+	for u.gcCancel.Clicked(gtx) {
+		resetGC()
 	}
 	for i := range u.contactSendCache {
 		if i >= len(u.gcClicks) {
@@ -2037,7 +2164,11 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 				members = append(members, c.JID)
 			}
 		}
-		if name != "" && len(members) >= 1 && u.core != nil {
+		if addMode {
+			if len(members) >= 1 && u.core != nil {
+				u.core.UpdateGroupParticipants(u.gcGroupJID, members, "add")
+			}
+		} else if name != "" && len(members) >= 1 && u.core != nil {
 			if jid := u.core.CreateGroup(name, members); jid != "" {
 				u.selected, u.selName, u.selGroup = jid, name, true
 				u.view = "chats"
@@ -2045,9 +2176,7 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 				u.messages = u.core.GetMessages(jid)
 			}
 		}
-		u.overlay, u.contactSendCache = "", nil
-		u.gcNameEd.SetText("")
-		u.gcSel = map[string]bool{}
+		resetGC()
 	}
 	u.gcList.Axis = layout.Vertical
 	selCount := 0
@@ -2064,13 +2193,20 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 		macro := op.Record(gtx.Ops)
 		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				title := "Grup baru"
+				if addMode {
+					title = "Tambah anggota"
+				}
 				return layout.Inset{Top: unit.Dp(14), Left: unit.Dp(16), Right: unit.Dp(16), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					l := material.Label(u.th, 17, "Grup baru")
+					l := material.Label(u.th, 17, title)
 					l.Color, l.Font.Weight = u.t.Text, font.SemiBold
 					return l.Layout(gtx)
 				})
 			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // nama grup
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // nama grup (hanya buat-grup)
+				if addMode {
+					return layout.Dimensions{}
+				}
 				return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return u.gcField(gtx, &u.gcNameEd, "Nama grup")
 				})
@@ -2083,14 +2219,19 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 				})
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				if len(u.contactSendCache) == 0 {
+				if len(visible) == 0 {
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						l := material.Label(u.th, 14, "Tak ada kontak")
+						msg := "Tak ada kontak"
+						if addMode {
+							msg = "Semua kontak sudah jadi anggota"
+						}
+						l := material.Label(u.th, 14, msg)
 						l.Color = u.t.Text2
 						return l.Layout(gtx)
 					})
 				}
-				return material.List(u.th, &u.gcList).Layout(gtx, len(u.contactSendCache), func(gtx layout.Context, i int) layout.Dimensions {
+				return material.List(u.th, &u.gcList).Layout(gtx, len(visible), func(gtx layout.Context, vi int) layout.Dimensions {
+					i := visible[vi]
 					c := u.contactSendCache[i]
 					return u.gcClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return u.gcContactRow(gtx, c, u.gcSel[c.JID])
@@ -2109,7 +2250,11 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 						}),
 						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							b := material.Button(u.th, &u.gcCreate, "Buat")
+							okLbl := "Buat"
+							if addMode {
+								okLbl = "Tambah"
+							}
+							b := material.Button(u.th, &u.gcCreate, okLbl)
 							b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Accent, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, unit.Dp(8), unit.Sp(14)
 							return b.Layout(gtx)
 						}),
@@ -6060,12 +6205,16 @@ func (u *UI) infoData() *InfoDrawerData {
 		d.Leave = &u.infoLeaveC
 		d.Invite = &u.infoInviteC
 		d.Edit = &u.infoEditC
+		d.Add = &u.infoAddC
 		if gi := u.core.GetGroupInfo(jid); gi != nil {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
 			u.curGroupDesc = gi.Topic
+			u.curGroupAmAdmin = gi.AmAdmin
 			d.Members = make([]InfoMember, 0, len(gi.Participants))
 			u.infoMemberJIDs = u.infoMemberJIDs[:0]
+			u.infoMemberNames = u.infoMemberNames[:0]
+			u.infoMemberAdmin = u.infoMemberAdmin[:0]
 			for _, p := range gi.Participants {
 				nm := p.Name
 				if nm == "" {
@@ -6073,6 +6222,8 @@ func (u *UI) infoData() *InfoDrawerData {
 				}
 				d.Members = append(d.Members, InfoMember{Name: nm, Admin: p.IsAdmin, JID: p.JID})
 				u.infoMemberJIDs = append(u.infoMemberJIDs, p.JID)
+				u.infoMemberNames = append(u.infoMemberNames, nm)
+				u.infoMemberAdmin = append(u.infoMemberAdmin, p.IsAdmin)
 			}
 			if len(u.infoMemberClicks) < len(d.Members) {
 				u.infoMemberClicks = make([]widget.Clickable, len(d.Members))
@@ -6129,31 +6280,32 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	for u.infoTimerC.Clicked(gtx) { // pesan sementara → picker
 		u.overlay = "disappearing"
 	}
-	for i := range u.infoMemberClicks { // ketuk anggota grup → buka DM-nya
+	for u.infoAddC.Clicked(gtx) { // "Tambah anggota" → pemilih kontak (mode addmember)
+		u.gcMode, u.gcGroupJID = "addmember", u.selected
+		u.gcSel = map[string]bool{}
+		u.gcNameEd.SetText("")
+		u.overlay = "groupcreate"
+	}
+	for i := range u.infoMemberClicks { // ketuk anggota grup → menu konteks anggota
 		if i >= len(u.infoMemberJIDs) {
 			break
 		}
 		if u.infoMemberClicks[i].Clicked(gtx) {
 			jid := u.infoMemberJIDs[i]
-			// hanya DM pengguna normal (@s.whatsapp.net); lewati @lid/@g.us + diri sendiri.
-			if u.core == nil || !strings.HasSuffix(jid, "@s.whatsapp.net") {
-				continue
-			}
 			if u.selfJID != "" && jidUser(jid) == jidUser(u.selfJID) {
-				continue
+				continue // diri sendiri → tak ada menu
 			}
-			u.selected, u.selGroup, u.overlay = jid, false, ""
-			u.selName = jidUser(jid)
-			for k := range u.chats { // nama asli bila chat sudah ada
-				if u.chats[k].ID == jid {
-					u.selName = u.chats[k].Name
-					break
-				}
+			u.mctJID = jid
+			if i < len(u.infoMemberNames) {
+				u.mctName = u.infoMemberNames[i]
 			}
-			u.core.OpenChat(jid)
-			u.messages = u.core.GetMessages(jid)
+			if i < len(u.infoMemberAdmin) {
+				u.mctAdmin = u.infoMemberAdmin[i]
+			}
+			u.overlay = "memberctx"
 		}
 	}
+	u.handleMemberCtx(gtx)
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""
 		u.overlay = "invitelink"

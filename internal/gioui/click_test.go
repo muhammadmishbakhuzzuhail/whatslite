@@ -92,11 +92,12 @@ func TestRailClickChangesView(t *testing.T) {
 	if u.view != "chats" {
 		t.Fatalf("view awal = %q, harusnya chats", u.view)
 	}
-	// rail: lebar 56 (x center 28), tombol di bawah titlebar(34): y = 34+14+i*50+22.
-	// i=1 → "status".
+	// rail (x center 28), urutan dari atas: spacer14, MetaAI(44), spacer6,
+	// chats(44), spacer6, status(44)... di bawah titlebar(34).
+	// status center abs y = 34 + (14+44+6+44+6) + 22 = 170.
 	r.Queue(
-		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(28, 120)},
-		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(28, 120)},
+		pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(28, 170)},
+		pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(28, 170)},
 	)
 	frame() // proses klik → handler railBtn ubah view
 	if u.view != "status" {

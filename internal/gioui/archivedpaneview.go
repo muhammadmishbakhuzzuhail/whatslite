@@ -30,7 +30,7 @@ type avChat struct {
 // .pane-head (back chevron + "Arsip") + daftar 3 chat terarsip. Fungsi murni,
 // mandiri (standalone render).
 func ArchivedPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())

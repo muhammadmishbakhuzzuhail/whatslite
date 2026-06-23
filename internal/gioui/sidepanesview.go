@@ -152,20 +152,25 @@ func spCallLine(gtx layout.Context, th *material.Theme, t Theme, c spCall) layou
 // path M7 17L17 7M17 7H9M17 7v8). Warna mengikuti garis (currentColor / merah
 // utk tak terjawab).
 func spArrow(gtx layout.Context, col color.NRGBA, missed bool) layout.Dimensions {
+	// whatsmeow = signaling-only → semua panggilan MASUK (panah masuk); merah saat
+	// tak terjawab (warna sudah diset pemanggil), accent saat terjawab.
 	_ = missed
-	return icon(gtx, "callArrowOut", 15, col)
+	return icon(gtx, "callArrowIn", 15, col)
 }
 
 // spCallIcon — ikon panggil accent di kanan baris (.icon-btn ~40, glyph accent).
 // Pakai ikon native "calls" (gagang telepon WhatsApp) ber-tint accent, 20dp glyph
 // di tengah kotak 40dp.
 func spCallIcon(gtx layout.Context, t Theme, video bool) layout.Dimensions {
-	_ = video
+	glyph := "calls" // gagang telepon (suara)
+	if video {
+		glyph = "video" // panggilan video → ikon kamera
+	}
 	box := gtx.Dp(40)
 	sz := image.Pt(box, box)
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return icon(gtx, "calls", 20, t.Accent)
+		return icon(gtx, glyph, 20, t.Accent)
 	})
 	return layout.Dimensions{Size: sz}
 }

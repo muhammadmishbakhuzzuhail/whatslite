@@ -283,6 +283,10 @@ type UI struct {
 	renameEd         widget.Editor    // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
 	renameCancel     widget.Clickable
+	delTarget        app.MessageDTO   // pesan yg akan dihapus (dialog hapus untuk saya/semua)
+	delForMe         widget.Clickable
+	delForAll        widget.Clickable
+	delCancel        widget.Clickable
 	renameTarget     string             // jid sasaran rename (kontak peek / ctx); "" = pakai selected
 	infoCJID         string             // "intip-info" kontak (drawer TANPA buka chat); "" = pakai selected
 	infoCName        string             // nama kontak utk intip-info
@@ -386,7 +390,7 @@ type UI struct {
 	ctxIdx      int                // index pesan utk context-menu (display only)
 	ctxMsg      app.MessageDTO     // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
-	ctxItems [10]widget.Clickable // item menu (base6 + edit/unduh + pin + pilih + terjemah)
+	ctxItems [12]widget.Clickable // item menu (base6 + salin + edit/unduh + pin + pilih + terjemah)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
 	lightboxCap   string           // caption gambar lightbox
@@ -429,11 +433,17 @@ type UI struct {
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
 var ctxMenu = []struct{ icon, label, to string }{
 	{"emoji", "Reaksi", "reaction"}, {"reply", "Balas", ""}, {"forward", "Teruskan", "forward"},
-	{"star", "Bintangi", ""}, {"info", "Info", "msginfo"}, {"trash", "Hapus", ""},
+	{"star", "Bintangi", ""}, {"info", "Info", "msginfo"}, {"trash", "Hapus", "delconfirm"},
 }
 
 // SetOverlay: utk render-tool menguji popup headless.
 func (u *UI) SetOverlay(o string) { u.overlay = o }
+
+// SetDeleteConfirmDemo: render-tool — dialog hapus pesan (own=true → 3 tombol).
+func (u *UI) SetDeleteConfirmDemo() {
+	u.delTarget = app.MessageDTO{ID: "m2", Dir: "out", Type: "text", Text: "halo"}
+	u.overlay = "delconfirm"
+}
 
 // SetLightbox: utk render-tool membuka lightbox gambar nyata headless.
 func (u *UI) SetLightbox(id, cap string) {
@@ -577,6 +587,9 @@ var railNav = []struct{ view, icon, label string }{
 
 func NewUI(th *material.Theme, core *app.App) *UI {
 	u := &UI{th: th, core: core, dark: true, view: "chats"}
+	if core != nil {
+		u.dark = core.ThemeDark() // pulihkan preferensi tema tersimpan
+	}
 	u.t = newTheme(u.dark)
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
@@ -840,6 +853,9 @@ func (u *UI) handleSettings(gtx layout.Context) {
 	for u.setClicks[3].Clicked(gtx) { // Tema → toggle gelap/terang
 		u.dark = !u.dark
 		u.t = newTheme(u.dark)
+		if u.core != nil {
+			u.core.SetThemeDark(u.dark) // persist lintas-restart
+		}
 	}
 	for u.setClicks[5].Clicked(gtx) { // Penyimpanan → sub-pane
 		u.setSub = "storage"
@@ -1170,6 +1186,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.newContactLayer(gtx)
 	case "contactctx":
 		u.contactCtxLayer(gtx)
+	case "delconfirm":
+		u.deleteConfirmLayer(gtx)
 	}
 }
 
@@ -1266,6 +1284,72 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 
 // renameContactLayer — modal edit nama kontak (label lokal, ala simpan/edit kontak
 // di HP). Simpan → core.SaveContactLabel; kosong → RemoveContactLabel.
+// deleteConfirmLayer — dialog konfirmasi hapus pesan: "Hapus untuk saya" selalu;
+// "Hapus untuk semua orang" hanya bila pesan SENDIRI (revoke). Paritas WhatsApp.
+func (u *UI) deleteConfirmLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	m := u.delTarget
+	own := m.Dir == "out" && !m.Revoked
+	del := func(everyone bool) {
+		if u.core != nil && m.ID != "" {
+			u.core.DeleteMessage(u.selected, m.ID, m.SenderID, true, everyone)
+			u.messages = u.core.GetMessages(u.selected)
+		}
+		u.overlay, u.delTarget = "", app.MessageDTO{}
+	}
+	for u.delCancel.Clicked(gtx) {
+		u.overlay, u.delTarget = "", app.MessageDTO{}
+	}
+	for u.delForMe.Clicked(gtx) {
+		del(false)
+	}
+	for u.delForAll.Clicked(gtx) {
+		del(true)
+	}
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	btn := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(320)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, "Hapus pesan?")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+			}
+			if own {
+				children = append(children, btn(&u.delForAll, "Hapus untuk semua orang", red))
+			}
+			children = append(children,
+				btn(&u.delForMe, "Hapus untuk saya", u.t.Text),
+				btn(&u.delCancel, "Batal", u.t.Text2),
+			)
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	target := u.renameTarget // sasaran rename (kontak intip/ctx); "" → chat terpilih
@@ -1734,7 +1818,7 @@ func (u *UI) mediaGalleryRow(gtx layout.Context, media []app.MessageDTO, row int
 
 // doCtxAction menjalankan aksi context-menu pesan terhadap engine. Bintangi/Hapus
 // langsung; Balas mengaktifkan banner balas di composer (kirim → core.Reply).
-func (u *UI) doCtxAction(label string) {
+func (u *UI) doCtxAction(gtx layout.Context, label string) {
 	m := u.ctxMsg // snapshot saat menu dibuka (bukan index yg bisa bergeser)
 	if m.ID == "" {
 		return
@@ -1746,10 +1830,7 @@ func (u *UI) doCtxAction(label string) {
 			u.core.StarMessage(u.selected, m.ID, m.SenderID, fromMe, true)
 		}
 	case "Hapus":
-		if u.core != nil {
-			u.core.DeleteMessage(u.selected, m.ID, m.SenderID, fromMe, fromMe) // everyone hanya utk pesan sendiri
-			u.messages = u.core.GetMessages(u.selected)
-		}
+		u.delTarget = m // buka dialog pilih: hapus untuk saya / untuk semua (overlay delconfirm)
 	case "Balas":
 		u.replyTo, u.replyName, u.replyText = m.ID, u.replyDisplayName(m), m.Text
 	case "Reaksi":
@@ -1774,6 +1855,8 @@ func (u *UI) doCtxAction(label string) {
 		u.selSet[m.ID] = true
 	case "Terjemah":
 		u.ensureTranslate(m.ID, m.Text)
+	case "Salin":
+		gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(m.Text))})
 	}
 }
 
@@ -2481,6 +2564,9 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 	type ctxItem = struct{ icon, label, to string }
 	items := append([]ctxItem{}, ctxMenu...)
 	m := u.ctxMsg
+	if !m.Revoked && strings.TrimSpace(m.Text) != "" { // salin teks (juga caption media)
+		items = append(items, ctxItem{"copy", "Salin", ""})
+	}
 	switch {
 	case m.Dir == "out" && !m.Revoked && (m.Type == "" || m.Type == "text"):
 		// pesan teks sendiri → bisa di-Edit (SendEdit; jendela ~15mnt di engine).
@@ -2504,7 +2590,7 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		i := i
 		it := items[i]
 		for u.ctxItems[i].Clicked(gtx) {
-			u.doCtxAction(it.label) // jalankan aksi engine bila ada
+			u.doCtxAction(gtx, it.label) // jalankan aksi engine bila ada
 			u.overlay = it.to       // pindah ke popup tujuan ("" = tutup)
 		}
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {

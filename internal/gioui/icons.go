@@ -90,6 +90,8 @@ var iconPaths = map[string]string{
 	"power":        `<path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>`,
 	"verif":        `<path d="M5 12l4 4 10-10"/>`,
 	"callArrowOut": `<path d="M7 17L17 7M17 7H9M17 7v8"/>`,
+	"callArrowIn":  `<path d="M17 7L7 17M7 17h8M7 17V9"/>`,
+	"copy":         `<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`,
 	"wallpaperico": `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>`,
 	"archive":      `<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M9 13h6"/>`,
 	"communities":  `<circle cx="9" cy="8.5" r="3"/><path d="M3.5 18.5c0-3 2.4-4.5 5.5-4.5s5.5 1.5 5.5 4.5"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M16 14.2c2.6.1 4.5 1.5 4.5 4.3"/>`,

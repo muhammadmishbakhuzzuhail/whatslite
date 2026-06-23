@@ -97,6 +97,27 @@ func (a *App) GetStorageUsage() StorageUsageDTO {
 	return out
 }
 
+// ThemeDark mengembalikan preferensi tema gelap tersimpan (default true bila
+// belum pernah disetel) — dimuat saat start agar tema tak reset tiap buka.
+func (a *App) ThemeDark() bool {
+	if a.store == nil {
+		return true
+	}
+	return a.store.GetMeta(a.ctx, "theme_dark", "1") != "0"
+}
+
+// SetThemeDark menyimpan preferensi tema gelap (persist lintas-restart).
+func (a *App) SetThemeDark(dark bool) {
+	if a.store == nil {
+		return
+	}
+	v := "1"
+	if !dark {
+		v = "0"
+	}
+	_ = a.store.SetMeta(a.ctx, "theme_dark", v)
+}
+
 // GetRetention mengembalikan jumlah hari retensi pesan (0 = selamanya).
 func (a *App) GetRetention() int { return a.retentionDays }
 

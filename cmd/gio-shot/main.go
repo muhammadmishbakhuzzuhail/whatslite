@@ -222,6 +222,9 @@ func main() {
 		case "app-typinggroup":
 			ui.SetTypingDemoGroup() // bubble mengetik grup + avatar pengetik
 			ui.Layout(gtx)
+		case "app-delconfirm":
+			ui.SetDeleteConfirmDemo() // dialog hapus untuk saya / semua
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

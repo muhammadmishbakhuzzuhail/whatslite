@@ -30,6 +30,13 @@ func (a *App) SetDefaultDisappearing(seconds int) {
 	}
 }
 
+// SetChatDisappearing menyetel timer pesan sementara untuk SATU chat (detik; 0 = mati).
+func (a *App) SetChatDisappearing(jid string, seconds int) {
+	if a.eng != nil && !a.emitErr(a.eng.SetDisappearing(a.ctx, jid, seconds)) {
+		a.emit("wa:sync", "")
+	}
+}
+
 // MyQR mengembalikan QR kontak sendiri sebagai PNG data-URI (revoke=buat ulang).
 func (a *App) MyQR(revoke bool) string {
 	if a.eng == nil {

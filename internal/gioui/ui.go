@@ -249,6 +249,10 @@ type UI struct {
 	encClose        widget.Clickable // overlay enkripsi/galeri: tutup
 	mediaCellClicks []widget.Clickable // sel grid galeri media
 	mediaGalList    widget.List       // scroll galeri media
+	infoTimerC      widget.Clickable    // info-drawer: pesan sementara (buka picker)
+	dispClicks      [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
+	dispClose       widget.Clickable    // picker pesan sementara: tutup
+	dispTimer       map[string]int      // jid → timer detik terpilih (label drawer)
 	gedName         widget.Editor    // editor nama grup (modal groupedit)
 	gedDesc         widget.Editor    // editor deskripsi grup
 	gedSave         widget.Clickable
@@ -421,6 +425,14 @@ func (u *UI) SetGroupEditDemo(name, desc string) {
 // SetInviteDemo: utk render-tool menguji modal link undangan headless.
 func (u *UI) SetInviteDemo(link string) { u.inviteLink = link; u.overlay = "invitelink" }
 
+// SetDisappearingDemo: render-tool — pilih chat + buka picker pesan sementara.
+func (u *UI) SetDisappearingDemo() {
+	if len(u.chats) > 0 {
+		u.selected = u.chats[0].ID
+	}
+	u.overlay = "disappearing"
+}
+
 // SetLinkPreviewDemo: utk render-tool menguji kartu pratinjau tautan headless
 // (inject preview + thumbnail sintetis, gulir ke bawah agar terlihat).
 func (u *UI) SetLinkPreviewDemo(url, title, desc string) {
@@ -520,6 +532,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.photoTried = map[string]bool{}
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
+	u.dispTimer = map[string]int{}
 	u.drafts = map[string]string{}
 	u.selSet = map[string]bool{}
 	u.linkPrev = map[string]*app.LinkPreviewDTO{}
@@ -1032,7 +1045,100 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.encryptionLayer(gtx)
 	case "media":
 		u.mediaGalleryLayer(gtx)
+	case "disappearing":
+		u.disappearingLayer(gtx)
 	}
+}
+
+// dispOptions — pilihan timer pesan sementara WhatsApp (label + detik).
+var dispOptions = []struct {
+	label string
+	secs  int
+}{
+	{"Mati", 0}, {"24 jam", 86400}, {"7 hari", 604800}, {"90 hari", 7776000},
+}
+
+// dispLabel — label dari detik timer (kosong utk 0 → "Mati" tak ditampilkan di baris).
+func dispLabel(secs int) string {
+	for _, o := range dispOptions {
+		if o.secs == secs {
+			if secs == 0 {
+				return "Mati"
+			}
+			return o.label
+		}
+	}
+	return ""
+}
+
+// disappearingLayer — picker timer pesan sementara per-chat (Mati/24 jam/7 hari/90
+// hari). Pilih → core.SetChatDisappearing + simpan label lokal + tutup.
+func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for u.dispClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	cur := u.dispTimer[u.selected]
+	for i := range u.dispClicks {
+		if u.dispClicks[i].Clicked(gtx) {
+			if u.core != nil {
+				u.core.SetChatDisappearing(u.selected, dispOptions[i].secs)
+			}
+			u.dispTimer[u.selected] = dispOptions[i].secs
+			u.overlay = ""
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(320)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Pesan sementara")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13, "Pesan baru di chat ini hilang setelah durasi terpilih.")
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+			}
+			for i := range dispOptions {
+				o, idx := dispOptions[i], i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.dispClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 15.5, o.label)
+									l.Color = u.t.Text
+									return l.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if o.secs != cur {
+										return layout.Dimensions{}
+									}
+									return icon(gtx, "check", 18, u.t.Accent)
+								}),
+							)
+						})
+					})
+				}))
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // encryptionLayer — kartu info enkripsi end-to-end (paritas WhatsApp "Enkripsi").
@@ -3990,6 +4096,8 @@ func (u *UI) infoData() *InfoDrawerData {
 	d.Mute = &u.infoMuteC // bisu (DM + grup)
 	d.Media = &u.infoMediaC
 	d.Enc = &u.infoEncC
+	d.Timer = &u.infoTimerC
+	d.TimerLabel = dispLabel(u.dispTimer[u.selected])
 	d.Muted = u.isChatMuted(u.selected)
 	if u.selGroup {
 		d.Leave = &u.infoLeaveC
@@ -4047,6 +4155,9 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	}
 	for u.infoEncC.Clicked(gtx) { // info enkripsi end-to-end
 		u.overlay = "encryption"
+	}
+	for u.infoTimerC.Clicked(gtx) { // pesan sementara → picker
+		u.overlay = "disappearing"
 	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""

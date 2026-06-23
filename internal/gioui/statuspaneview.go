@@ -39,7 +39,7 @@ type stpItem struct {
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
 // header .pane-head + baris "My status" + label "TERKINI" + 3 baris status.
 // Fungsi murni, mandiri (standalone render).
-func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable, avFn cpAvatarFn, selfName, selfJID string, list *widget.List) layout.Dimensions {
+func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable, avFn cpAvatarFn, selfName, selfJID string, list *widget.List, myClick *widget.Clickable) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -68,7 +68,11 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 			return material.List(th, list).Layout(gtx, head+len(items), func(gtx layout.Context, i int) layout.Dimensions {
 				switch i {
 				case 0:
-					return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID)
+					row := func(gtx layout.Context) layout.Dimensions { return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID) }
+					if myClick != nil {
+						return myClick.Layout(gtx, row)
+					}
+					return row(gtx)
 				case 1:
 					return stpSectionLabel(gtx, th, t, "TERKINI")
 				}

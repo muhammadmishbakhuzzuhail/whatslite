@@ -91,6 +91,12 @@ type UI struct {
 	stPause           widget.Clickable    // toggle pause/main
 	stVideoPlay       widget.Clickable    // tombol play video status (pemutar eksternal)
 	stItemStart       time.Time           // waktu item kini mulai (utk progress auto-advance)
+	stFwd             widget.Clickable    // tombol forward status → chat
+	fwdSrc            string              // chat sumber forward ("" = u.selected; status → status@broadcast)
+	stMyClick         widget.Clickable    // baris "Status saya" → composer post status
+	scEd              widget.Editor       // editor teks status (composer post)
+	scPost            widget.Clickable
+	scCancel          widget.Clickable
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -554,6 +560,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.ncName.SingleLine = true
 	u.ncPhone.SingleLine, u.ncPhone.Submit = true, true
 	u.stReplyEd.SingleLine, u.stReplyEd.Submit = true, true
+	u.scEd.Submit = true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -1090,6 +1097,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.statusViewLayer(gtx)
 	case "statusemoji":
 		u.statusEmojiLayer(gtx)
+	case "statuscompose":
+		u.statusComposeLayer(gtx)
 	case "pollcompose":
 		u.pollComposeLayer(gtx)
 	case "contactsend":
@@ -1813,17 +1822,21 @@ func (u *UI) handleForward(gtx layout.Context) {
 			break
 		}
 		for u.fwdClicks[i].Clicked(gtx) {
+			src := u.selected
+			if u.fwdSrc != "" { // forward dari status → sumber status@broadcast
+				src = u.fwdSrc
+			}
 			if u.core != nil {
 				switch {
 				case len(u.fwdMsgIDs) > 0: // teruskan-banyak (mode pilih)
 					for _, id := range u.fwdMsgIDs {
-						u.core.Forward(u.selected, id, u.chats[i].ID)
+						u.core.Forward(src, id, u.chats[i].ID)
 					}
 				case u.fwdMsgID != "":
-					u.core.Forward(u.selected, u.fwdMsgID, u.chats[i].ID)
+					u.core.Forward(src, u.fwdMsgID, u.chats[i].ID)
 				}
 			}
-			u.fwdMsgID, u.fwdMsgIDs = "", nil
+			u.fwdMsgID, u.fwdMsgIDs, u.fwdSrc = "", nil, ""
 			u.overlay = ""
 		}
 	}
@@ -2970,7 +2983,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
-		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks, u.avatar, u.profName, u.selfJID, &u.statusList)
+		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks, u.avatar, u.profName, u.selfJID, &u.statusList, &u.stMyClick)
 	case "channels":
 		rows := u.channelRows()
 		u.handleChannels(gtx, rows)
@@ -4854,6 +4867,11 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 		}
 		u.stPaused = true // jeda progress selama nonton
 	}
+	for u.stFwd.Clicked(gtx) { // forward isi status → pilih chat
+		u.fwdMsgID, u.fwdSrc = item.ID, "status@broadcast"
+		u.stPaused = true
+		u.overlay = "forward"
+	}
 	// auto-advance: teks/gambar ~5 dtk (video tidak — diputar eksternal). Animasikan
 	// progress; saat penuh → item berikut. Pause/fokus-balas menghentikan.
 	const itemDur = 5 * time.Second
@@ -4966,6 +4984,14 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 							}),
 						)
 					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.stFwd.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "forward", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+						})
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return u.stPause.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -5127,6 +5153,83 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 	)
 }
 
+// statusComposeLayer — composer status teks sendiri (latar accent ala WhatsApp):
+// ketik → tombol kirim → PostTextStatus. (Status media via lampiran = TODO.)
+func (u *UI) statusComposeLayer(gtx layout.Context) {
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: gtx.Constraints.Max}.Op()) // kanvas warna
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	post := func() {
+		t := strings.TrimSpace(u.scEd.Text())
+		if t != "" && u.core != nil {
+			u.core.PostTextStatus(t, int64(argbOf(u.t.Accent)), 0)
+		}
+		u.scEd.SetText("")
+		u.overlay = "status" // kembali ke pane status
+	}
+	for u.scCancel.Clicked(gtx) {
+		u.scEd.SetText("")
+		u.overlay = "status"
+	}
+	for u.scPost.Clicked(gtx) {
+		post()
+	}
+	for {
+		ev, ok := u.scEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			post()
+		}
+	}
+	gtx.Constraints.Min = gtx.Constraints.Max
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// bar atas: batal (kiri) + kirim (kanan).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.scCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "close", 22, white)
+							})
+						})
+					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(u.th, 15, "Status saya")
+						lbl.Color, lbl.Alignment = white, text.Middle
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.scPost.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "send", 22, white)
+							})
+						})
+					}),
+				)
+			})
+		}),
+		// area teks besar di tengah.
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: unit.Dp(40), Right: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					u.scEd.Alignment = text.Middle
+					e := material.Editor(u.th, &u.scEd, "Ketik status…")
+					e.Color, e.HintColor, e.TextSize = white, color.NRGBA{R: 255, G: 255, B: 255, A: 0xaa}, unit.Sp(26)
+					return e.Layout(gtx)
+				})
+			})
+		}),
+	)
+}
+
+// argbOf — warna → ARGB uint32 (utk bg status teks).
+func argbOf(c color.NRGBA) uint32 {
+	return uint32(c.A)<<24 | uint32(c.R)<<16 | uint32(c.G)<<8 | uint32(c.B)
+}
+
 // statusEmojiLayer — picker emoji lengkap utk reaksi status (tombol "+"). Pilih →
 // ReactStatus lalu kembali ke viewer.
 func (u *UI) statusEmojiLayer(gtx layout.Context) {
@@ -5195,6 +5298,10 @@ func decodeDataURI(s string) []byte {
 
 // handleStatus — klik baris status → buka viewer (overlay statusview).
 func (u *UI) handleStatus(gtx layout.Context) {
+	for u.stMyClick.Clicked(gtx) { // "Status saya" → composer post status sendiri
+		u.scEd.SetText("")
+		u.overlay = "statuscompose"
+	}
 	for i := range u.statusGroupsCache {
 		if i >= len(u.statusClicks) {
 			break

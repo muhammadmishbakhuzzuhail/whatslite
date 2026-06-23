@@ -107,7 +107,7 @@ func main() {
 		case "contacts":
 			gioui.ContactsPaneView(gtx, th, t, nil, ctClicks, nil, nil, nil, nil, ctInfo, nil, func(int) {})
 		case "status":
-			gioui.StatusPaneView(gtx, th, t, nil, nil, nil, "", "", nil)
+			gioui.StatusPaneView(gtx, th, t, nil, nil, nil, "", "", nil, nil)
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil, nil)
 		case "channels-explore":
@@ -211,6 +211,10 @@ func main() {
 			ui.Layout(gtx)
 		case "app-statusview":
 			ui.SetStatusViewDemo() // viewer status: progress bar + tap-through
+			ui.Layout(gtx)
+		case "app-statuscompose":
+			ui.SetView("status")
+			ui.SetOverlay("statuscompose") // composer post status sendiri
 			ui.Layout(gtx)
 		case "app-typing":
 			ui.SetTypingDemo("") // bubble mengetik + preview mengetik

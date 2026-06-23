@@ -84,6 +84,12 @@ func main() {
 			gioui.ModalsView(gtx, th, t, nil)
 		case "infodrawer":
 			gioui.InfoDrawerView(gtx, th, t, nil)
+		case "contactinfo":
+			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
+				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false})
+		case "contactinfo-blocked":
+			gioui.InfoDrawerView(gtx, th, t, &gioui.InfoDrawerData{
+				Name: "Alice", Sub: "+62 812 0000 1111", Desc: "Tersedia", Group: false, Blocked: true})
 		case "search":
 			gioui.SearchView(gtx, th, t, nil)
 		case "picker":

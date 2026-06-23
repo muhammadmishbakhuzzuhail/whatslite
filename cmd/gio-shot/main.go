@@ -155,7 +155,7 @@ func main() {
 			ui.SetOverlay("schedule") // modal jadwalkan pesan
 			ui.Layout(gtx)
 		case "app-linkpreview":
-			ui.SetLinkPreviewDemo("https://example.com/artikel", "Artikel Menarik tentang Go", "Ringkasan singkat artikel ini membahas Gio dan UI native.")
+			ui.SetLinkPreviewDemo("https://www.tiktok.com/@user/video/123", "Video TikTok lucu", "Tonton video ini di TikTok — bikin ngakak seharian 😂")
 			ui.Layout(gtx)
 		case "app-invitelink":
 			ui.SetInviteDemo("https://chat.whatsapp.com/AbC123dEfG456") // modal link undangan

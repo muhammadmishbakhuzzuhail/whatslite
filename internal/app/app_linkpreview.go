@@ -22,6 +22,8 @@ type LinkPreviewDTO struct {
 	Title string `json:"title"`
 	Desc  string `json:"desc"`
 	Image string `json:"image"`
+	Site  string `json:"site"`  // og:site_name ("Instagram"/"TikTok"/"YouTube"); fallback host
+	Video bool   `json:"video"` // tautan video (og:type video.* / host video) → badge play
 }
 
 var (
@@ -74,10 +76,30 @@ func (a *App) GetLinkPreview(rawURL string) *LinkPreviewDTO {
 	}
 	out.Desc = firstNonEmpty(og["og:description"], og["twitter:description"], og["description"])
 	out.Image = firstNonEmpty(og["og:image"], og["og:image:url"], og["twitter:image"])
+	out.Site = firstNonEmpty(og["og:site_name"], og["application-name"])
+	// video bila og:type video.* / twitter player / host video umum (badge play di kartu).
+	ogType := strings.ToLower(og["og:type"])
+	host := strings.ToLower(hostOf(rawURL))
+	out.Video = strings.HasPrefix(ogType, "video") ||
+		og["twitter:card"] == "player" || og["og:video"] != "" || og["og:video:url"] != "" ||
+		strings.Contains(host, "youtube.") || strings.Contains(host, "youtu.be") ||
+		strings.Contains(host, "tiktok.") || strings.Contains(host, "vimeo.")
 	if out.Title == "" && out.Image == "" {
 		return nil
 	}
 	return out
+}
+
+// hostOf — host tanpa skema/path ("https://www.tiktok.com/x" → "www.tiktok.com").
+func hostOf(rawURL string) string {
+	s := rawURL
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	if i := strings.IndexAny(s, "/?#"); i >= 0 {
+		s = s[:i]
+	}
+	return s
 }
 
 // FetchRemoteMedia mengunduh gambar/video dari URL (sisi Go → tanpa CORS) dan

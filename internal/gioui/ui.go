@@ -463,7 +463,16 @@ func (u *UI) SetDisappearingDemo() {
 // SetLinkPreviewDemo: utk render-tool menguji kartu pratinjau tautan headless
 // (inject preview + thumbnail sintetis, gulir ke bawah agar terlihat).
 func (u *UI) SetLinkPreviewDemo(url, title, desc string) {
-	u.linkPrev[url] = &app.LinkPreviewDTO{URL: url, Title: title, Desc: desc, Image: "x"}
+	site, video := "", false
+	switch h := strings.ToLower(url); {
+	case strings.Contains(h, "tiktok"):
+		site, video = "TikTok", true
+	case strings.Contains(h, "youtu"):
+		site, video = "YouTube", true
+	case strings.Contains(h, "instagram"):
+		site, video = "Instagram", true
+	}
+	u.linkPrev[url] = &app.LinkPreviewDTO{URL: url, Title: title, Desc: desc, Image: "x", Site: site, Video: video}
 	u.linkImg[url] = synthPhoto()
 	u.linkTried[url] = true
 	u.msgList.ScrollTo(9999)
@@ -667,7 +676,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m19", Dir: "in", Type: "contact", Text: "Dewi Anggraini", Thumb: "+62 812-3456-7890", Time: "08.16", Sender: "Citra Dewi", Ts: now},
 		{ID: "m20", Dir: "in", Type: "text", Text: "Setuju sama @Budi Santoso, nanti @Citra Dewi yang bawa kamera ya", Time: "08.17", Sender: "Rian", Ts: now, Mentions: []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra Dewi"}}},
 		{ID: "m21", Dir: "out", Type: "text", Text: "🔥👍", Time: "08.18", Status: "read", Ts: now}, // emoji-saja → bubble diperbesar
-		{ID: "m22", Dir: "in", Type: "text", Text: "Cek artikelnya https://example.com/artikel", Time: "08.19", Sender: "Budi Santoso", Ts: now},
+		{ID: "m22", Dir: "in", Type: "text", Text: "Lucu banget 😂 https://www.tiktok.com/@user/video/123", Time: "08.19", Sender: "Budi Santoso", Ts: now},
 		{ID: "m23", Dir: "out", Type: "audio", Text: "Lagu_Favorit.mp3", Thumb: "3:24", Time: "08.20", Status: "read", Ts: now},
 		{ID: "m24", Dir: "in", Type: "sticker", Time: "08.21", Sender: "Rian", Ts: now},
 		{ID: "m25", Dir: "out", Type: "gif", Time: "08.22", Status: "delivered", Ts: now},
@@ -4554,6 +4563,19 @@ func (u *UI) linkCardWidget(url string) layout.Widget {
 					cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: rr, NE: rr}.Push(gtx.Ops)
 					drawImageFill(gtx.Ops, img, w)
 					cl.Pop()
+					if dto.Video { // tautan video (YouTube/TikTok/…) → badge play di tengah
+						gtx.Constraints.Min, gtx.Constraints.Max = box, box
+						layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							d := gtx.Dp(44)
+							sz := image.Pt(d, d)
+							paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+							gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "play", 22, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+							return layout.Dimensions{Size: sz}
+						})
+					}
 					return layout.Dimensions{Size: box}
 				}))
 			}
@@ -4576,7 +4598,11 @@ func (u *UI) linkCardWidget(url string) layout.Widget {
 						}))
 					}
 					col = append(col, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						l := material.Label(u.th, 11.5, urlHost(url))
+						site := dto.Site // nama situs ("Instagram"/"TikTok"); fallback host
+						if site == "" {
+							site = urlHost(url)
+						}
+						l := material.Label(u.th, 11.5, site)
 						l.Color, l.MaxLines = u.t.Accent, 1
 						return l.Layout(gtx)
 					}))

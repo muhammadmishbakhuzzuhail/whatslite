@@ -246,6 +246,7 @@ type UI struct {
 	infoMediaC      widget.Clickable // info-drawer: buka galeri media
 	infoEncC        widget.Clickable // info-drawer: info enkripsi
 	infoMemberClicks []widget.Clickable // info-drawer: anggota grup
+	infoMemberJIDs   []string           // jid anggota (paralel infoMemberClicks)
 	encClose        widget.Clickable // overlay enkripsi/galeri: tutup
 	mediaCellClicks []widget.Clickable // sel grid galeri media
 	mediaGalList    widget.List       // scroll galeri media
@@ -4109,12 +4110,14 @@ func (u *UI) infoData() *InfoDrawerData {
 			d.Desc = gi.Topic
 			u.curGroupDesc = gi.Topic
 			d.Members = make([]InfoMember, 0, len(gi.Participants))
+			u.infoMemberJIDs = u.infoMemberJIDs[:0]
 			for _, p := range gi.Participants {
 				nm := p.Name
 				if nm == "" {
 					nm = jidUser(p.JID)
 				}
-				d.Members = append(d.Members, InfoMember{Name: nm, Admin: p.IsAdmin})
+				d.Members = append(d.Members, InfoMember{Name: nm, Admin: p.IsAdmin, JID: p.JID})
+				u.infoMemberJIDs = append(u.infoMemberJIDs, p.JID)
 			}
 			if len(u.infoMemberClicks) < len(d.Members) {
 				u.infoMemberClicks = make([]widget.Clickable, len(d.Members))
@@ -4159,6 +4162,26 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	}
 	for u.infoTimerC.Clicked(gtx) { // pesan sementara → picker
 		u.overlay = "disappearing"
+	}
+	for i := range u.infoMemberClicks { // ketuk anggota grup → buka DM-nya
+		if i >= len(u.infoMemberJIDs) {
+			break
+		}
+		if u.infoMemberClicks[i].Clicked(gtx) {
+			jid := u.infoMemberJIDs[i]
+			if u.core != nil && jid != "" && !isGroupJIDStr(jid) {
+				u.selected, u.selGroup, u.overlay = jid, false, ""
+				u.selName = jidUser(jid)
+				for k := range u.chats { // nama asli bila chat sudah ada
+					if u.chats[k].ID == jid {
+						u.selName = u.chats[k].Name
+						break
+					}
+				}
+				u.core.OpenChat(jid)
+				u.messages = u.core.GetMessages(jid)
+			}
+		}
 	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""

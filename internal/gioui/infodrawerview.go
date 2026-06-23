@@ -44,10 +44,11 @@ type InfoDrawerData struct {
 	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
 }
 
-// InfoMember = satu anggota grup di laci info (nama + admin).
+// InfoMember = satu anggota grup di laci info (nama + admin + jid utk buka DM).
 type InfoMember struct {
 	Name  string
 	Admin bool
+	JID   string
 }
 
 func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
@@ -142,7 +143,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			if !d.Group || len(d.Members) == 0 {
 				return layout.Dimensions{}
 			}
-			return infoDrawerMembers(gtx, th, t, d.Members)
+			return infoDrawerMembers(gtx, th, t, d.Members, d.MemberClicks)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
@@ -168,7 +169,8 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 }
 
 // infoDrawerMembers — header "N anggota" + baris anggota (avatar 40 + nama + admin).
-func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members []InfoMember) layout.Dimensions {
+// clicks (paralel members) → baris bisa diketik (buka DM anggota).
+func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members []InfoMember, clicks []widget.Clickable) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, len(members)+1)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(4), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -178,30 +180,36 @@ func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members 
 		})
 	}))
 	for i := range members {
-		m := members[i]
+		m, idx := members[i], i
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Min.X = gtx.Constraints.Max.X
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return infoDrawerAvatar(gtx, th, m.Name, 40)
-					}),
-					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						l := material.Label(th, 15, m.Name)
-						l.Color, l.MaxLines = t.Text, 1
-						return l.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if !m.Admin {
-							return layout.Dimensions{}
-						}
-						l := material.Label(th, 12, "Admin grup")
-						l.Color = t.Accent
-						return l.Layout(gtx)
-					}),
-				)
-			})
+			row := func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return infoDrawerAvatar(gtx, th, m.Name, 40)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 15, m.Name)
+							l.Color, l.MaxLines = t.Text, 1
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if !m.Admin {
+								return layout.Dimensions{}
+							}
+							l := material.Label(th, 12, "Admin grup")
+							l.Color = t.Accent
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			}
+			if idx < len(clicks) {
+				return clicks[idx].Layout(gtx, row)
+			}
+			return row(gtx)
 		}))
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

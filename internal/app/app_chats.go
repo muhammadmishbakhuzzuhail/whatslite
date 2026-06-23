@@ -90,15 +90,30 @@ type ChatDTO struct {
 	Badge   int    `json:"badge"`
 	Pinned  bool   `json:"pinned"`
 	Muted   bool   `json:"muted"`
-	Online  bool   `json:"online"` // DM: presence "online" (grup selalu false; tak ada presence grup)
+	// Presence (DM saja; grup selalu ""): keadaan presence yg BENAR-benar diketahui.
+	//   "online"  = peer aktif (event available)
+	//   "offline" = peer offline & last-seen terlihat (kita punya timestamp)
+	//   ""        = tak diketahui: disembunyikan (privacy/reciprocity), belum
+	//               subscribe, atau belum ada event. JANGAN diasumsikan offline.
+	// Tak ada keadaan "merah/offline-pasti" utk yg tak diketahui — WhatsApp pun tak
+	// menampilkannya, dan aturan reciprocity bisa menyembunyikan presence semua kontak.
+	Presence string `json:"presence"`
 }
 
-// isOnline — true bila presence kontak (DM) tercatat "online" di cache in-process.
+// presenceState — keadaan presence kontak (DM) dari cache in-process. Hanya
+// meng-assert yg diketahui: "online" / "offline" (ada last-seen) / "" (tak tahu).
 // Grup tak punya presence → pemanggil hanya pakai utk DM. Thread-safe.
-func (a *App) isOnline(jid string) bool {
+func (a *App) presenceState(jid string) string {
 	a.presMu.RLock()
 	defer a.presMu.RUnlock()
-	return a.presence[jid] == "online"
+	switch p := a.presence[jid]; {
+	case p == "online":
+		return "online"
+	case strings.HasPrefix(p, "terakhir dilihat"): // offline & last-seen terlihat
+		return "offline"
+	default: // "" → disembunyikan / belum ada data → unknown
+		return ""
+	}
 }
 
 // UnreadTotal: jumlah chat belum-dibaca (badge judul window). Thread-safe (query
@@ -194,13 +209,16 @@ func (a *App) chatDTO(c storage.Chat) ChatDTO {
 		}
 	}
 	group := isGroupJID(c.JID)
-	return ChatDTO{
+	dto := ChatDTO{
 		ID: c.JID, Name: name, Preview: preview,
 		Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: group,
 		Sent: c.LastFromMe, Status: status,
 		Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
-		Online: !group && a.isOnline(c.JID), // titik presence hanya utk DM
 	}
+	if !group { // titik presence hanya utk DM (grup tak punya presence)
+		dto.Presence = a.presenceState(c.JID)
+	}
+	return dto
 }
 
 // ExportChat membuat transkrip teks polos seluruh riwayat chat (utk diunduh).

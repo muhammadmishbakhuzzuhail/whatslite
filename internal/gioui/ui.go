@@ -631,11 +631,11 @@ func (u *UI) refresh() {
 
 func demoChats() []app.ChatDTO {
 	return []app.ChatDTO{
-		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true, Online: true},
+		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true, Presence: "online"},
 		{ID: "2", Name: "Keluarga", Preview: "Ibu: Jangan lupa makan ya nak", Time: "18.41", Group: true, Badge: 2, Unread: true},
-		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Badge: 1234, Unread: true, Online: true},
+		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Badge: 1234, Unread: true}, // presence "" → tanpa titik (hidden/unknown)
 		{ID: "4", Name: "Tim Proyek X", Preview: "Budi: file-nya udah aku upload", Time: "16.20", Group: true, Badge: 12, Unread: true},
-		{ID: "5", Name: "Rian", Preview: "Haha iya bener banget 😄", Time: "14.03", Badge: 5, Unread: true, Muted: true},
+		{ID: "5", Name: "Rian", Preview: "Haha iya bener banget 😄", Time: "14.03", Badge: 5, Unread: true, Muted: true, Presence: "offline"},
 	}
 }
 func demoMessages() []app.MessageDTO {
@@ -3273,23 +3273,27 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 	})
 }
 
-// avatarPresence — avatar 54 chat list + titik presence (DM saja) di kanan-bawah:
-// hijau #28c840 = online, merah #e35d6a = offline. Grup tak punya presence → tanpa
-// titik (presence WhatsApp/whatsmeow per-pengguna, bukan per-grup).
+// avatarPresence — avatar 54 chat list + titik presence (DM saja) di kanan-bawah.
+// 3-keadaan SESUAI yg diketahui (bukan tebakan):
+//   "online"  → hijau #28c840
+//   "offline" → abu (last-seen terlihat → memang offline)
+//   ""        → TANPA titik (disembunyikan/privacy/reciprocity/belum ada data)
+// Grup tak punya presence → tanpa titik. Tak ada "merah offline": WhatsApp pun tak
+// menampilkannya & aturan reciprocity bisa menyembunyikan presence semua kontak.
 func (u *UI) avatarPresence(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 	av := u.avatar(gtx, c.Name, c.ID, 54)
-	if c.Group {
-		return av // grup: tanpa titik presence
+	if c.Group || c.Presence == "" {
+		return av // grup / presence tak diketahui → tanpa titik
+	}
+	col := u.t.Text2 // abu = offline (known, last-seen terlihat)
+	if c.Presence == "online" {
+		col = color.NRGBA{R: 0x28, G: 0xc8, B: 0x40, A: 0xff} // #28c840 online (hijau)
 	}
 	dot := gtx.Dp(14)
 	bw := gtx.Dp(2)  // cincin border var(--bg) 2px
 	off := gtx.Dp(1) // right:-1; bottom:-1
 	x := av.Size.X - dot + off
 	y := av.Size.Y - dot + off
-	col := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a offline (merah)
-	if c.Online {
-		col = color.NRGBA{R: 0x28, G: 0xc8, B: 0x40, A: 0xff} // #28c840 online (hijau)
-	}
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.Ellipse{Min: image.Pt(x, y), Max: image.Pt(x+dot, y+dot)}.Op(gtx.Ops))
 	paint.FillShape(gtx.Ops, col, clip.Ellipse{Min: image.Pt(x+bw, y+bw), Max: image.Pt(x+dot-bw, y+dot-bw)}.Op(gtx.Ops))
 	return av

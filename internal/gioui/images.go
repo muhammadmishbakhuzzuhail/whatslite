@@ -8,11 +8,12 @@ package gioui
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
-	_ "image/jpeg"
+	"image/jpeg"
 	_ "image/png"
 
 	"gioui.org/f32"
@@ -135,6 +136,28 @@ func drawImageRect(ops *op.Ops, imgOp paint.ImageOp, sz image.Point) {
 	defer op.Affine(f32.Affine2D{}.Scale(f32.Pt(0, 0), f32.Pt(s, s))).Push(ops).Pop()
 	imgOp.Add(ops)
 	paint.PaintOp{}.Add(ops)
+}
+
+// rotateDataURI90 — putar gambar data-URI 90° searah jarum jam, encode ulang JPEG.
+// Kembalikan (uri baru, ImageOp baru, true). Dipakai editor pratinjau media.
+func rotateDataURI90(uri string) (string, paint.ImageOp, bool) {
+	img := decodeImage(decodeDataURI(uri))
+	if img == nil {
+		return uri, paint.ImageOp{}, false
+	}
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	dst := image.NewRGBA(image.Rect(0, 0, h, w)) // dimensi tertukar
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			dst.Set(h-1-y, x, img.At(b.Min.X+x, b.Min.Y+y)) // 90° CW
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 88}); err != nil {
+		return uri, paint.ImageOp{}, false
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
 }
 
 // synthPhoto: foto sintetis (gradient sunset) utk uji render avatar-foto headless

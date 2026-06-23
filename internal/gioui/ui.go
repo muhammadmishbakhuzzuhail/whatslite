@@ -171,6 +171,7 @@ type UI struct {
 	pendVOClick widget.Clickable // toggle sekali-lihat
 	pendSend    widget.Clickable
 	pendCancel  widget.Clickable
+	pendRotate  widget.Clickable // putar 90° (image)
 
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
@@ -3925,6 +3926,16 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 		u.pendVO = !u.pendVO
 		u.pendMu.Unlock()
 	}
+	for u.pendRotate.Clicked(gtx) { // putar gambar 90°
+		if uri != "" {
+			if nu, nop, ok := rotateDataURI90(uri); ok {
+				u.pendMu.Lock()
+				u.pendURI, u.pendImg, u.pendImgHas = nu, nop, true
+				u.pendMu.Unlock()
+				uri, img, hasImg = nu, nop, true
+			}
+		}
+	}
 	for u.pendSend.Clicked(gtx) {
 		if u.core != nil && u.selected != "" {
 			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), "", uri, vo, 0)
@@ -3964,6 +3975,20 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 						})
 					}
 					cl.Pop()
+					if hasImg && kind == "image" { // tombol putar (lingkaran) kanan-atas
+						d := gtx.Dp(34)
+						bx := bw - d - gtx.Dp(8)
+						off := op.Offset(image.Pt(bx, gtx.Dp(8))).Push(gtx.Ops)
+						bgtx := gtx
+						bgtx.Constraints.Min, bgtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+						u.pendRotate.Layout(bgtx, func(gtx layout.Context) layout.Dimensions {
+							paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+							return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "rotate", 18, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+						})
+						off.Pop()
+					}
 					return layout.Dimensions{Size: box}
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),

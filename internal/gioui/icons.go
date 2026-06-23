@@ -72,6 +72,7 @@ var iconPaths = map[string]string{
 	"chevrondown":  `<path d="M6 9l6 6 6-6"/>`,
 	"chevronup":    `<path d="M6 15l6-6 6 6"/>`,
 	"camera":       `<path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L19 6h0a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/>`,
+	"rotate":       `<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5h-5"/>`,
 	"sticker":      `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/>`,
 	"gifb":         `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M11 9v6h2M16 9h-2v6M16 12h-1"/>`,
 	"pollq":        `<path d="M5 5h14M5 12h9M5 19h5"/>`,

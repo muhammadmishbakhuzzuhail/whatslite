@@ -32,6 +32,10 @@ import (
 // chnExploreEd — editor cari utk render case "channels-explore".
 var chnExploreEd widget.Editor
 
+// ctClicks/ctInfo — clickable kontak PERSISTEN lintas-frame (case "contacts") agar
+// state hover/klik bertahan dari frame-1 (daftar) ke frame-2 (gambar+hover).
+var ctClicks, ctInfo = make([]widget.Clickable, 3), make([]widget.Clickable, 3)
+
 func main() {
 	out := "/tmp/gio_shot.png"
 	screen := "main"
@@ -101,7 +105,7 @@ func main() {
 		case "gif":
 			gioui.GifView(gtx, th, t)
 		case "contacts":
-			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			gioui.ContactsPaneView(gtx, th, t, nil, ctClicks, nil, nil, nil, nil, ctInfo, nil, func(int) {})
 		case "status":
 			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":

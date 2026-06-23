@@ -189,6 +189,9 @@ func main() {
 		case "app-contacts":
 			ui.SetView("contacts")
 			ui.Layout(gtx)
+		case "app-typing":
+			ui.SetTypingDemo("") // bubble mengetik + preview mengetik
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

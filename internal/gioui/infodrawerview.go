@@ -40,6 +40,7 @@ type InfoDrawerData struct {
 	Media      *widget.Clickable
 	Enc        *widget.Clickable
 	Timer      *widget.Clickable // pesan sementara (buka picker)
+	Rename     *widget.Clickable // edit nama kontak (DM)
 	TimerLabel string            // label aktif: "Mati" / "24 jam" / "7 hari" / "90 hari"
 	Members []InfoMember        // grup: daftar anggota
 	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
@@ -129,11 +130,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		// baris aksi (.info-row): grup → tambah/link/keluar; DM → blokir.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
-				lbl, col := "Blokir kontak", dangerCol
-				if d.Blocked {
-					lbl, col = "Buka blokir", t.Accent // sudah diblokir → aksi buka
-				}
-				return infoDrawerRow(gtx, th, t, infoDrawerBlockIcon, lbl, col, col, d.Block)
+				return infoDrawerRow(gtx, th, t, infoDrawerEditIcon, "Edit nama kontak", t.Text2, t.Text, d.Rename)
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerEditIcon, "Edit info grup", t.Text2, t.Text, d.Edit)
 		}),
@@ -161,6 +158,17 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				return layout.Dimensions{}
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol, d.Leave)
+		}),
+		// Blokir / Buka blokir (DM, merah/accent sesuai status).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if d.Group {
+				return layout.Dimensions{}
+			}
+			lbl, col := "Blokir kontak", dangerCol
+			if d.Blocked {
+				lbl, col = "Buka blokir", t.Accent
+			}
+			return infoDrawerRow(gtx, th, t, infoDrawerBlockIcon, lbl, col, col, d.Block)
 		}),
 		// Laporkan (paling bawah, merah) — paritas WhatsApp.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {

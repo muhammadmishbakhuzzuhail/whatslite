@@ -242,6 +242,10 @@ type UI struct {
 	inviteCopy       widget.Clickable
 	inviteClose      widget.Clickable
 	infoEditC        widget.Clickable    // info-drawer: edit info grup
+	infoRenameC      widget.Clickable    // info-drawer: edit nama kontak (DM)
+	renameEd         widget.Editor       // editor nama kontak (modal renamecontact)
+	renameSave       widget.Clickable
+	renameCancel     widget.Clickable
 	infoMuteC        widget.Clickable    // info-drawer: bisukan/aktifkan notifikasi
 	infoMediaC       widget.Clickable    // info-drawer: buka galeri media
 	infoEncC         widget.Clickable    // info-drawer: info enkripsi
@@ -503,6 +507,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.contactList.Axis = layout.Vertical
 	u.mediaGalList.Axis = layout.Vertical
 	u.chnSearchEd.SingleLine = true
+	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -1058,6 +1063,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.mediaGalleryLayer(gtx)
 	case "disappearing":
 		u.disappearingLayer(gtx)
+	case "renamecontact":
+		u.renameContactLayer(gtx)
 	}
 }
 
@@ -1143,6 +1150,99 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// renameContactLayer — modal edit nama kontak (label lokal, ala simpan/edit kontak
+// di HP). Simpan → core.SaveContactLabel; kosong → RemoveContactLabel.
+func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	save := func() {
+		nm := strings.TrimSpace(u.renameEd.Text())
+		if u.core != nil {
+			if nm == "" {
+				u.core.RemoveContactLabel(u.selected)
+			} else {
+				u.core.SaveContactLabel(u.selected, nm)
+				u.selName = nm
+			}
+		}
+		u.overlay = ""
+	}
+	for u.renameCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.renameSave.Clicked(gtx) {
+		save()
+	}
+	for {
+		ev, ok := u.renameEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			save()
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(340)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Edit nama kontak")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					mac := op.Record(gtx.Ops)
+					fd := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						e := material.Editor(u.th, &u.renameEd, "Nama kontak")
+						e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(15)
+						return e.Layout(gtx)
+					})
+					call := mac.Stop()
+					r := gtx.Dp(8)
+					paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: fd.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+					call.Add(gtx.Ops)
+					return fd
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.renameCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Batal")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.renameSave.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Simpan")
+									l.Color, l.Font.Weight = u.t.Accent, font.Medium
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
 		})
 		call := macro.Stop()
 		rr := gtx.Dp(12)
@@ -4089,6 +4189,18 @@ func (u *UI) typingOf(jid string) string {
 	return ""
 }
 
+// SetRenameDemo — render-tool: pilih DM + buka modal edit nama kontak.
+func (u *UI) SetRenameDemo() {
+	for i := range u.chats {
+		if !u.chats[i].Group {
+			u.selected, u.selName, u.selGroup = u.chats[i].ID, u.chats[i].Name, false
+			break
+		}
+	}
+	u.renameEd.SetText(u.selName)
+	u.overlay = "renamecontact"
+}
+
 // SetTypingDemo — render-tool: pilih chat + paksa indikator mengetik (uji headless).
 func (u *UI) SetTypingDemo(jid string) {
 	if jid == "" && len(u.chats) > 0 {
@@ -4329,6 +4441,7 @@ func (u *UI) infoData() *InfoDrawerData {
 		}
 	} else {
 		d.Block = &u.infoBlockC
+		d.Rename = &u.infoRenameC
 		d.Blocked = u.core.IsBlocked(u.selected)
 	}
 	return d
@@ -4341,6 +4454,10 @@ func (u *UI) handleInfo(gtx layout.Context) {
 			u.core.Block(u.selected, !u.core.IsBlocked(u.selected)) // toggle blokir
 		}
 		u.overlay = ""
+	}
+	for u.infoRenameC.Clicked(gtx) { // edit nama kontak → modal
+		u.renameEd.SetText(u.selName)
+		u.overlay = "renamecontact"
 	}
 	for u.infoLeaveC.Clicked(gtx) {
 		if u.core != nil {

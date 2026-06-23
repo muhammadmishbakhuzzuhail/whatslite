@@ -280,6 +280,7 @@ type UI struct {
 	clicks     []widget.Clickable
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable // avatar profil di dasar rail → setelan profil
+	comNewBtn        widget.Clickable // tombol "Komunitas baru" di pane Komunitas
 	editor     widget.Editor
 	photos     map[string]paint.ImageOp // foto avatar in-memory (nama → op)
 	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
@@ -2183,7 +2184,10 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		u.handleChannels(gtx, rows)
 		return ChannelsPaneView(gtx, u.th, u.t, rows, u.chnCtl(rows))
 	case "communities":
-		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows())
+		for u.comNewBtn.Clicked(gtx) { // "Komunitas baru" → modal buat grup (proxy; komunitas = kumpulan grup)
+			u.overlay = "groupcreate"
+		}
+		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows(), &u.comNewBtn)
 	case "search":
 		return SearchView(gtx, u.th, u.t, u.searchCtl(gtx))
 	case "starred":

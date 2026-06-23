@@ -296,6 +296,8 @@ type UI struct {
 	railProfileClick widget.Clickable     // avatar profil di dasar rail → setelan profil
 	comNewBtn        widget.Clickable     // tombol "Komunitas baru" di pane Komunitas
 	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
+	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
+	aboutOpen        bool                 // dropdown saran Tentang terbuka?
 	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
 	editor           widget.Editor
 	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
@@ -702,6 +704,7 @@ func (u *UI) handleSettings(gtx layout.Context) {
 	for u.setBack.Clicked(gtx) { // kembali dari sub-pane
 		u.setSub = ""
 		u.profLoaded = false
+		u.aboutOpen = false
 	}
 	for u.setProfileClick.Clicked(gtx) { // kartu profil → sub-pane profil
 		u.setSub = "profile"
@@ -713,12 +716,16 @@ func (u *UI) handleSettings(gtx layout.Context) {
 			u.core.SetMyAbout(strings.TrimSpace(u.profAboutEd.Text()))
 		}
 	}
-	for i := range u.aboutClicks { // ketuk saran "Tentang" → isi editor
+	for u.aboutToggle.Clicked(gtx) { // chevron → buka/tutup dropdown saran
+		u.aboutOpen = !u.aboutOpen
+	}
+	for i := range u.aboutClicks { // ketuk saran "Tentang" → isi editor + tutup dropdown
 		if i >= len(aboutPresets) {
 			break
 		}
 		if u.aboutClicks[i].Clicked(gtx) {
 			u.profAboutEd.SetText(aboutPresets[i])
+			u.aboutOpen = false
 		}
 	}
 	for u.setClicks[0].Clicked(gtx) { // Akun → sub-pane
@@ -2493,6 +2500,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				}
 				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
 				ctl.AboutClicks = u.aboutClicks[:]
+				ctl.AboutToggle, ctl.AboutOpen = &u.aboutToggle, u.aboutOpen
 			case "account":
 				ctl.ProfPhone = u.core.GetProfile().Phone
 			case "storage":

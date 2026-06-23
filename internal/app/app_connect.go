@@ -159,6 +159,27 @@ func (a *App) ChatSubtitle(jid string) string {
 	return a.presence[jid]
 }
 
+// TypingLabel mengembalikan label mengetik/merekam bila chat sedang mengetik,
+// atau "" (TANPA presence) — utk override preview di daftar chat (section 2).
+func (a *App) TypingLabel(jid string) string {
+	a.presMu.RLock()
+	defer a.presMu.RUnlock()
+	st, ok := a.typing[jid]
+	if !ok || !st.on || time.Since(st.at) >= typingTTL {
+		return ""
+	}
+	if st.rec {
+		if st.who != "" {
+			return st.who + " merekam…"
+		}
+		return "merekam audio…"
+	}
+	if st.who != "" {
+		return st.who + " mengetik…"
+	}
+	return "mengetik…"
+}
+
 // GetState: "offline" | "qr" | "ready".
 func (a *App) GetState() string {
 	if a.eng == nil {

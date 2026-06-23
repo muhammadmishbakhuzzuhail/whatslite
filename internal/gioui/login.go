@@ -57,7 +57,7 @@ func LoginView(gtx layout.Context, th *material.Theme, t Theme, qr string, ctl *
 		// .login-hint { margin-top: 30px; color: text2; font-size: 14px; }
 		layout.Rigid(layout.Spacer{Height: unit.Dp(30)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 14, "Buka WhatsLite di ponsel untuk memindai.")
+			lbl := material.Label(th, 14, "Buka WhatsApp di ponsel untuk memindai.")
 			lbl.Color = t.Text2
 			return lbl.Layout(gtx)
 		}),

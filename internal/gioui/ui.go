@@ -793,7 +793,8 @@ func (u *UI) handleLogin(gtx layout.Context) {
 // lockScreen — gate PIN layar penuh: ikon gembok + judul + input PIN (mask) →
 // CheckAppPIN → buka. Salah → tanda merah.
 func (u *UI) lockScreen(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	// Latar pakai Bg (bukan HeadBg) supaya kotak input PIN (SearchBg≈HeadBg) kontras.
+	paint.FillShape(gtx.Ops, u.t.Bg, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	if t := u.pinEd.Text(); len(t) > 6 { // PIN maks 6 digit
 		u.pinEd.SetText(t[:6])
 	}

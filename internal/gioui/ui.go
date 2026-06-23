@@ -97,6 +97,7 @@ type UI struct {
 	scEd              widget.Editor       // editor teks status (composer post)
 	scPost            widget.Clickable
 	scCancel          widget.Clickable
+	scMedia           widget.Clickable    // composer: pilih foto/video → status media
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -387,6 +388,9 @@ type UI struct {
 	// OnSaveMedia: hook simpan media ke disk (di-set cmd/whatslite-gio → x/explorer
 	// CreateFile + tulis MediaBytes). name = nama berkas saran.
 	OnSaveMedia func(chat, id, name string)
+	// OnStatusMedia: hook pilih foto/video + unggah sbg status sendiri (di-set
+	// cmd/whatslite-gio → x/explorer + core.PostMediaStatus).
+	OnStatusMedia func()
 	// OnWinAction: hook aksi window utk titlebar custom (CSD Wayland). action ∈
 	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
 	OnWinAction func(action string)
@@ -4709,6 +4713,14 @@ func (u *UI) SetRenameDemo() {
 	u.overlay = "renamecontact"
 }
 
+// CloseStatusCompose — tutup composer status (dipanggil dari goroutine pick media).
+func (u *UI) CloseStatusCompose() {
+	if u.overlay == "statuscompose" {
+		u.overlay = "status"
+	}
+	u.scEd.SetText("")
+}
+
 // SetStatusViewDemo — render-tool: buka viewer status (progress bar + item ke-2).
 func (u *UI) SetStatusViewDemo() {
 	u.statusGroupsCache = []app.StatusGroupDTO{{
@@ -5181,6 +5193,11 @@ func (u *UI) statusComposeLayer(gtx layout.Context) {
 		u.scEd.SetText("")
 		u.overlay = "status"
 	}
+	for u.scMedia.Clicked(gtx) { // pilih foto/video → unggah status media
+		if u.OnStatusMedia != nil {
+			u.OnStatusMedia()
+		}
+	}
 	for u.scPost.Clicked(gtx) {
 		post()
 	}
@@ -5204,6 +5221,15 @@ func (u *UI) statusComposeLayer(gtx layout.Context) {
 						return u.scCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return icon(gtx, "close", 22, white)
+							})
+						})
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+					// tombol foto/video → unggah status media.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.scMedia.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "camera", 22, white)
 							})
 						})
 					}),

@@ -117,6 +117,9 @@ func run(w *gioapp.Window, core *app.App) error {
 		ui.OnSaveMedia = func(chat, id, name string) {
 			go saveMedia(expl, core, chat, id, name)
 		}
+		ui.OnStatusMedia = func() {
+			go pickAndPostStatus(expl, core, ui)
+		}
 	}
 	ui.OnWinAction = func(a string) { // titlebar custom → aksi window (CSD)
 		switch a {
@@ -221,6 +224,28 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, cat
 		return
 	}
 	ui.SetPendingMedia(kind, uri) // media → pratinjau (caption + sekali-lihat) di UI
+}
+
+// pickAndPostStatus — dialog berkas (foto/video) → unggah sbg STATUS sendiri via
+// core.PostMediaStatus (data-URI). Tutup composer setelah terkirim.
+func pickAndPostStatus(expl *explorer.Explorer, core *app.App, ui *gioui.UI) {
+	rc, err := expl.ChooseFile("jpg", "jpeg", "png", "webp", "mp4", "mov", "webm")
+	if err != nil || rc == nil {
+		return
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil || len(data) == 0 {
+		return
+	}
+	mime := http.DetectContentType(data)
+	kind := "image"
+	if strings.HasPrefix(mime, "video/") {
+		kind = "video"
+	}
+	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+	core.PostMediaStatus(kind, "", uri)
+	ui.CloseStatusCompose() // kembali ke pane status
 }
 
 // saveMedia membuka dialog "simpan sebagai" native (x/explorer), lalu menulis byte

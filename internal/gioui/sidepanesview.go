@@ -30,7 +30,7 @@ type spCall struct {
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
 func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall) layout.Dimensions {
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())

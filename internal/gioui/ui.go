@@ -103,8 +103,8 @@ type UI struct {
 	chnRowClicks []widget.Clickable  // aksi per-baris channel
 	chnExpCache  []chnChannel        // cache saluran jelajah
 	chnExpAt     time.Time
-	chnExpQuery  string              // query terakhir direktori jelajah (invalidasi cache)
-	chnSearchEd  widget.Editor       // kotak cari direktori channels (tab Jelajahi)
+	chnExpQuery  string        // query terakhir direktori jelajah (invalidasi cache)
+	chnSearchEd  widget.Editor // kotak cari direktori channels (tab Jelajahi)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -231,34 +231,34 @@ type UI struct {
 
 	// menu aksi baris chat (klik-kanan): SNAPSHOT chat saat menu dibuka (aksi pakai
 	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
-	chatCtxChat     app.ChatDTO
-	chatCtxItems    [6]widget.Clickable
-	headMenuClick   widget.Clickable // ikon overflow header → menu chat terbuka
-	headSearchClick widget.Clickable // ikon cari header → cari DALAM chat aktif
-	infoBlockC      widget.Clickable // info-drawer: blokir kontak
-	infoLeaveC      widget.Clickable // info-drawer: keluar grup
-	infoInviteC     widget.Clickable // info-drawer: link undangan grup
-	inviteLink      string           // link undangan termuat (modal "invitelink")
-	inviteCopy      widget.Clickable
-	inviteClose     widget.Clickable
-	infoEditC       widget.Clickable // info-drawer: edit info grup
-	infoMuteC       widget.Clickable // info-drawer: bisukan/aktifkan notifikasi
-	infoMediaC      widget.Clickable // info-drawer: buka galeri media
-	infoEncC        widget.Clickable // info-drawer: info enkripsi
-	infoMemberClicks []widget.Clickable // info-drawer: anggota grup
-	infoMemberJIDs   []string           // jid anggota (paralel infoMemberClicks)
-	encClose        widget.Clickable // overlay enkripsi/galeri: tutup
-	mediaCellClicks []widget.Clickable // sel grid galeri media
-	mediaGalList    widget.List       // scroll galeri media
-	infoTimerC      widget.Clickable    // info-drawer: pesan sementara (buka picker)
-	dispClicks      [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
-	dispClose       widget.Clickable    // picker pesan sementara: tutup
-	dispTimer       map[string]int      // jid → timer detik terpilih (label drawer)
-	gedName         widget.Editor    // editor nama grup (modal groupedit)
-	gedDesc         widget.Editor    // editor deskripsi grup
-	gedSave         widget.Clickable
-	gedCancel       widget.Clickable
-	curGroupDesc    string // deskripsi grup aktif (utk prefill editor)
+	chatCtxChat      app.ChatDTO
+	chatCtxItems     [6]widget.Clickable
+	headMenuClick    widget.Clickable // ikon overflow header → menu chat terbuka
+	headSearchClick  widget.Clickable // ikon cari header → cari DALAM chat aktif
+	infoBlockC       widget.Clickable // info-drawer: blokir kontak
+	infoLeaveC       widget.Clickable // info-drawer: keluar grup
+	infoInviteC      widget.Clickable // info-drawer: link undangan grup
+	inviteLink       string           // link undangan termuat (modal "invitelink")
+	inviteCopy       widget.Clickable
+	inviteClose      widget.Clickable
+	infoEditC        widget.Clickable    // info-drawer: edit info grup
+	infoMuteC        widget.Clickable    // info-drawer: bisukan/aktifkan notifikasi
+	infoMediaC       widget.Clickable    // info-drawer: buka galeri media
+	infoEncC         widget.Clickable    // info-drawer: info enkripsi
+	infoMemberClicks []widget.Clickable  // info-drawer: anggota grup
+	infoMemberJIDs   []string            // jid anggota (paralel infoMemberClicks)
+	encClose         widget.Clickable    // overlay enkripsi/galeri: tutup
+	mediaCellClicks  []widget.Clickable  // sel grid galeri media
+	mediaGalList     widget.List         // scroll galeri media
+	infoTimerC       widget.Clickable    // info-drawer: pesan sementara (buka picker)
+	dispClicks       [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
+	dispClose        widget.Clickable    // picker pesan sementara: tutup
+	dispTimer        map[string]int      // jid → timer detik terpilih (label drawer)
+	gedName          widget.Editor       // editor nama grup (modal groupedit)
+	gedDesc          widget.Editor       // editor deskripsi grup
+	gedSave          widget.Clickable
+	gedCancel        widget.Clickable
+	curGroupDesc     string // deskripsi grup aktif (utk prefill editor)
 
 	inChatSearch bool          // mode cari-dalam-chat aktif (header → bilah cari)
 	inChatEd     widget.Editor // input cari-dalam-chat
@@ -288,18 +288,19 @@ type UI struct {
 	messages  []app.MessageDTO
 	lastFetch time.Time
 
-	chatList    widget.List
-	msgList     widget.List
-	contactList widget.List
-	clicks     []widget.Clickable
+	chatList         widget.List
+	msgList          widget.List
+	contactList      widget.List
+	clicks           []widget.Clickable
 	railClicks       []widget.Clickable
-	railProfileClick widget.Clickable // avatar profil di dasar rail → setelan profil
-	comNewBtn        widget.Clickable // tombol "Komunitas baru" di pane Komunitas
+	railProfileClick widget.Clickable     // avatar profil di dasar rail → setelan profil
+	comNewBtn        widget.Clickable     // tombol "Komunitas baru" di pane Komunitas
+	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
 	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
-	editor     widget.Editor
-	photos     map[string]paint.ImageOp // foto avatar in-memory (nama → op)
-	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
-	photoTried map[string]bool          // jid yg sudah dicoba ambil (hindari refetch)
+	editor           widget.Editor
+	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
+	photoMu          sync.Mutex               // lindungi photos (diisi dari goroutine loader)
+	photoTried       map[string]bool          // jid yg sudah dicoba ambil (hindari refetch)
 
 	media      map[string]paint.ImageOp // thumbnail media bubble (msgID → op)
 	mediaMu    sync.Mutex
@@ -320,8 +321,8 @@ type UI struct {
 	quoteClicks []widget.Clickable // ketuk kutipan balasan → lompat ke pesan asal
 	hlMsg       string             // pesan yg sedang disorot (lompatan kutipan)
 	hlAt        time.Time          // waktu mulai sorot (pudar ~1.6s)
-	ctxIdx      int            // index pesan utk context-menu (display only)
-	ctxMsg      app.MessageDTO // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
+	ctxIdx      int                // index pesan utk context-menu (display only)
+	ctxMsg      app.MessageDTO     // SNAPSHOT pesan saat menu dibuka — aksi pakai ini, bukan
 	// index: backfill history prepend & refresh reorder menggeser semua index.
 	ctxItems [10]widget.Clickable // item menu (base6 + edit/unduh + pin + pilih + terjemah)
 
@@ -345,10 +346,10 @@ type UI struct {
 	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
 	OnWinAction func(action string)
 
-	winMin     widget.Clickable // tombol minimize titlebar
-	winMax     widget.Clickable // tombol maximize/restore titlebar
-	winClose   widget.Clickable // tombol close titlebar
-	winMaxed   bool             // status maximize (toggle ikon + aksi)
+	winMin   widget.Clickable // tombol minimize titlebar
+	winMax   widget.Clickable // tombol maximize/restore titlebar
+	winClose widget.Clickable // tombol close titlebar
+	winMaxed bool             // status maximize (toggle ikon + aksi)
 }
 
 // ctxMenu = item context-menu pesan (glyph + aksi/overlay tujuan).
@@ -485,10 +486,10 @@ func (u *UI) SetLocked(b bool) { u.locked = b }
 func (u *UI) SetSettingsSub(s string) { u.view = "settings"; u.setSub = s }
 
 // railNav = tombol nav rail kiri (ikon SVG WhatsApp + view tujuan).
-var railNav = []struct{ view, icon string }{
-	{"chats", "chats"}, {"status", "status"}, {"channels", "channels"},
-	{"communities", "communities"}, {"calls", "calls"}, {"contacts", "contacts"},
-	{"settings", "settings"},
+var railNav = []struct{ view, icon, label string }{
+	{"chats", "chats", "Chat"}, {"status", "status", "Status"}, {"channels", "channels", "Saluran"},
+	{"communities", "communities", "Komunitas"}, {"calls", "calls", "Panggilan"}, {"contacts", "contacts", "Kontak"},
+	{"settings", "settings", "Setelan"},
 }
 
 func NewUI(th *material.Theme, core *app.App) *UI {
@@ -509,7 +510,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
 	u.profNameEd.SingleLine = true
-	u.profNameEd.MaxLen = 25  // batas nama WhatsApp
+	u.profNameEd.MaxLen = 25 // batas nama WhatsApp
 	u.profAboutEd.SingleLine = true
 	u.profAboutEd.MaxLen = 139 // batas Tentang WhatsApp
 	u.pollQEd.SingleLine = true
@@ -2328,15 +2329,23 @@ func (u *UI) winBtn(gtx layout.Context, c *widget.Clickable, kind string, h, bw 
 func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	w := gtx.Dp(56)
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
-	paint.FillShape(gtx.Ops, u.t.RailBg, clip.Rect{Max: sz}.Op())
-	// garis pemisah tipis kanan (rail | sidebar).
-	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(w-1, 0), Max: sz}.Op())
+	// Section 1 (rail) warna SAMA dgn section 2 (sidebar); pemisah = border kanan.
+	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Line, clip.Rect{Min: image.Pt(w-1, 0), Max: sz}.Op())
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
-	// kelompok atas: nav (chats..contacts); settings (gerigi) + avatar profil
-	// dipisah ke DASAR rail (ala WhatsApp Web). railNav terakhir = "settings".
+	// kelompok atas: Meta AI + nav (chats..contacts); settings (gerigi) + avatar
+	// profil dipisah ke DASAR rail. railNav terakhir = "settings".
 	last := len(railNav) - 1
-	top := []layout.FlexChild{layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout)}
+	for u.railMetaC.Clicked(gtx) { // Meta AI (placeholder — belum ada backend)
+	}
+	top := []layout.FlexChild{
+		layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.railIconBtn(gtx, &u.railMetaC, "metaai", "Meta AI", false)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+	}
 	for i := 0; i < last; i++ {
 		i := i
 		top = append(top, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railBtn(gtx, i) }))
@@ -2353,7 +2362,7 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, top...)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
-		// dasar: garis pemisah halus, gerigi setelan, avatar profil.
+		// dasar: gerigi setelan, avatar profil.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railBtn(gtx, last) }),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.railProfile(gtx) }),
@@ -2363,14 +2372,20 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 }
 
 // railProfile — avatar bulat 34 di dasar rail (foto profil sendiri bila ada, else
-// inisial). Klik → setelan profil.
+// inisial). Klik → setelan profil. Hover → tooltip "Profil".
 func (u *UI) railProfile(gtx layout.Context) layout.Dimensions {
 	name := "Saya"
 	if u.profName != "" {
 		name = u.profName
 	}
 	return u.railProfileClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return u.avatar(gtx, name, u.selfJID, 34)
+		dims := u.avatar(gtx, name, u.selfJID, 34)
+		if u.railProfileClick.Hovered() {
+			tm := op.Record(gtx.Ops)
+			u.railTooltip(gtx, dims.Size.Y, "Profil")
+			op.Defer(gtx.Ops, tm.Stop())
+		}
+		return dims
 	})
 }
 
@@ -2379,16 +2394,21 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 	for u.railClicks[i].Clicked(gtx) {
 		u.view = nav.view
 	}
-	return u.railClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return u.railIconBtn(gtx, &u.railClicks[i], nav.icon, nav.label, u.view == nav.view)
+}
+
+// railIconBtn — tombol ikon rail 44px: bg aktif/hover + ikon, plus tooltip saat
+// hover (digambar di atas via op.Defer, supaya tak terpotong panel sebelah).
+func (u *UI) railIconBtn(gtx layout.Context, c *widget.Clickable, ico, tip string, active bool) layout.Dimensions {
+	return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(44)
 		sz := image.Pt(d, d)
-		active := u.view == nav.view
 		rad := d / 2
 		bg := color.NRGBA{}
 		if active {
 			bg = color.NRGBA{R: 0, G: 168, B: 132, A: 38}
 			rad = gtx.Dp(14)
-		} else if u.railClicks[i].Hovered() {
+		} else if c.Hovered() {
 			bg = u.t.Hover
 		}
 		if bg.A > 0 {
@@ -2400,15 +2420,40 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 			col = u.t.Accent
 		}
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return icon(gtx, nav.icon, 24, col)
+			return icon(gtx, ico, 24, col)
 		})
+		if c.Hovered() && tip != "" { // tooltip di kanan ikon, di atas segalanya
+			tm := op.Record(gtx.Ops)
+			u.railTooltip(gtx, d, tip)
+			op.Defer(gtx.Ops, tm.Stop())
+		}
 		return layout.Dimensions{Size: sz}
 	})
 }
 
+// railTooltip — kotak keterangan kecil di kanan tombol rail (paritas tooltip
+// shadcn): bg Bg2 membulat + label, dipusatkan vertikal terhadap tombol btnH.
+func (u *UI) railTooltip(gtx layout.Context, btnH int, txt string) {
+	gap := gtx.Dp(8)
+	macro := op.Record(gtx.Ops)
+	cg := gtx
+	cg.Constraints.Min = image.Point{}
+	dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
+		l := material.Label(u.th, 13, txt)
+		l.Color, l.MaxLines = u.t.Text, 1
+		return l.Layout(gtx)
+	})
+	call := macro.Stop()
+	off := op.Offset(image.Pt(btnH+gap, (btnH-dims.Size.Y)/2)).Push(gtx.Ops)
+	r := gtx.Dp(6)
+	paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	off.Pop()
+}
+
 // ---- sidebar (dispatch per view: settings/calls pane, else daftar chat) ----
 func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -2722,7 +2767,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 				u.messages = u.core.GetMessages(c.ID)
 				u.prefetchHistory(c.ID) // history tipis → backfill lama terurut
 			}
-			u.captureUnreadDivider(c.Badge) // batas "belum dibaca" SEBELUM ditandai-baca
+			u.captureUnreadDivider(c.Badge)     // batas "belum dibaca" SEBELUM ditandai-baca
 			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
 		}
 		// bg hover/active

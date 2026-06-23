@@ -51,7 +51,7 @@ type chnTab struct {
 func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels []chnChannel, ctl *ChnCtl) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)

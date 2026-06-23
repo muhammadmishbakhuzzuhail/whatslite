@@ -30,7 +30,7 @@ type scItem struct {
 // ScheduledPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane TERJADWAL:
 // .pane-head + section header + 2 baris demo. Fungsi murni, mandiri (standalone).
 func ScheduledPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())

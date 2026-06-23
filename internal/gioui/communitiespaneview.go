@@ -30,7 +30,7 @@ type comItem struct {
 // (tiap kartu menampilkan grup Pengumuman dgn ikon megafon). newBtn nil → tombol
 // tetap digambar tapi tak bisa diklik (render standalone).
 func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items []comItem, newBtn *widget.Clickable) layout.Dimensions {
-	w := gtx.Dp(408)
+	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)

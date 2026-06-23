@@ -90,6 +90,8 @@ var iconPaths = map[string]string{
 	"wallpaperico": `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-4 4 3 5-5 4 4"/>`,
 	"archive":      `<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M9 13h6"/>`,
 	"communities":  `<circle cx="9" cy="8.5" r="3"/><path d="M3.5 18.5c0-3 2.4-4.5 5.5-4.5s5.5 1.5 5.5 4.5"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M16 14.2c2.6.1 4.5 1.5 4.5 4.3"/>`,
+	"report":        `<path d="M5 21V4"/><path d="M5 4.5h12l-2.2 4 2.2 4H5"/>`,
+	"media":         `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M5 17l4.5-4 3 2.5L16 11l3 3.5"/>`,
 }
 
 type iconKey struct {

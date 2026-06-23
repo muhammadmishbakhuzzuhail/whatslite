@@ -42,7 +42,7 @@ func MsgInfoView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensi
 // miCard — .nc-card: sidebarBg, radius 14, lebar ~360, padding 18, kolom isi.
 func miCard(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	w := gtx.Dp(380)
+	w := gtx.Dp(408)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
 	readBy := []miRcpt{

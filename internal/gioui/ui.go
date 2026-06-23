@@ -655,7 +655,7 @@ func (u *UI) body(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { // garis pemisah abu sidebar↔percakapan
 			wpx := gtx.Dp(1)
 			h := gtx.Constraints.Max.Y
-			paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(wpx, h)}.Op())
+			paint.FillShape(gtx.Ops, u.t.Line, clip.Rect{Max: image.Pt(wpx, h)}.Op())
 			return layout.Dimensions{Size: image.Pt(wpx, h)}
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.conversation(gtx) }),
@@ -1440,7 +1440,7 @@ func (u *UI) contactSendLayer(gtx layout.Context) {
 	u.contactSendList.Axis = layout.Vertical
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		w, h := gtx.Dp(380), gtx.Dp(460)
+		w, h := gtx.Dp(408), gtx.Dp(460)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 		gtx.Constraints.Max.Y = h
 		macro := op.Record(gtx.Ops)
@@ -1624,7 +1624,7 @@ func (u *UI) pollComposeLayer(gtx layout.Context) {
 	}
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(380), gtx.Dp(380)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(408), gtx.Dp(408)
 		return u.pollComposeCard(gtx)
 	})
 }
@@ -2115,7 +2115,7 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 
 // ---- sidebar (dispatch per view: settings/calls pane, else daftar chat) ----
 func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
-	w := gtx.Dp(380)
+	w := gtx.Dp(408)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)

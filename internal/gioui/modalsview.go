@@ -50,7 +50,7 @@ func ModalsView(gtx layout.Context, th *material.Theme, t Theme, ctl *FwdCtl) la
 
 // mvCard — .fwd-modal: sidebarBg, radius 12, lebar 380, kolom isi.
 func mvCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, ctl *FwdCtl) layout.Dimensions {
-	w := gtx.Dp(380)
+	w := gtx.Dp(408)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 
 	rows := []mvRow{

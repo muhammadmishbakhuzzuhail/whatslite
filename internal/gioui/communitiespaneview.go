@@ -25,7 +25,7 @@ type comItem struct {
 
 // CommunitiesPaneView — sidebar 380px (t.SidebarBg) berisi pane KOMUNITAS.
 func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items []comItem) layout.Dimensions {
-	w := gtx.Dp(380)
+	w := gtx.Dp(408)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)

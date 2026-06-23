@@ -280,6 +280,10 @@ func main() {
 		case "app-chatbottom":
 			ui.ScrollMessagesToEnd()
 			ui.Layout(gtx)
+		case "app-multiline":
+			ui.ScrollMessagesToEnd()
+			ui.SetComposeText("Baris pertama pesan\nBaris kedua\nBaris ketiga di sini")
+			ui.Layout(gtx)
 		case "app-newchat":
 			ui.SetView("chats")
 			ui.Deselect()

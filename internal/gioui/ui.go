@@ -681,7 +681,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.stReplyEd.SingleLine, u.stReplyEd.Submit = true, true
 	u.scEd.Submit = true
 	u.railClicks = make([]widget.Clickable, len(railNav))
-	u.editor.SingleLine = true
+	u.editor.SingleLine = false // multibaris: Shift+Enter = baris baru, Enter = kirim
 	u.editor.Submit = true
 	u.inChatEd.SingleLine = true
 	u.inChatEd.Submit = true
@@ -8124,15 +8124,6 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 	if u.recDemo || (u.core != nil && u.core.VoiceRecording()) {
 		return u.recordingBar(gtx)
 	}
-	barH := 0
-	if u.replyTo != "" {
-		barH = gtx.Dp(46)
-	}
-	h := gtx.Dp(62) + barH
-	sz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
-	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	for u.emojiClick.Clicked(gtx) {
 		u.reactMsgID = "" // tombol emoji composer → mode sisip (bukan reaksi pesan)
 		u.overlay = "reaction"
@@ -8150,7 +8141,12 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 		u.clearEdit()
 		u.editor.SetText("")
 	}
-	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+	// tinggi composer DINAMIS: pil tumbuh hingga ~6 baris (Shift+Enter) → ukur kolom
+	// dulu, lalu gambar latar HeadBg + garis atas setinggi itu.
+	cgtx := gtx
+	cgtx.Constraints.Min = image.Point{}
+	macro := op.Record(gtx.Ops)
+	dims := layout.Flex{Axis: layout.Vertical}.Layout(cgtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if u.editTarget != "" {
 				return u.editBanner(gtx)
@@ -8162,7 +8158,7 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.stickerClick, "sticker") }),
@@ -8176,6 +8172,11 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 	)
+	call := macro.Stop()
+	sz := image.Pt(gtx.Constraints.Max.X, dims.Size.Y)
+	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(sz.X, 1)}.Op())
+	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: sz}
 }
 
@@ -8558,12 +8559,11 @@ func (u *UI) sendCurrent() {
 }
 
 func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
-	pillH := gtx.Dp(40)
-	psz := image.Pt(gtx.Constraints.Max.X, pillH)
 	rr := gtx.Dp(22)
-	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-	gtx.Constraints.Min = psz
-	// Kirim saat Enter (Editor.Submit). core nil (demo) → tak kirim.
+	minH := gtx.Dp(40)
+	maxH := gtx.Dp(140) // ~6 baris lalu menggulir di dalam (ala WhatsApp)
+	// Enter → kirim (SubmitEvent); Shift+Enter → baris baru (editor SingleLine=false,
+	// ditangani native widget.Editor). core nil (demo) → tak kirim.
 	for {
 		ev, ok := u.editor.Update(gtx)
 		if !ok {
@@ -8584,15 +8584,28 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 			u.sendCurrent() // Enter → kirim
 		}
 	}
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			ed := material.Editor(u.th, &u.editor, "Ketik pesan")
-			ed.Color = u.t.Text
-			ed.HintColor = u.t.Text2
-			ed.TextSize = 15
-			return ed.Layout(gtx)
-		})
+	// ukur editor (membungkus + menggulir dalam maxH), lalu gambar pil setinggi itu.
+	egtx := gtx
+	egtx.Constraints.Min = image.Point{}
+	if egtx.Constraints.Max.Y > maxH {
+		egtx.Constraints.Max.Y = maxH
+	}
+	macro := op.Record(gtx.Ops)
+	edDims := layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(9), Bottom: unit.Dp(9)}.Layout(egtx, func(gtx layout.Context) layout.Dimensions {
+		ed := material.Editor(u.th, &u.editor, "Ketik pesan")
+		ed.Color = u.t.Text
+		ed.HintColor = u.t.Text2
+		ed.TextSize = 15
+		return ed.Layout(gtx)
 	})
+	call := macro.Stop()
+	h := edDims.Size.Y
+	if h < minH {
+		h = minH
+	}
+	psz := image.Pt(gtx.Constraints.Max.X, h)
+	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: psz}
 }
 

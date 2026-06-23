@@ -141,6 +141,9 @@ func main() {
 		case "app-invitelink":
 			ui.SetInviteDemo("https://chat.whatsapp.com/AbC123dEfG456") // modal link undangan
 			ui.Layout(gtx)
+		case "app-recording":
+			ui.SetRecordingDemo()
+			ui.Layout(gtx)
 		case "app-groupedit":
 			ui.SetGroupEditDemo("Tim Proyek X", "Koordinasi rilis & tugas") // modal edit grup
 			ui.Layout(gtx)

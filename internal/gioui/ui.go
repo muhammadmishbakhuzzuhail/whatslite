@@ -2794,7 +2794,7 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 		u.view = nav.view
 	}
 	dims := u.railIconBtn(gtx, &u.railClicks[i], nav.icon, nav.label, u.view == nav.view)
-	if nav.view == "chats" { // badge total belum-dibaca di pojok ikon Chats
+	if nav.view == "chats" && !u.fullscreenOverlay() { // badge belum-dibaca (jangan nembus overlay penuh-layar)
 		if n := u.totalUnread(); n > 0 {
 			tm := op.Record(gtx.Ops)
 			u.railBadge(gtx, dims.Size.X, n)
@@ -2802,6 +2802,17 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 		}
 	}
 	return dims
+}
+
+// fullscreenOverlay — true bila overlay aktif menutup SELURUH layar (viewer status,
+// composer, picker emoji status, lightbox) → jangan gambar elemen op.Defer (badge
+// rail/tooltip) di atasnya.
+func (u *UI) fullscreenOverlay() bool {
+	switch u.overlay {
+	case "statusview", "statuscompose", "statusemoji", "lightbox":
+		return true
+	}
+	return false
 }
 
 // totalUnread — jumlah semua chat belum-dibaca (badge ikon Chats di rail).

@@ -239,8 +239,13 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	editable := ctl.ProfNameEd != nil && ctl.ProfAboutEd != nil
 	return layout.Inset{Top: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return setAvatar(gtx, th, name, "#00a884", 120) }),
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X // avatar TERPUSAT (baris lain lebar-penuh)
+				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return setAvatar(gtx, th, name, "#00a884", 120)
+				})
+			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(20)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if editable {

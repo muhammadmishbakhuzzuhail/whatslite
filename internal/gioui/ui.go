@@ -2769,7 +2769,6 @@ func (u *UI) header(gtx layout.Context, w int, title string, col color.NRGBA, sp
 // ---- baris chat (.chat-row) ----
 func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 	c := u.chats[i]
-	active := c.ID == u.selected
 	return u.clicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		for u.clicks[i].Clicked(gtx) {
 			u.selected = c.ID
@@ -2808,21 +2807,31 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			})
 		})
 		call := macro.Stop()
-		// bg: chat aktif (Selected) > hover (Hover); konten digambar di atasnya.
+		// bg: kartu MEMBULAT dgn margin SIMETRIS kiri-kanan (bukan kotak full yg
+		// kepotong scrollbar di kanan saja). aktif=Selected > hover=Hover.
 		bg := color.NRGBA{}
+		active := c.ID == u.selected
+		hov := u.clicks[i].Hovered()
 		if active {
 			bg = u.t.Selected
-		} else if u.clicks[i].Hovered() {
+		} else if hov {
 			bg = u.t.Hover
 		}
+		m := gtx.Dp(7)      // margin kiri+kanan (simetris)
+		vy := gtx.Dp(3)     // margin atas+bawah kartu
+		rr := gtx.Dp(12)    // sudut membulat
 		if bg.A > 0 {
-			paint.FillShape(gtx.Ops, bg, clip.Rect{Max: dims.Size}.Op())
+			rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		}
 		call.Add(gtx.Ops)
-		// pemisah horizontal antar baris (mulai setelah avatar, ala WhatsApp).
-		lh := gtx.Dp(1)
-		dl := gtx.Dp(82) // 8(outer)+12(inner)+49(avatar)+13(spacer)
-		paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(dl, dims.Size.Y-lh), Max: image.Pt(dims.Size.X, dims.Size.Y)}.Op())
+		// pemisah antar baris: dlm margin yg SAMA (mulai setelah avatar), dan
+		// disembunyikan saat hover/aktif supaya kartu bersih (modern).
+		if !active && !hov {
+			lh := gtx.Dp(1)
+			dl := gtx.Dp(82) // 8(outer)+12(inner)+49(avatar)+13(spacer)
+			paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(dl, dims.Size.Y-lh), Max: image.Pt(dims.Size.X-m, dims.Size.Y)}.Op())
+		}
 		// klik-kanan (secondary) di baris → menu aksi chat.
 		tag := chatTag(i)
 		for {

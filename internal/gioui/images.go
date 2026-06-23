@@ -160,6 +160,27 @@ func rotateDataURI90(uri string) (string, paint.ImageOp, bool) {
 	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
 }
 
+// cropDataURI — potong gambar data-URI ke rect r (koordinat piksel gambar),
+// encode ulang JPEG. Kembalikan (uri baru, ImageOp baru, true). r<4px → gagal.
+func cropDataURI(uri string, r image.Rectangle) (string, paint.ImageOp, bool) {
+	img := decodeImage(decodeDataURI(uri))
+	if img == nil {
+		return uri, paint.ImageOp{}, false
+	}
+	b := img.Bounds()
+	rr := r.Add(b.Min).Intersect(b)
+	if rr.Dx() < 4 || rr.Dy() < 4 {
+		return uri, paint.ImageOp{}, false
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, rr.Dx(), rr.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, rr.Min, draw.Src)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 88}); err != nil {
+		return uri, paint.ImageOp{}, false
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
+}
+
 // synthPhoto: foto sintetis (gradient sunset) utk uji render avatar-foto headless
 // tanpa engine. Membuktikan jalur gambar bulat Gio bekerja.
 func synthPhoto() paint.ImageOp {

@@ -67,22 +67,7 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 // spPaneHead — .sidebar-head { height: 60px; padding: 0 18px; background: head-bg;
 // border-bottom: 1px solid divider } ; h1 23/Bold (letter-spacing -.3px).
 func spPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
-	h := gtx.Dp(60)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	// border-bottom: 1px solid var(--divider)
-	bh := gtx.Dp(1)
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-bh), Max: image.Pt(w, h)}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 23, title) // .sidebar-head h1 23px/700
-			lbl.Color = t.Text
-			lbl.Font.Weight = font.Bold
-			return lbl.Layout(gtx)
-		})
-	})
-	return layout.Dimensions{Size: sz}
+	return paneHead(gtx, th, t, w, title)
 }
 
 // spCallRow — .chat-row { padding: 10px 12px; gap: 13px } : avatar 49 + kolom

@@ -141,22 +141,30 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 	return layout.Dimensions{Size: sz}
 }
 
-// cpPaneHead — .pane-head { height: 56px; padding: 0 16px; background: head-bg }
-// h2 19/SemiBold.
-func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
-	h := gtx.Dp(56)
+// paneHead — header pane sidebar SERAGAM (sumber tunggal; paritas header "Chat"):
+// tinggi 60, SidebarBg, divider bawah 1px, judul 23/Bold, inset kiri 18, terpusat
+// vertikal. Semua pane utama (Kontak/Status/Saluran/Komunitas/Panggilan/Chat)
+// memakai ini agar judul konsisten — jangan bikin header per-pane sendiri lagi.
+func paneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
+	h := gtx.Dp(60)
 	sz := image.Pt(w, h)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-gtx.Dp(1)), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 19, title)
+			lbl := material.Label(th, 23, title)
 			lbl.Color = t.Text
-			lbl.Font.Weight = font.SemiBold
+			lbl.Font.Weight = font.Bold
 			return lbl.Layout(gtx)
 		})
 	})
 	return layout.Dimensions{Size: sz}
+}
+
+// cpPaneHead — header pane Kontak (delegasi ke paneHead seragam).
+func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
+	return paneHead(gtx, th, t, w, title)
 }
 
 // cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian

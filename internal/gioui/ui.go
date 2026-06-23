@@ -2952,7 +2952,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	u.handleNewChat(gtx)
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return u.header(gtx, w, "Chat", u.t.Text, 23, font.Bold)
+			return paneHead(gtx, u.th, u.t, w, "Chat")
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.searchBar(gtx)
@@ -3176,22 +3176,6 @@ func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
 		call.Add(gtx.Ops)
 		return dims
 	})
-}
-
-func (u *UI) header(gtx layout.Context, w int, title string, col color.NRGBA, sp unit.Sp, wt font.Weight) layout.Dimensions {
-	h := gtx.Dp(60)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
-	// divider bawah
-	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(18), Top: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(u.th, sp, title)
-		lbl.Color = col
-		lbl.Font.Weight = wt
-		return lbl.Layout(gtx)
-	})
-	return layout.Dimensions{Size: sz}
 }
 
 // ---- baris chat (.chat-row) ----

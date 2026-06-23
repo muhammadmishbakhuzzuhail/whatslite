@@ -104,21 +104,7 @@ func comNewRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimension
 }
 
 func comPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
-	h := gtx.Dp(56)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	bh := gtx.Dp(1)
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-bh), Max: image.Pt(w, h)}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 19, title)
-			lbl.Color = t.Text
-			lbl.Font.Weight = font.SemiBold
-			return lbl.Layout(gtx)
-		})
-	})
-	return layout.Dimensions{Size: sz}
+	return paneHead(gtx, th, t, w, title)
 }
 
 // comRow — kartu komunitas: ikon communities (kotak membulat) + nama + sub.

@@ -85,7 +85,12 @@ type UI struct {
 	stReplyEd         widget.Editor    // balas status (kirim DM ke poster)
 	stReplySend       widget.Clickable
 	stEmoji           [6]widget.Clickable // reaksi emoji cepat (ala IG story)
+	stEmojiMore       widget.Clickable    // tombol "+" → buka picker emoji lengkap
 	stReplied         string              // emoji terkirim terakhir (umpan balik singkat)
+	stPaused          bool                // jeda auto-advance (tombol pause)
+	stPause           widget.Clickable    // toggle pause/main
+	stVideoPlay       widget.Clickable    // tombol play video status (pemutar eksternal)
+	stItemStart       time.Time           // waktu item kini mulai (utk progress auto-advance)
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -1083,6 +1088,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		})
 	case "statusview":
 		u.statusViewLayer(gtx)
+	case "statusemoji":
+		u.statusEmojiLayer(gtx)
 	case "pollcompose":
 		u.pollComposeLayer(gtx)
 	case "contactsend":
@@ -4808,27 +4815,62 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 	if u.statusItemIdx < 0 {
 		u.statusItemIdx = 0
 	}
+	// next/prev item; di akhir → tutup. Reset timer auto-advance tiap pindah.
+	goItem := func(delta int) {
+		ni := u.statusItemIdx + delta
+		if ni < 0 {
+			u.statusItemIdx = 0
+			return
+		}
+		if ni >= n {
+			u.overlay = "" // habis → tutup
+			return
+		}
+		u.statusItemIdx = ni
+		u.stItemStart = gtx.Now
+		if u.core != nil { // tandai item dilihat (cincin abu bertambah)
+			u.core.MarkStatusSeen(g.Jid, g.Items[ni].Ts)
+			u.srAt = time.Time{}
+		}
+	}
 	for u.statusClose.Clicked(gtx) {
 		u.overlay = ""
 	}
-	// navigasi tap: kanan → item berikut (di akhir → tutup); kiri → item sebelumnya.
+	for u.stPause.Clicked(gtx) { // jeda / lanjut auto-advance
+		u.stPaused = !u.stPaused
+		u.stItemStart = gtx.Now // reset hitung saat lanjut
+	}
 	for u.stNextZone.Clicked(gtx) {
-		if u.statusItemIdx < n-1 {
-			u.statusItemIdx++
-			if u.core != nil { // tandai item baru dilihat (cincin abu bertambah)
-				u.core.MarkStatusSeen(g.Jid, g.Items[u.statusItemIdx].Ts)
-				u.srAt = time.Time{}
-			}
-		} else {
-			u.overlay = "" // habis → tutup
-		}
+		goItem(1)
 	}
 	for u.stPrevZone.Clicked(gtx) {
-		if u.statusItemIdx > 0 {
-			u.statusItemIdx--
-		}
+		goItem(-1)
 	}
 	item := g.Items[u.statusItemIdx]
+	isVideo := item.Type == "video"
+	for u.stVideoPlay.Clicked(gtx) { // play video status → pemutar eksternal
+		if u.OnPlayVideo != nil {
+			u.OnPlayVideo("status@broadcast", item.ID, "video")
+		}
+		u.stPaused = true // jeda progress selama nonton
+	}
+	// auto-advance: teks/gambar ~5 dtk (video tidak — diputar eksternal). Animasikan
+	// progress; saat penuh → item berikut. Pause/fokus-balas menghentikan.
+	const itemDur = 5 * time.Second
+	dur := float32(0)
+	if !u.stPaused && !isVideo {
+		el := gtx.Now.Sub(u.stItemStart)
+		dur = float32(el) / float32(itemDur)
+		if dur >= 1 {
+			goItem(1)
+			dur = 0
+		} else {
+			gtx.Execute(op.InvalidateCmd{}) // animasikan bar
+		}
+	}
+	if gtx.Focused(&u.stReplyEd) { // sedang mengetik balasan → jeda (jangan loncat)
+		u.stPaused = true
+	}
 	// reaksi emoji cepat (ala IG story) → ReactStatus.
 	for i := range u.stEmoji {
 		for u.stEmoji[i].Clicked(gtx) {
@@ -4836,7 +4878,12 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				u.core.ReactStatus(g.Jid, item.ID, statusEmojis[i])
 				u.stReplied = statusEmojis[i] // umpan balik singkat
 			}
+			u.stPaused = true
 		}
+	}
+	for u.stEmojiMore.Clicked(gtx) { // "+" → picker emoji lengkap utk reaksi status
+		u.stPaused = true
+		u.overlay = "statusemoji"
 	}
 	// balas teks → ReplyStatus (DM ke poster, mengutip status).
 	sendReply := func() {
@@ -4873,13 +4920,27 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				if bw < 1 {
 					bw = 1
 				}
+				dim := color.NRGBA{R: 255, G: 255, B: 255, A: 0x55}
+				full := color.NRGBA{R: 255, G: 255, B: 255, A: 0xff}
+				rr := func(x0, x1 int, c color.NRGBA) {
+					paint.FillShape(gtx.Ops, c, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x0, 0), Max: image.Pt(x1, h)}, NW: h / 2, NE: h / 2, SE: h / 2, SW: h / 2}.Op(gtx.Ops))
+				}
 				for i := 0; i < n; i++ {
 					x := i * (bw + gap)
-					col := color.NRGBA{R: 255, G: 255, B: 255, A: 0x55} // upcoming redup
-					if i <= u.statusItemIdx {
-						col = color.NRGBA{R: 255, G: 255, B: 255, A: 0xff} // dilihat/aktif
+					switch {
+					case i < u.statusItemIdx: // sudah lewat → penuh
+						rr(x, x+bw, full)
+					case i == u.statusItemIdx: // aktif → track redup + isi sesuai progress (animasi)
+						rr(x, x+bw, dim)
+						fillW := int(float32(bw) * dur)
+						if fillW > 0 {
+							rr(x, x+fillW, full)
+						} else {
+							rr(x, x+bw, full) // video/jeda → tampil penuh
+						}
+					default: // belum → redup
+						rr(x, x+bw, dim)
 					}
-					paint.FillShape(gtx.Ops, col, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x, 0), Max: image.Pt(x+bw, h)}, NW: h / 2, NE: h / 2, SE: h / 2, SW: h / 2}.Op(gtx.Ops))
 				}
 				return layout.Dimensions{Size: image.Pt(total, h)}
 			})
@@ -4906,6 +4967,18 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 						)
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.stPause.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								ic := "pause"
+								if u.stPaused {
+									ic = "play"
+								}
+								return icon(gtx, ic, 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+						})
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return u.statusClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return icon(gtx, "close", 22, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
@@ -4925,7 +4998,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 						// gambar: unduh media penuh (status@broadcast) → fallback thumb tertanam.
 						var iop paint.ImageOp
 						haveImg := false
-						if item.Type == "image" || item.Type == "video" || item.Type == "sticker" {
+						if item.Type == "image" || item.Type == "sticker" { // video pakai thumb (putar eksternal)
 							u.ensureMedia("status@broadcast", item.ID)
 							u.mediaMu.Lock()
 							if op2, ok := u.media[item.ID]; ok {
@@ -4975,6 +5048,23 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 						layout.Flexed(0.68, func(gtx layout.Context) layout.Dimensions { return u.stNextZone.Layout(gtx, fill) }),
 					)
 				}),
+				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+					if !isVideo {
+						return layout.Dimensions{}
+					}
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return u.stVideoPlay.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							d := gtx.Dp(64)
+							sz := image.Pt(d, d)
+							paint.FillShape(gtx.Ops, color.NRGBA{A: 0xaa}, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+							gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "play", 30, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+							return layout.Dimensions{Size: sz}
+						})
+					})
+				}),
 			)
 		}),
 		// bilah bawah: reaksi emoji cepat + kotak balas (status milik sendiri tak ada).
@@ -4989,9 +5079,21 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 					// baris emoji reaksi cepat.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						gtx.Constraints.Min.X = gtx.Constraints.Max.X
-						return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceEvenly}.Layout(gtx,
-							emojiBtns(gtx, u.th, u.stEmoji[:])...,
-						)
+						children := emojiBtns(gtx, u.th, u.stEmoji[:])
+						children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.stEmojiMore.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									d := gtx.Dp(34)
+									sz := image.Pt(d, d)
+									paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 0x22}, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+									gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+									return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										return icon(gtx, "plus", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+									})
+								})
+							})
+						}))
+						return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceEvenly}.Layout(gtx, children...)
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 					// kotak balas (pill gelap + editor + tombol kirim).
@@ -5023,6 +5125,36 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 			})
 		}),
 	)
+}
+
+// statusEmojiLayer — picker emoji lengkap utk reaksi status (tombol "+"). Pilih →
+// ReactStatus lalu kembali ke viewer.
+func (u *UI) statusEmojiLayer(gtx layout.Context) {
+	if u.statusViewIdx < 0 || u.statusViewIdx >= len(u.statusGroupsCache) {
+		u.overlay = "statusview"
+		return
+	}
+	g := u.statusGroupsCache[u.statusViewIdx]
+	if u.statusItemIdx < len(g.Items) {
+		item := g.Items[u.statusItemIdx]
+		em := RpEmoji()
+		for i := range u.rpClicks {
+			if i >= len(em) {
+				break
+			}
+			for u.rpClicks[i].Clicked(gtx) {
+				if u.core != nil {
+					u.core.ReactStatus(g.Jid, item.ID, em[i])
+				}
+				u.overlay = "statusview" // kembali ke viewer
+			}
+		}
+	}
+	for u.backdrop.Clicked(gtx) {
+		u.overlay = "statusview"
+	}
+	u.backdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
+	ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks})
 }
 
 // statusEmojis — reaksi cepat status (ala IG story / WhatsApp).
@@ -5071,6 +5203,8 @@ func (u *UI) handleStatus(gtx layout.Context) {
 			u.statusViewIdx = i
 			u.statusItemIdx = 0 // mulai dari item paling lama
 			u.statusViewAt = gtx.Now
+			u.stItemStart = gtx.Now
+			u.stPaused = false
 			u.overlay = "statusview"
 			g := u.statusGroupsCache[i] // tandai item pertama dilihat
 			if u.core != nil && len(g.Items) > 0 {

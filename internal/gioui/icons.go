@@ -69,6 +69,7 @@ var iconPaths = map[string]string{
 	"leavegroup":   `<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>`,
 	"docfile":      `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>`,
 	"play":         `<path d="M8 5v14l11-7z"/>`,
+	"pause":        `<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>`,
 	"locpin":       `<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>`,
 	"download":     `<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>`,
 	"chevrondown":  `<path d="M6 9l6 6 6-6"/>`,

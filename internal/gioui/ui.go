@@ -2952,7 +2952,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
-		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks)
+		return StatusPaneView(gtx, u.th, u.t, items, u.statusClicks, u.avatar, u.profName, u.selfJID)
 	case "channels":
 		rows := u.channelRows()
 		u.handleChannels(gtx, rows)
@@ -4752,7 +4752,7 @@ func (u *UI) statusRows() []stpItem {
 			continue // status sendiri tampil di baris My-status, bukan daftar
 		}
 		u.statusGroupsCache = append(u.statusGroupsCache, g)
-		out = append(out, stpItem{name: g.Name, time: g.Time, seen: g.Seen})
+		out = append(out, stpItem{name: g.Name, time: g.Time, seen: g.Seen, jid: g.Jid})
 	}
 	if len(u.statusClicks) < len(out) {
 		u.statusClicks = make([]widget.Clickable, len(out))

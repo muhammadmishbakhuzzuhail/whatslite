@@ -15,6 +15,7 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -26,13 +27,14 @@ import (
 type stpItem struct {
 	name string
 	time string
-	seen bool // true → cincin abu (var--line), false → cincin accent (belum dilihat)
+	jid  string // utk muat foto profil asli (fallback inisial bila kosong/gagal)
+	seen bool   // true → cincin abu (var--line), false → cincin accent (belum dilihat)
 }
 
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
 // header .pane-head + baris "My status" + label "TERKINI" + 3 baris status.
 // Fungsi murni, mandiri (standalone render).
-func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable) layout.Dimensions {
+func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stpItem, clicks []widget.Clickable, avFn cpAvatarFn, selfName, selfJID string) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -53,7 +55,7 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 		}),
 		// Baris "My status" (avatar + badge "+").
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return stpMyStatusRow(gtx, th, t)
+			return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID)
 		}),
 		// .ct-letter label "TERKINI" (accent 12/Bold).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -65,7 +67,7 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 			for i := range items {
 				it, idx := items[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it) }
+					row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it, avFn) }
 					if idx < len(clicks) {
 						return clicks[idx].Layout(gtx, row)
 					}
@@ -86,12 +88,12 @@ func stpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title s
 // stpMyStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 48 dgn
 // badge "+" accent kanan-bawah, lalu kolom (nama 15/SemiBold "Status saya" +
 // hint 12.5 text2 "Ketuk untuk menambahkan").
-func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme, avFn cpAvatarFn, selfName, selfJID string) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return stpMyAvatar(gtx, th, t)
+				return stpMyAvatar(gtx, th, t, avFn, selfName, selfJID)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -118,22 +120,32 @@ func stpMyStatusRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dime
 
 // stpMyAvatar — avatar 48 (.status-av) + badge "+" 18px accent di kanan-bawah
 // (.status-add: right:-2 bottom:-2, border 2px var--bg). Inisial "?".
-func stpMyAvatar(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+func stpMyAvatar(gtx layout.Context, th *material.Theme, t Theme, avFn cpAvatarFn, selfName, selfJID string) layout.Dimensions {
 	d := gtx.Dp(48)
 	badge := gtx.Dp(18)
-	bd := gtx.Dp(2)    // border badge (2px bg)
-	off := gtx.Dp(2)   // right/bottom: -2px → tonjol keluar 2px
+	bd := gtx.Dp(2)  // border badge (2px bg)
+	off := gtx.Dp(2) // right/bottom: -2px → tonjol keluar 2px
 	sz := image.Pt(d+off, d+off)
 
-	// lingkaran avatar (avatarColor utk "me") + inisial "?" putih.
-	paint.FillShape(gtx.Ops, avatarColor("me"), clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-	gtx.Constraints.Min, gtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, unit.Sp(18), initial("?"))
-		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-		lbl.Font.Weight = font.SemiBold
-		return lbl.Layout(gtx)
-	})
+	// avatar diri: foto profil asli (avFn) bila ada, else lingkaran warna + inisial.
+	if avFn != nil && selfJID != "" {
+		nm := selfName
+		if nm == "" {
+			nm = "Saya"
+		}
+		cg := gtx
+		cg.Constraints.Min, cg.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+		avFn(cg, nm, selfJID, 48)
+	} else {
+		paint.FillShape(gtx.Ops, avatarColor("me"), clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+		gtx.Constraints.Min, gtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, unit.Sp(18), initial("?"))
+			lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			lbl.Font.Weight = font.SemiBold
+			return lbl.Layout(gtx)
+		})
+	}
 
 	// badge "+": lingkaran bg (border) lalu lingkaran accent di dalam, "+" putih.
 	bx := d + off - badge // pojok kanan-bawah, tonjol 2px
@@ -166,12 +178,12 @@ func stpSectionLabel(gtx layout.Context, th *material.Theme, t Theme, txt string
 // stpStatusRow — .status-row { padding: 10px 14px; gap: 14px } : avatar 48 dgn
 // cincin (.ring accent utk belum dilihat, var--line utk sudah) + kolom nama
 // 15/SemiBold + waktu 12.5 text2.
-func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem) layout.Dimensions {
+func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem, avFn cpAvatarFn) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return stpRingAvatar(gtx, th, t, it)
+				return stpRingAvatar(gtx, th, t, it, avFn)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -199,7 +211,7 @@ func stpStatusRow(gtx layout.Context, th *material.Theme, t Theme, it stpItem) l
 // stpRingAvatar — .ring { padding: 2.5px } : cincin (accent jika belum dilihat,
 // var--line jika sudah) langsung mengelilingi avatar 48 (.status-av), tanpa
 // celah dalam — padding 2.5px = ketebalan cincin.
-func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem) layout.Dimensions {
+func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem, avFn cpAvatarFn) layout.Dimensions {
 	av := gtx.Dp(48)
 	ringW := gtx.Dp(unit.Dp(2.5)) // ketebalan cincin (.ring padding 2.5px)
 	pad := ringW
@@ -212,14 +224,32 @@ func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem) 
 	}
 	// cincin penuh accent/line (padding 2.5px mengelilingi avatar).
 	paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(full, full)}.Op(gtx.Ops))
-	// avatar di tengah, langsung di dalam cincin.
-	paint.FillShape(gtx.Ops, avatarColor(it.name), clip.Ellipse{Min: image.Pt(pad, pad), Max: image.Pt(pad+av, pad+av)}.Op(gtx.Ops))
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(th, unit.Sp(18), initial(it.name))
+	// avatar di tengah cincin: foto asli (avFn) bila ada, else inisial berwarna.
+	stpInnerAvatar(gtx, th, t, it.name, it.jid, av, pad, avFn)
+	return layout.Dimensions{Size: sz}
+}
+
+// stpInnerAvatar — gambar avatar bulat (foto asli via avFn / fallback inisial)
+// ukuran avPx, di-offset (pad,pad) supaya pas di dalam cincin/badge.
+func stpInnerAvatar(gtx layout.Context, th *material.Theme, t Theme, name, jid string, avPx, pad int, avFn cpAvatarFn) {
+	if avFn != nil {
+		off := op.Offset(image.Pt(pad, pad)).Push(gtx.Ops)
+		cg := gtx
+		cg.Constraints.Min, cg.Constraints.Max = image.Pt(avPx, avPx), image.Pt(avPx, avPx)
+		avFn(cg, name, jid, 48) // u.avatar: foto profil (mask bulat) / inisial
+		off.Pop()
+		return
+	}
+	// fallback (standalone render): lingkaran warna + inisial putih.
+	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Min: image.Pt(pad, pad), Max: image.Pt(pad+avPx, pad+avPx)}.Op(gtx.Ops))
+	off := op.Offset(image.Pt(pad, pad)).Push(gtx.Ops)
+	cg := gtx
+	cg.Constraints.Min, cg.Constraints.Max = image.Pt(avPx, avPx), image.Pt(avPx, avPx)
+	layout.Center.Layout(cg, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, unit.Sp(18), initial(name))
 		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 		lbl.Font.Weight = font.SemiBold
 		return lbl.Layout(gtx)
 	})
-	return layout.Dimensions{Size: sz}
+	off.Pop()
 }

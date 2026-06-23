@@ -248,6 +248,9 @@ type UI struct {
 	renameEd         widget.Editor       // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
 	renameCancel     widget.Clickable
+	renameTarget     string              // jid sasaran rename (kontak peek / ctx); "" = pakai selected
+	infoCJID         string              // "intip-info" kontak (drawer TANPA buka chat); "" = pakai selected
+	infoCName        string              // nama kontak utk intip-info
 	infoClicks       []widget.Clickable  // pane Kontak: ikon "i" per-baris → info-drawer
 	ctNewContactBtn  widget.Clickable    // pane Kontak: tombol "Kontak baru"
 	ncName           widget.Editor       // modal newcontact: nama
@@ -982,7 +985,7 @@ func (u *UI) pinSetLayer(gtx layout.Context) {
 // langsung; modal punya backdrop sendiri, info-drawer di-posisikan kanan.
 func (u *UI) overlayLayer(gtx layout.Context) {
 	for u.backdrop.Clicked(gtx) {
-		u.overlay = ""
+		u.overlay, u.infoCJID = "", "" // tutup → bersihkan sasaran intip-info kontak
 	}
 	// backdrop clickable penuh (di belakang isi)
 	u.backdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -1185,20 +1188,27 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 // di HP). Simpan → core.SaveContactLabel; kosong → RemoveContactLabel.
 func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	target := u.renameTarget // sasaran rename (kontak intip/ctx); "" → chat terpilih
+	if target == "" {
+		target = u.selected
+	}
 	save := func() {
 		nm := strings.TrimSpace(u.renameEd.Text())
 		if u.core != nil {
 			if nm == "" {
-				u.core.RemoveContactLabel(u.selected)
+				u.core.RemoveContactLabel(target)
 			} else {
-				u.core.SaveContactLabel(u.selected, nm)
-				u.selName = nm
+				u.core.SaveContactLabel(target, nm)
+				if target == u.selected {
+					u.selName = nm
+				}
 			}
 		}
-		u.overlay = ""
+		u.cgCache = nil // daftar kontak refresh nama
+		u.overlay, u.renameTarget = "", ""
 	}
 	for u.renameCancel.Clicked(gtx) {
-		u.overlay = ""
+		u.overlay, u.renameTarget = "", ""
 	}
 	for u.renameSave.Clicked(gtx) {
 		save()
@@ -1415,12 +1425,12 @@ func (u *UI) contactCtxLayer(gtx layout.Context) layout.Dimensions {
 	items := []ctItem{
 		{&u.cctMsg, "message", "Kirim pesan", false, openChat},
 		{&u.cctInfo, "info", "Info kontak", false, func() {
-			u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+			u.infoCJID, u.infoCName = c.JID, c.Name // intip info tanpa buka chat
 			u.overlay = "info"
 		}},
 		{&u.cctRename, "editpen", "Edit nama", false, func() {
-			u.selected, u.selName, u.selGroup = c.JID, c.Name, false
 			u.renameEd.SetText(c.Name)
+			u.renameTarget = c.JID // sasaran rename tanpa membuka chat
 			u.overlay = "renamecontact"
 		}},
 		{&u.cctBlock, blockIcon, blockLbl, !blocked, func() {
@@ -4047,9 +4057,9 @@ func (u *UI) handleContactsPane(gtx layout.Context) {
 			u.msgList.ScrollTo(len(u.messages))
 		}
 		if i < len(u.infoClicks) {
-			for u.infoClicks[i].Clicked(gtx) { // ikon "i" → info-drawer kontak (tanpa buka chat)
+			for u.infoClicks[i].Clicked(gtx) { // ikon "i" → INTIP info kontak (tanpa buka percakapan)
 				c := u.contactFlat[i]
-				u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+				u.infoCJID, u.infoCName = c.JID, c.Name // sasaran info terpisah; selected tak disentuh
 				u.overlay = "info"
 			}
 		}
@@ -4687,24 +4697,45 @@ func (u *UI) handleStatus(gtx layout.Context) {
 	}
 }
 
-// infoData membangun data drawer info dari chat terpilih nyata. nil = demo.
-// GetGroupInfo hanya dipanggil saat drawer dibuka (overlay=="info"), bukan tiap frame.
+// infoJID — sasaran efektif drawer info: kontak yg sedang di-INTIP (infoCJID) bila
+// dibuka dari ikon "i" pane Kontak, selain itu chat terpilih. infoNameOf serupa.
+func (u *UI) infoJID() string {
+	if u.infoCJID != "" {
+		return u.infoCJID
+	}
+	return u.selected
+}
+func (u *UI) infoNameOf() string {
+	if u.infoCJID != "" {
+		return u.infoCName
+	}
+	return u.selName
+}
+
+// infoData membangun data drawer info dari sasaran efektif (intip-kontak / chat
+// terpilih). nil = demo. GetGroupInfo hanya dipanggil saat drawer dibuka.
 func (u *UI) infoData() *InfoDrawerData {
-	if u.core == nil || u.selected == "" {
+	jid := u.infoJID()
+	if u.core == nil || jid == "" {
 		return nil
 	}
-	d := &InfoDrawerData{Name: u.selName, Group: u.selGroup, Sub: u.subtitle}
+	group := u.selGroup && u.infoCJID == "" // intip-kontak selalu DM (bukan grup)
+	sub := u.subtitle
+	if u.infoCJID != "" { // intip-kontak: subtitle = nomor/about (bukan presence chat)
+		sub = u.core.GetContactAbout(jid)
+	}
+	d := &InfoDrawerData{Name: u.infoNameOf(), Group: group, Sub: sub}
 	d.Mute = &u.infoMuteC // bisu (DM + grup)
 	d.Media = &u.infoMediaC
 	d.Enc = &u.infoEncC
 	d.Timer = &u.infoTimerC
-	d.TimerLabel = dispLabel(u.dispTimer[u.selected])
-	d.Muted = u.isChatMuted(u.selected)
-	if u.selGroup {
+	d.TimerLabel = dispLabel(u.dispTimer[jid])
+	d.Muted = u.isChatMuted(jid)
+	if group {
 		d.Leave = &u.infoLeaveC
 		d.Invite = &u.infoInviteC
 		d.Edit = &u.infoEditC
-		if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+		if gi := u.core.GetGroupInfo(jid); gi != nil {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
 			u.curGroupDesc = gi.Topic
@@ -4726,28 +4757,33 @@ func (u *UI) infoData() *InfoDrawerData {
 	} else {
 		d.Block = &u.infoBlockC
 		d.Rename = &u.infoRenameC
-		d.Blocked = u.core.IsBlocked(u.selected)
+		d.Blocked = u.core.IsBlocked(jid)
+		if d.Desc == "" { // "Tentang" kontak (about) bila ada
+			d.Desc = sub
+		}
 	}
 	return d
 }
 
 // handleInfo — aksi tombol info-drawer: blokir kontak / keluar grup, lalu tutup.
 func (u *UI) handleInfo(gtx layout.Context) {
+	jid := u.infoJID() // sasaran: kontak yg diintip ("i") atau chat terpilih
 	for u.infoBlockC.Clicked(gtx) {
 		if u.core != nil {
-			u.core.Block(u.selected, !u.core.IsBlocked(u.selected)) // toggle blokir
+			u.core.Block(jid, !u.core.IsBlocked(jid)) // toggle blokir
 		}
-		u.overlay = ""
+		u.overlay, u.infoCJID = "", ""
 	}
-	for u.infoRenameC.Clicked(gtx) { // edit nama kontak → modal
-		u.renameEd.SetText(u.selName)
+	for u.infoRenameC.Clicked(gtx) { // edit nama kontak → modal (sasaran = jid efektif)
+		u.renameEd.SetText(u.infoNameOf())
+		u.renameTarget = jid
 		u.overlay = "renamecontact"
 	}
 	for u.infoLeaveC.Clicked(gtx) {
 		if u.core != nil {
 			u.core.LeaveGroup(u.selected)
 		}
-		u.overlay, u.selected = "", "" // keluar → tutup drawer + deselect chat
+		u.overlay, u.selected, u.infoCJID = "", "", "" // keluar → tutup drawer + deselect chat
 	}
 	for u.infoEditC.Clicked(gtx) { // edit info grup → modal nama+deskripsi
 		u.gedName.SetText(u.selName)
@@ -4756,7 +4792,7 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	}
 	for u.infoMuteC.Clicked(gtx) { // bisukan / aktifkan notifikasi
 		if u.core != nil {
-			u.core.Mute(u.selected, !u.isChatMuted(u.selected))
+			u.core.Mute(jid, !u.isChatMuted(jid))
 		}
 	}
 	for u.infoMediaC.Clicked(gtx) { // galeri media chat

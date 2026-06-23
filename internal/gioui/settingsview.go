@@ -39,6 +39,8 @@ type SettingsCtl struct {
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
 	ProfSave                       *widget.Clickable
 	AboutClicks                    []widget.Clickable // chip saran "Tentang" (paralel aboutPresets)
+	AboutOpen                      bool               // dropdown saran terbuka?
+	AboutToggle                    *widget.Clickable  // tombol chevron buka/tutup saran
 	StoreDB, StoreMedia            int64
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
@@ -264,13 +266,13 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if editable {
-					return setEditField(gtx, th, t, "Tentang", ctl.ProfAboutEd)
+					return setAboutField(gtx, th, t, ctl) // editor + chevron toggle saran
 				}
 				return setProfileField(gtx, th, t, "Tentang", orDash(ctl.ProfAbout))
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				// Saran HANYA muncul saat field Tentang difokus (klik dahulu), bukan statis.
-				if !editable || len(ctl.AboutClicks) == 0 || !gtx.Focused(ctl.ProfAboutEd) {
+				// Saran = DROPDOWN: muncul hanya saat dibuka (klik chevron), bisa ditutup.
+				if !editable || len(ctl.AboutClicks) == 0 || !ctl.AboutOpen {
 					return layout.Dimensions{}
 				}
 				return setAboutPresets(gtx, th, t, ctl)
@@ -316,6 +318,55 @@ func setEditField(gtx layout.Context, th *material.Theme, t Theme, label string,
 					e.HintColor = t.Text2
 					e.TextSize = unit.Sp(15)
 					return e.Layout(gtx)
+				})
+				call := macro.Stop()
+				r := gtx.Dp(8)
+				paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			}),
+		)
+	})
+}
+
+// setAboutField — field "Tentang": editor + tombol chevron kanan (buka/tutup
+// dropdown saran). Chevron berubah arah sesuai AboutOpen.
+func setAboutField(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 13, "Tentang")
+				l.Color = t.Accent
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							e := material.Editor(th, ctl.ProfAboutEd, "")
+							e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(15)
+							return e.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							ico := "chevrondown"
+							if ctl.AboutOpen {
+								ico = "chevronup"
+							}
+							btn := func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, ico, 20, t.Text2)
+								})
+							}
+							if ctl.AboutToggle != nil {
+								return ctl.AboutToggle.Layout(gtx, btn)
+							}
+							return btn(gtx)
+						}),
+					)
 				})
 				call := macro.Stop()
 				r := gtx.Dp(8)

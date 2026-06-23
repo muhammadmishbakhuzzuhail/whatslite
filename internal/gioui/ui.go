@@ -298,6 +298,7 @@ type UI struct {
 	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
 	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
 	aboutOpen        bool                 // dropdown saran Tentang terbuka?
+	demoTypingJID    string               // render-tool: paksa indikator mengetik utk jid ini
 	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
 	editor           widget.Editor
 	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
@@ -2401,7 +2402,55 @@ func (u *UI) railBtn(gtx layout.Context, i int) layout.Dimensions {
 	for u.railClicks[i].Clicked(gtx) {
 		u.view = nav.view
 	}
-	return u.railIconBtn(gtx, &u.railClicks[i], nav.icon, nav.label, u.view == nav.view)
+	dims := u.railIconBtn(gtx, &u.railClicks[i], nav.icon, nav.label, u.view == nav.view)
+	if nav.view == "chats" { // badge total belum-dibaca di pojok ikon Chats
+		if n := u.totalUnread(); n > 0 {
+			tm := op.Record(gtx.Ops)
+			u.railBadge(gtx, dims.Size.X, n)
+			op.Defer(gtx.Ops, tm.Stop())
+		}
+	}
+	return dims
+}
+
+// totalUnread — jumlah semua chat belum-dibaca (badge ikon Chats di rail).
+func (u *UI) totalUnread() int {
+	n := 0
+	for i := range u.chats {
+		n += u.chats[i].Badge
+	}
+	return n
+}
+
+// railBadge — pil kecil accent berisi jumlah, dipatok di pojok kanan-atas ikon rail.
+func (u *UI) railBadge(gtx layout.Context, btnW, n int) layout.Dimensions {
+	txt := itoa(n)
+	if n > 99 {
+		txt = "99+"
+	}
+	h := gtx.Dp(16)
+	padX := gtx.Dp(4)
+	white := color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
+	macro := op.Record(gtx.Ops)
+	cg := gtx
+	cg.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(60), h)}
+	lbl := material.Label(u.th, 10, txt)
+	lbl.Color = white
+	ld := lbl.Layout(cg)
+	call := macro.Stop()
+	w := ld.Size.X + 2*padX
+	if w < h {
+		w = h
+	}
+	// pojok kanan-atas ikon (sedikit menjorok keluar).
+	off := op.Offset(image.Pt(btnW-w+gtx.Dp(6), -gtx.Dp(3))).Push(gtx.Ops)
+	r := h / 2
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, h)}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	lo := op.Offset(image.Pt((w-ld.Size.X)/2, (h-ld.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	lo.Pop()
+	off.Pop()
+	return layout.Dimensions{}
 }
 
 // railIconBtn — tombol ikon rail 44px: bg aktif/hover + ikon, plus tooltip saat
@@ -2892,10 +2941,15 @@ func (u *UI) rowLine(gtx layout.Context, name, t string, sp unit.Sp, nameCol, ti
 }
 
 func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
+	typing := u.typingOf(c.ID) // mengetik → override preview (accent)
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(u.th, 14, c.Preview)
-			lbl.Color = u.t.Text2
+			txt, col := c.Preview, u.t.Text2
+			if typing != "" {
+				txt, col = typing, u.t.Accent
+			}
+			lbl := material.Label(u.th, 14, txt)
+			lbl.Color = col
 			lbl.MaxLines = 1
 			return lbl.Layout(gtx)
 		}),
@@ -4024,6 +4078,28 @@ func jidUser(jid string) string {
 	return jid
 }
 
+// typingOf — label mengetik chat (core.TypingLabel) atau override demo.
+func (u *UI) typingOf(jid string) string {
+	if u.demoTypingJID != "" && jid == u.demoTypingJID {
+		return "mengetik…"
+	}
+	if u.core != nil {
+		return u.core.TypingLabel(jid)
+	}
+	return ""
+}
+
+// SetTypingDemo — render-tool: pilih chat + paksa indikator mengetik (uji headless).
+func (u *UI) SetTypingDemo(jid string) {
+	if jid == "" && len(u.chats) > 0 {
+		jid = u.chats[0].ID
+	}
+	u.selected, u.demoTypingJID = jid, jid
+	if u.core != nil {
+		u.messages = u.core.GetMessages(jid)
+	}
+}
+
 // isChatMuted — status bisu chat dari daftar chat termuat (default false).
 func (u *UI) isChatMuted(jid string) bool {
 	for i := range u.chats {
@@ -5057,10 +5133,55 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 				}),
 			)
 		}),
+		// bubble "sedang mengetik" (titik bergerak) di atas composer bila peer mengetik.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if u.typingOf(u.selected) == "" {
+				return layout.Dimensions{}
+			}
+			return u.typingBubble(gtx)
+		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.composer(gtx)
 		}),
 	)
+}
+
+// typingBubble — bubble kecil ala pesan masuk berisi 3 titik beranimasi (bouncing).
+// Animasi via InvalidateCmd periodik; fase titik dari gtx.Now.
+func (u *UI) typingBubble(gtx layout.Context) layout.Dimensions {
+	gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(280 * time.Millisecond)}) // redraw → animasi
+	phase := 0
+	if !gtx.Now.IsZero() {
+		phase = int(gtx.Now.UnixNano()/int64(280*time.Millisecond)) % 3
+	}
+	return layout.Inset{Left: unit.Dp(14), Top: unit.Dp(2), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		dims := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, 5)
+			for i := 0; i < 3; i++ {
+				if i > 0 {
+					children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout))
+				}
+				dimDot := i != phase // titik aktif lebih terang
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d := gtx.Dp(7)
+					col := u.t.Text2
+					if dimDot {
+						col.A = 0x66
+					}
+					paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+					return layout.Dimensions{Size: image.Pt(d, d)}
+				}))
+			}
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(14)
+		// bubble masuk (InBg), sudut kiri-atas kecil (ekor) ala WhatsApp.
+		paint.FillShape(gtx.Ops, u.t.InBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: gtx.Dp(4), NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // inChatSearchHeader — bilah cari-dalam-chat (ganti header): ← kembali + input +

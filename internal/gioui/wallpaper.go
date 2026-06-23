@@ -90,11 +90,12 @@ func drawWallpaper(gtx layout.Context, t Theme) {
 		}
 	}
 
-	// wash: warna wallpaper di atas doodle → kurangi kontras (dark .84 / light .5).
-	wash := t.Wallpaper
-	wash.A = 214 // .84
-	if !dark {
-		wash.A = 128 // .5
+	// wash: warna wallpaper di atas doodle → kurangi kontras. HANYA mode gelap:
+	// doodle-light.png sudah sangat tipis (alpha ≤30 garis gelap) — wash apa pun
+	// membuatnya tak terlihat di beige. Mode terang → tanpa wash.
+	if dark {
+		wash := t.Wallpaper
+		wash.A = 214 // ≈ .84
+		paint.FillShape(gtx.Ops, wash, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	}
-	paint.FillShape(gtx.Ops, wash, clip.Rect{Max: gtx.Constraints.Max}.Op())
 }

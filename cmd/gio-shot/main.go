@@ -94,7 +94,7 @@ func main() {
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil, nil)
 		case "communities":
-			gioui.CommunitiesPaneView(gtx, th, t, nil)
+			gioui.CommunitiesPaneView(gtx, th, t, nil, nil)
 		case "bubbleextras":
 			gioui.BubbleExtrasView(gtx, th, t)
 		case "archived":

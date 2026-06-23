@@ -8,12 +8,14 @@ package gioui
 
 import (
 	"image"
+	"image/color"
 
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
@@ -23,8 +25,11 @@ type comItem struct {
 	sub  string // "N grup · Grup A, Grup B, …"
 }
 
-// CommunitiesPaneView — sidebar 380px (t.SidebarBg) berisi pane KOMUNITAS.
-func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items []comItem) layout.Dimensions {
+// CommunitiesPaneView — sidebar 408px (t.SidebarBg) berisi pane KOMUNITAS:
+// head + tombol "Komunitas baru" (ala WhatsApp) + daftar kartu komunitas
+// (tiap kartu menampilkan grup Pengumuman dgn ikon megafon). newBtn nil → tombol
+// tetap digambar tapi tak bisa diklik (render standalone).
+func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items []comItem, newBtn *widget.Clickable) layout.Dimensions {
 	w := gtx.Dp(408)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -42,6 +47,13 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return comPaneHead(gtx, th, t, w, "Komunitas")
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			row := func(gtx layout.Context) layout.Dimensions { return comNewRow(gtx, th, t) }
+			if newBtn != nil {
+				return newBtn.Layout(gtx, row)
+			}
+			return row(gtx)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if len(items) == 0 {
@@ -64,6 +76,31 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items 
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
 	)
+}
+
+// comNewRow — tombol "Komunitas baru": lingkaran aksen + plus, lalu label.
+func comNewRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(46)
+				bsz := image.Pt(d, d)
+				paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: bsz}.Op(gtx.Ops))
+				gtx.Constraints.Min, gtx.Constraints.Max = bsz, bsz
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "plus", 24, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff})
+				})
+				return layout.Dimensions{Size: bsz}
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 16, "Komunitas baru")
+				l.Color, l.Font.Weight = t.Text, font.Medium
+				return l.Layout(gtx)
+			}),
+		)
+	})
 }
 
 func comPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
@@ -113,6 +150,21 @@ func comRow(gtx layout.Context, th *material.Theme, t Theme, it comItem) layout.
 						l := material.Label(th, 13, it.sub)
 						l.Color, l.MaxLines = t.Text2, 1
 						return l.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
+					// grup Pengumuman (read-only, megafon) — baris pertama tiap komunitas di WhatsApp.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "channels", 16, t.Text2)
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(th, 13, "Pengumuman")
+								l.Color, l.MaxLines = t.Text2, 1
+								return l.Layout(gtx)
+							}),
+						)
 					}),
 				)
 			}),

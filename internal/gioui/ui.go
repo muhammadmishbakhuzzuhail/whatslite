@@ -2784,14 +2784,14 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 		}
 		// rekam konten dulu → tahu ukuran baris → gambar bg hover/aktif di BELAKANG.
 		macro := op.Record(gtx.Ops)
-		// .chat-list pad 4/8 + .chat-row pad 10/12 → vert 10, horiz 8+12=20.
-		dims := layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// modern (Telegram/Linear): baris lebih lega (vert 12), avatar 54, tanpa divider.
+		dims := layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return u.avatar(gtx, c.Name, c.ID, 49)
+						return u.avatar(gtx, c.Name, c.ID, 54)
 					}),
-					layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -2825,13 +2825,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		}
 		call.Add(gtx.Ops)
-		// pemisah antar baris: dlm margin yg SAMA (mulai setelah avatar), dan
-		// disembunyikan saat hover/aktif supaya kartu bersih (modern).
-		if !active && !hov {
-			lh := gtx.Dp(1)
-			dl := gtx.Dp(82) // 8(outer)+12(inner)+49(avatar)+13(spacer)
-			paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(dl, dims.Size.Y-lh), Max: image.Pt(dims.Size.X-m, dims.Size.Y)}.Op())
-		}
+		// modern: tanpa divider — pemisahan oleh spasi + kartu rounded saat hover/aktif.
 		// klik-kanan (secondary) di baris → menu aksi chat.
 		tag := chatTag(i)
 		for {
@@ -2893,7 +2887,12 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 			if c.Badge <= 0 {
 				return layout.Dimensions{}
 			}
-			return layout.Inset{Left: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return u.badge(gtx, c.Badge) })
+			// modern: titik accent (bukan pil angka).
+			return layout.Inset{Left: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(10)
+				paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+				return layout.Dimensions{Size: image.Pt(d, d)}
+			})
 		}),
 	)
 }

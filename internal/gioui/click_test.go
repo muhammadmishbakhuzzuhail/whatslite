@@ -70,6 +70,52 @@ func TestHeadlessClickMiss(t *testing.T) {
 	}
 }
 
+// TestContactInfoTapSeparate — bukti: ikon "i" = clickable TERPISAH dari area
+// buka-chat. Klik "i" memicu infoC (info-drawer) TANPA memicu rowC (buka chat);
+// klik nama memicu rowC saja. Regresi: dulu "i" nested di dalam rowC → klik "i"
+// ikut buka chat. Uji cpRow langsung (tanpa material.List) — lebar 468.
+func TestContactInfoTapSeparate(t *testing.T) {
+	th := material.NewTheme()
+	th.Shaper = NewShaper()
+	tm := DarkTheme()
+	c := cpContact{name: "Alice", about: "Tersedia", jid: "a@s", idx: 0}
+	const W, H = 468, 60
+	// probe: klik (x,y) di baris segar → (rowFired, infoFired). Pola clickAt:
+	// frame1 daftar area, suntik klik, frame2 cek Clicked sebelum re-layout.
+	probe := func(x, y float32) (bool, bool) {
+		var rowC, infoC widget.Clickable
+		var r input.Router
+		ops := new(op.Ops)
+		gtx := layout.Context{Ops: ops, Source: r.Source(), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Exact(image.Pt(W, H))}
+		cpRow(gtx, th, tm, c, nil, &rowC, &infoC)
+		r.Frame(ops)
+		r.Queue(
+			pointer.Event{Kind: pointer.Press, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
+			pointer.Event{Kind: pointer.Release, Source: pointer.Mouse, Buttons: pointer.ButtonPrimary, Position: f32.Pt(x, y)},
+		)
+		ops.Reset()
+		gtx = layout.Context{Ops: ops, Source: r.Source(), Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1}, Constraints: layout.Exact(image.Pt(W, H))}
+		rowFired, infoFired := false, false
+		for rowC.Clicked(gtx) {
+			rowFired = true
+		}
+		for infoC.Clicked(gtx) {
+			infoFired = true
+		}
+		cpRow(gtx, th, tm, c, nil, &rowC, &infoC)
+		r.Frame(ops)
+		return rowFired, infoFired
+	}
+	// "i" di kanan (lebar 468, inset kanan 14, box ikon ~32 → center ≈ 445).
+	if rowF, infoF := probe(445, 30); !infoF || rowF {
+		t.Fatalf("klik \"i\": rowFired=%v infoFired=%v (harusnya row=false info=true)", rowF, infoF)
+	}
+	// klik area nama (kiri) → buka chat (rowC), bukan info.
+	if rowF, infoF := probe(120, 30); !rowF || infoF {
+		t.Fatalf("klik nama: rowFired=%v infoFired=%v (harusnya row=true info=false)", rowF, infoF)
+	}
+}
+
 // TestRailClickChangesView — audit interaktif NYATA: render UI penuh, klik tombol
 // rail "status", verifikasi u.view berpindah. Membuktikan tombol asli terpicu.
 func TestRailClickChangesView(t *testing.T) {

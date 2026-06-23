@@ -99,17 +99,17 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 				if it.isLetter {
 					return cpLetter(gtx, th, t, it.letter)
 				}
-				var infoC *widget.Clickable // ikon "i" → info-drawer (per baris)
+				var infoC, rowC *widget.Clickable // "i" → info-drawer; baris → buka chat
 				if it.c.idx >= 0 && it.c.idx < len(infoClicks) {
 					infoC = &infoClicks[it.c.idx]
 				}
-				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c, avFn, infoC) }
-				if it.c.idx < 0 || it.c.idx >= len(clicks) {
-					return row(gtx)
+				if it.c.idx >= 0 && it.c.idx < len(clicks) {
+					rowC = &clicks[it.c.idx]
 				}
-				// ketuk → buka chat; klik-kanan → menu konteks (onCtx).
-				dims := clicks[it.c.idx].Layout(gtx, row)
-				if onCtx != nil {
+				// rowC & infoC = clickable BERSEBELAHAN (bukan nested) → klik "i" tak
+				// memicu buka-chat. idx<0 (demo) → keduanya nil (tak bisa diklik).
+				dims := cpRow(gtx, th, t, it.c, avFn, rowC, infoC)
+				if onCtx != nil && it.c.idx >= 0 {
 					tag := ctRowTag(it.c.idx)
 					for {
 						ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
@@ -242,38 +242,52 @@ func cpLetter(gtx layout.Context, th *material.Theme, t Theme, letter string) la
 }
 
 // cpRow — .ct-row { gap: 12px; padding: 8px 14px } : avatar 40 (.avatar.sm) +
-// .ct-av (titik online .ct-dot) + kolom .ct-meta (.ct-name 15/Normal text +
-// .ct-sub 12.5 text2) + ikon info "i" .ct-info text2 kanan.
-func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn, infoC *widget.Clickable) layout.Dimensions {
+// kolom .ct-meta (.ct-name 15/Normal + .ct-sub 12.5 text2) + ikon "i" kanan.
+// rowC (buka chat) membungkus avatar+meta; infoC ("i") = sibling TERPISAH agar
+// klik "i" tak ikut memicu buka-chat. Keduanya nil → baris tak bisa diklik (demo).
+func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn, rowC, infoC *widget.Clickable) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpAvatarDot(gtx, th, t, c, avFn)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout), // gap: 12px
+			// area buka-chat (avatar + meta), flexed mengisi sisa lebar.
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, 15, c.name) // .ct-name 15px
-						lbl.Color = t.Text
-						lbl.MaxLines = 1
-						lbl.Font.Weight = font.Normal
-						return lbl.Layout(gtx)
-					}),
-					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(12.5), c.about) // .ct-sub 12.5px
-						lbl.Color = t.Text2
-						lbl.MaxLines = 1
-						return lbl.Layout(gtx)
-					}),
-				)
+				openArea := func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return cpAvatarDot(gtx, th, t, c, avFn)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout), // gap: 12px
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, 15, c.name) // .ct-name 15px
+									lbl.Color = t.Text
+									lbl.MaxLines = 1
+									lbl.Font.Weight = font.Normal
+									return lbl.Layout(gtx)
+								}),
+								layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, unit.Sp(12.5), c.about) // .ct-sub 12.5px
+									lbl.Color = t.Text2
+									lbl.MaxLines = 1
+									return lbl.Layout(gtx)
+								}),
+							)
+						}),
+					)
+				}
+				if rowC != nil {
+					return rowC.Layout(gtx, openArea)
+				}
+				return openArea(gtx)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			// ikon "i" — clickable terpisah (info-drawer).
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				infoIcon := func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return icon(gtx, "info", 20, t.Text2)
 					})
 				}

@@ -113,7 +113,7 @@ func main() {
 		case "channels-explore":
 			gioui.ChannelsPaneView(gtx, th, t, nil, &gioui.ChnCtl{Active: 1, Tabs: make([]widget.Clickable, 2), Rows: make([]widget.Clickable, 4), Search: &chnExploreEd})
 		case "communities":
-			gioui.CommunitiesPaneView(gtx, th, t, nil, nil)
+			gioui.CommunitiesPaneView(gtx, th, t, nil)
 		case "bubbleextras":
 			gioui.BubbleExtrasView(gtx, th, t)
 		case "archived":
@@ -227,6 +227,9 @@ func main() {
 			ui.Layout(gtx)
 		case "app-memberctx":
 			ui.SetMemberCtxDemo() // menu konteks anggota grup
+			ui.Layout(gtx)
+		case "app-comdetail":
+			ui.SetCommunityDemo() // detail komunitas (sub-grup)
 			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()

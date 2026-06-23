@@ -371,6 +371,10 @@ type UI struct {
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable     // avatar profil di dasar rail → setelan profil
 	comNewBtn        widget.Clickable     // tombol "Komunitas baru" di pane Komunitas
+	comOpen          string               // jid komunitas yg dibuka (detail sub-grup); "" = daftar
+	comRowClicks     []widget.Clickable   // paralel komunitas (tap → buka detail)
+	comSubClicks     []widget.Clickable   // paralel sub-grup komunitas terbuka (tap → buka chat)
+	comBack          widget.Clickable     // tombol ← di detail komunitas
 	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
 	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
 	aboutOpen        bool                 // dropdown saran Tentang terbuka?
@@ -458,6 +462,20 @@ func (u *UI) SetOverlay(o string) { u.overlay = o }
 func (u *UI) SetDeleteConfirmDemo() {
 	u.delTarget = app.MessageDTO{ID: "m2", Dir: "out", Type: "text", Text: "halo"}
 	u.overlay = "delconfirm"
+}
+
+// SetCommunityDemo: render-tool — detail komunitas (daftar sub-grup) headless.
+func (u *UI) SetCommunityDemo() {
+	u.view = "communities"
+	u.comCache = []comItem{
+		{jid: "c1@g.us", name: "Tim Kantor", sub: "3 grup", groups: []comSub{
+			{jid: "g0@g.us", name: "Pengumuman", isDefault: true},
+			{jid: "g1@g.us", name: "Umum"},
+			{jid: "g2@g.us", name: "Proyek X"},
+		}},
+	}
+	u.comAt = u.comAt.Add(0) // jaga cache valid (tak penting di demo)
+	u.comOpen = "c1@g.us"
 }
 
 // SetMemberCtxDemo: render-tool — menu konteks anggota grup (admin → semua aksi).
@@ -3274,10 +3292,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		u.handleChannels(gtx, rows)
 		return ChannelsPaneView(gtx, u.th, u.t, rows, u.chnCtl(rows))
 	case "communities":
+		rows := u.communityRows()
+		u.handleCommunities(gtx, rows)
 		for u.comNewBtn.Clicked(gtx) { // "Komunitas baru" → modal buat grup (proxy; komunitas = kumpulan grup)
 			u.overlay = "groupcreate"
 		}
-		return CommunitiesPaneView(gtx, u.th, u.t, u.communityRows(), &u.comNewBtn)
+		return CommunitiesPaneView(gtx, u.th, u.t, u.comCtl(rows))
 	case "search":
 		return SearchView(gtx, u.th, u.t, u.searchCtl(gtx))
 	case "starred":
@@ -5571,7 +5591,7 @@ func (u *UI) isChatMuted(jid string) bool {
 // nil = demo. TTL-cache via chCache? pakai gate sendiri (jarang berubah).
 func (u *UI) communityRows() []comItem {
 	if u.core == nil {
-		return nil
+		return u.comCache // demo: di-inject via SetCommunityDemo
 	}
 	if u.comCache != nil && time.Since(u.comAt) < 2*time.Second {
 		return u.comCache
@@ -5581,19 +5601,91 @@ func (u *UI) communityRows() []comItem {
 	for _, c := range cs {
 		sub := itoa(len(c.Groups)) + " grup"
 		names := make([]string, 0, 3)
+		groups := make([]comSub, 0, len(c.Groups))
 		for i, g := range c.Groups {
-			if i >= 3 {
-				break
+			if i < 3 {
+				names = append(names, g.Name)
 			}
-			names = append(names, g.Name)
+			groups = append(groups, comSub{jid: g.JID, name: g.Name, isDefault: g.IsDefault})
 		}
 		if len(names) > 0 {
 			sub += " · " + strings.Join(names, ", ")
 		}
-		out = append(out, comItem{name: c.Name, sub: sub})
+		out = append(out, comItem{jid: c.JID, name: c.Name, sub: sub, groups: groups})
 	}
 	u.comCache, u.comAt = out, time.Now()
 	return out
+}
+
+// comCtl membangun ComCtl dari komunitas nyata + state buka/detail. Tangani klik
+// di handleCommunities (DI LUAR layout, sebelum ini dipanggil).
+func (u *UI) comCtl(rows []comItem) *ComCtl {
+	ctl := &ComCtl{Items: rows, NewBtn: &u.comNewBtn, Back: &u.comBack}
+	if len(u.comRowClicks) < len(rows) {
+		u.comRowClicks = make([]widget.Clickable, len(rows))
+	}
+	ctl.RowClicks = u.comRowClicks[:len(rows)]
+	if u.comOpen != "" { // cari komunitas terbuka → detail
+		for i := range rows {
+			if rows[i].jid == u.comOpen {
+				ctl.Open = &rows[i]
+				break
+			}
+		}
+		if ctl.Open != nil {
+			if len(u.comSubClicks) < len(ctl.Open.groups) {
+				u.comSubClicks = make([]widget.Clickable, len(ctl.Open.groups))
+			}
+			ctl.SubClicks = u.comSubClicks[:len(ctl.Open.groups)]
+		} else {
+			u.comOpen = "" // komunitas hilang → kembali ke daftar
+		}
+	}
+	return ctl
+}
+
+// handleCommunities — klik baris komunitas (buka detail), sub-grup (buka chat),
+// kembali. Dipanggil DI LUAR layout pane (ala handleChatClicks).
+func (u *UI) handleCommunities(gtx layout.Context, rows []comItem) {
+	for u.comBack.Clicked(gtx) {
+		u.comOpen = ""
+	}
+	for i := range rows {
+		if i >= len(u.comRowClicks) {
+			break
+		}
+		if u.comRowClicks[i].Clicked(gtx) {
+			u.comOpen = rows[i].jid
+		}
+	}
+	if u.comOpen == "" {
+		return
+	}
+	var open *comItem
+	for i := range rows {
+		if rows[i].jid == u.comOpen {
+			open = &rows[i]
+			break
+		}
+	}
+	if open == nil {
+		return
+	}
+	for i := range open.groups {
+		if i >= len(u.comSubClicks) {
+			break
+		}
+		if u.comSubClicks[i].Clicked(gtx) { // buka chat sub-grup
+			g := open.groups[i]
+			u.selected, u.selName, u.selGroup = g.jid, g.name, true
+			u.view = "chats"
+			u.comOpen = ""
+			if u.core != nil {
+				u.core.OpenChat(g.jid)
+				u.messages = u.core.GetMessages(g.jid)
+			}
+		}
+	}
 }
 
 // fmtSubs — "12 pengikut" / "12,3 rb pengikut" / "1,2 jt pengikut".

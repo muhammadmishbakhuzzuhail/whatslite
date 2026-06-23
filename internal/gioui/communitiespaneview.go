@@ -19,39 +19,63 @@ import (
 	"gioui.org/widget/material"
 )
 
-// comItem = satu komunitas di daftar (nama + sub-baris jumlah/nama grup).
+// comSub = satu sub-grup di dalam komunitas.
+type comSub struct {
+	jid       string
+	name      string
+	isDefault bool // grup "Pengumuman" (default community group)
+}
+
+// comItem = satu komunitas di daftar (nama + sub-baris jumlah/nama grup + sub-grup).
 type comItem struct {
-	name string
-	sub  string // "N grup · Grup A, Grup B, …"
+	jid    string
+	name   string
+	sub    string // "N grup · Grup A, Grup B, …"
+	groups []comSub
+}
+
+// ComCtl = state interaktif pane komunitas. nil → demo. Open != nil → tampil
+// detail (daftar sub-grup); else daftar komunitas (RowClicks paralel Items).
+type ComCtl struct {
+	Items     []comItem
+	RowClicks []widget.Clickable
+	NewBtn    *widget.Clickable
+	Open      *comItem
+	Back      *widget.Clickable
+	SubClicks []widget.Clickable // paralel Open.groups (tap → buka chat grup)
 }
 
 // CommunitiesPaneView — sidebar 408px (t.SidebarBg) berisi pane KOMUNITAS:
 // head + tombol "Komunitas baru" (ala WhatsApp) + daftar kartu komunitas
 // (tiap kartu menampilkan grup Pengumuman dgn ikon megafon). newBtn nil → tombol
 // tetap digambar tapi tak bisa diklik (render standalone).
-func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items []comItem, newBtn *widget.Clickable) layout.Dimensions {
+func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *ComCtl) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	if items == nil { // data demo (render standalone / gio-shot)
-		items = []comItem{
+	if ctl == nil { // data demo (render standalone / gio-shot)
+		ctl = &ComCtl{Items: []comItem{
 			{name: "Tim Kantor", sub: "3 grup · Umum, Proyek X, Acara"},
 			{name: "Keluarga Besar", sub: "2 grup · Umum, Liburan"},
-		}
+		}}
 	}
 
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	if ctl.Open != nil { // detail komunitas (daftar sub-grup)
+		return comDetailView(gtx, th, t, w, ctl)
+	}
+	items := ctl.Items
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return comPaneHead(gtx, th, t, w, "Komunitas")
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			row := func(gtx layout.Context) layout.Dimensions { return comNewRow(gtx, th, t) }
-			if newBtn != nil {
-				return newBtn.Layout(gtx, row)
+			if ctl.NewBtn != nil {
+				return ctl.NewBtn.Layout(gtx, row)
 			}
 			return row(gtx)
 		}),
@@ -68,14 +92,122 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, items 
 			}
 			children := make([]layout.FlexChild, 0, len(items))
 			for i := range items {
-				it := items[i]
+				it, idx := items[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return comRow(gtx, th, t, it)
+					row := func(gtx layout.Context) layout.Dimensions { return comRow(gtx, th, t, it) }
+					if ctl.RowClicks != nil && idx < len(ctl.RowClicks) {
+						return ctl.RowClicks[idx].Layout(gtx, row)
+					}
+					return row(gtx)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
 	)
+}
+
+// comDetailView — detail satu komunitas: header ← + nama, lalu daftar sub-grup
+// (ikon + nama + "Pengumuman" utk grup default). Tap sub-grup → buka chat.
+func comDetailView(gtx layout.Context, th *material.Theme, t Theme, w int, ctl *ComCtl) layout.Dimensions {
+	c := ctl.Open
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return comDetailHead(gtx, th, t, w, c.name, ctl.Back)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(4), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 12.5, itoa(len(c.groups))+" GRUP")
+				l.Color = t.Text2
+				return l.Layout(gtx)
+			})
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, len(c.groups))
+			for i := range c.groups {
+				g, idx := c.groups[i], i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					row := func(gtx layout.Context) layout.Dimensions { return comSubRow(gtx, th, t, g) }
+					if ctl.SubClicks != nil && idx < len(ctl.SubClicks) {
+						return ctl.SubClicks[idx].Layout(gtx, row)
+					}
+					return row(gtx)
+				}))
+			}
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		}),
+	)
+}
+
+// comDetailHead — header detail komunitas: tombol ← + nama komunitas.
+func comDetailHead(gtx layout.Context, th *material.Theme, t Theme, w int, name string, back *widget.Clickable) layout.Dimensions {
+	h := gtx.Dp(60)
+	sz := image.Pt(w, h)
+	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				b := func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "back", 22, t.Text)
+					})
+				}
+				if back != nil {
+					return back.Layout(gtx, b)
+				}
+				return b(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 16.5, name)
+				l.Color, l.Font.Weight, l.MaxLines = t.Text, font.Medium, 1
+				return l.Layout(gtx)
+			}),
+		)
+	})
+}
+
+// comSubRow — baris sub-grup di detail komunitas: ikon + nama + (default → "Pengumuman").
+func comSubRow(gtx layout.Context, th *material.Theme, t Theme, g comSub) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		glyph := "communities"
+		if g.isDefault {
+			glyph = "channels" // megafon utk grup Pengumuman
+		}
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := gtx.Dp(44)
+				bsz := image.Pt(d, d)
+				r := gtx.Dp(11)
+				paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: bsz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				gtx.Constraints.Min, gtx.Constraints.Max = bsz, bsz
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, glyph, 22, t.Accent)
+				})
+				return layout.Dimensions{Size: bsz}
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(th, 15.5, g.name)
+						l.Color, l.MaxLines, l.Font.Weight = t.Text, 1, font.Medium
+						return l.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !g.isDefault {
+							return layout.Dimensions{}
+						}
+						l := material.Label(th, 12.5, "Pengumuman")
+						l.Color, l.MaxLines = t.Text2, 1
+						return l.Layout(gtx)
+					}),
+				)
+			}),
+		)
+	})
 }
 
 // comNewRow — tombol "Komunitas baru": lingkaran aksen + plus, lalu label.

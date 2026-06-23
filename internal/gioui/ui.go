@@ -105,6 +105,8 @@ type UI struct {
 	chnExpAt     time.Time
 	chnExpQuery  string        // query terakhir direktori jelajah (invalidasi cache)
 	chnSearchEd  widget.Editor // kotak cari direktori channels (tab Jelajahi)
+	ctSearchEd   widget.Editor // kotak cari daftar Kontak (section 2)
+	cgQuery      string        // query terakhir daftar kontak (invalidasi cache)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -508,6 +510,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.mediaGalList.Axis = layout.Vertical
 	u.chnSearchEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
+	u.ctSearchEd.SingleLine = true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -2676,7 +2679,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		for u.gcNewBtn.Clicked(gtx) { // "Grup baru" → modal buat grup
 			u.overlay = "groupcreate"
 		}
-		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList, u.avatar)
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList, u.avatar, &u.ctSearchEd)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
@@ -3729,7 +3732,8 @@ func (u *UI) contactGroups() []cpGroup {
 	if u.core == nil {
 		return nil
 	}
-	if u.cgCache != nil && time.Since(u.cgAt) < time.Second {
+	q := strings.ToLower(strings.TrimSpace(u.ctSearchEd.Text()))
+	if u.cgCache != nil && u.cgQuery == q && time.Since(u.cgAt) < time.Second {
 		return u.cgCache // TTL: pertahankan contactFlat/clicks dari build terakhir
 	}
 	cs := u.core.GetContacts()
@@ -3743,6 +3747,10 @@ func (u *UI) contactGroups() []cpGroup {
 		if c.Name == "" {
 			continue
 		}
+		if q != "" && !strings.Contains(strings.ToLower(c.Name), q) &&
+			!strings.Contains(strings.ToLower(c.Phone), q) {
+			continue // filter pencarian (nama / nomor)
+		}
 		letter := strings.ToUpper(initial(c.Name))
 		if cur == nil || cur.letter != letter {
 			groups = append(groups, cpGroup{letter: letter})
@@ -3755,7 +3763,7 @@ func (u *UI) contactGroups() []cpGroup {
 	if len(u.contactPaneClicks) < len(u.contactFlat) {
 		u.contactPaneClicks = make([]widget.Clickable, len(u.contactFlat))
 	}
-	u.cgCache, u.cgAt = groups, time.Now()
+	u.cgCache, u.cgAt, u.cgQuery = groups, time.Now(), q
 	return groups
 }
 

@@ -51,7 +51,7 @@ type cpFlat struct {
 	c        cpContact
 }
 
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List, avFn cpAvatarFn) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List, avFn cpAvatarFn, search *widget.Editor) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -74,7 +74,7 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 		}),
 		// .ct-top { gap: 8px; padding: 6px 12px 10px } : pil cari + tombol baru.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return cpTop(gtx, th, t, newGroup)
+			return cpTop(gtx, th, t, newGroup, search)
 		}),
 		// .ct-list : pemisah huruf + baris kontak — SCROLLABLE (material.List).
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -125,12 +125,12 @@ func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title st
 
 // cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian
 // (searchBg, r-pill, magnifier + placeholder) + tombol accent "Kontak baru".
-func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable) layout.Dimensions {
+func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable, search *widget.Editor) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return cpSearchPill(gtx, th, t)
+				return cpSearchPill(gtx, th, t, search)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout), // gap: 8px
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -141,8 +141,8 @@ func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Cli
 }
 
 // cpSearchPill — .ct-search { background: var(--bg2); border-radius: 10px;
-// padding: 9px 14px } : magnifier 18 text2 + placeholder "Cari".
-func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+// padding: 9px 14px } : magnifier 18 + editor "Cari" (ed nil = label statis).
+func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme, ed *widget.Editor) layout.Dimensions {
 	gtx.Constraints.Min.X = gtx.Constraints.Max.X
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -153,6 +153,11 @@ func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme) layout.Dimens
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				if ed != nil {
+					e := material.Editor(th, ed, "Cari nama atau nomor")
+					e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(14.5)
+					return e.Layout(gtx)
+				}
 				lbl := material.Label(th, unit.Sp(14.5), "Cari")
 				lbl.Color = t.Text2
 				lbl.MaxLines = 1

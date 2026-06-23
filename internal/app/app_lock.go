@@ -22,9 +22,10 @@ func (a *App) HasAppPIN() bool {
 	return a.store != nil && a.store.GetMeta(a.ctx, "app_pin", "") != ""
 }
 
-// SetAppPIN menyetel PIN baru (>=4 digit/char). PIN kosong diabaikan (pakai Clear).
+// SetAppPIN menyetel PIN baru (4-6 digit). Di luar rentang diabaikan (pakai Clear
+// utk hapus). 4-6 = standar app-lock/banking: mudah diingat, cukup aman.
 func (a *App) SetAppPIN(pin string) {
-	if a.store == nil || len(pin) < 4 {
+	if a.store == nil || len(pin) < 4 || len(pin) > 6 {
 		return
 	}
 	_ = a.store.SetMeta(a.ctx, "app_pin", hashPIN(pin))

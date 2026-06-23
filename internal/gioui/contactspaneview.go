@@ -39,7 +39,15 @@ type cpGroup struct {
 
 // ContactsPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane KONTAK.
 // Fungsi murni, mandiri (standalone render).
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable) layout.Dimensions {
+// cpFlat — satu baris daftar kontak (header huruf ATAU kontak) utk material.List
+// yang bisa di-scroll.
+type cpFlat struct {
+	letter   string
+	isLetter bool
+	c        cpContact
+}
+
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List) layout.Dimensions {
 	w := gtx.Dp(380)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -64,26 +72,30 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return cpTop(gtx, th, t, newGroup)
 		}),
-		// .ct-list : pemisah huruf + baris kontak.
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			children := make([]layout.FlexChild, 0, len(groups)*2)
+		// .ct-list : pemisah huruf + baris kontak — SCROLLABLE (material.List).
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			flat := make([]cpFlat, 0, len(groups)*2)
 			for _, g := range groups {
-				gg := g
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return cpLetter(gtx, th, t, gg.letter)
-				}))
-				for _, c := range gg.items {
-					cc := c
-					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, cc) }
-						if cc.idx >= 0 && cc.idx < len(clicks) { // ketuk → buka chat
-							return clicks[cc.idx].Layout(gtx, row)
-						}
-						return row(gtx)
-					}))
+				flat = append(flat, cpFlat{letter: g.letter, isLetter: true})
+				for _, c := range g.items {
+					flat = append(flat, cpFlat{c: c})
 				}
 			}
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+			if list == nil {
+				list = &widget.List{}
+				list.Axis = layout.Vertical
+			}
+			return material.List(th, list).Layout(gtx, len(flat), func(gtx layout.Context, i int) layout.Dimensions {
+				it := flat[i]
+				if it.isLetter {
+					return cpLetter(gtx, th, t, it.letter)
+				}
+				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c) }
+				if it.c.idx >= 0 && it.c.idx < len(clicks) { // ketuk → buka chat
+					return clicks[it.c.idx].Layout(gtx, row)
+				}
+				return row(gtx)
+			})
 		}),
 	)
 	return layout.Dimensions{Size: sz}

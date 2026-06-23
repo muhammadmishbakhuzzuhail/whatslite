@@ -2817,17 +2817,35 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 	)
 }
 
+// badge — pil belum-dibaca hijau yang LEBARNYA mengikuti teks (bukan lingkaran
+// statis), supaya angka 2-3 digit tak keluar dari background. >999 → "999+".
 func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
-	r := gtx.Dp(10)
-	d := r * 2
-	paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(d, d)}, SE: r, SW: r, NW: r, NE: r}.Op(gtx.Ops))
-	gtx.Constraints.Min = image.Pt(d, d)
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		lbl := material.Label(u.th, 11, itoa(n))
-		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-		return lbl.Layout(gtx)
-	})
-	return layout.Dimensions{Size: image.Pt(d, d)}
+	txt := itoa(n)
+	if n > 999 {
+		txt = "999+"
+	}
+	h := gtx.Dp(20)   // tinggi pil
+	padX := gtx.Dp(6) // padding kiri-kanan utk multi-digit
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	// ukur label dulu (rekam) → tahu lebar teks.
+	macro := op.Record(gtx.Ops)
+	cgtx := gtx
+	cgtx.Constraints.Min = image.Point{}
+	lbl := material.Label(u.th, 11, txt)
+	lbl.Color = white
+	lblDims := lbl.Layout(cgtx)
+	call := macro.Stop()
+	w := lblDims.Size.X + 2*padX
+	if w < h { // jaga bentuk lingkaran utk 1 digit
+		w = h
+	}
+	r := h / 2
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, h)}, SE: r, SW: r, NW: r, NE: r}.Op(gtx.Ops))
+	// pusatkan label di dalam pil.
+	off := op.Offset(image.Pt((w-lblDims.Size.X)/2, (h-lblDims.Size.Y)/2)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	off.Pop()
+	return layout.Dimensions{Size: image.Pt(w, h)}
 }
 
 // ---- avatar (lingkaran warna + inisial) ----

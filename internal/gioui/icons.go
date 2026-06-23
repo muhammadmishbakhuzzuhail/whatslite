@@ -28,6 +28,7 @@ var iconPaths = map[string]string{
 	"status":    `<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>`,
 	"channels":  `<path d="M3.5 10.3l13-4.8v13l-13-4.8z"/><path d="M6.6 14.4l1.5 4.6 2.3-.8-1.2-3.4"/><path d="M19 8.7a4 4 0 0 1 0 6.6"/>`,
 	"calls":     `<path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>`,
+	"video":     `<rect x="3" y="6" width="12" height="12" rx="2"/><path d="M15 10l6-3v10l-6-3z"/>`,
 	"contacts":  `<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>`,
 	"settings":  `<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.5 7.5 0 0 0 0-3l1.9-1.5-1.9-3.3-2.3 1a7.5 7.5 0 0 0-2.6-1.5L14.1 2H9.9l-.4 2.7a7.5 7.5 0 0 0-2.6 1.5l-2.3-1L2.7 8.5l1.9 1.5a7.5 7.5 0 0 0 0 3l-1.9 1.5 1.9 3.3 2.3-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.7h4.2l.4-2.7a7.5 7.5 0 0 0 2.6-1.5l2.3 1 1.9-3.3-1.9-1.5z"/>`,
 	"emoji":     `<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>`,

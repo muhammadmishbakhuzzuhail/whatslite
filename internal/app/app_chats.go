@@ -90,6 +90,15 @@ type ChatDTO struct {
 	Badge   int    `json:"badge"`
 	Pinned  bool   `json:"pinned"`
 	Muted   bool   `json:"muted"`
+	Online  bool   `json:"online"` // DM: presence "online" (grup selalu false; tak ada presence grup)
+}
+
+// isOnline — true bila presence kontak (DM) tercatat "online" di cache in-process.
+// Grup tak punya presence → pemanggil hanya pakai utk DM. Thread-safe.
+func (a *App) isOnline(jid string) bool {
+	a.presMu.RLock()
+	defer a.presMu.RUnlock()
+	return a.presence[jid] == "online"
 }
 
 // UnreadTotal: jumlah chat belum-dibaca (badge judul window). Thread-safe (query
@@ -184,11 +193,13 @@ func (a *App) chatDTO(c storage.Chat) ChatDTO {
 			status = "sent"
 		}
 	}
+	group := isGroupJID(c.JID)
 	return ChatDTO{
 		ID: c.JID, Name: name, Preview: preview,
-		Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: isGroupJID(c.JID),
+		Time: relTime(c.LastTS), Ts: c.LastTS.Unix(), Group: group,
 		Sent: c.LastFromMe, Status: status,
 		Unread: c.Unread > 0, Badge: c.Unread, Pinned: c.Pinned, Muted: c.Muted,
+		Online: !group && a.isOnline(c.JID), // titik presence hanya utk DM
 	}
 }
 

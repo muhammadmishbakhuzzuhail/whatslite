@@ -616,11 +616,11 @@ func (u *UI) refresh() {
 
 func demoChats() []app.ChatDTO {
 	return []app.ChatDTO{
-		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true},
+		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true, Online: true},
 		{ID: "2", Name: "Keluarga", Preview: "Ibu: Jangan lupa makan ya nak", Time: "18.41", Group: true, Badge: 2, Unread: true},
-		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Sent: true, Status: "sent"},
+		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Badge: 1234, Unread: true, Online: true},
 		{ID: "4", Name: "Tim Proyek X", Preview: "Budi: file-nya udah aku upload", Time: "16.20", Group: true, Badge: 12, Unread: true},
-		{ID: "5", Name: "Rian", Preview: "Haha iya bener banget 😄", Time: "14.03", Muted: true},
+		{ID: "5", Name: "Rian", Preview: "Haha iya bener banget 😄", Time: "14.03", Badge: 5, Unread: true, Muted: true},
 	}
 }
 func demoMessages() []app.MessageDTO {
@@ -2970,7 +2970,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return u.avatar(gtx, c.Name, c.ID, 54)
+						return u.avatarPresence(gtx, c)
 					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -3026,6 +3026,28 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 	})
 }
 
+// avatarPresence — avatar 54 chat list + titik presence (DM saja) di kanan-bawah:
+// hijau #28c840 = online, merah #e35d6a = offline. Grup tak punya presence → tanpa
+// titik (presence WhatsApp/whatsmeow per-pengguna, bukan per-grup).
+func (u *UI) avatarPresence(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
+	av := u.avatar(gtx, c.Name, c.ID, 54)
+	if c.Group {
+		return av // grup: tanpa titik presence
+	}
+	dot := gtx.Dp(14)
+	bw := gtx.Dp(2)  // cincin border var(--bg) 2px
+	off := gtx.Dp(1) // right:-1; bottom:-1
+	x := av.Size.X - dot + off
+	y := av.Size.Y - dot + off
+	col := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a offline (merah)
+	if c.Online {
+		col = color.NRGBA{R: 0x28, G: 0xc8, B: 0x40, A: 0xff} // #28c840 online (hijau)
+	}
+	paint.FillShape(gtx.Ops, u.t.Bg, clip.Ellipse{Min: image.Pt(x, y), Max: image.Pt(x+dot, y+dot)}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, col, clip.Ellipse{Min: image.Pt(x+bw, y+bw), Max: image.Pt(x+dot-bw, y+dot-bw)}.Op(gtx.Ops))
+	return av
+}
+
 func (u *UI) rowLine(gtx layout.Context, name, t string, sp unit.Sp, nameCol, timeCol color.NRGBA) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -3073,11 +3095,9 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 			if c.Badge <= 0 {
 				return layout.Dimensions{}
 			}
-			// modern: titik accent (bukan pil angka).
+			// pil angka belum-dibaca (DM + grup); >999 → "999+". Bisu → abu, selain accent.
 			return layout.Inset{Left: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				d := gtx.Dp(10)
-				paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-				return layout.Dimensions{Size: image.Pt(d, d)}
+				return u.badge(gtx, c.Badge, c.Muted)
 			})
 		}),
 	)
@@ -3085,7 +3105,7 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 
 // badge — pil belum-dibaca hijau yang LEBARNYA mengikuti teks (bukan lingkaran
 // statis), supaya angka 2-3 digit tak keluar dari background. >999 → "999+".
-func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
+func (u *UI) badge(gtx layout.Context, n int, muted bool) layout.Dimensions {
 	txt := itoa(n)
 	if n > 999 {
 		txt = "999+"
@@ -3093,6 +3113,10 @@ func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
 	h := gtx.Dp(20)   // tinggi pil
 	padX := gtx.Dp(6) // padding kiri-kanan utk multi-digit
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	pill := u.t.Accent
+	if muted { // chat bisu → pil abu (paritas WhatsApp)
+		pill = u.t.Text2
+	}
 	// ukur label dulu (rekam) → tahu lebar teks.
 	macro := op.Record(gtx.Ops)
 	cgtx := gtx
@@ -3106,7 +3130,7 @@ func (u *UI) badge(gtx layout.Context, n int) layout.Dimensions {
 		w = h
 	}
 	r := h / 2
-	paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, h)}, SE: r, SW: r, NW: r, NE: r}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, pill, clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, h)}, SE: r, SW: r, NW: r, NE: r}.Op(gtx.Ops))
 	// pusatkan label di dalam pil.
 	off := op.Offset(image.Pt((w-lblDims.Size.X)/2, (h-lblDims.Size.Y)/2)).Push(gtx.Ops)
 	call.Add(gtx.Ops)

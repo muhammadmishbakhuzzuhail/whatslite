@@ -13,6 +13,9 @@ import (
 	"image"
 	"image/color"
 
+	"math"
+
+	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -25,10 +28,12 @@ import (
 
 // stpItem = satu baris status terkini (.status-row di .ct-letter section).
 type stpItem struct {
-	name string
-	time string
-	jid  string // utk muat foto profil asli (fallback inisial bila kosong/gagal)
-	seen bool   // true → cincin abu (var--line), false → cincin accent (belum dilihat)
+	name      string
+	time      string
+	jid       string // utk muat foto profil asli (fallback inisial bila kosong/gagal)
+	seen      bool   // semua dilihat (cincin abu penuh)
+	count     int    // jumlah unggahan (segmen cincin); <=1 → cincin utuh
+	seenCount int    // segmen sudah dilihat (abu); sisanya accent
 }
 
 // StatusPaneView menggambar sidebar 380px (t.SidebarBg) berisi pane STATUS:
@@ -42,9 +47,9 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 
 	if items == nil { // data demo (render standalone / gio-shot)
 		items = []stpItem{
-			{name: "Andi Pratama", time: "2 menit lalu", seen: false},
-			{name: "Sarah Wijaya", time: "15 menit lalu", seen: false},
-			{name: "Tim Proyek X", time: "1 jam lalu", seen: true},
+			{name: "Andi Pratama", time: "2 menit lalu", count: 5, seenCount: 2}, // 5 segmen, 2 dilihat
+			{name: "Sarah Wijaya", time: "15 menit lalu", count: 3, seenCount: 0},
+			{name: "Tim Proyek X", time: "1 jam lalu", seen: true, count: 4, seenCount: 4}, // semua abu
 		}
 	}
 
@@ -218,15 +223,48 @@ func stpRingAvatar(gtx layout.Context, th *material.Theme, t Theme, it stpItem, 
 	full := av + pad*2
 	sz := image.Pt(full, full)
 
-	col := t.Accent
-	if it.seen {
-		col = t.Line
-	}
-	// cincin penuh accent/line (padding 2.5px mengelilingi avatar).
-	paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(full, full)}.Op(gtx.Ops))
 	// avatar di tengah cincin: foto asli (avFn) bila ada, else inisial berwarna.
 	stpInnerAvatar(gtx, th, t, it.name, it.jid, av, pad, avFn)
+	// cincin TERSEGMEN (ala WhatsApp): N busur sama panjang dgn celah; segmen
+	// dilihat = abu (t.Line), belum = accent. count<=1 → cincin utuh.
+	n := it.count
+	if n < 1 {
+		n = 1
+	}
+	stpStatusRing(gtx, full, av, pad, n, it.seenCount, t.Accent, withAlpha(t.Text2, 0x88))
 	return layout.Dimensions{Size: sz}
+}
+
+// stpStatusRing — gambar cincin status sbg N busur (stroke) di tepi luar: segmen
+// indeks < seen = abu, sisanya accent. n==1 → lingkaran penuh tanpa celah.
+func stpStatusRing(gtx layout.Context, full, av, pad, n, seen int, accent, gray color.NRGBA) {
+	c := f32.Pt(float32(full)/2, float32(full)/2)
+	r := float32(av+pad) / 2 // garis-tengah stroke (mengisi anulus av..full)
+	strokeW := float32(pad)
+	if strokeW < float32(gtx.Dp(2)) {
+		strokeW = float32(gtx.Dp(2))
+	}
+	gap := float32(0) // celah antar-segmen (rad)
+	if n > 1 {
+		gap = 0.20
+	}
+	seg := float32(2*math.Pi) / float32(n)
+	start := float32(-math.Pi / 2) // mulai dari atas
+	for i := 0; i < n; i++ {
+		a0 := start + float32(i)*seg + gap/2
+		sweep := seg - gap
+		col := accent
+		if i < seen {
+			col = gray
+		}
+		p0 := f32.Pt(c.X+r*float32(math.Cos(float64(a0))), c.Y+r*float32(math.Sin(float64(a0))))
+		var p clip.Path
+		p.Begin(gtx.Ops)
+		p.MoveTo(p0)
+		foc := f32.Pt(c.X-p0.X, c.Y-p0.Y) // pusat lingkaran relatif thd pena
+		p.Arc(foc, foc, sweep)
+		paint.FillShape(gtx.Ops, col, clip.Stroke{Path: p.End(), Width: strokeW}.Op())
+	}
 }
 
 // stpInnerAvatar — gambar avatar bulat (foto asli via avFn / fallback inisial)

@@ -4752,7 +4752,7 @@ func (u *UI) statusRows() []stpItem {
 			continue // status sendiri tampil di baris My-status, bukan daftar
 		}
 		u.statusGroupsCache = append(u.statusGroupsCache, g)
-		out = append(out, stpItem{name: g.Name, time: g.Time, seen: g.Seen, jid: g.Jid})
+		out = append(out, stpItem{name: g.Name, time: g.Time, seen: g.Seen, jid: g.Jid, count: g.Count, seenCount: g.SeenCount})
 	}
 	if len(u.statusClicks) < len(out) {
 		u.statusClicks = make([]widget.Clickable, len(out))

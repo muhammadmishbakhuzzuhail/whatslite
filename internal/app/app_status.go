@@ -33,7 +33,8 @@ type StatusGroupDTO struct {
 	Mine  bool            `json:"mine"`
 	Seen  bool            `json:"seen"` // semua item sudah dilihat → cincin abu
 	Count int             `json:"count"`
-	Items []StatusItemDTO `json:"items"` // urut lama→baru (utk tap-through viewer)
+	SeenCount int         `json:"seenCount"` // jumlah item sudah dilihat (utk segmen cincin)
+	Items []StatusItemDTO `json:"items"`     // urut lama→baru (utk tap-through viewer)
 }
 
 // GetStatuses mengembalikan status 24 jam terakhir, dikelompokkan per pengirim.
@@ -102,6 +103,11 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 		if !g.Mine {
 			seenTs, _ := strconv.ParseInt(a.store.GetMeta(a.ctx, "status_seen:"+g.Jid, "0"), 10, 64)
 			g.Seen = maxTs > 0 && seenTs >= maxTs
+			for _, it := range g.Items { // item dgn Ts <= waktu-lihat = sudah dilihat (segmen abu)
+				if it.Ts > 0 && it.Ts <= seenTs {
+					g.SeenCount++
+				}
+			}
 		}
 	}
 	// Milik sendiri ke depan.

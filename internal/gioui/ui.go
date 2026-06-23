@@ -126,6 +126,8 @@ type UI struct {
 	chnRowOpens  []widget.Clickable  // buka channel per-baris → reader
 	openChannel  string              // jid channel terbuka (reader di section 3); "" = tak ada
 	openChanName string              // nama channel terbuka
+	openChanSubs string              // subscriber channel terbuka (header reader)
+	openChanVer  bool                // channel terverifikasi (header reader)
 	chMsgList    widget.List         // gulir post channel reader
 	chMsgsCache  []app.ChannelMsgDTO // cache post channel terbuka
 	chMsgsJID    string              // jid cache di atas
@@ -354,7 +356,7 @@ type UI struct {
 	editor           widget.Editor
 	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
 	photoMu          sync.Mutex               // lindungi photos (diisi dari goroutine loader)
-	photoTried       map[string]bool          // jid yg sudah dicoba ambil (hindari refetch)
+	photoTried       map[string]time.Time     // jid → waktu coba terakhir (retry stlh cooldown bila gagal)
 
 	media      map[string]paint.ImageOp // thumbnail media bubble (msgID → op)
 	mediaMu    sync.Mutex
@@ -607,7 +609,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.locked = core != nil && core.HasAppPIN()
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
-	u.photoTried = map[string]bool{}
+	u.photoTried = map[string]time.Time{}
 	u.media = map[string]paint.ImageOp{}
 	u.mediaTried = map[string]bool{}
 	u.dispTimer = map[string]int{}
@@ -3465,17 +3467,21 @@ func (u *UI) ensureAvatar(name, jid string) {
 		return
 	}
 	u.photoMu.Lock()
-	if u.photoTried[jid] {
+	if _, ok := u.photos[name]; ok { // sudah punya foto → selesai
 		u.photoMu.Unlock()
 		return
 	}
-	u.photoTried[jid] = true
+	if t, ok := u.photoTried[jid]; ok && time.Since(t) < 20*time.Second {
+		u.photoMu.Unlock() // baru dicoba → tunggu cooldown (retry utk channel/foto lambat)
+		return
+	}
+	u.photoTried[jid] = time.Now()
 	u.photoMu.Unlock()
 	go func() {
 		b := u.core.AvatarBytes(jid)
 		img := decodeImage(b)
 		if img == nil {
-			return
+			return // gagal/kosong → cooldown lewat ensureAvatar berikutnya
 		}
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
@@ -4344,12 +4350,34 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.openChanName, u.openChannel, 40) }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.openChanName, u.openChannel, 42) }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(u.th, 16, u.openChanName)
-						lbl.Color, lbl.Font.Weight, lbl.MaxLines = u.t.Text, font.Medium, 1
-						return lbl.Layout(gtx)
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+										lbl := material.Label(u.th, 16, u.openChanName)
+										lbl.Color, lbl.Font.Weight, lbl.MaxLines = u.t.Text, font.Medium, 1
+										return lbl.Layout(gtx)
+									}),
+									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+										if !u.openChanVer {
+											return layout.Dimensions{}
+										}
+										return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "verif", 15, u.t.Accent) })
+									}),
+								)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if u.openChanSubs == "" {
+									return layout.Dimensions{}
+								}
+								lbl := material.Label(u.th, 12.5, u.openChanSubs)
+								lbl.Color, lbl.MaxLines = u.t.Text2, 1
+								return lbl.Layout(gtx)
+							}),
+						)
 					}),
 				)
 			})
@@ -4446,6 +4474,7 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 			for u.chnRowOpens[i].Clicked(gtx) {
 				if rows[i].jid != "" {
 					u.openChannel, u.openChanName = rows[i].jid, rows[i].name
+					u.openChanSubs, u.openChanVer = rows[i].subs, rows[i].verified
 					u.chMsgsJID = "" // paksa muat post
 				}
 			}

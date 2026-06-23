@@ -12,6 +12,7 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -720,6 +721,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m23", Dir: "out", Type: "audio", Text: "Lagu_Favorit.mp3", Thumb: "3:24", Time: "08.20", Status: "read", Ts: now},
 		{ID: "m24", Dir: "in", Type: "sticker", Time: "08.21", Sender: "Rian", Ts: now},
 		{ID: "m25", Dir: "out", Type: "gif", Time: "08.22", Status: "delivered", Ts: now},
+		{ID: "m26", Dir: "in", Type: "text", Text: "Format: *tebal* _miring_ ~coret~ ```mono``` cek https://wa.me/123 ya", Time: "08.23", Sender: "Budi Santoso", Ts: now},
 	}
 }
 
@@ -3861,14 +3863,173 @@ func docExt(mime string) string {
 // withAlpha — warna dgn alpha berbeda.
 func withAlpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 
-// mentionText — render teks dgn @mention berwarna accent (richtext, wrap benar).
+// mentionText — render teks pesan dgn FORMAT WhatsApp (*tebal* _miring_ ~coret~
+// ```mono```), URL biru, @mention accent. richtext → wrap benar.
 func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.MentionDTO) layout.Dimensions {
-	base := richtext.SpanStyle{Size: unit.Sp(15), Color: u.t.Text}
-	acc := base
-	acc.Color = u.t.Accent
-	acc.Font.Weight = font.Medium
-	spans := mentionSpans(text, mentions, base, acc)
+	return u.formattedText(gtx, text, mentions, unit.Sp(15))
+}
+
+// formattedText — renderer teks kaya: parse marker WhatsApp → run bergaya, lalu
+// warnai URL (link) + @mention (accent). Dipakai bubble chat & post channel.
+func (u *UI) formattedText(gtx layout.Context, text string, mentions []app.MentionDTO, size unit.Sp) layout.Dimensions {
+	base := richtext.SpanStyle{Size: size, Color: u.t.Text}
+	spans := u.richSpans(text, mentions, base)
 	return richtext.Text(&u.mentionState, u.th.Shaper, spans...).Layout(gtx)
+}
+
+// fmtRun — potongan teks dgn gaya format WhatsApp aktif.
+type fmtRun struct {
+	text                       string
+	bold, italic, strike, mono bool
+}
+
+// fmtMark — definisi satu marker format WhatsApp.
+type fmtMark struct {
+	ch                         string
+	bold, italic, strike, mono bool
+}
+
+var fmtMarks = []fmtMark{
+	{ch: "```", mono: true},  // monospace (triple backtick) — cek DULU sebelum '`'
+	{ch: "*", bold: true},    // *tebal*
+	{ch: "_", italic: true},  // _miring_
+	{ch: "~", strike: true},  // ~coret~
+}
+
+// fmtRuns — pisah `s` jadi run bergaya menurut marker WhatsApp (rekursif → nested,
+// mis. *_tebal miring_*). Marker dilucuti. Pasangan valid: pembuka tak diikuti
+// spasi, penutup tak didahului spasi, isi tak kosong (ala WhatsApp).
+func fmtRuns(s string, b, i, st, mo bool) []fmtRun {
+	for pos := 0; pos < len(s); pos++ {
+		for _, m := range fmtMarks {
+			if !strings.HasPrefix(s[pos:], m.ch) {
+				continue
+			}
+			oe := pos + len(m.ch)
+			if oe >= len(s) || s[oe] == ' ' || s[oe] == '\n' { // pembuka diikuti spasi → bukan format
+				continue
+			}
+			// cari penutup: marker sama, tak didahului spasi, isi non-kosong.
+			j := -1
+			for k := oe; k+len(m.ch) <= len(s); k++ {
+				if strings.HasPrefix(s[k:], m.ch) && s[k-1] != ' ' && s[k-1] != '\n' && k > oe {
+					j = k
+					break
+				}
+			}
+			if j < 0 {
+				continue
+			}
+			var out []fmtRun
+			out = append(out, fmtRuns(s[:pos], b, i, st, mo)...)
+			out = append(out, fmtRuns(s[oe:j], b || m.bold, i || m.italic, st || m.strike, mo || m.mono)...)
+			out = append(out, fmtRuns(s[j+len(m.ch):], b, i, st, mo)...)
+			return out
+		}
+	}
+	if s == "" {
+		return nil
+	}
+	return []fmtRun{{text: s, bold: b, italic: i, strike: st, mono: mo}}
+}
+
+var reURL = regexp.MustCompile(`(?:https?://|www\.)[^\s]+`)
+
+// richSpans — text → span richtext: gaya format (tebal/miring/coret/mono) +
+// warna URL (accent) & @mention (accent/medium). Coret via U+0336 (richtext tak
+// punya strikethrough).
+func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.SpanStyle) []richtext.SpanStyle {
+	var spans []richtext.SpanStyle
+	for _, r := range fmtRuns(text, false, false, false, false) {
+		st := base
+		if r.bold {
+			st.Font.Weight = font.Bold
+		}
+		if r.italic {
+			st.Font.Style = font.Italic
+		}
+		if r.mono {
+			st.Font.Typeface = "monospace"
+		}
+		acc := st
+		acc.Color = u.t.Accent
+		// pisah run jadi span normal vs accent (URL / @mention).
+		for _, sp := range coloredSpans(r.text, mentions, st, acc) {
+			if r.strike {
+				sp.Content = strikeThrough(sp.Content)
+			}
+			spans = append(spans, sp)
+		}
+	}
+	if len(spans) == 0 {
+		base.Content = text
+		spans = []richtext.SpanStyle{base}
+	}
+	return spans
+}
+
+// coloredSpans — pisah `text` pada token accent (URL via reURL + "@Name" mention),
+// warna accent; sisanya pakai `base`. Pertahankan Font dari base (gaya format).
+func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.SpanStyle) []richtext.SpanStyle {
+	type tok struct{ s, e int }
+	var toks []tok
+	for _, m := range reURL.FindAllStringIndex(text, -1) {
+		toks = append(toks, tok{m[0], m[1]})
+	}
+	for _, mn := range mentions {
+		if mn.Name == "" {
+			continue
+		}
+		t := "@" + mn.Name
+		for from := 0; ; {
+			p := strings.Index(text[from:], t)
+			if p < 0 {
+				break
+			}
+			toks = append(toks, tok{from + p, from + p + len(t)})
+			from += p + len(t)
+		}
+	}
+	if len(toks) == 0 {
+		base.Content = text
+		return []richtext.SpanStyle{base}
+	}
+	// urut token by start; abaikan tumpang-tindih.
+	sort.Slice(toks, func(a, b int) bool { return toks[a].s < toks[b].s })
+	var spans []richtext.SpanStyle
+	i := 0
+	for _, t := range toks {
+		if t.s < i {
+			continue // tumpang tindih → lewati
+		}
+		if t.s > i {
+			s := base
+			s.Content = text[i:t.s]
+			spans = append(spans, s)
+		}
+		a := acc
+		a.Content = text[t.s:t.e]
+		spans = append(spans, a)
+		i = t.e
+	}
+	if i < len(text) {
+		s := base
+		s.Content = text[i:]
+		spans = append(spans, s)
+	}
+	return spans
+}
+
+// strikeThrough — sisipkan U+0336 (combining long stroke overlay) tiap rune →
+// efek coret (richtext.SpanStyle tak punya properti strikethrough).
+func strikeThrough(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) * 2)
+	for _, r := range s {
+		b.WriteRune(r)
+		b.WriteRune('̶')
+	}
+	return b.String()
 }
 
 // mentionSpans — pisah `text` jadi span normal vs span accent pada token "@Name"
@@ -4406,13 +4567,12 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensi
 		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					txt := m.Text
-					if txt == "" && m.Type != "" && m.Type != "text" {
-						txt = "[" + m.Type + "]"
+					if m.Text == "" && m.Type != "" && m.Type != "text" {
+						lbl := material.Label(u.th, 15, "["+m.Type+"]") // media post: thumbnail = follow-up
+						lbl.Color = u.t.Text
+						return lbl.Layout(gtx)
 					}
-					lbl := material.Label(u.th, 15, txt)
-					lbl.Color = u.t.Text
-					return lbl.Layout(gtx)
+					return u.formattedText(gtx, m.Text, nil, unit.Sp(15)) // format + URL biru
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -4420,9 +4580,12 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensi
 					if m.Views > 0 {
 						meta += "  ·  " + fmtSubs(m.Views) + " dilihat"
 					}
-					lbl := material.Label(u.th, 11.5, meta)
-					lbl.Color = u.t.Text2
-					return lbl.Layout(gtx)
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions { // meta kanan-bawah (ala bubble)
+						lbl := material.Label(u.th, 11.5, meta)
+						lbl.Color = u.t.Text2
+						return lbl.Layout(gtx)
+					})
 				}),
 			)
 		})
@@ -6812,23 +6975,19 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 						txt = "[" + m.Type + "]"
 					}
 					textW := func(gtx layout.Context) layout.Dimensions {
-						if len(m.Mentions) > 0 { // @mention berwarna accent (inline, wrap)
-							return u.mentionText(gtx, txt, m.Mentions)
-						}
-						sz := unit.Sp(15)
-						if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA)
-							switch n {
-							case 1:
+						if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA), tanpa format
+							sz := unit.Sp(26)
+							if n == 1 {
 								sz = unit.Sp(40)
-							case 2:
+							} else if n == 2 {
 								sz = unit.Sp(32)
-							default:
-								sz = unit.Sp(26)
 							}
+							lbl := material.Label(u.th, sz, txt)
+							lbl.Color = u.t.Text
+							return lbl.Layout(gtx)
 						}
-						lbl := material.Label(u.th, sz, txt)
-						lbl.Color = u.t.Text
-						return lbl.Layout(gtx)
+						// format WhatsApp (*tebal* _miring_ ~coret~ ```mono```) + URL biru + @mention.
+						return u.formattedText(gtx, txt, m.Mentions, unit.Sp(15))
 					}
 					var card layout.Widget
 					if url := firstURL(txt); url != "" { // pratinjau tautan di atas teks

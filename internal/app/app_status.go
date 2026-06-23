@@ -54,9 +54,17 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 		self = userPart(a.eng.SelfJID())
 	}
 	groups := map[string]*StatusGroupDTO{}
-	var order []string // urut kemunculan = update terbaru dulu (ms terbaru dulu)
+	seen := map[string]bool{}     // dedup re-kirim: 1 unggahan kadang tiba >1× dgn ID beda
+	var order []string            // urut kemunculan = update terbaru dulu (ms terbaru dulu)
 	for _, m := range ms {
 		key := m.Sender
+		// kunci konten: 1 status sama (sender+detik+jenis+teks) → hitung sekali walau
+		// ID server berbeda (re-deliver saat reconnect/multi-device bisa bikin ID baru).
+		ck := m.Sender + "|" + strconv.FormatInt(m.Timestamp.Unix(), 10) + "|" + m.Kind + "|" + m.Text
+		if seen[ck] {
+			continue
+		}
+		seen[ck] = true
 		g := groups[key]
 		if g == nil {
 			mine := self != "" && userPart(m.Sender) == self

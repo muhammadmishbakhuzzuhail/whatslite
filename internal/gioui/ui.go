@@ -76,6 +76,7 @@ type UI struct {
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
 	statusViewIdx     int
+	statusViewAt      time.Time // waktu buka viewer (redraw terbatas saat unduh media)
 	statusClose       widget.Clickable
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
@@ -4809,12 +4810,31 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				)
 			})
 		}),
-		// isi: gambar (thumb data-URI) atau teks besar.
+		// isi: media penuh (image/video/sticker) atau teks besar.
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				if img := decodeImage(decodeDataURI(item.Thumb)); img != nil {
-					op := paint.NewImageOp(img)
-					sz := op.Size()
+				// gambar: unduh media penuh (status@broadcast) → fallback thumb tertanam.
+				var iop paint.ImageOp
+				haveImg := false
+				if item.Type == "image" || item.Type == "video" || item.Type == "sticker" {
+					u.ensureMedia("status@broadcast", item.ID)
+					u.mediaMu.Lock()
+					if op2, ok := u.media[item.ID]; ok {
+						iop, haveImg = op2, true
+					}
+					u.mediaMu.Unlock()
+					// belum termuat → redraw terbatas ~5s agar muncul saat unduh selesai.
+					if !haveImg && gtx.Now.Sub(u.statusViewAt) < 5*time.Second {
+						gtx.Execute(op.InvalidateCmd{})
+					}
+				}
+				if !haveImg {
+					if img := decodeImage(decodeDataURI(item.Thumb)); img != nil {
+						iop, haveImg = paint.NewImageOp(img), true
+					}
+				}
+				if haveImg {
+					sz := iop.Size()
 					maxW, maxH := gtx.Dp(420), gtx.Constraints.Max.Y-gtx.Dp(80)
 					w := maxW
 					h := w * sz.Y / sz.X
@@ -4824,7 +4844,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 					}
 					box := image.Pt(w, h)
 					cl := clip.Rect{Max: box}.Push(gtx.Ops)
-					drawImageFill(gtx.Ops, op, w)
+					drawImageFill(gtx.Ops, iop, w)
 					cl.Pop()
 					return layout.Dimensions{Size: box}
 				}
@@ -4864,6 +4884,7 @@ func (u *UI) handleStatus(gtx layout.Context) {
 		}
 		for u.statusClicks[i].Clicked(gtx) {
 			u.statusViewIdx = i
+			u.statusViewAt = gtx.Now
 			u.overlay = "statusview"
 			g := u.statusGroupsCache[i] // tandai dilihat sampai item terbaru → cincin abu
 			if u.core != nil && len(g.Items) > 0 {

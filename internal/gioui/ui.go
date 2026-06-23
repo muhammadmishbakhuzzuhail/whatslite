@@ -281,6 +281,7 @@ type UI struct {
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable // avatar profil di dasar rail → setelan profil
 	comNewBtn        widget.Clickable // tombol "Komunitas baru" di pane Komunitas
+	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
 	editor     widget.Editor
 	photos     map[string]paint.ImageOp // foto avatar in-memory (nama → op)
 	photoMu    sync.Mutex               // lindungi photos (diisi dari goroutine loader)
@@ -484,7 +485,9 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.phoneEd.Submit = true
 	u.searchEd.SingleLine = true
 	u.profNameEd.SingleLine = true
+	u.profNameEd.MaxLen = 25  // batas nama WhatsApp
 	u.profAboutEd.SingleLine = true
+	u.profAboutEd.MaxLen = 139 // batas Tentang WhatsApp
 	u.pollQEd.SingleLine = true
 	for i := range u.pollOptEds {
 		u.pollOptEds[i].SingleLine = true
@@ -682,6 +685,14 @@ func (u *UI) handleSettings(gtx layout.Context) {
 		if u.core != nil {
 			u.core.SetMyName(strings.TrimSpace(u.profNameEd.Text()))
 			u.core.SetMyAbout(strings.TrimSpace(u.profAboutEd.Text()))
+		}
+	}
+	for i := range u.aboutClicks { // ketuk saran "Tentang" → isi editor
+		if i >= len(aboutPresets) {
+			break
+		}
+		if u.aboutClicks[i].Clicked(gtx) {
+			u.profAboutEd.SetText(aboutPresets[i])
 		}
 	}
 	for u.setClicks[0].Clicked(gtx) { // Akun → sub-pane
@@ -2148,6 +2159,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 					u.profLoaded = true
 				}
 				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
+				ctl.AboutClicks = u.aboutClicks[:]
 			case "account":
 				ctl.ProfPhone = u.core.GetProfile().Phone
 			case "storage":

@@ -38,6 +38,7 @@ type SettingsCtl struct {
 	ProfName, ProfAbout, ProfPhone string
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
 	ProfSave                       *widget.Clickable
+	AboutClicks                    []widget.Clickable // chip saran "Tentang" (paralel aboutPresets)
 	StoreDB, StoreMedia            int64
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
@@ -268,6 +269,12 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 				return setProfileField(gtx, th, t, "Tentang", orDash(ctl.ProfAbout))
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if !editable || len(ctl.AboutClicks) == 0 {
+					return layout.Dimensions{}
+				}
+				return setAboutPresets(gtx, th, t, ctl)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return setProfileField(gtx, th, t, "Telepon", orDash(ctl.ProfPhone))
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -336,6 +343,47 @@ func setProfileField(gtx layout.Context, th *material.Theme, t Theme, label, val
 			}),
 		)
 	})
+}
+
+// aboutPresets — frasa "Tentang" bawaan WhatsApp (Indonesia). Indeks = indeks
+// AboutClicks. Ketuk → isi editor Tentang.
+var aboutPresets = []string{
+	"Tersedia", "Sibuk", "Di sekolah", "Di bioskop", "Sedang bekerja",
+	"Baterai lemah", "Tidak bisa bicara, WhatsApp saja", "Dalam rapat",
+	"Di gym", "Tidur", "Hanya panggilan darurat",
+}
+
+// setAboutPresets — daftar saran "Tentang" (tappable) di bawah editor, ala
+// layar edit Tentang WhatsApp. Ketuk baris → set teks editor (lihat handleSettings).
+func setAboutPresets(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	n := len(aboutPresets)
+	if len(ctl.AboutClicks) < n {
+		n = len(ctl.AboutClicks)
+	}
+	children := make([]layout.FlexChild, 0, n+1)
+	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: unit.Dp(20), Top: unit.Dp(6), Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(th, 13, "Pilih saran")
+			l.Color = t.Text2
+			return l.Layout(gtx)
+		})
+	}))
+	for i := 0; i < n; i++ {
+		txt := aboutPresets[i]
+		idx := i
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			row := func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					l := material.Label(th, 15, txt)
+					l.Color, l.MaxLines = t.Text, 1
+					return l.Layout(gtx)
+				})
+			}
+			return ctl.AboutClicks[idx].Layout(gtx, row)
+		}))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
 // setStoragePane — ringkasan penyimpanan (DB, media, jumlah pesan).

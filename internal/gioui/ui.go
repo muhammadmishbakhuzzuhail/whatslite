@@ -2435,19 +2435,31 @@ func (u *UI) railIconBtn(gtx layout.Context, c *widget.Clickable, ico, tip strin
 // shadcn): bg Bg2 membulat + label, dipusatkan vertikal terhadap tombol btnH.
 func (u *UI) railTooltip(gtx layout.Context, btnH int, txt string) {
 	gap := gtx.Dp(8)
+	// Tooltip = INVERS tema (kontras, bukan sewarna bg): bg=Text, teks=SidebarBg.
+	tipBg, tipFg := u.t.Text, u.t.SidebarBg
 	macro := op.Record(gtx.Ops)
 	cg := gtx
 	// tombol membatasi Max ke 44px → label ter-elipsis "S...". Beri ruang ukur.
 	cg.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(240), gtx.Dp(48))}
 	dims := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
 		l := material.Label(u.th, 13, txt)
-		l.Color, l.MaxLines = u.t.Text, 1
+		l.Color, l.MaxLines = tipFg, 1
 		return l.Layout(gtx)
 	})
 	call := macro.Stop()
-	off := op.Offset(image.Pt(btnH+gap, (btnH-dims.Size.Y)/2)).Push(gtx.Ops)
+	// caret kiri (segitiga) menunjuk ke ikon — jelas tooltip milik tombol mana.
+	bx, cy, cw := btnH+gap, btnH/2, gtx.Dp(5)
+	var p clip.Path
+	p.Begin(gtx.Ops)
+	p.MoveTo(f32.Pt(float32(bx-cw), float32(cy)))
+	p.LineTo(f32.Pt(float32(bx), float32(cy-cw)))
+	p.LineTo(f32.Pt(float32(bx), float32(cy+cw)))
+	p.Close()
+	paint.FillShape(gtx.Ops, tipBg, clip.Outline{Path: p.End()}.Op())
+	// kotak tooltip.
+	off := op.Offset(image.Pt(bx, cy-dims.Size.Y/2)).Push(gtx.Ops)
 	r := gtx.Dp(6)
-	paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	paint.FillShape(gtx.Ops, tipBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	off.Pop()
 }
@@ -2741,7 +2753,7 @@ func (u *UI) filterChip(gtx layout.Context, i int) layout.Dimensions {
 func (u *UI) header(gtx layout.Context, w int, title string, col color.NRGBA, sp unit.Sp, wt font.Weight) layout.Dimensions {
 	h := gtx.Dp(60)
 	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, u.t.SidebarBg, clip.Rect{Max: sz}.Op())
 	// divider bawah
 	paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz

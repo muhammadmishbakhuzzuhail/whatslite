@@ -34,7 +34,7 @@ var iconPaths = map[string]string{
 	"plus":      `<path d="M12 5v14M5 12h14"/>`,
 	"mic":       `<rect x="9" y="2.5" width="6" height="10.5" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/>`,
 	"send":      `<path d="M3 11l18-8-8 18-2-7-8-3z"/>`,
-	"pin":       `<path d="M12 17v5M7 4h10l-1 6 3 3H5l3-3-1-6z"/>`,
+	"pin":       `<path d="M9 3h6M10 3v5l-2.5 4h9L14 8V3M12 12v8"/>`,
 	"mute":      `<path d="M5 9v6h3l4 4V5L8 9H5z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M3 3l18 18"/>`,
 	"search":    `<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>`,
 	"overflow":  `<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>`,

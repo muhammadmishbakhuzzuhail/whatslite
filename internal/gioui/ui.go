@@ -57,6 +57,7 @@ type UI struct {
 	state      string
 	qr         string // kode QR pairing mentah terbaru (dari core.QRCode); "" = belum ada
 	subtitle   string // subtitle header chat (online/mengetik…/terakhir dilihat)
+	groupSub   string // ringkasan anggota grup terbuka (nama2 / "N anggota") utk subtitle
 	typingSent bool   // status composing terakhir yg dikirim (throttle SendTyping)
 	view       string // pane sidebar aktif: chats|calls|settings
 
@@ -671,7 +672,13 @@ func (u *UI) refresh() {
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
 			u.messages = u.core.GetMessages(u.selected)
-			u.subtitle = u.core.ChatSubtitle(u.selected)
+			sub := u.core.ChatSubtitle(u.selected)
+			// grup: presence per-pengguna tak berlaku → tampil daftar anggota, KECUALI
+			// ada yg mengetik/merekam (override). DM: tetap presence.
+			if u.selGroup && !strings.Contains(sub, "mengetik") && !strings.Contains(sub, "merekam") {
+				sub = u.groupSub
+			}
+			u.subtitle = sub
 		}
 	}
 	if len(u.clicks) < len(u.chats) {
@@ -3294,6 +3301,34 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 	return dims
 }
 
+// groupMembersSummary — subtitle grup ala WhatsApp: daftar nama anggota dipisah
+// koma ("Kamu, Andi, Budi, …"); fallback "N anggota". Sekali per buka grup.
+func (u *UI) groupMembersSummary(jid string) string {
+	if u.core == nil {
+		return ""
+	}
+	gi := u.core.GetGroupInfo(jid)
+	if gi == nil || len(gi.Participants) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(gi.Participants))
+	for _, p := range gi.Participants {
+		nm := p.Name
+		if u.selfJID != "" && jidUser(p.JID) == jidUser(u.selfJID) {
+			nm = "Kamu"
+		}
+		if nm == "" {
+			nm = jidUser(p.JID)
+		}
+		names = append(names, nm)
+	}
+	s := strings.Join(names, ", ")
+	if len(s) > 120 { // terlalu panjang → ringkas ke jumlah
+		return itoa(len(gi.Participants)) + " anggota"
+	}
+	return s
+}
+
 // handleChatClicks — proses klik baris chat DI LUAR layout (ala handleContactsPane).
 // Memanggil Clicked() di dalam Clickable.Layout sendiri ternyata tak terpicu di
 // dalam material.List → pindah ke sini (klik bisa, section 3 muncul).
@@ -3306,10 +3341,14 @@ func (u *UI) handleChatClicks(gtx layout.Context) {
 			c := u.chats[i]
 			u.selected, u.selName, u.selGroup = c.ID, c.Name, c.Group
 			u.view, u.openChannel = "chats", ""
+			u.groupSub = ""
 			if u.core != nil {
 				u.core.OpenChat(c.ID)
 				u.messages = u.core.GetMessages(c.ID)
 				u.prefetchHistory(c.ID)
+				if c.Group { // ringkasan anggota grup (nama2 → fallback "N anggota") utk subtitle
+					u.groupSub = u.groupMembersSummary(c.ID)
+				}
 			}
 			u.captureUnreadDivider(c.Badge)
 			u.msgList.ScrollTo(len(u.messages))
@@ -7129,14 +7168,20 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 							cg := gtx
 							cg.Constraints.Min = image.Point{}
 							tmac := op.Record(gtx.Ops)
-							td := textW(cg)
+							td := textW(cg) // teks di-wrap pd lebar bubble
 							tmac.Stop()
-							lh := gtx.Dp(20) // tinggi ~1 baris (15sp)
+							// tinggi 1-baris SEBENARNYA: ukur teks tanpa wrap (lebar tak hingga).
+							wg := gtx
+							wg.Constraints = layout.Constraints{Max: image.Pt(1<<20, 1<<20)}
+							lmac := op.Record(gtx.Ops)
+							sd := textW(wg)
+							lmac.Stop()
 							mmac := op.Record(gtx.Ops)
 							md := metaRow(cg)
 							mmac.Stop()
 							gap := gtx.Dp(8)
-							if td.Size.Y <= lh && td.Size.X+gap+md.Size.X <= gtx.Constraints.Max.X {
+							// 1 baris (tinggi wrap == tinggi tanpa-wrap) & teks+meta muat → inline kanan.
+							if td.Size.Y <= sd.Size.Y && td.Size.X+gap+md.Size.X <= gtx.Constraints.Max.X {
 								inlineMeta = true
 								return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
 									layout.Rigid(textW),

@@ -2783,32 +2783,46 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			u.captureUnreadDivider(c.Badge)     // batas "belum dibaca" SEBELUM ditandai-baca
 			u.msgList.ScrollTo(len(u.messages)) // buka chat → ke pesan terbaru (bawah)
 		}
-		// bg hover/active
-		dims := layout.UniformInset(0).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			// .chat-list pad 4/8 + .chat-row pad 10/12 → vert 10, horiz 8+12=20.
-			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return u.avatar(gtx, c.Name, c.ID, 49)
-						}),
-						layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
-						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return u.rowLine(gtx, c.Name, c.Time, 16.5, u.t.Text, u.t.Text2)
-								}),
-								layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return u.previewLine(gtx, c)
-								}),
-							)
-						}),
-					)
-				})
+		// rekam konten dulu → tahu ukuran baris → gambar bg hover/aktif di BELAKANG.
+		macro := op.Record(gtx.Ops)
+		// .chat-list pad 4/8 + .chat-row pad 10/12 → vert 10, horiz 8+12=20.
+		dims := layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.avatar(gtx, c.Name, c.ID, 49)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return u.rowLine(gtx, c.Name, c.Time, 16.5, u.t.Text, u.t.Text2)
+							}),
+							layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return u.previewLine(gtx, c)
+							}),
+						)
+					}),
+				)
 			})
 		})
-		_ = active
+		call := macro.Stop()
+		// bg: chat aktif (Selected) > hover (Hover); konten digambar di atasnya.
+		bg := color.NRGBA{}
+		if active {
+			bg = u.t.Selected
+		} else if u.clicks[i].Hovered() {
+			bg = u.t.Hover
+		}
+		if bg.A > 0 {
+			paint.FillShape(gtx.Ops, bg, clip.Rect{Max: dims.Size}.Op())
+		}
+		call.Add(gtx.Ops)
+		// pemisah horizontal antar baris (mulai setelah avatar, ala WhatsApp).
+		lh := gtx.Dp(1)
+		dl := gtx.Dp(82) // 8(outer)+12(inner)+49(avatar)+13(spacer)
+		paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Min: image.Pt(dl, dims.Size.Y-lh), Max: image.Pt(dims.Size.X, dims.Size.Y)}.Op())
 		// klik-kanan (secondary) di baris → menu aksi chat.
 		tag := chatTag(i)
 		for {

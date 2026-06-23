@@ -240,6 +240,13 @@ type UI struct {
 	inviteCopy      widget.Clickable
 	inviteClose     widget.Clickable
 	infoEditC       widget.Clickable // info-drawer: edit info grup
+	infoMuteC       widget.Clickable // info-drawer: bisukan/aktifkan notifikasi
+	infoMediaC      widget.Clickable // info-drawer: buka galeri media
+	infoEncC        widget.Clickable // info-drawer: info enkripsi
+	infoMemberClicks []widget.Clickable // info-drawer: anggota grup
+	encClose        widget.Clickable // overlay enkripsi/galeri: tutup
+	mediaCellClicks []widget.Clickable // sel grid galeri media
+	mediaGalList    widget.List       // scroll galeri media
 	gedName         widget.Editor    // editor nama grup (modal groupedit)
 	gedDesc         widget.Editor    // editor deskripsi grup
 	gedSave         widget.Clickable
@@ -475,6 +482,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
 	u.contactList.Axis = layout.Vertical
+	u.mediaGalList.Axis = layout.Vertical
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -1017,7 +1025,163 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.groupCreateLayer(gtx)
 	case "pinset":
 		u.pinSetLayer(gtx)
+	case "encryption":
+		u.encryptionLayer(gtx)
+	case "media":
+		u.mediaGalleryLayer(gtx)
 	}
+}
+
+// encryptionLayer — kartu info enkripsi end-to-end (paritas WhatsApp "Enkripsi").
+func (u *UI) encryptionLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for u.encClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(360)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(22)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "lock", 40, u.t.Accent) })
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Terenkripsi end-to-end")
+					l.Color, l.Font.Weight, l.Alignment = u.t.Text, font.Medium, text.Middle
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13.5, "Pesan dan panggilan di chat ini dilindungi enkripsi end-to-end. Tidak ada pihak di luar chat ini—termasuk WhatsApp—yang dapat membacanya.")
+					l.Color, l.Alignment = u.t.Text2, text.Middle
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.encClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 14.5, "Tutup")
+							l.Color, l.Font.Weight = u.t.Accent, font.Medium
+							return l.Layout(gtx)
+						})
+					})
+				}),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// mediaGalleryLayer — galeri "Media, tautan, dokumen": grid foto/video chat aktif
+// (core.GetChatMedia). Ketuk → lightbox. Backdrop/tutup di tepi.
+func (u *UI) mediaGalleryLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	var media []app.MessageDTO
+	if u.core != nil {
+		media = u.core.GetChatMedia(u.selected)
+	}
+	for u.encClose.Clicked(gtx) { // pakai ulang encClose sbg tombol tutup galeri
+		u.overlay = ""
+	}
+	if len(u.mediaCellClicks) < len(media) {
+		u.mediaCellClicks = make([]widget.Clickable, len(media))
+	}
+	for i := range media {
+		if i < len(u.mediaCellClicks) && u.mediaCellClicks[i].Clicked(gtx) {
+			u.lightboxMsg, u.lightboxCap, u.overlay = media[i].ID, media[i].Text, "lightbox"
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w, h := gtx.Dp(460), gtx.Dp(560)
+		gtx.Constraints.Min, gtx.Constraints.Max = image.Pt(w, h), image.Pt(w, h)
+		macro := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 17, "Media, tautan, dokumen")
+							l.Color, l.Font.Weight = u.t.Text, font.Medium
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.encClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "close", 22, u.t.Text2)
+							})
+						}),
+					)
+				})
+			}),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				if len(media) == 0 {
+					gtx.Constraints.Min = gtx.Constraints.Max
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 14, "Belum ada media")
+						l.Color = u.t.Text2
+						return l.Layout(gtx)
+					})
+				}
+				return material.List(u.th, &u.mediaGalList).Layout(gtx, (len(media)+2)/3, func(gtx layout.Context, row int) layout.Dimensions {
+					return u.mediaGalleryRow(gtx, media, row)
+				})
+			}),
+		)
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// mediaGalleryRow — satu baris 3 sel grid media (thumbnail kotak, ketuk → lightbox).
+func (u *UI) mediaGalleryRow(gtx layout.Context, media []app.MessageDTO, row int) layout.Dimensions {
+	cell := func(gtx layout.Context, idx int) layout.Dimensions {
+		side := (gtx.Constraints.Max.X - gtx.Dp(8)) / 3
+		bsz := image.Pt(side, side)
+		if idx >= len(media) {
+			return layout.Dimensions{Size: bsz}
+		}
+		m := media[idx]
+		u.ensureMedia(u.selected, m.ID)
+		u.mediaMu.Lock()
+		op, ok := u.media[m.ID]
+		u.mediaMu.Unlock()
+		return u.mediaCellClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min, gtx.Constraints.Max = bsz, bsz
+			r := gtx.Dp(4)
+			cl := clip.RRect{Rect: image.Rectangle{Max: bsz}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+			if ok {
+				op.Add(gtx.Ops)
+				paint.PaintOp{}.Add(gtx.Ops)
+			} else {
+				paint.FillShape(gtx.Ops, u.t.Bg2, clip.Rect{Max: bsz}.Op())
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "media", 28, u.t.Text2) })
+			}
+			cl.Pop()
+			return layout.Dimensions{Size: bsz}
+		})
+	}
+	return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(8), Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return cell(gtx, row*3) }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return cell(gtx, row*3+1) }),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return cell(gtx, row*3+2) }),
+		)
+	})
 }
 
 // doCtxAction menjalankan aksi context-menu pesan terhadap engine. Bintangi/Hapus
@@ -3613,6 +3777,24 @@ func (u *UI) linkCardWidget(url string) layout.Widget {
 // isGroupJIDStr — true bila JID grup (@g.us).
 func isGroupJIDStr(jid string) bool { return strings.HasSuffix(jid, "@g.us") }
 
+// jidUser — bagian sebelum "@" dari JID (nomor / id) utk fallback nama anggota.
+func jidUser(jid string) string {
+	if i := strings.IndexByte(jid, '@'); i >= 0 {
+		return jid[:i]
+	}
+	return jid
+}
+
+// isChatMuted — status bisu chat dari daftar chat termuat (default false).
+func (u *UI) isChatMuted(jid string) bool {
+	for i := range u.chats {
+		if u.chats[i].ID == jid {
+			return u.chats[i].Muted
+		}
+	}
+	return false
+}
+
 // communityRows membangun pane Komunitas dari komunitas nyata (core.GetCommunities).
 // nil = demo. TTL-cache via chCache? pakai gate sendiri (jarang berubah).
 func (u *UI) communityRows() []comItem {
@@ -3801,6 +3983,10 @@ func (u *UI) infoData() *InfoDrawerData {
 		return nil
 	}
 	d := &InfoDrawerData{Name: u.selName, Group: u.selGroup, Sub: u.subtitle}
+	d.Mute = &u.infoMuteC // bisu (DM + grup)
+	d.Media = &u.infoMediaC
+	d.Enc = &u.infoEncC
+	d.Muted = u.isChatMuted(u.selected)
 	if u.selGroup {
 		d.Leave = &u.infoLeaveC
 		d.Invite = &u.infoInviteC
@@ -3809,6 +3995,18 @@ func (u *UI) infoData() *InfoDrawerData {
 			d.Sub = itoa(len(gi.Participants)) + " anggota"
 			d.Desc = gi.Topic
 			u.curGroupDesc = gi.Topic
+			d.Members = make([]InfoMember, 0, len(gi.Participants))
+			for _, p := range gi.Participants {
+				nm := p.Name
+				if nm == "" {
+					nm = jidUser(p.JID)
+				}
+				d.Members = append(d.Members, InfoMember{Name: nm, Admin: p.IsAdmin})
+			}
+			if len(u.infoMemberClicks) < len(d.Members) {
+				u.infoMemberClicks = make([]widget.Clickable, len(d.Members))
+			}
+			d.MemberClicks = u.infoMemberClicks[:len(d.Members)]
 		}
 	} else {
 		d.Block = &u.infoBlockC
@@ -3834,6 +4032,17 @@ func (u *UI) handleInfo(gtx layout.Context) {
 		u.gedName.SetText(u.selName)
 		u.gedDesc.SetText(u.curGroupDesc)
 		u.overlay = "groupedit"
+	}
+	for u.infoMuteC.Clicked(gtx) { // bisukan / aktifkan notifikasi
+		if u.core != nil {
+			u.core.Mute(u.selected, !u.isChatMuted(u.selected))
+		}
+	}
+	for u.infoMediaC.Clicked(gtx) { // galeri media chat
+		u.overlay = "media"
+	}
+	for u.infoEncC.Clicked(gtx) { // info enkripsi end-to-end
+		u.overlay = "encryption"
 	}
 	for u.infoInviteC.Clicked(gtx) { // link undangan → ambil async, tampil modal
 		u.inviteLink = ""

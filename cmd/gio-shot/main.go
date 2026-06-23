@@ -242,6 +242,9 @@ func main() {
 		case "app-joinlink":
 			ui.SetJoinLinkDemo() // modal gabung grup lewat tautan
 			ui.Layout(gtx)
+		case "app-mention":
+			ui.SetMentionDemo() // popup saran @mention grup
+			ui.Layout(gtx)
 		case "app-joinrow":
 			ui.SetView("chats")
 			ui.Deselect()

@@ -383,6 +383,12 @@ type UI struct {
 	clicks           []widget.Clickable
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable     // avatar profil di dasar rail → setelan profil
+	profPhotoClick   widget.Clickable     // avatar di pane profil → ganti foto
+	composeMentions  map[string]string    // number → jid yg di-mention di pesan sekarang
+	memCacheJID      string               // grup yg memCache valid
+	memCache         []app.GroupMemberDTO // anggota grup (cache utk saran @mention)
+	memAt            time.Time
+	mentionClicks    []widget.Clickable   // klik saran @mention
 	comNewBtn        widget.Clickable     // tombol "Komunitas baru" di pane Komunitas
 	comOpen          string               // jid komunitas yg dibuka (detail sub-grup); "" = daftar
 	comRowClicks     []widget.Clickable   // paralel komunitas (tap → buka detail)
@@ -448,6 +454,8 @@ type UI struct {
 	OnStatusVideo func(id string) StatusVideo
 	// OnOpenURL: buka URL di browser (di-set cmd/whatslite-gio → xdg-open). nil → tak diklik.
 	OnOpenURL func(url string)
+	// OnSetPhoto: pilih berkas gambar → SetMyPhoto (di-set cmd/whatslite-gio → x/explorer).
+	OnSetPhoto func()
 	// OnMediaPoster: dekode frame still (poster) dari byte yg tak bisa image.Decode —
 	// GIF WhatsApp (mp4), stiker webp animasi, video — via ffmpeg. ext mis. ".mp4"/
 	// ".webp". di-set cmd/whatslite-gio → internal/video.FirstFrame. nil → fallback ikon.
@@ -489,6 +497,17 @@ func (u *UI) SetCommunityDemo() {
 	}
 	u.comAt = u.comAt.Add(0) // jaga cache valid (tak penting di demo)
 	u.comOpen = "c1@g.us"
+}
+
+// SetMentionDemo: render-tool — popup saran @mention di grup (ketik "@").
+func (u *UI) SetMentionDemo() {
+	u.selGroup, u.selected = true, "g1@g.us"
+	u.memCache = []app.GroupMemberDTO{
+		{JID: "6281111@s.whatsapp.net", Name: "Andi Pratama"},
+		{JID: "6282222@s.whatsapp.net", Name: "Sarah"},
+		{JID: "6283333@s.whatsapp.net", Name: "Budi Santoso"},
+	}
+	u.editor.SetText("Halo @")
 }
 
 // SetJoinLinkDemo: render-tool — modal gabung grup lewat tautan (pratinjau termuat).
@@ -700,6 +719,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.selSet = map[string]bool{}
 	u.commonGroups = map[string][]InfoMember{}
 	u.commonTried = map[string]time.Time{}
+	u.composeMentions = map[string]string{}
 	u.linkPrev = map[string]*app.LinkPreviewDTO{}
 	u.linkImg = map[string]paint.ImageOp{}
 	u.linkTried = map[string]bool{}
@@ -3335,6 +3355,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
 				ctl.AboutClicks = u.aboutClicks[:]
 				ctl.AboutToggle, ctl.AboutOpen = &u.aboutToggle, u.aboutOpen
+				ctl.PhotoClick, ctl.Avatar, ctl.SelfJID = &u.profPhotoClick, u.avatar, u.selfJID
+				for u.profPhotoClick.Clicked(gtx) { // ketuk avatar → pilih & unggah foto profil
+					if u.OnSetPhoto != nil {
+						u.OnSetPhoto()
+					}
+				}
 			case "account":
 				ctl.ProfPhone = u.core.GetProfile().Phone
 			case "storage":
@@ -7394,6 +7420,10 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			}
 			return u.typingBubble(gtx)
 		}),
+		// saran @mention (grup) di atas composer saat mengetik "@…".
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.mentionSuggest(gtx)
+		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.composer(gtx)
 		}),
@@ -8355,6 +8385,142 @@ func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) 
 // indikator mengetik, lalu gulir ke bawah. Dipakai tombol kirim & tombol Enter.
 func (u *UI) clearEdit() { u.editTarget, u.editText = "", "" }
 
+// groupMembers — anggota grup terpilih (cache 5s) utk saran @mention.
+func (u *UI) groupMembers() []app.GroupMemberDTO {
+	if !u.selGroup || u.selected == "" {
+		return nil
+	}
+	if u.core == nil {
+		return u.memCache // demo: di-inject via SetMentionDemo
+	}
+	if u.memCacheJID == u.selected && time.Since(u.memAt) < 5*time.Second {
+		return u.memCache
+	}
+	if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+		u.memCache, u.memCacheJID, u.memAt = gi.Participants, u.selected, time.Now()
+	}
+	return u.memCache
+}
+
+// mentionToken — token "@partial" di AKHIR teks (di awal kata). Kembalikan
+// (token, indeks '@') atau ("", -1) bila tak sedang mengetik mention.
+func mentionToken(text string) (string, int) {
+	at := strings.LastIndex(text, "@")
+	if at < 0 {
+		return "", -1
+	}
+	if at > 0 {
+		if pc := text[at-1]; pc != ' ' && pc != '\n' {
+			return "", -1 // '@' di tengah kata (mis. email) → bukan mention
+		}
+	}
+	tok := text[at+1:]
+	if strings.ContainsAny(tok, " \n") {
+		return "", -1 // sudah ada spasi → mention selesai
+	}
+	return tok, at
+}
+
+// mentionMatches — anggota grup yg cocok token (nama/nomor, maks 6).
+func (u *UI) mentionMatches(token string) []app.GroupMemberDTO {
+	q := strings.ToLower(token)
+	out := make([]app.GroupMemberDTO, 0, 6)
+	for _, m := range u.groupMembers() {
+		if u.selfJID != "" && jidUser(m.JID) == jidUser(u.selfJID) {
+			continue // jangan sarankan diri sendiri
+		}
+		nm := m.Name
+		if nm == "" {
+			nm = jidUser(m.JID)
+		}
+		if q == "" || strings.Contains(strings.ToLower(nm), q) || strings.Contains(jidUser(m.JID), q) {
+			out = append(out, m)
+			if len(out) >= 6 {
+				break
+			}
+		}
+	}
+	return out
+}
+
+// mentionSuggest — popup saran @mention di atas composer (grup, saat mengetik @).
+func (u *UI) mentionSuggest(gtx layout.Context) layout.Dimensions {
+	if !u.selGroup {
+		return layout.Dimensions{}
+	}
+	tok, at := mentionToken(u.editor.Text())
+	if at < 0 {
+		return layout.Dimensions{}
+	}
+	matches := u.mentionMatches(tok)
+	if len(matches) == 0 {
+		return layout.Dimensions{}
+	}
+	if len(u.mentionClicks) < len(matches) {
+		u.mentionClicks = make([]widget.Clickable, len(matches))
+	}
+	for i := range matches { // klik → sisip "@<nomor> " + catat jid
+		if i >= len(u.mentionClicks) {
+			break
+		}
+		if u.mentionClicks[i].Clicked(gtx) {
+			m := matches[i]
+			num := jidUser(m.JID)
+			text := u.editor.Text()
+			u.editor.SetText(text[:at] + "@" + num + " ")
+			u.editor.SetCaret(len([]rune(u.editor.Text())), len([]rune(u.editor.Text())))
+			u.composeMentions[num] = m.JID // catat jid utk SendTextMentioned
+		}
+	}
+	return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(8), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		macro := op.Record(gtx.Ops)
+		children := make([]layout.FlexChild, 0, len(matches))
+		for i := range matches {
+			m, idx := matches[i], i
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.mentionClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					nm := m.Name
+					if nm == "" {
+						nm = jidUser(m.JID)
+					}
+					return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, nm, m.JID, 32) }),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 14.5, nm)
+								l.Color, l.MaxLines = u.t.Text, 1
+								return l.Layout(gtx)
+							}),
+						)
+					})
+				})
+			}))
+		}
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// collectMentions — jid mention yg token "@<nomor>"-nya masih ada di teks.
+func (u *UI) collectMentions(text string) []string {
+	if !u.selGroup || len(u.composeMentions) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(u.composeMentions))
+	for num, jid := range u.composeMentions {
+		if strings.Contains(text, "@"+num) {
+			out = append(out, jid)
+		}
+	}
+	return out
+}
+
 func (u *UI) sendCurrent() {
 	txt := strings.TrimSpace(u.editor.Text())
 	if u.editTarget != "" { // mode edit → ubah pesan terkirim (SendEdit)
@@ -8367,12 +8533,19 @@ func (u *UI) sendCurrent() {
 		return
 	}
 	if txt != "" && u.core != nil && u.selected != "" {
-		if u.replyTo != "" { // mode balas → kutip pesan
+		mentions := u.collectMentions(txt)
+		switch {
+		case u.replyTo != "": // mode balas → kutip pesan
 			u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
-		} else {
+		case len(mentions) > 0: // ada @mention grup → kirim dgn daftar jid
+			u.core.SendTextMentioned(u.selected, txt, mentions)
+		default:
 			u.core.SendText(u.selected, txt)
 		}
 		u.messages = u.core.GetMessages(u.selected)
+	}
+	for k := range u.composeMentions { // reset mention setelah kirim
+		delete(u.composeMentions, k)
 	}
 	if u.core != nil && u.selected != "" && u.typingSent {
 		u.core.SendTyping(u.selected, false, false) // berhenti mengetik

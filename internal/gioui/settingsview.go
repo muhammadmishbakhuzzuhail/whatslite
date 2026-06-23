@@ -32,8 +32,11 @@ type SettingsCtl struct {
 	Sub          string // ""|profile|storage
 	Back         *widget.Clickable
 	ProfileClick *widget.Clickable
-	Retention    int  // hari retensi (0 = selamanya) — baris "Retensi"
-	AppLock      bool // PIN kunci aplikasi aktif? — baris "Kunci aplikasi"
+	PhotoClick   *widget.Clickable                                                    // ketuk avatar profil → ganti foto
+	Avatar       func(gtx layout.Context, name, jid string, dp int) layout.Dimensions // foto profil asli (nil → inisial)
+	SelfJID      string                                                               // jid sendiri (utk foto asli)
+	Retention    int                                                                  // hari retensi (0 = selamanya) — baris "Retensi"
+	AppLock      bool                                                                 // PIN kunci aplikasi aktif? — baris "Kunci aplikasi"
 	// data sub-pane
 	ProfName, ProfAbout, ProfPhone string
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
@@ -254,7 +257,13 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X // avatar TERPUSAT (baris lain lebar-penuh)
 				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return setProfileAvatar(gtx, th, t, name, "#00a884", 120)
+					av := func(gtx layout.Context) layout.Dimensions {
+						return setProfileAvatar(gtx, th, t, ctl, name, "#00a884", 120)
+					}
+					if ctl.PhotoClick != nil {
+						return ctl.PhotoClick.Layout(gtx, av)
+					}
+					return av(gtx)
 				})
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(20)}.Layout),
@@ -699,10 +708,13 @@ func setSwitch(gtx layout.Context, t Theme, on bool) layout.Dimensions {
 
 // setProfileAvatar — avatar besar + lencana kamera bulat di pojok kanan-bawah
 // (paritas WhatsApp: ketuk foto utk ganti). Stack: avatar lalu badge di sudut.
-func setProfileAvatar(gtx layout.Context, th *material.Theme, t Theme, name, accent string, dp int) layout.Dimensions {
+func setProfileAvatar(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl, name, accent string, dp int) layout.Dimensions {
 	bd := gtx.Dp(34) // diameter lencana kamera
 	return layout.Stack{Alignment: layout.SE}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			if ctl != nil && ctl.Avatar != nil { // foto profil asli (bulat), else inisial
+				return ctl.Avatar(gtx, name, ctl.SelfJID, dp)
+			}
 			return setAvatar(gtx, th, name, accent, dp)
 		}),
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {

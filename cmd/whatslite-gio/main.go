@@ -126,6 +126,7 @@ func run(w *gioapp.Window, core *app.App) error {
 				_ = exec.Command("xdg-open", url).Start()
 			}
 		}
+		ui.OnSetPhoto = func() { go pickAndSetPhoto(expl, core) } // ganti foto profil
 		// poster still utk byte yg tak bisa image.Decode: GIF WA (mp4), stiker
 		// webp animasi, video → frame pertama via ffmpeg.
 		ui.OnMediaPoster = func(data []byte, ext string) image.Image {
@@ -251,6 +252,25 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, cat
 		return
 	}
 	ui.SetPendingMedia(kind, uri) // media → pratinjau (caption + sekali-lihat) di UI
+}
+
+// pickAndSetPhoto — dialog berkas (gambar) → data-URI → SetMyPhoto (foto profil).
+func pickAndSetPhoto(expl *explorer.Explorer, core *app.App) {
+	rc, err := expl.ChooseFile("jpg", "jpeg", "png", "webp")
+	if err != nil || rc == nil {
+		return
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil || len(data) == 0 {
+		return
+	}
+	mime := http.DetectContentType(data)
+	if !strings.HasPrefix(mime, "image/") {
+		return
+	}
+	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+	core.SetMyPhoto(uri, uri) // full + preview (engine resize bila perlu)
 }
 
 // statusVideoSession — adapter gioui.StatusVideo: frame (ffmpeg) + audio (libmpv

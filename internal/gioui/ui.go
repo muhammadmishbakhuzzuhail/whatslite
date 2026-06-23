@@ -668,6 +668,9 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m20", Dir: "in", Type: "text", Text: "Setuju sama @Budi Santoso, nanti @Citra Dewi yang bawa kamera ya", Time: "08.17", Sender: "Rian", Ts: now, Mentions: []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra Dewi"}}},
 		{ID: "m21", Dir: "out", Type: "text", Text: "🔥👍", Time: "08.18", Status: "read", Ts: now}, // emoji-saja → bubble diperbesar
 		{ID: "m22", Dir: "in", Type: "text", Text: "Cek artikelnya https://example.com/artikel", Time: "08.19", Sender: "Budi Santoso", Ts: now},
+		{ID: "m23", Dir: "out", Type: "audio", Text: "Lagu_Favorit.mp3", Thumb: "3:24", Time: "08.20", Status: "read", Ts: now},
+		{ID: "m24", Dir: "in", Type: "sticker", Time: "08.21", Sender: "Rian", Ts: now},
+		{ID: "m25", Dir: "out", Type: "gif", Time: "08.22", Status: "delivered", Ts: now},
 	}
 }
 
@@ -3494,34 +3497,52 @@ func (u *UI) contactBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensio
 		name = "Kontak"
 	}
 	sub := m.Thumb // nomor telepon bila ada
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, name, "", 40) }),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(u.th, 14.5, name)
-					lbl.Color = u.t.Text
-					lbl.Font.Weight = font.Medium
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if sub == "" {
-						return layout.Dimensions{}
-					}
-					lbl := material.Label(u.th, 13, sub)
-					lbl.Color = u.t.Text2
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// baris atas: avatar + nama + nomor.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, name, "", 40) }),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 14.5, name)
+							lbl.Color, lbl.Font.Weight, lbl.MaxLines = u.t.Text, font.Medium, 1
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if sub == "" {
+								return layout.Dimensions{}
+							}
+							lbl := material.Label(u.th, 13, sub)
+							lbl.Color, lbl.MaxLines = u.t.Text2, 1
+							return lbl.Layout(gtx)
+						}),
+					)
 				}),
 			)
 		}),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		// divider tipis + tombol "Lihat kontak" full-width (ala WhatsApp).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(u.th, 13, "Simpan")
-			lbl.Color = u.t.Accent
-			return lbl.Layout(gtx)
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					paint.FillShape(gtx.Ops, withAlpha(u.t.Text2, 0x40), clip.Rect{Max: image.Pt(gtx.Constraints.Max.X, gtx.Dp(1))}.Op())
+					return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, gtx.Dp(1))}
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(u.th, 13.5, "Lihat kontak")
+							lbl.Color, lbl.Font.Weight = u.t.Accent, font.Medium
+							return lbl.Layout(gtx)
+						})
+					})
+				}),
+			)
 		}),
 	)
 }
@@ -3583,9 +3604,9 @@ func (u *UI) docBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 // bubble memutar (OnPlayVoice di bubble()).
 func (u *UI) voiceBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "play", 26, u.t.Accent) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.playCircle(gtx, 34) }),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.waveform(gtx) }),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.waveform(gtx, 0.35) }),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			dur := m.Text
@@ -3599,20 +3620,124 @@ func (u *UI) voiceBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions
 	)
 }
 
-// waveform — batang-batang tinggi bervariasi (visual statis pesan suara).
-func (u *UI) waveform(gtx layout.Context) layout.Dimensions {
-	heights := []int{6, 11, 8, 14, 9, 16, 7, 12, 10, 15, 6, 13, 8, 11, 7}
+// playCircle — tombol play bundar accent (lingkaran isi + segitiga putih).
+func (u *UI) playCircle(gtx layout.Context, dp int) layout.Dimensions {
+	d := gtx.Dp(unit.Dp(dp))
+	sz := image.Pt(d, d)
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "play", dp*3/5, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+	})
+	return layout.Dimensions{Size: sz}
+}
+
+// waveform — batang suara dgn PROGRESS: bagian terputar (prog 0..1) = accent,
+// sisanya = text2. Titik scrubber di batas. Lebar mengisi (Flexed).
+func (u *UI) waveform(gtx layout.Context, prog float32) layout.Dimensions {
+	heights := []int{6, 11, 8, 14, 9, 16, 7, 12, 10, 15, 6, 13, 8, 11, 7, 13, 9, 12, 6, 10}
+	gap := gtx.Dp(3)
 	bw := gtx.Dp(2)
-	gap := gtx.Dp(2)
-	maxH := gtx.Dp(18)
-	w := len(heights) * (bw + gap)
+	maxH := gtx.Dp(20)
+	w := gtx.Constraints.Max.X
+	if w <= 0 {
+		w = len(heights) * (bw + gap)
+	}
+	n := len(heights)
+	step := w / n
+	if step < bw+1 {
+		step = bw + 1
+	}
+	playedX := int(float32(w) * prog)
 	for i, h := range heights {
 		hp := gtx.Dp(unit.Dp(h))
-		x := i * (bw + gap)
+		x := i * step
+		if x+bw > w {
+			break
+		}
 		y := (maxH - hp) / 2
-		paint.FillShape(gtx.Ops, u.t.Text2, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+bw, y+hp)}, NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
+		col := u.t.Text2
+		if x <= playedX {
+			col = u.t.Accent
+		}
+		paint.FillShape(gtx.Ops, col, clip.RRect{Rect: image.Rectangle{Min: image.Pt(x, y), Max: image.Pt(x+bw, y+hp)}, NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
 	}
+	// scrubber (titik) di posisi progress.
+	dot := gtx.Dp(7)
+	dx := playedX - dot/2
+	if dx < 0 {
+		dx = 0
+	}
+	dy := (maxH - dot) / 2
+	paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Min: image.Pt(dx, dy), Max: image.Pt(dx+dot, dy+dot)}.Op(gtx.Ops))
 	return layout.Dimensions{Size: image.Pt(w, maxH)}
+}
+
+// stickerBubble — stiker: gambar ~128 tanpa gelembung (bg transparan di bubble()).
+func (u *UI) stickerBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	u.ensureMedia(u.selected, m.ID)
+	u.mediaMu.Lock()
+	iop, ok := u.media[m.ID]
+	u.mediaMu.Unlock()
+	d := gtx.Dp(128)
+	box := image.Pt(d, d)
+	if ok {
+		s := iop.Size()
+		if s.X > 0 && s.Y > 0 && s.Y != s.X {
+			box = image.Pt(d, d*s.Y/s.X) // jaga rasio
+		}
+		cl := clip.Rect{Max: box}.Push(gtx.Ops)
+		drawImageFill(gtx.Ops, iop, box.X)
+		cl.Pop()
+		return layout.Dimensions{Size: box}
+	}
+	// fallback: kotak transparan + ikon stiker.
+	gtx.Constraints.Min, gtx.Constraints.Max = box, box
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "sticker", 48, u.t.Text2) })
+	return layout.Dimensions{Size: box}
+}
+
+// musicBubble — berkas musik/audio: art kotak + judul (nama berkas) + bar progress
+// tipis + durasi. Beda dari voice (ptt) yg pakai waveform.
+func (u *UI) musicBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
+	title := m.Text
+	if title == "" {
+		title = "Audio"
+	}
+	dur := m.Thumb // durasi bila ada (mis. "3:24")
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.playCircle(gtx, 40) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(u.th, 14, title)
+					lbl.Color, lbl.MaxLines = u.t.Text, 1
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+				// bar progress tipis (track + isi accent 30%).
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					w := gtx.Constraints.Max.X
+					h := gtx.Dp(3)
+					paint.FillShape(gtx.Ops, withAlpha(u.t.Text2, 0x60), clip.RRect{Rect: image.Rectangle{Max: image.Pt(w, h)}, NW: h / 2, NE: h / 2, SE: h / 2, SW: h / 2}.Op(gtx.Ops))
+					pw := w * 3 / 10
+					paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(pw, h)}, NW: h / 2, NE: h / 2, SE: h / 2, SW: h / 2}.Op(gtx.Ops))
+					return layout.Dimensions{Size: image.Pt(w, h)}
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d := dur
+					if d == "" {
+						d = "3:24"
+					}
+					lbl := material.Label(u.th, 11, d)
+					lbl.Color = u.t.Text2
+					return lbl.Layout(gtx)
+				}),
+			)
+		}),
+	)
 }
 
 // fmtBytes — ukuran berkas ringkas.
@@ -3902,13 +4027,13 @@ func (u *UI) ensureMedia(chat, id string) {
 func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 	u.ensureMedia(u.selected, m.ID)
 	u.mediaMu.Lock()
-	op, ok := u.media[m.ID]
+	iop, ok := u.media[m.ID]
 	u.mediaMu.Unlock()
 
 	w := gtx.Dp(220)
 	h := w * 3 / 4
 	if ok {
-		s := op.Size()
+		s := iop.Size()
 		if s.X > 0 && s.Y > 0 {
 			h = w * s.Y / s.X
 			if max := gtx.Dp(300); h > max {
@@ -3922,7 +4047,7 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	thumb := func(gtx layout.Context) layout.Dimensions {
 		if ok {
 			cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
-			drawImageFill(gtx.Ops, op, w) // cover lebar; tinggi mengikuti
+			drawImageFill(gtx.Ops, iop, w) // cover lebar; tinggi mengikuti
 			_ = h
 			cl.Pop()
 		} else {
@@ -3949,6 +4074,21 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 				})
 				return layout.Dimensions{Size: sz}
 			})
+		}
+		// badge "GIF" pojok kiri-atas (chip gelap).
+		if m.Type == "gif" {
+			off := op.Offset(image.Pt(gtx.Dp(8), gtx.Dp(8))).Push(gtx.Ops)
+			macro := op.Record(gtx.Ops)
+			bd := layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2), Left: unit.Dp(6), Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 11, "GIF")
+				lbl.Color, lbl.Font.Weight = color.NRGBA{R: 255, G: 255, B: 255, A: 255}, font.Bold
+				return lbl.Layout(gtx)
+			})
+			call := macro.Stop()
+			rr := gtx.Dp(5)
+			paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.RRect{Rect: image.Rectangle{Max: bd.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+			call.Add(gtx.Ops)
+			off.Pop()
 		}
 		return layout.Dimensions{Size: box}
 	}
@@ -5909,18 +6049,34 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 							}),
 						)
 					}
+					// media bubble HUG-content: batasi lebar per-tipe (jangan melar ke 66%).
+					capW := func(dp int) {
+						if c := gtx.Dp(unit.Dp(dp)); c < gtx.Constraints.Max.X {
+							gtx.Constraints.Min.X, gtx.Constraints.Max.X = c, c
+						}
+					}
 					switch m.Type {
 					case "image", "video", "gif":
-						return u.mediaThumb(gtx, m) // thumbnail + caption
+						return u.mediaThumb(gtx, m) // thumbnail + caption (lebar diatur di dalam)
+					case "sticker":
+						return u.stickerBubble(gtx, m) // transparan, tanpa gelembung
 					case "poll":
+						capW(300)
 						return u.pollBubble(gtx, m) // pertanyaan + opsi
 					case "document":
+						capW(300)
 						return u.docBubble(gtx, m)
-					case "voice", "audio", "ptt":
+					case "audio":
+						capW(280)
+						return u.musicBubble(gtx, m) // berkas musik: art + judul + progress
+					case "voice", "ptt":
+						capW(260)
 						return u.voiceBubble(gtx, m)
 					case "location":
+						capW(270)
 						return u.locationBubble(gtx, m)
 					case "contact", "vcard":
+						capW(260)
 						return u.contactBubble(gtx, m)
 					}
 					txt := m.Text
@@ -6002,17 +6158,24 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if out {
 		align = layout.E
 	}
+	// stiker & emoji-only → TANPA gelembung (transparan), ala WhatsApp/IG.
+	noBubble := m.Type == "sticker" || (m.Revoked == false && (m.Type == "" || m.Type == "text") && emojiOnlyCount(m.Text) > 0)
 	bubbleBody := func(gtx layout.Context) layout.Dimensions {
 		// rekam konten utk ukur, lalu gambar bg di belakang
 		macro := op.Record(gtx.Ops)
 		dims := content(gtx)
 		call := macro.Stop()
-		r := gtx.Dp(18)
+		if noBubble { // tanpa latar gelembung
+			call.Add(gtx.Ops)
+			return dims
+		}
+		r := gtx.Dp(14)   // radius modern (lebih lembut dari 18)
+		tail := gtx.Dp(4) // sudut "ekor" dekat pengirim
 		tl, tr := r, r
 		if out {
-			tr = gtx.Dp(6)
+			tr = tail
 		} else {
-			tl = gtx.Dp(6)
+			tl = tail
 		}
 		rr := clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: tl, NE: tr, SE: r, SW: r}
 		paint.FillShape(gtx.Ops, bg, rr.Op(gtx.Ops))

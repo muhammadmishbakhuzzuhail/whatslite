@@ -274,8 +274,9 @@ type UI struct {
 	messages  []app.MessageDTO
 	lastFetch time.Time
 
-	chatList   widget.List
-	msgList    widget.List
+	chatList    widget.List
+	msgList     widget.List
+	contactList widget.List
 	clicks     []widget.Clickable
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable // avatar profil di dasar rail → setelan profil
@@ -471,6 +472,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.t = newTheme(u.dark)
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
+	u.contactList.Axis = layout.Vertical
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -493,7 +495,10 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.gcSel = map[string]bool{}
 	u.svEd.SingleLine = true
 	u.pinEd.SingleLine, u.pinEd.Submit, u.pinEd.Mask = true, true, '•'
-	u.pinSetEd.SingleLine, u.pinSetEd.Mask = true, '•'
+	u.pinEd.Filter = "0123456789" // PIN = digit saja
+	// pinSetEd: Submit=true agar Enter MENGONFIRMASI (bukan menyisip '•'/newline).
+	u.pinSetEd.SingleLine, u.pinSetEd.Submit, u.pinSetEd.Mask = true, true, '•'
+	u.pinSetEd.Filter = "0123456789"
 	u.locked = core != nil && core.HasAppPIN()
 	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
 	u.photos = map[string]paint.ImageOp{}
@@ -741,6 +746,9 @@ func (u *UI) handleLogin(gtx layout.Context) {
 // CheckAppPIN → buka. Salah → tanda merah.
 func (u *UI) lockScreen(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	if t := u.pinEd.Text(); len(t) > 6 { // PIN maks 6 digit
+		u.pinEd.SetText(t[:6])
+	}
 	for {
 		ev, ok := u.pinEd.Update(gtx)
 		if !ok {
@@ -799,11 +807,26 @@ func (u *UI) pinSetLayer(gtx layout.Context) {
 		}
 		u.overlay = ""
 	}
-	for u.pinSetBtn.Clicked(gtx) { // atur PIN baru
-		if p := strings.TrimSpace(u.pinSetEd.Text()); len(p) >= 4 && u.core != nil {
+	if t := u.pinSetEd.Text(); len(t) > 6 { // PIN maks 6 digit
+		u.pinSetEd.SetText(t[:6])
+	}
+	setPIN := func() { // 4-6 digit → simpan
+		if p := strings.TrimSpace(u.pinSetEd.Text()); len(p) >= 4 && len(p) <= 6 && u.core != nil {
 			u.core.SetAppPIN(p)
 			u.pinSetEd.SetText("")
 			u.overlay = ""
+		}
+	}
+	for u.pinSetBtn.Clicked(gtx) { // tombol Atur
+		setPIN()
+	}
+	for { // Enter di field → konfirmasi (bukan menyisip karakter)
+		ev, ok := u.pinSetEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			setPIN()
 		}
 	}
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
@@ -828,7 +851,7 @@ func (u *UI) pinSetLayer(gtx layout.Context) {
 			if !has { // belum ada PIN → input untuk set
 				rows = append(rows,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return u.gcField(gtx, &u.pinSetEd, "PIN baru (min 4)")
+						return u.gcField(gtx, &u.pinSetEd, "PIN baru (4-6 digit)")
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 				)
@@ -2136,7 +2159,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		for u.gcNewBtn.Clicked(gtx) { // "Grup baru" → modal buat grup
 			u.overlay = "groupcreate"
 		}
-		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn)
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
@@ -4484,7 +4507,7 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
 	if u.selected == "" {
-		return StatesView(gtx, u.th, u.t) // splash + divider demo
+		return EmptyConversationView(gtx, u.th, u.t) // splash saja (tanpa pil demo)
 	}
 	u.syncDraft()      // ganti chat → simpan draft lama, muat draft chat baru
 	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)

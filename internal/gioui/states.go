@@ -49,6 +49,15 @@ func StatesView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensio
 	)
 }
 
+// EmptyConversationView — splash percakapan kosong NYATA: hanya logo + teks
+// terpusat. TANPA day-chip/unread-divider (itu chrome demo StatesView yg tampak
+// sbg "2 gelembung putih" di mode terang). Latar digambar pemanggil.
+func EmptyConversationView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return statesSplash(gtx, th, t)
+	})
+}
+
 // statesPill — pill berlatar in-bg, radius 8, teks text2. (day-chip/unread).
 func statesPill(gtx layout.Context, th *material.Theme, t Theme, txt string, sp unit.Sp, padV, padH unit.Dp) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,

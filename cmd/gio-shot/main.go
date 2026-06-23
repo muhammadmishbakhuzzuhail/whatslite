@@ -268,6 +268,9 @@ func main() {
 		case "app-forward":
 			ui.SetOverlay("forward")
 			ui.Layout(gtx)
+		case "app-forward-multi":
+			ui.SetForwardDemo() // teruskan multi-target (2 terpilih)
+			ui.Layout(gtx)
 		case "app-picker":
 			ui.SetOverlay("picker")
 			ui.Layout(gtx)

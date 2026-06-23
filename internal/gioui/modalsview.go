@@ -30,9 +30,12 @@ type mvRow struct {
 // FwdCtl = state interaktif modal teruskan. nil → daftar demo statis (gio-shot).
 // Tiap baris Rows[i] dapat diklik (Clicks[i]) → teruskan ke chat itu lalu tutup.
 type FwdCtl struct {
-	Rows   []mvRow
-	Clicks []widget.Clickable
-	Cancel *widget.Clickable
+	Rows     []mvRow
+	Clicks   []widget.Clickable
+	Selected []bool // paralel Rows: tujuan terpilih (multi-target)
+	Cancel   *widget.Clickable
+	Send     *widget.Clickable // kirim ke semua terpilih (muncul bila SelCount>0)
+	SelCount int
 }
 
 // ModalsView menggambar backdrop redup penuh lalu kartu forward terpusat.
@@ -84,7 +87,8 @@ func mvCard(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA, 
 			for i := range rows {
 				rr, idx := rows[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					row := func(gtx layout.Context) layout.Dimensions { return mvChatRow(gtx, th, t, rr) }
+					sel := ctl != nil && idx < len(ctl.Selected) && ctl.Selected[idx]
+					row := func(gtx layout.Context) layout.Dimensions { return mvChatRow(gtx, th, t, rr, sel) }
 					if ctl != nil && idx < len(ctl.Clicks) {
 						return ctl.Clicks[idx].Layout(gtx, row)
 					}
@@ -124,7 +128,7 @@ func mvSearch(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions
 }
 
 // mvChatRow — .fwd-row: padding 8/16, gap 12, avatar 40 + nama 15/Medium + sub 13 text2.
-func mvChatRow(gtx layout.Context, th *material.Theme, t Theme, r mvRow) layout.Dimensions {
+func mvChatRow(gtx layout.Context, th *material.Theme, t Theme, r mvRow, selected bool) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -149,8 +153,32 @@ func mvChatRow(gtx layout.Context, th *material.Theme, t Theme, r mvRow) layout.
 					}),
 				)
 			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return mvCheck(gtx, t, selected)
+			}),
 		)
 	})
+}
+
+// mvCheck — lingkaran pilih di kanan baris: terisi accent + centang saat terpilih,
+// else cincin abu kosong.
+func mvCheck(gtx layout.Context, t Theme, on bool) layout.Dimensions {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	d := gtx.Dp(22)
+	sz := image.Pt(d, d)
+	if on {
+		paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return icon(gtx, "check", 14, white)
+		})
+	} else {
+		bw := gtx.Dp(2)
+		paint.FillShape(gtx.Ops, t.Text2, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+		paint.FillShape(gtx.Ops, t.SidebarBg, clip.Ellipse{Min: image.Pt(bw, bw), Max: image.Pt(d-bw, d-bw)}.Op(gtx.Ops))
+	}
+	return layout.Dimensions{Size: sz}
 }
 
 // mvAvatar — lingkaran 40 warna avatarColor(name) + inisial putih (paritas u.avatar).
@@ -177,11 +205,14 @@ func mvFooter(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA
 		}
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				// petunjuk: ketuk chat utk meneruskan (mode interaktif).
 				if ctl == nil {
 					return layout.Dimensions{}
 				}
-				lbl := material.Label(th, 13, "Ketuk chat untuk meneruskan")
+				txt := "Pilih chat untuk meneruskan"
+				if ctl.SelCount > 0 {
+					txt = itoa(ctl.SelCount) + " dipilih"
+				}
+				lbl := material.Label(th, 13, txt)
 				lbl.Color = t.Text2
 				return layout.W.Layout(gtx, lbl.Layout)
 			}),
@@ -191,17 +222,26 @@ func mvFooter(gtx layout.Context, th *material.Theme, t Theme, white color.NRGBA
 				}
 				return batal(gtx)
 			}),
-			// tombol "Kirim" hanya pada render statis demo (mode interaktif = ketuk baris).
+			// tombol "Kirim (N)": demo statis (ctl nil) atau mode interaktif saat ada pilihan.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if ctl != nil {
-					return layout.Dimensions{}
+				send := func(gtx layout.Context) layout.Dimensions {
+					label := "Kirim"
+					if ctl != nil && ctl.SelCount > 0 {
+						label = "Kirim (" + itoa(ctl.SelCount) + ")"
+					}
+					return mvBtn(gtx, th, t.Accent, white, label, font.SemiBold)
 				}
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return mvBtn(gtx, th, t.Accent, white, "Kirim", font.SemiBold)
-					}),
-				)
+				switch {
+				case ctl == nil:
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+						layout.Rigid(send))
+				case ctl.SelCount > 0 && ctl.Send != nil:
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return ctl.Send.Layout(gtx, send) }))
+				}
+				return layout.Dimensions{}
 			}),
 		)
 	})

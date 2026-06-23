@@ -236,6 +236,8 @@ type UI struct {
 	fwdMsgIDs []string // teruskan banyak (mode pilih); kosong = pakai fwdMsgID
 	fwdClicks []widget.Clickable
 	fwdCancel widget.Clickable
+	fwdSel    map[string]bool // tujuan forward terpilih (multi-target)
+	fwdSend   widget.Clickable
 
 	// mode pilih (multi-select) → aksi massal hapus/teruskan.
 	selMode   bool
@@ -499,6 +501,17 @@ func (u *UI) SetCommunityDemo() {
 	u.comOpen = "c1@g.us"
 }
 
+// SetForwardDemo: render-tool — modal teruskan dgn 2 tujuan terpilih (multi-target).
+func (u *UI) SetForwardDemo() {
+	u.fwdMsgID = "m1"
+	u.overlay = "forward"
+	for i, c := range u.chats {
+		if i == 0 || i == 2 {
+			u.fwdSel[c.ID] = true
+		}
+	}
+}
+
 // SetMentionDemo: render-tool — popup saran @mention di grup (ketik "@").
 func (u *UI) SetMentionDemo() {
 	u.selGroup, u.selected = true, "g1@g.us"
@@ -720,6 +733,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.commonGroups = map[string][]InfoMember{}
 	u.commonTried = map[string]time.Time{}
 	u.composeMentions = map[string]string{}
+	u.fwdSel = map[string]bool{}
 	u.linkPrev = map[string]*app.LinkPreviewDTO{}
 	u.linkImg = map[string]paint.ImageOp{}
 	u.linkTried = map[string]bool{}
@@ -2180,31 +2194,48 @@ func (u *UI) handleForward(gtx layout.Context) {
 		u.fwdClicks = make([]widget.Clickable, len(u.chats))
 	}
 	for u.fwdCancel.Clicked(gtx) {
-		u.overlay = ""
+		u.closeForward()
 	}
-	for i := range u.chats {
+	for i := range u.chats { // ketuk baris → pilih/lepas tujuan (multi-target)
 		if i >= len(u.fwdClicks) {
 			break
 		}
 		for u.fwdClicks[i].Clicked(gtx) {
-			src := u.selected
-			if u.fwdSrc != "" { // forward dari status → sumber status@broadcast
-				src = u.fwdSrc
+			id := u.chats[i].ID
+			if u.fwdSel[id] {
+				delete(u.fwdSel, id)
+			} else {
+				u.fwdSel[id] = true
 			}
-			if u.core != nil {
-				switch {
-				case len(u.fwdMsgIDs) > 0: // teruskan-banyak (mode pilih)
-					for _, id := range u.fwdMsgIDs {
-						u.core.Forward(src, id, u.chats[i].ID)
-					}
-				case u.fwdMsgID != "":
-					u.core.Forward(src, u.fwdMsgID, u.chats[i].ID)
-				}
-			}
-			u.fwdMsgID, u.fwdMsgIDs, u.fwdSrc = "", nil, ""
-			u.overlay = ""
 		}
 	}
+	for u.fwdSend.Clicked(gtx) { // Kirim → teruskan ke SEMUA tujuan terpilih
+		src := u.selected
+		if u.fwdSrc != "" { // forward dari status → sumber status@broadcast
+			src = u.fwdSrc
+		}
+		if u.core != nil {
+			ids := u.fwdMsgIDs
+			if len(ids) == 0 && u.fwdMsgID != "" {
+				ids = []string{u.fwdMsgID}
+			}
+			for dst := range u.fwdSel {
+				for _, id := range ids {
+					u.core.Forward(src, id, dst)
+				}
+			}
+		}
+		u.closeForward()
+	}
+}
+
+// closeForward — tutup modal teruskan + bersihkan state pilihan/sumber.
+func (u *UI) closeForward() {
+	u.fwdMsgID, u.fwdMsgIDs, u.fwdSrc = "", nil, ""
+	for k := range u.fwdSel {
+		delete(u.fwdSel, k)
+	}
+	u.overlay = ""
 }
 
 // handleAttach memproses klik menu lampiran → OnAttach(chat, kategori) lalu tutup.
@@ -2786,13 +2817,19 @@ func (u *UI) pollComposeCard(gtx layout.Context) layout.Dimensions {
 // fwdCtl membangun controller modal teruskan dari daftar chat nyata.
 func (u *UI) fwdCtl() *FwdCtl {
 	rows := make([]mvRow, len(u.chats))
+	sel := make([]bool, len(u.chats))
+	n := 0
 	for i, c := range u.chats {
 		rows[i] = mvRow{name: c.Name, sub: c.Preview}
+		if u.fwdSel[c.ID] {
+			sel[i] = true
+			n++
+		}
 	}
 	if len(u.fwdClicks) < len(u.chats) {
 		u.fwdClicks = make([]widget.Clickable, len(u.chats))
 	}
-	return &FwdCtl{Rows: rows, Clicks: u.fwdClicks, Cancel: &u.fwdCancel}
+	return &FwdCtl{Rows: rows, Clicks: u.fwdClicks, Selected: sel, SelCount: n, Cancel: &u.fwdCancel, Send: &u.fwdSend}
 }
 
 // handleReaction memproses klik emoji di pemilih reaksi: bila ada target pesan →

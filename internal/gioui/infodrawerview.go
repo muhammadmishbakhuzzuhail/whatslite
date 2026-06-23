@@ -81,6 +81,23 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerSep(gtx, t, w)
 		}),
+		// blok umum (DM + grup) ala WhatsApp: media, bisukan, pesan sementara, enkripsi.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return infoDrawerRow(gtx, th, t, infoDrawerMediaIcon, "Media, tautan, dokumen", t.Text2, t.Text, nil)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return infoDrawerRow(gtx, th, t, infoDrawerMuteIcon, "Bisukan notifikasi", t.Text2, t.Text, nil)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return infoDrawerRow(gtx, th, t, infoDrawerTimerIcon, "Pesan sementara", t.Text2, t.Text, nil)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return infoDrawerRow(gtx, th, t, infoDrawerLockIcon, "Enkripsi", t.Text2, t.Text, nil)
+		}),
+		// pemisah 6px var(--wallpaper).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return infoDrawerSep(gtx, t, w)
+		}),
 		// baris aksi (.info-row): grup → tambah/link/keluar; DM → blokir.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
@@ -105,6 +122,14 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				return layout.Dimensions{}
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerLeaveIcon, "Keluar grup", dangerCol, dangerCol, d.Leave)
+		}),
+		// Laporkan (paling bawah, merah) — paritas WhatsApp.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := "Laporkan kontak"
+			if d.Group {
+				lbl = "Laporkan grup"
+			}
+			return infoDrawerRow(gtx, th, t, infoDrawerReportIcon, lbl, dangerCol, dangerCol, nil)
 		}),
 	)
 }
@@ -269,4 +294,29 @@ func infoDrawerEditIcon(gtx layout.Context, col color.NRGBA) {
 // infoDrawerLeaveIcon: keluar grup → ikon "leavegroup".
 func infoDrawerLeaveIcon(gtx layout.Context, col color.NRGBA) {
 	icon(gtx, "leavegroup", 22, col)
+}
+
+// infoDrawerMediaIcon: media, tautan, dokumen → ikon "media".
+func infoDrawerMediaIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "media", 22, col)
+}
+
+// infoDrawerMuteIcon: bisukan notifikasi → ikon "mute".
+func infoDrawerMuteIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "mute", 22, col)
+}
+
+// infoDrawerTimerIcon: pesan sementara → ikon "clock".
+func infoDrawerTimerIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "clock", 22, col)
+}
+
+// infoDrawerLockIcon: enkripsi → ikon "lock".
+func infoDrawerLockIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "lock", 22, col)
+}
+
+// infoDrawerReportIcon: laporkan → ikon "report" (bendera).
+func infoDrawerReportIcon(gtx layout.Context, col color.NRGBA) {
+	icon(gtx, "report", 22, col)
 }

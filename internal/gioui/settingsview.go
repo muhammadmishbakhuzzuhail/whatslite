@@ -80,6 +80,10 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 		title = "Penyimpanan"
 	case "privacy":
 		title = "Privasi"
+	case "account":
+		title = "Akun"
+	case "help":
+		title = "Bantuan"
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -91,6 +95,10 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 				return setStoragePane(gtx, th, t, ctl)
 			case "privacy":
 				return setPrivacyPane(gtx, th, t, ctl)
+			case "account":
+				return setAccountPane(gtx, th, t, ctl)
+			case "help":
+				return setHelpPane(gtx, th, t, ctl)
 			}
 			return setProfilePane(gtx, th, t, ctl)
 		}),
@@ -349,6 +357,45 @@ func setStoragePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	})
 }
 
+// setAccountPane — bagian "Akun" ala WhatsApp: nomor + status keamanan akun.
+// Baris informatif (read-only) — paritas Settings ▸ Account.
+func setAccountPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	rows := []struct{ label, val string }{
+		{"Telepon", orDash(ctl.ProfPhone)},
+		{"Verifikasi dua langkah", "Nonaktif"},
+		{"Notifikasi keamanan", "Tampilkan di komputer ini"},
+		{"Minta info akun", "Buat laporan data akun Anda"},
+	}
+	return setInfoRows(gtx, th, t, rows)
+}
+
+// setHelpPane — bagian "Bantuan" ala WhatsApp: pusat bantuan, ketentuan, lisensi,
+// versi. Baris informatif (read-only) — paritas Settings ▸ Help.
+func setHelpPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	rows := []struct{ label, val string }{
+		{"Pusat Bantuan", "faq.whatsapp.com"},
+		{"Ketentuan & Kebijakan Privasi", "Baca ketentuan layanan"},
+		{"Lisensi", "GPL-3.0-or-later"},
+		{"Versi aplikasi", "WhatsLite (Gio)"},
+	}
+	return setInfoRows(gtx, th, t, rows)
+}
+
+// setInfoRows — daftar baris label+nilai (read-only) dgn inset atas, dipakai
+// pane Akun/Bantuan/Penyimpanan.
+func setInfoRows(gtx layout.Context, th *material.Theme, t Theme, rows []struct{ label, val string }) layout.Dimensions {
+	children := make([]layout.FlexChild, 0, len(rows))
+	for i := range rows {
+		r := rows[i]
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return setProfileField(gtx, th, t, r.label, r.val)
+		}))
+	}
+	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
 func orDash(s string) string {
 	if s == "" {
 		return "—"
@@ -439,16 +486,21 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 			themeDesc = "Mode terang"
 		}
 	}
+	// Urutan mengikuti WhatsApp Settings: Akun, Privasi, Notifikasi, Tema,
+	// Bahasa, Penyimpanan, lalu fitur WhatsLite (Retensi, Simpan-dihapus,
+	// Kunci), Bantuan, Keluar. Indeks = indeks clickable (lihat handleSettings).
 	items := []setItem{
-		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},
-		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},
-		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},
-		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted},
-		{name: "Retensi", desc: retentionDesc(ctl), icon: "disk"},
-		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},
-		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},
-		{name: "Kunci aplikasi", desc: lockDesc(ctl), icon: "lock"},
-		{name: "Keluar", icon: "power", danger: true},
+		{name: "Akun", desc: "Notifikasi keamanan, info akun", icon: "info"},                            // 0
+		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},               // 1
+		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},                      // 2
+		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},                // 3
+		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},                                       // 4
+		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},                                // 5
+		{name: "Retensi", desc: retentionDesc(ctl), icon: "clock"},                                      // 6
+		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted}, // 7
+		{name: "Kunci aplikasi", desc: lockDesc(ctl), icon: "lock"},                                     // 8
+		{name: "Bantuan", desc: "Pusat bantuan, ketentuan, lisensi", icon: "info"},                      // 9
+		{name: "Keluar", icon: "power", danger: true},                                                   // 10
 	}
 	flex := layout.Flex{Axis: layout.Vertical}
 	children := make([]layout.FlexChild, len(items))

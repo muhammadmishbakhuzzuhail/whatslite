@@ -111,7 +111,7 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
-	setClicks [9]widget.Clickable // baris pane setelan (0=Tema … 7=Kunci aplikasi, 8=Keluar)
+	setClicks [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -683,30 +683,36 @@ func (u *UI) handleSettings(gtx layout.Context) {
 			u.core.SetMyAbout(strings.TrimSpace(u.profAboutEd.Text()))
 		}
 	}
-	for u.setClicks[0].Clicked(gtx) { // Tema
+	for u.setClicks[0].Clicked(gtx) { // Akun → sub-pane
+		u.setSub = "account"
+	}
+	for u.setClicks[1].Clicked(gtx) { // Privasi → sub-pane
+		u.setSub = "privacy"
+	}
+	for u.setClicks[3].Clicked(gtx) { // Tema → toggle gelap/terang
 		u.dark = !u.dark
 		u.t = newTheme(u.dark)
 	}
-	for u.setClicks[3].Clicked(gtx) { // Simpan pesan dihapus (anti-delete)
-		if u.core != nil {
-			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
-		}
+	for u.setClicks[5].Clicked(gtx) { // Penyimpanan → sub-pane
+		u.setSub = "storage"
 	}
-	for u.setClicks[4].Clicked(gtx) { // Retensi → siklus 30/90/180/365/selamanya
+	for u.setClicks[6].Clicked(gtx) { // Retensi → siklus 30/90/180/365/selamanya
 		if u.core != nil {
 			u.core.SetRetention(nextRetention(u.core.GetRetention()))
 		}
 	}
-	for u.setClicks[5].Clicked(gtx) { // Privasi → sub-pane
-		u.setSub = "privacy"
+	for u.setClicks[7].Clicked(gtx) { // Simpan pesan dihapus (anti-delete)
+		if u.core != nil {
+			u.core.SetKeepDeleted(!u.core.GetKeepDeleted())
+		}
 	}
-	for u.setClicks[6].Clicked(gtx) { // Penyimpanan → sub-pane
-		u.setSub = "storage"
-	}
-	for u.setClicks[7].Clicked(gtx) { // Kunci aplikasi → dialog atur/hapus PIN
+	for u.setClicks[8].Clicked(gtx) { // Kunci aplikasi → dialog atur/hapus PIN
 		u.overlay = "pinset"
 	}
-	for u.setClicks[8].Clicked(gtx) { // Keluar
+	for u.setClicks[9].Clicked(gtx) { // Bantuan → sub-pane
+		u.setSub = "help"
+	}
+	for u.setClicks[10].Clicked(gtx) { // Keluar
 		if u.core != nil {
 			u.core.Logout()
 			u.state = "qr"
@@ -2141,6 +2147,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 					u.profLoaded = true
 				}
 				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
+			case "account":
+				ctl.ProfPhone = u.core.GetProfile().Phone
 			case "storage":
 				s := u.core.GetStorageUsage()
 				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount

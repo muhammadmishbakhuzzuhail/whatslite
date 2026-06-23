@@ -491,6 +491,11 @@ func (u *UI) SetCommunityDemo() {
 	u.comOpen = "c1@g.us"
 }
 
+// SetJoinLinkDemo: render-tool — modal gabung grup lewat tautan (pratinjau termuat).
+func (u *UI) SetJoinLinkDemo() {
+	u.joinLink, u.joinPreview, u.overlay = "https://chat.whatsapp.com/ABC123", "Grup Kerja", "joinlink"
+}
+
 // SetMemberCtxDemo: render-tool — menu konteks anggota grup (admin → semua aksi).
 func (u *UI) SetMemberCtxDemo() {
 	u.mctJID, u.mctName, u.mctAdmin = "62811@s.whatsapp.net", "Sarah", false
@@ -1245,6 +1250,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.deleteConfirmLayer(gtx)
 	case "memberctx":
 		u.memberCtxLayer(gtx)
+	case "joinlink":
+		u.joinLinkLayer(gtx)
 	}
 }
 
@@ -1341,6 +1348,75 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 
 // renameContactLayer — modal edit nama kontak (label lokal, ala simpan/edit kontak
 // di HP). Simpan → core.SaveContactLabel; kosong → RemoveContactLabel.
+// joinLinkLayer — modal gabung grup lewat tautan: pratinjau nama (async) + tombol
+// Gabung (JoinGroupLink → buka chat) / Batal.
+func (u *UI) joinLinkLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for u.joinCancel.Clicked(gtx) {
+		u.overlay, u.joinLink, u.joinPreview = "", "", ""
+	}
+	for u.joinConfirm.Clicked(gtx) {
+		if u.core != nil && u.joinLink != "" {
+			if jid := u.core.JoinGroupLink(u.joinLink); jid != "" {
+				u.selected, u.selGroup, u.view = jid, true, "chats"
+				u.selName = u.joinPreview
+				u.searchEd.SetText("")
+				u.core.OpenChat(jid)
+				u.messages = u.core.GetMessages(jid)
+			}
+		}
+		u.overlay, u.joinLink, u.joinPreview = "", "", ""
+	}
+	white := color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(340)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Gabung grup")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					txt := "Memuat pratinjau…"
+					if u.joinPreview != "" {
+						txt = "Gabung ke \"" + u.joinPreview + "\"?"
+					}
+					l := material.Label(u.th, 14.5, txt)
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(18)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							b := material.Button(u.th, &u.joinCancel, "Batal")
+							b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Bg2, u.t.Text, unit.Dp(8), unit.Sp(14)
+							return b.Layout(gtx)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							b := material.Button(u.th, &u.joinConfirm, "Gabung")
+							b.Background, b.Color, b.CornerRadius, b.TextSize = u.t.Accent, white, unit.Dp(8), unit.Sp(14)
+							return b.Layout(gtx)
+						}),
+					)
+				}),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 // handleMemberCtx — aksi menu konteks anggota grup (kirim pesan / admin / keluarkan).
 func (u *UI) handleMemberCtx(gtx layout.Context) {
 	for u.mctMsg.Clicked(gtx) { // kirim pesan → buka DM anggota
@@ -3325,12 +3401,24 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 	u.handleNewChat(gtx)
 	u.handleChatClicks(gtx) // klik baris chat diproses DI LUAR layout (ala kontak)
 	cfQuery := strings.TrimSpace(u.searchEd.Text())
+	inviteLink := inviteLinkOf(cfQuery) // query = tautan undangan grup?
 	for u.searchMsgClick.Clicked(gtx) { // "Cari pesan" → pencarian isi pesan global
 		u.svPrevView = "chats"
 		u.svEd.SetText(cfQuery)
 		u.svHits = u.svHits[:0]
 		u.view = "search"
 		gtx.Execute(key.FocusCmd{Tag: &u.svEd})
+	}
+	for u.joinClick.Clicked(gtx) { // tautan undangan → modal pratinjau + gabung
+		u.joinLink, u.joinPreview, u.overlay = inviteLink, "", "joinlink"
+		link := inviteLink
+		go func() {
+			if u.core != nil {
+				if nm := u.core.PreviewGroupLink(link); nm != "" {
+					u.joinPreview = nm
+				}
+			}
+		}()
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -3342,9 +3430,29 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.filterChips(gtx)
 		}),
+		// query = tautan undangan → tawarkan "Gabung grup lewat tautan".
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if inviteLink == "" {
+				return layout.Dimensions{}
+			}
+			return u.joinClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(14), Top: unit.Dp(8), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "invitelink", 18, u.t.Accent) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 14, "Gabung grup lewat tautan")
+							l.Color, l.MaxLines = u.t.Accent, 1
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			})
+		}),
 		// query teks (≥2 char) → tawarkan cari ISI pesan (global, FTS) selain filter chat.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if len([]rune(cfQuery)) < 2 || phoneQuery(cfQuery) != "" {
+			if inviteLink != "" || len([]rune(cfQuery)) < 2 || phoneQuery(cfQuery) != "" {
 				return layout.Dimensions{}
 			}
 			return u.searchMsgClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -3375,6 +3483,16 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 	)
+}
+
+// inviteLinkOf — kembalikan tautan bila query berisi tautan undangan grup
+// WhatsApp (chat.whatsapp.com/...), else "".
+func inviteLinkOf(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.Contains(s, "chat.whatsapp.com/") {
+		return s
+	}
+	return ""
 }
 
 // phoneQuery — kembalikan digit nomor bila teks pencarian "mirip nomor" (≥8 digit,

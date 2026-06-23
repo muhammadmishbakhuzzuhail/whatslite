@@ -239,6 +239,14 @@ func main() {
 		case "app-comdetail":
 			ui.SetCommunityDemo() // detail komunitas (sub-grup)
 			ui.Layout(gtx)
+		case "app-joinlink":
+			ui.SetJoinLinkDemo() // modal gabung grup lewat tautan
+			ui.Layout(gtx)
+		case "app-joinrow":
+			ui.SetView("chats")
+			ui.Deselect()
+			ui.SetSearch("https://chat.whatsapp.com/ABC123XYZ")
+			ui.Layout(gtx)
 		case "app-splash":
 			ui.Deselect()
 			ui.Layout(gtx)

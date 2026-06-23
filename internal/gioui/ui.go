@@ -3272,6 +3272,7 @@ func (u *UI) chatRow(gtx layout.Context, i int) layout.Dimensions {
 			u.selected = c.ID
 			u.selName = c.Name
 			u.selGroup = c.Group
+			u.view, u.openChannel = "chats", "" // pastikan section 3 = percakapan (bukan reader channel/splash)
 			if u.core != nil {
 				u.core.OpenChat(c.ID)
 				u.messages = u.core.GetMessages(c.ID)

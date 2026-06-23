@@ -307,6 +307,16 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 
 			// FASE 2 — ISI PESAN (lambat) streaming berkelompok (~2000/tx). TANPA
 			// kirim ulang metadata chat → tak menimpa apa pun.
+			//
+			// CATCH-UP CEPAT: pada sync biasa (bukan on-demand), HP push history-sync
+			// yang BANYAK isinya pesan yg SUDAH kita punya. Lewati yg lebih lama dari
+			// pesan terbaru tersimpan per chat → hanya proses pesan benar-benar BARU,
+			// jadi reconnect langsung ke yang baru, bukan re-grind pesan lama.
+			// (on-demand = user minta pesan LAMA → jangan dilewati.)
+			var newest map[string]int64
+			if !onDemand {
+				newest, _ = store.NewestPerChat(a.ctx)
+			}
 			const batch = 2000
 			bmsgs := make([]storage.Message, 0, batch)
 			flush := func() {
@@ -321,6 +331,9 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				for _, m := range c.Messages {
 					if cutoff > 0 && m.Timestamp.Unix() < cutoff {
 						continue // lebih tua dari retensi → lewati
+					}
+					if newest != nil && m.Timestamp.Unix() < newest[cj] {
+						continue // sudah punya yg lebih baru → lewati (catch-up cepat)
 					}
 					bmsgs = append(bmsgs, storage.Message{
 						ID: m.ID, ChatJID: cj, Sender: m.Sender, PushName: m.PushName,

@@ -233,6 +233,25 @@ func (s *Store) IncrementUnread(ctx context.Context, jid string) error {
 	return err
 }
 
+// NewestPerChat → jid → timestamp pesan terbaru yg tersimpan, per chat. Dipakai
+// melewati history-sync yang sudah kita miliki (hanya proses pesan benar-benar baru).
+func (s *Store) NewestPerChat(ctx context.Context) (map[string]int64, error) {
+	out := map[string]int64{}
+	rows, err := s.db.QueryContext(ctx, `SELECT chat_jid, MAX(ts) FROM messages GROUP BY chat_jid`)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var jid string
+		var ts int64
+		if err := rows.Scan(&jid, &ts); err == nil {
+			out[jid] = ts
+		}
+	}
+	return out, rows.Err()
+}
+
 // UnreadChats menghitung jumlah chat yg punya pesan belum dibaca (unread>0),
 // kecuali yg diarsipkan — utk badge judul window. Satu query ringan.
 func (s *Store) UnreadChats(ctx context.Context) (int, error) {

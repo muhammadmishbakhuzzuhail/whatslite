@@ -90,6 +90,54 @@ func OpenFrames(data []byte, ext string, maxW int) (*FrameStream, error) {
 	return fs, nil
 }
 
+// FirstFrame — dekode SATU frame pertama `data` → RGBA (poster) via ffmpeg.
+// Dipakai utk thumbnail still dari yg tak bisa di-decode image.Decode: GIF
+// WhatsApp (mp4 GifPlayback), stiker webp animasi (ANMF), video. ext mis.
+// ".mp4"/".webp". maxW membatasi lebar (tinggi proporsional). nil+err bila
+// ffmpeg/ffprobe absen atau gagal.
+func FirstFrame(data []byte, ext string, maxW int) (*image.RGBA, error) {
+	ff, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		return nil, err
+	}
+	tmp, err := os.CreateTemp("", "wlpost-*"+ext)
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return nil, err
+	}
+	tmp.Close()
+
+	w, h, _ := probe(tmp.Name())
+	if w <= 0 || h <= 0 {
+		w, h = maxW, maxW
+	}
+	ow := w
+	if ow > maxW {
+		ow = maxW
+	}
+	ow &^= 1
+	if ow <= 0 {
+		ow = 2
+	}
+	oh := h * ow / w
+	oh &^= 1
+	if oh <= 0 {
+		oh = 2
+	}
+	out, err := exec.Command(ff, "-hide_banner", "-loglevel", "error",
+		"-i", tmp.Name(),
+		"-vf", "scale="+itoa(ow)+":"+itoa(oh),
+		"-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1").Output()
+	if err != nil || len(out) < ow*oh*4 {
+		return nil, err
+	}
+	return &image.RGBA{Pix: out[:ow*oh*4], Stride: ow * 4, Rect: image.Rect(0, 0, ow, oh)}, nil
+}
+
 // decode membaca frame raw RGBA terus-menerus → channel (blocking saat penuh →
 // jeda alami bila UI pause). Tutup channel saat EOF.
 func (fs *FrameStream) decode(r *bufio.Reader, cmd *exec.Cmd) {

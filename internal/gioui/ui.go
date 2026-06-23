@@ -409,6 +409,10 @@ type UI struct {
 	OnStatusVideo func(id string) StatusVideo
 	// OnOpenURL: buka URL di browser (di-set cmd/whatslite-gio → xdg-open). nil → tak diklik.
 	OnOpenURL func(url string)
+	// OnMediaPoster: dekode frame still (poster) dari byte yg tak bisa image.Decode —
+	// GIF WhatsApp (mp4), stiker webp animasi, video — via ffmpeg. ext mis. ".mp4"/
+	// ".webp". di-set cmd/whatslite-gio → internal/video.FirstFrame. nil → fallback ikon.
+	OnMediaPoster func(data []byte, ext string) image.Image
 	// OnWinAction: hook aksi window utk titlebar custom (CSD Wayland). action ∈
 	// minimize|maximize|unmaximize|close. nil (gio-shot) → titlebar statis.
 	OnWinAction func(action string)
@@ -1094,7 +1098,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
 		ctl := &LbCtl{Caption: u.lightboxCap, Close: &u.lightboxClose, Save: &u.lightboxSave}
 		if u.lightboxMsg != "" {
-			u.ensureMedia(u.selected, u.lightboxMsg)
+			u.ensureMedia(u.selected, u.lightboxMsg, "image")
 			u.mediaMu.Lock()
 			if imgOp, ok := u.media[u.lightboxMsg]; ok {
 				ctl.Img, ctl.Has = imgOp, true
@@ -1689,7 +1693,7 @@ func (u *UI) mediaGalleryRow(gtx layout.Context, media []app.MessageDTO, row int
 			return layout.Dimensions{Size: bsz}
 		}
 		m := media[idx]
-		u.ensureMedia(u.selected, m.ID)
+		u.ensureMedia(u.selected, m.ID, m.Type)
 		u.mediaMu.Lock()
 		op, ok := u.media[m.ID]
 		u.mediaMu.Unlock()
@@ -3830,7 +3834,7 @@ func (u *UI) waveform(gtx layout.Context, prog float32) layout.Dimensions {
 
 // stickerBubble — stiker: gambar ~128 tanpa gelembung (bg transparan di bubble()).
 func (u *UI) stickerBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
-	u.ensureMedia(u.selected, m.ID)
+	u.ensureMedia(u.selected, m.ID, "sticker")
 	u.mediaMu.Lock()
 	iop, ok := u.media[m.ID]
 	u.mediaMu.Unlock()
@@ -4341,7 +4345,11 @@ func (u *UI) jumpToMessage(id string) {
 
 // ensureMedia memuat byte media bubble (engine MediaBytes) sekali per msgID di
 // goroutine → decode → cache u.media[id]. Tak memblok UI.
-func (u *UI) ensureMedia(chat, id string) {
+// ensureMedia memuat byte media penuh (async) → ImageOp di u.media[id]. kind
+// menentukan fallback poster: image.Decode dulu; bila gagal & kind video/gif/
+// sticker, ekstrak frame still via OnMediaPoster (ffmpeg) — GIF WA = mp4, stiker
+// sering webp animasi (ANMF) yg tak bisa di-decode statis.
+func (u *UI) ensureMedia(chat, id, kind string) {
 	if u.core == nil || id == "" {
 		return
 	}
@@ -4355,6 +4363,13 @@ func (u *UI) ensureMedia(chat, id string) {
 	go func() {
 		b := u.core.MediaBytes(chat, id)
 		img := decodeImage(b)
+		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
+			ext := ".mp4"
+			if kind == "sticker" {
+				ext = ".webp"
+			}
+			img = u.OnMediaPoster(b, ext) // GIF(mp4)/webp-animasi/video → poster frame
+		}
 		if img == nil {
 			return
 		}
@@ -4369,7 +4384,7 @@ func (u *UI) ensureMedia(chat, id string) {
 // asli bila termuat, else 4:3 placeholder Bg2 + ikon), play-overlay utk video/gif,
 // lalu caption m.Text bila ada. Tap di-tangani bubble (OnPlayVideo).
 func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
-	u.ensureMedia(u.selected, m.ID)
+	u.ensureMedia(u.selected, m.ID, m.Type)
 	u.mediaMu.Lock()
 	iop, ok := u.media[m.ID]
 	u.mediaMu.Unlock()
@@ -5557,7 +5572,7 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 								iop, haveImg = paint.NewImageOp(fr), true
 							}
 						} else if item.Type == "image" || item.Type == "sticker" {
-							u.ensureMedia("status@broadcast", item.ID)
+							u.ensureMedia("status@broadcast", item.ID, item.Type)
 							u.mediaMu.Lock()
 							if op2, ok := u.media[item.ID]; ok {
 								iop, haveImg = op2, true

@@ -126,6 +126,15 @@ func run(w *gioapp.Window, core *app.App) error {
 				_ = exec.Command("xdg-open", url).Start()
 			}
 		}
+		// poster still utk byte yg tak bisa image.Decode: GIF WA (mp4), stiker
+		// webp animasi, video → frame pertama via ffmpeg.
+		ui.OnMediaPoster = func(data []byte, ext string) image.Image {
+			img, err := video.FirstFrame(data, ext, 320)
+			if err != nil || img == nil {
+				return nil
+			}
+			return img
+		}
 		ui.OnStatusVideo = func(id string) gioui.StatusVideo {
 			b := core.MediaBytes("status@broadcast", id)
 			if len(b) == 0 {

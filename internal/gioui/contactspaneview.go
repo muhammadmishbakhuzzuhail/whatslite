@@ -14,6 +14,8 @@ import (
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -22,6 +24,9 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
+
+// ctRowTag — tag pointer stabil per-baris kontak (deteksi klik-kanan → menu konteks).
+type ctRowTag int
 
 // cpContact = satu kontak (.ct-row). idx = indeks clickable datar (buka chat).
 type cpContact struct {
@@ -51,7 +56,7 @@ type cpFlat struct {
 	c        cpContact
 }
 
-func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List, avFn cpAvatarFn, search *widget.Editor) layout.Dimensions {
+func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []cpGroup, clicks []widget.Clickable, newGroup *widget.Clickable, list *widget.List, avFn cpAvatarFn, search *widget.Editor, infoClicks []widget.Clickable, newContact *widget.Clickable, onCtx func(idx int)) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
@@ -74,7 +79,7 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 		}),
 		// .ct-top { gap: 8px; padding: 6px 12px 10px } : pil cari + tombol baru.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return cpTop(gtx, th, t, newGroup, search)
+			return cpTop(gtx, th, t, newGroup, search, newContact)
 		}),
 		// .ct-list : pemisah huruf + baris kontak — SCROLLABLE (material.List).
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -94,11 +99,32 @@ func ContactsPaneView(gtx layout.Context, th *material.Theme, t Theme, groups []
 				if it.isLetter {
 					return cpLetter(gtx, th, t, it.letter)
 				}
-				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c, avFn) }
-				if it.c.idx >= 0 && it.c.idx < len(clicks) { // ketuk → buka chat
-					return clicks[it.c.idx].Layout(gtx, row)
+				var infoC *widget.Clickable // ikon "i" → info-drawer (per baris)
+				if it.c.idx >= 0 && it.c.idx < len(infoClicks) {
+					infoC = &infoClicks[it.c.idx]
 				}
-				return row(gtx)
+				row := func(gtx layout.Context) layout.Dimensions { return cpRow(gtx, th, t, it.c, avFn, infoC) }
+				if it.c.idx < 0 || it.c.idx >= len(clicks) {
+					return row(gtx)
+				}
+				// ketuk → buka chat; klik-kanan → menu konteks (onCtx).
+				dims := clicks[it.c.idx].Layout(gtx, row)
+				if onCtx != nil {
+					tag := ctRowTag(it.c.idx)
+					for {
+						ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+						if !ok {
+							break
+						}
+						if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+							onCtx(it.c.idx)
+						}
+					}
+					area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+					event.Op(gtx.Ops, tag)
+					area.Pop()
+				}
+				return dims
 			})
 		}),
 	)
@@ -125,7 +151,7 @@ func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title st
 
 // cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian
 // (searchBg, r-pill, magnifier + placeholder) + tombol accent "Kontak baru".
-func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable, search *widget.Editor) layout.Dimensions {
+func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable, search *widget.Editor, newContact *widget.Clickable) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(10), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -133,11 +159,35 @@ func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Cli
 				return cpSearchPill(gtx, th, t, search)
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout), // gap: 8px
+			// tombol ikon "Kontak baru" (addmember = orang+).
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return cpNewBtn(gtx, th, t, newGroup)
+				return cpIconBtn(gtx, th, t, newContact, "addmember")
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			// tombol ikon "Grup baru" (peoplegroup = dua orang).
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return cpIconBtn(gtx, th, t, newGroup, "peoplegroup")
 			}),
 		)
 	})
+}
+
+// cpIconBtn — tombol ikon-saja accent (r-pill) 38x38 utk aksi top kontak.
+func cpIconBtn(gtx layout.Context, th *material.Theme, t Theme, c *widget.Clickable, ic string) layout.Dimensions {
+	_ = th
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	body := func(gtx layout.Context) layout.Dimensions {
+		d := gtx.Dp(38)
+		r := d / 2
+		paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: image.Pt(d, d)}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		gtx.Constraints.Min, gtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, ic, 19, white) })
+		return layout.Dimensions{Size: image.Pt(d, d)}
+	}
+	if c != nil {
+		return c.Layout(gtx, body)
+	}
+	return body(gtx)
 }
 
 // cpSearchPill — .ct-search { background: var(--bg2); border-radius: 10px;
@@ -172,38 +222,6 @@ func cpSearchPill(gtx layout.Context, th *material.Theme, t Theme, ed *widget.Ed
 	return dims
 }
 
-// cpNewBtn — .ct-new { background: accent; color: #fff; border-radius: 10px;
-// padding: 8px 11px; gap: 6px; font-size: 13px } : ikon tambah-kontak + "Kontak baru".
-func cpNewBtn(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable) layout.Dimensions {
-	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	body := func(gtx layout.Context) layout.Dimensions {
-		macro := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return icon(gtx, "addmember", 17, white)
-				}),
-				layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout), // gap: 6px
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 13, "Grup baru")
-					lbl.Color = white
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
-				}),
-			)
-		})
-		call := macro.Stop()
-		r := gtx.Dp(10) // border-radius: 10px
-		paint.FillShape(gtx.Ops, t.Accent, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-		call.Add(gtx.Ops)
-		return dims
-	}
-	if newGroup != nil {
-		return newGroup.Layout(gtx, body)
-	}
-	return body(gtx)
-}
-
 // cpLetter — .ct-letter { background: var(--bg); color: var(--accent);
 // font-size: 12px; font-weight: 700; padding: 5px 16px } pemisah huruf alfabet.
 func cpLetter(gtx layout.Context, th *material.Theme, t Theme, letter string) layout.Dimensions {
@@ -226,7 +244,7 @@ func cpLetter(gtx layout.Context, th *material.Theme, t Theme, letter string) la
 // cpRow — .ct-row { gap: 12px; padding: 8px 14px } : avatar 40 (.avatar.sm) +
 // .ct-av (titik online .ct-dot) + kolom .ct-meta (.ct-name 15/Normal text +
 // .ct-sub 12.5 text2) + ikon info "i" .ct-info text2 kanan.
-func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn) layout.Dimensions {
+func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cpAvatarFn, infoC *widget.Clickable) layout.Dimensions {
 	return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -254,7 +272,15 @@ func cpRow(gtx layout.Context, th *material.Theme, t Theme, c cpContact, avFn cp
 			}),
 			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return icon(gtx, "info", 20, t.Text2)
+				infoIcon := func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "info", 20, t.Text2)
+					})
+				}
+				if infoC != nil { // ketuk "i" → info-drawer kontak
+					return infoC.Layout(gtx, infoIcon)
+				}
+				return infoIcon(gtx)
 			}),
 		)
 	})

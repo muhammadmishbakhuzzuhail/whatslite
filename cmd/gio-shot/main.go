@@ -101,7 +101,7 @@ func main() {
 		case "gif":
 			gioui.GifView(gtx, th, t)
 		case "contacts":
-			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil, nil, nil, nil)
+			gioui.ContactsPaneView(gtx, th, t, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		case "status":
 			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":
@@ -197,6 +197,13 @@ func main() {
 			ui.Layout(gtx)
 		case "app-renamecontact":
 			ui.SetRenameDemo() // modal edit nama kontak
+			ui.Layout(gtx)
+		case "app-newcontact":
+			ui.SetView("contacts")
+			ui.SetOverlay("newcontact") // modal tambah kontak baru
+			ui.Layout(gtx)
+		case "app-contactctx":
+			ui.SetContactCtxDemo() // menu konteks kontak (klik-kanan)
 			ui.Layout(gtx)
 		case "app-typing":
 			ui.SetTypingDemo("") // bubble mengetik + preview mengetik

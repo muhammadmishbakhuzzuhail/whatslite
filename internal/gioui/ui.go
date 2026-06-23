@@ -248,6 +248,19 @@ type UI struct {
 	renameEd         widget.Editor       // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
 	renameCancel     widget.Clickable
+	infoClicks       []widget.Clickable  // pane Kontak: ikon "i" per-baris → info-drawer
+	ctNewContactBtn  widget.Clickable    // pane Kontak: tombol "Kontak baru"
+	ncName           widget.Editor       // modal newcontact: nama
+	ncPhone          widget.Editor       // modal newcontact: nomor
+	ncSave           widget.Clickable
+	ncCancel         widget.Clickable
+	ncErr            string              // pesan galat modal newcontact (nomor tak terdaftar)
+	cctContact       app.ContactRowDTO   // snapshot kontak utk menu konteks (klik-kanan)
+	cctMsg           widget.Clickable    // menu konteks kontak: kirim pesan
+	cctInfo          widget.Clickable    // menu konteks kontak: info kontak
+	cctRename        widget.Clickable    // menu konteks kontak: edit nama
+	cctBlock         widget.Clickable    // menu konteks kontak: blokir/buka blokir
+	cctDelete        widget.Clickable    // menu konteks kontak: hapus kontak
 	infoMuteC        widget.Clickable    // info-drawer: bisukan/aktifkan notifikasi
 	infoMediaC       widget.Clickable    // info-drawer: buka galeri media
 	infoEncC         widget.Clickable    // info-drawer: info enkripsi
@@ -511,6 +524,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chnSearchEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
+	u.ncName.SingleLine = true
+	u.ncPhone.SingleLine, u.ncPhone.Submit = true, true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -1068,6 +1083,10 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.disappearingLayer(gtx)
 	case "renamecontact":
 		u.renameContactLayer(gtx)
+	case "newcontact":
+		u.newContactLayer(gtx)
+	case "contactctx":
+		u.contactCtxLayer(gtx)
 	}
 }
 
@@ -1249,6 +1268,222 @@ func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
 		})
 		call := macro.Stop()
 		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// newContactLayer — modal "Kontak baru": nama + nomor → AddContact (verifikasi
+// IsOnWhatsApp). Galat nomor tak terdaftar → tampil di ncErr (merah).
+func (u *UI) newContactLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	save := func() {
+		if u.core == nil {
+			u.overlay = ""
+			return
+		}
+		jid := u.core.AddContact(u.ncName.Text(), u.ncPhone.Text())
+		if jid == "" {
+			u.ncErr = "Nomor tidak terdaftar di WhatsApp"
+			return
+		}
+		u.cgCache = nil // paksa rebuild daftar kontak
+		u.overlay, u.ncErr = "", ""
+	}
+	for u.ncCancel.Clicked(gtx) {
+		u.overlay, u.ncErr = "", ""
+	}
+	for u.ncSave.Clicked(gtx) {
+		save()
+	}
+	for {
+		ev, ok := u.ncPhone.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			save()
+		}
+	}
+	field := func(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
+		mac := op.Record(gtx.Ops)
+		fd := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			e := material.Editor(u.th, ed, hint)
+			e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(15)
+			return e.Layout(gtx)
+		})
+		call := mac.Stop()
+		r := gtx.Dp(8)
+		paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: fd.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return fd
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(340)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 17, "Kontak baru")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, &u.ncName, "Nama") }),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return field(gtx, &u.ncPhone, "Nomor (mis. 628123456789)") }),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if u.ncErr == "" {
+						return layout.Dimensions{}
+					}
+					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 13, u.ncErr)
+						l.Color = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+						return l.Layout(gtx)
+					})
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.ncCancel.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Batal")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.ncSave.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Simpan")
+									l.Color, l.Font.Weight = u.t.Accent, font.Medium
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// contactCtxLayer — menu konteks kontak (klik-kanan di pane Kontak): Kirim pesan,
+// Info kontak, Edit nama, Blokir/Buka blokir, Hapus kontak. Aksi pada u.cctContact.
+func (u *UI) contactCtxLayer(gtx layout.Context) layout.Dimensions {
+	c := u.cctContact
+	if c.JID == "" {
+		u.overlay = ""
+		return layout.Dimensions{}
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	blocked := u.core != nil && u.core.IsBlocked(c.JID)
+	blockLbl, blockIcon := "Blokir kontak", "block"
+	if blocked {
+		blockLbl = "Buka blokir"
+	}
+	type ctItem struct {
+		c      *widget.Clickable
+		icon   string
+		label  string
+		danger bool
+		do     func()
+	}
+	openChat := func() {
+		u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+		u.view = "chats"
+		if u.core != nil {
+			u.core.OpenChat(c.JID)
+			u.messages = u.core.GetMessages(c.JID)
+			u.prefetchHistory(c.JID)
+		}
+		u.msgList.ScrollTo(len(u.messages))
+	}
+	items := []ctItem{
+		{&u.cctMsg, "message", "Kirim pesan", false, openChat},
+		{&u.cctInfo, "info", "Info kontak", false, func() {
+			u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+			u.overlay = "info"
+		}},
+		{&u.cctRename, "editpen", "Edit nama", false, func() {
+			u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+			u.renameEd.SetText(c.Name)
+			u.overlay = "renamecontact"
+		}},
+		{&u.cctBlock, blockIcon, blockLbl, !blocked, func() {
+			if u.core != nil {
+				u.core.Block(c.JID, !blocked)
+			}
+			u.overlay = ""
+		}},
+		{&u.cctDelete, "trash", "Hapus kontak", true, func() {
+			if u.core != nil {
+				u.core.DeleteContact(c.JID)
+			}
+			u.cgCache = nil
+			u.overlay = ""
+		}},
+	}
+	for i := range items {
+		it := items[i]
+		for it.c.Clicked(gtx) {
+			it.do()
+			if u.overlay == "contactctx" { // aksi yg tak set overlay sendiri → tutup
+				u.overlay = ""
+			}
+		}
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(240)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		children := make([]layout.FlexChild, 0, len(items)+1)
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(7), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 13.5, c.Name)
+				l.Color, l.Font.Weight, l.MaxLines = u.t.Text2, font.Medium, 1
+				return l.Layout(gtx)
+			})
+		}))
+		for i := range items {
+			it := items[i]
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return it.c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						dcol := u.t.Text
+						if it.danger {
+							dcol = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+						}
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, it.icon, 18, dcol) }),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(u.th, 14.5, it.label)
+								lbl.Color = dcol
+								return lbl.Layout(gtx)
+							}),
+						)
+					})
+				})
+			}))
+		}
+		macro := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		call := macro.Stop()
+		rr := gtx.Dp(10)
 		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		call.Add(gtx.Ops)
 		return dims
@@ -2679,7 +2914,19 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		for u.gcNewBtn.Clicked(gtx) { // "Grup baru" → modal buat grup
 			u.overlay = "groupcreate"
 		}
-		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList, u.avatar, &u.ctSearchEd)
+		for u.ctNewContactBtn.Clicked(gtx) { // "Kontak baru" → modal tambah kontak
+			u.ncName.SetText("")
+			u.ncPhone.SetText("")
+			u.ncErr = ""
+			u.overlay = "newcontact"
+		}
+		onCtx := func(idx int) { // klik-kanan baris → menu konteks kontak
+			if idx >= 0 && idx < len(u.contactFlat) {
+				u.cctContact = u.contactFlat[idx]
+				u.overlay = "contactctx"
+			}
+		}
+		return ContactsPaneView(gtx, u.th, u.t, groups, u.contactPaneClicks, &u.gcNewBtn, &u.contactList, u.avatar, &u.ctSearchEd, u.infoClicks, &u.ctNewContactBtn, onCtx)
 	case "status":
 		items := u.statusRows()
 		u.handleStatus(gtx)
@@ -3787,6 +4034,9 @@ func (u *UI) contactGroups() []cpGroup {
 	if len(u.contactPaneClicks) < len(u.contactFlat) {
 		u.contactPaneClicks = make([]widget.Clickable, len(u.contactFlat))
 	}
+	if len(u.infoClicks) < len(u.contactFlat) {
+		u.infoClicks = make([]widget.Clickable, len(u.contactFlat))
+	}
 	u.cgCache, u.cgAt, u.cgQuery = groups, time.Now(), q
 	return groups
 }
@@ -3807,6 +4057,13 @@ func (u *UI) handleContactsPane(gtx layout.Context) {
 				u.prefetchHistory(c.JID) // history tipis → backfill lama terurut
 			}
 			u.msgList.ScrollTo(len(u.messages))
+		}
+		if i < len(u.infoClicks) {
+			for u.infoClicks[i].Clicked(gtx) { // ikon "i" → info-drawer kontak (tanpa buka chat)
+				c := u.contactFlat[i]
+				u.selected, u.selName, u.selGroup = c.JID, c.Name, false
+				u.overlay = "info"
+			}
 		}
 	}
 }
@@ -4231,6 +4488,13 @@ func (u *UI) SetRenameDemo() {
 	}
 	u.renameEd.SetText(u.selName)
 	u.overlay = "renamecontact"
+}
+
+// SetContactCtxDemo — render-tool: buka menu konteks kontak (klik-kanan) demo.
+func (u *UI) SetContactCtxDemo() {
+	u.view = "contacts"
+	u.cctContact = app.ContactRowDTO{JID: "628000@s.whatsapp.net", Name: "Alice", Phone: "+62 812 0000 1111"}
+	u.overlay = "contactctx"
 }
 
 // SetTypingDemo — render-tool: pilih chat + paksa indikator mengetik (uji headless).

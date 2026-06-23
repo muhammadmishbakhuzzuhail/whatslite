@@ -42,6 +42,32 @@ func (a *App) IsOnWhatsApp(phones []string) []WACheckDTO {
 	return out
 }
 
+// AddContact memverifikasi nomor di WhatsApp lalu menyimpan label nama lokal.
+// Mengembalikan jid kanonik tersimpan ("" bila nomor tak terdaftar / gagal).
+// Nama boleh kosong (simpan kontak tanpa label → tampil sbg nomor).
+func (a *App) AddContact(name, phone string) string {
+	phone, name = strings.TrimSpace(phone), strings.TrimSpace(name)
+	if phone == "" || a.eng == nil {
+		return ""
+	}
+	res := a.IsOnWhatsApp([]string{phone})
+	if len(res) == 0 || !res[0].Registered || res[0].JID == "" {
+		a.emit("wa:error", "Nomor tidak terdaftar di WhatsApp")
+		return ""
+	}
+	jid := a.canon(res[0].JID)
+	if name != "" {
+		a.SaveContactLabel(jid, name) // simpan nama lokal + emit wa:sync
+	} else {
+		a.emit("wa:sync", "")
+	}
+	return jid
+}
+
+// DeleteContact menghapus kontak dari daftar lokal (label app). Kontak buku-alamat
+// WA tak bisa dihapus dari sini — hanya label lokalnya yang dilepas (fallback ke nomor).
+func (a *App) DeleteContact(jid string) { a.RemoveContactLabel(jid) }
+
 // GetProfile mengembalikan profil akun yang sedang login.
 func (a *App) GetProfile() ProfileDTO {
 	if a.eng == nil {

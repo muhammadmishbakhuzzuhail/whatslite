@@ -25,6 +25,9 @@ import (
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
 )
 
+// chnExploreEd — editor cari utk render case "channels-explore".
+var chnExploreEd widget.Editor
+
 func main() {
 	out := "/tmp/gio_shot.png"
 	screen := "main"
@@ -93,6 +96,8 @@ func main() {
 			gioui.StatusPaneView(gtx, th, t, nil, nil)
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil, nil)
+		case "channels-explore":
+			gioui.ChannelsPaneView(gtx, th, t, nil, &gioui.ChnCtl{Active: 1, Tabs: make([]widget.Clickable, 2), Rows: make([]widget.Clickable, 4), Search: &chnExploreEd})
 		case "communities":
 			gioui.CommunitiesPaneView(gtx, th, t, nil, nil)
 		case "bubbleextras":

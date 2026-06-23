@@ -108,7 +108,7 @@ func run(w *gioapp.Window, core *app.App) error {
 	expl := explorer.NewExplorer(w)
 	if core != nil {
 		ui.OnAttach = func(chat, category string) {
-			go pickAndSend(expl, core, chat, category)
+			go pickAndSend(expl, core, ui, chat, category)
 		}
 		ui.OnSaveMedia = func(chat, id, name string) {
 			go saveMedia(expl, core, chat, id, name)
@@ -176,7 +176,7 @@ func titleFor(unread int) string {
 
 // pickAndSend membuka dialog berkas, baca byte, deteksi mime → kind, lalu kirim
 // via core.SendMedia (data-URI base64, in-process). category: media|document.
-func pickAndSend(expl *explorer.Explorer, core *app.App, chat, category string) {
+func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, category string) {
 	var exts []string
 	switch category {
 	case "media":
@@ -206,7 +206,11 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, chat, category string) 
 		kind = "video"
 	}
 	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
-	core.SendMedia(chat, kind, "", "", uri, false, 0)
+	if category == "document" { // dokumen → kirim langsung (tanpa pratinjau)
+		core.SendMedia(chat, kind, "", "", uri, false, 0)
+		return
+	}
+	ui.SetPendingMedia(kind, uri) // media → pratinjau (caption + sekali-lihat) di UI
 }
 
 // saveMedia membuka dialog "simpan sebagai" native (x/explorer), lalu menulis byte

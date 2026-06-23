@@ -151,13 +151,12 @@ func paneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title stri
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-gtx.Dp(1)), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, 23, title)
-			lbl.Color = t.Text
-			lbl.Font.Weight = font.Bold
-			return lbl.Layout(gtx)
-		})
+	// top-aligned (Top16) — sama persis header "Chat" lama yg sudah benar.
+	layout.Inset{Left: unit.Dp(18), Top: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, 23, title)
+		lbl.Color = t.Text
+		lbl.Font.Weight = font.Bold
+		return lbl.Layout(gtx)
 	})
 	return layout.Dimensions{Size: sz}
 }

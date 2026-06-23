@@ -19,6 +19,7 @@ import (
 	"time"
 	"unicode"
 
+	"gioui.org/f32"
 	"gioui.org/font"
 	"gioui.org/io/clipboard"
 	"gioui.org/io/event"
@@ -172,6 +173,11 @@ type UI struct {
 	pendSend    widget.Clickable
 	pendCancel  widget.Clickable
 	pendRotate  widget.Clickable // putar 90° (image)
+	pendCrop    widget.Clickable // terapkan potong
+	cropActive  bool             // ada seleksi potong
+	cropA       image.Point      // sudut awal seleksi (koord box gambar)
+	cropB       image.Point      // sudut akhir seleksi
+	cropTagV    int              // tag pointer area potong
 
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
@@ -386,6 +392,7 @@ func (u *UI) clearPending() {
 	u.pendMu.Lock()
 	u.pendHas, u.pendURI, u.pendImgHas, u.pendVO = false, "", false, false
 	u.pendMu.Unlock()
+	u.cropActive = false
 	u.capEd.SetText("")
 }
 
@@ -3933,6 +3940,7 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 				u.pendURI, u.pendImg, u.pendImgHas = nu, nop, true
 				u.pendMu.Unlock()
 				uri, img, hasImg = nu, nop, true
+				u.cropActive = false // dimensi berubah → buang seleksi
 			}
 		}
 	}
@@ -3954,7 +3962,7 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 		dims := layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			children := []layout.FlexChild{
-				// thumbnail (image) atau kotak ikon+jenis.
+				// thumbnail (image: contain-fit + seret-potong) atau kotak ikon+jenis.
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					bw := gtx.Constraints.Max.X
 					bh := gtx.Dp(200)
@@ -3962,9 +3970,7 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 					r := gtx.Dp(8)
 					cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
 					paint.FillShape(gtx.Ops, u.t.Bg2, clip.Rect{Max: box}.Op())
-					if hasImg {
-						drawImageFill(gtx.Ops, img, bw)
-					} else {
+					if !hasImg {
 						gtx.Constraints.Min, gtx.Constraints.Max = box, box
 						layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							ic := "docfile"
@@ -3973,21 +3979,113 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 							}
 							return icon(gtx, ic, 48, u.t.Text2)
 						})
+						cl.Pop()
+						return layout.Dimensions{Size: box}
+					}
+					// contain-fit: hitung rect gambar dlm box (utk pemetaan potong tepat).
+					is := img.Size()
+					sc := float32(bw) / float32(is.X)
+					if sy := float32(bh) / float32(is.Y); sy < sc {
+						sc = sy
+					}
+					dispW, dispH := int(float32(is.X)*sc), int(float32(is.Y)*sc)
+					ox, oy := (bw-dispW)/2, (bh-dispH)/2
+					io := op.Offset(image.Pt(ox, oy)).Push(gtx.Ops)
+					af := op.Affine(f32.Affine2D{}.Scale(f32.Pt(0, 0), f32.Pt(sc, sc))).Push(gtx.Ops)
+					img.Add(gtx.Ops)
+					paint.PaintOp{}.Add(gtx.Ops)
+					af.Pop()
+					io.Pop()
+
+					imgRect := image.Rect(ox, oy, ox+dispW, oy+dispH)
+					clamp := func(p image.Point) image.Point {
+						if p.X < imgRect.Min.X {
+							p.X = imgRect.Min.X
+						}
+						if p.X > imgRect.Max.X {
+							p.X = imgRect.Max.X
+						}
+						if p.Y < imgRect.Min.Y {
+							p.Y = imgRect.Min.Y
+						}
+						if p.Y > imgRect.Max.Y {
+							p.Y = imgRect.Max.Y
+						}
+						return p
+					}
+					tag := &u.cropTagV
+					for {
+						ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press | pointer.Drag | pointer.Release})
+						if !ok {
+							break
+						}
+						pe, ok := ev.(pointer.Event)
+						if !ok {
+							continue
+						}
+						p := clamp(image.Pt(int(pe.Position.X), int(pe.Position.Y)))
+						switch pe.Kind {
+						case pointer.Press:
+							u.cropA, u.cropB, u.cropActive = p, p, true
+						case pointer.Drag:
+							u.cropB = p
+						}
+					}
+					area := clip.Rect{Max: box}.Push(gtx.Ops)
+					event.Op(gtx.Ops, tag)
+					area.Pop()
+
+					// seleksi: redupkan luar + bingkai accent.
+					if u.cropActive {
+						sel := image.Rectangle{Min: u.cropA, Max: u.cropB}.Canon()
+						dark := color.NRGBA{A: 120}
+						paint.FillShape(gtx.Ops, dark, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(bw, sel.Min.Y)}.Op())
+						paint.FillShape(gtx.Ops, dark, clip.Rect{Min: image.Pt(0, sel.Max.Y), Max: box}.Op())
+						paint.FillShape(gtx.Ops, dark, clip.Rect{Min: image.Pt(0, sel.Min.Y), Max: image.Pt(sel.Min.X, sel.Max.Y)}.Op())
+						paint.FillShape(gtx.Ops, dark, clip.Rect{Min: image.Pt(sel.Max.X, sel.Min.Y), Max: image.Pt(bw, sel.Max.Y)}.Op())
+						bd := gtx.Dp(2)
+						ac := u.t.Accent
+						paint.FillShape(gtx.Ops, ac, clip.Rect{Min: sel.Min, Max: image.Pt(sel.Max.X, sel.Min.Y+bd)}.Op())
+						paint.FillShape(gtx.Ops, ac, clip.Rect{Min: image.Pt(sel.Min.X, sel.Max.Y-bd), Max: sel.Max}.Op())
+						paint.FillShape(gtx.Ops, ac, clip.Rect{Min: sel.Min, Max: image.Pt(sel.Min.X+bd, sel.Max.Y)}.Op())
+						paint.FillShape(gtx.Ops, ac, clip.Rect{Min: image.Pt(sel.Max.X-bd, sel.Min.Y), Max: sel.Max}.Op())
 					}
 					cl.Pop()
-					if hasImg && kind == "image" { // tombol putar (lingkaran) kanan-atas
+
+					// terapkan potong: seleksi box → piksel gambar.
+					for u.pendCrop.Clicked(gtx) {
+						sel := image.Rectangle{Min: u.cropA, Max: u.cropB}.Canon()
+						pr := image.Rect(
+							int(float32(sel.Min.X-ox)/sc), int(float32(sel.Min.Y-oy)/sc),
+							int(float32(sel.Max.X-ox)/sc), int(float32(sel.Max.Y-oy)/sc))
+						if nu, nop, ok := cropDataURI(uri, pr); ok {
+							u.pendMu.Lock()
+							u.pendURI, u.pendImg, u.pendImgHas = nu, nop, true
+							u.pendMu.Unlock()
+							uri, img, hasImg = nu, nop, true
+							u.cropActive = false
+						}
+					}
+
+					// tombol kanan-atas: putar; + potong bila ada seleksi.
+					if kind == "image" {
 						d := gtx.Dp(34)
-						bx := bw - d - gtx.Dp(8)
-						off := op.Offset(image.Pt(bx, gtx.Dp(8))).Push(gtx.Ops)
-						bgtx := gtx
-						bgtx.Constraints.Min, bgtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
-						u.pendRotate.Layout(bgtx, func(gtx layout.Context) layout.Dimensions {
-							paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
-							return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return icon(gtx, "rotate", 18, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+						roundBtn := func(c *widget.Clickable, x int, ic string) {
+							off := op.Offset(image.Pt(x, gtx.Dp(8))).Push(gtx.Ops)
+							bgtx := gtx
+							bgtx.Constraints.Min, bgtx.Constraints.Max = image.Pt(d, d), image.Pt(d, d)
+							c.Layout(bgtx, func(gtx layout.Context) layout.Dimensions {
+								paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+								return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, ic, 18, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+								})
 							})
-						})
-						off.Pop()
+							off.Pop()
+						}
+						roundBtn(&u.pendRotate, bw-d-gtx.Dp(8), "rotate")
+						if u.cropActive {
+							roundBtn(&u.pendCrop, bw-2*d-gtx.Dp(14), "check")
+						}
 					}
 					return layout.Dimensions{Size: box}
 				}),

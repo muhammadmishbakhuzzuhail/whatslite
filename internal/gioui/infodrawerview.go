@@ -28,12 +28,24 @@ type InfoDrawerData struct {
 	Sub   string // "N anggota" (grup) / presence (DM)
 	Desc  string // topik grup / about kontak
 	Group bool
+	Muted bool          // status bisu chat (label baris Bisukan)
 	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
-	// Edit (info grup: nama+deskripsi).
-	Block  *widget.Clickable
-	Leave  *widget.Clickable
-	Invite *widget.Clickable
-	Edit   *widget.Clickable
+	// Edit (info grup: nama+deskripsi), Mute (toggle bisu), Media (galeri), Enc (info enkripsi).
+	Block   *widget.Clickable
+	Leave   *widget.Clickable
+	Invite  *widget.Clickable
+	Edit    *widget.Clickable
+	Mute    *widget.Clickable
+	Media   *widget.Clickable
+	Enc     *widget.Clickable
+	Members []InfoMember        // grup: daftar anggota
+	MemberClicks []widget.Clickable // paralel Members (ketuk → menu, opsional)
+}
+
+// InfoMember = satu anggota grup di laci info (nama + admin).
+type InfoMember struct {
+	Name  string
+	Admin bool
 }
 
 func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDrawerData) layout.Dimensions {
@@ -44,7 +56,11 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
 	if d == nil { // demo (render standalone / gio-shot)
-		d = &InfoDrawerData{Name: "Grup Kerja", Sub: "4 anggota", Desc: "Koordinasi tim proyek", Group: true}
+		d = &InfoDrawerData{Name: "Grup Kerja", Sub: "4 anggota", Desc: "Koordinasi tim proyek", Group: true,
+			Members: []InfoMember{
+				{Name: "Andi Pratama", Admin: true}, {Name: "Sarah", Admin: false},
+				{Name: "Tim Proyek X", Admin: false}, {Name: "Rian", Admin: false},
+			}}
 	}
 	dangerCol := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // #e35d6a
 	headTitle := "Info kontak"
@@ -83,16 +99,20 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		}),
 		// blok umum (DM + grup) ala WhatsApp: media, bisukan, pesan sementara, enkripsi.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerRow(gtx, th, t, infoDrawerMediaIcon, "Media, tautan, dokumen", t.Text2, t.Text, nil)
+			return infoDrawerRow(gtx, th, t, infoDrawerMediaIcon, "Media, tautan, dokumen", t.Text2, t.Text, d.Media)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerRow(gtx, th, t, infoDrawerMuteIcon, "Bisukan notifikasi", t.Text2, t.Text, nil)
+			lbl := "Bisukan notifikasi"
+			if d.Muted {
+				lbl = "Aktifkan notifikasi"
+			}
+			return infoDrawerRow(gtx, th, t, infoDrawerMuteIcon, lbl, t.Text2, t.Text, d.Mute)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return infoDrawerRow(gtx, th, t, infoDrawerTimerIcon, "Pesan sementara", t.Text2, t.Text, nil)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerRow(gtx, th, t, infoDrawerLockIcon, "Enkripsi", t.Text2, t.Text, nil)
+			return infoDrawerRow(gtx, th, t, infoDrawerLockIcon, "Enkripsi", t.Text2, t.Text, d.Enc)
 		}),
 		// pemisah 6px var(--wallpaper).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -110,6 +130,13 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				return layout.Dimensions{}
 			}
 			return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Tambah anggota", t.Text2, t.Text, nil)
+		}),
+		// daftar anggota grup (avatar + nama + lencana admin).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if !d.Group || len(d.Members) == 0 {
+				return layout.Dimensions{}
+			}
+			return infoDrawerMembers(gtx, th, t, d.Members)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if !d.Group {
@@ -132,6 +159,46 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			return infoDrawerRow(gtx, th, t, infoDrawerReportIcon, lbl, dangerCol, dangerCol, nil)
 		}),
 	)
+}
+
+// infoDrawerMembers — header "N anggota" + baris anggota (avatar 40 + nama + admin).
+func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members []InfoMember) layout.Dimensions {
+	children := make([]layout.FlexChild, 0, len(members)+1)
+	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(4), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(th, 13, itoa(len(members))+" anggota")
+			l.Color = t.Accent
+			return l.Layout(gtx)
+		})
+	}))
+	for i := range members {
+		m := members[i]
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return infoDrawerAvatar(gtx, th, m.Name, 40)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(th, 15, m.Name)
+						l.Color, l.MaxLines = t.Text, 1
+						return l.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !m.Admin {
+							return layout.Dimensions{}
+						}
+						l := material.Label(th, 12, "Admin grup")
+						l.Color = t.Accent
+						return l.Layout(gtx)
+					}),
+				)
+			})
+		}))
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
 // infoDrawerHead: .info-head — tinggi 56, latar head-bg, pad 0 16, title 16/500.
@@ -192,8 +259,8 @@ func infoDrawerAvatar(gtx layout.Context, th *material.Theme, name string, dp in
 	paint.FillShape(gtx.Ops, avatarColor(name), clip.Ellipse{Max: sz}.Op(gtx.Ops))
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		// font-size: 80px untuk .avatar.big.
-		lbl := material.Label(th, 80, initial(name))
+		// font-size ≈ 0.4× diameter (80px untuk .avatar.big 200).
+		lbl := material.Label(th, unit.Sp(float32(dp)*0.4), initial(name))
 		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 		lbl.Font.Weight = font.SemiBold
 		return lbl.Layout(gtx)

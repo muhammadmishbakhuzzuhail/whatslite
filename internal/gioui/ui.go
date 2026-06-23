@@ -652,6 +652,12 @@ func (u *UI) body(gtx layout.Context) layout.Dimensions {
 	dims := layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.rail(gtx) }),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.sidebar(gtx) }),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { // garis pemisah abu sidebar↔percakapan
+			wpx := gtx.Dp(1)
+			h := gtx.Constraints.Max.Y
+			paint.FillShape(gtx.Ops, u.t.Divider, clip.Rect{Max: image.Pt(wpx, h)}.Op())
+			return layout.Dimensions{Size: image.Pt(wpx, h)}
+		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.conversation(gtx) }),
 	)
 	if u.overlay != "" {

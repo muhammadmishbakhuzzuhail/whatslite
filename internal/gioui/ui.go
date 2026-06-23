@@ -82,6 +82,10 @@ type UI struct {
 	statusClose       widget.Clickable
 	stPrevZone        widget.Clickable // zona tap kiri → item sebelumnya
 	stNextZone        widget.Clickable // zona tap kanan → item berikut / tutup
+	stReplyEd         widget.Editor    // balas status (kirim DM ke poster)
+	stReplySend       widget.Clickable
+	stEmoji           [6]widget.Clickable // reaksi emoji cepat (ala IG story)
+	stReplied         string              // emoji terkirim terakhir (umpan balik singkat)
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -544,6 +548,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
 	u.ncPhone.SingleLine, u.ncPhone.Submit = true, true
+	u.stReplyEd.SingleLine, u.stReplyEd.Submit = true, true
 	u.railClicks = make([]widget.Clickable, len(railNav))
 	u.editor.SingleLine = true
 	u.editor.Submit = true
@@ -4823,8 +4828,38 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 			u.statusItemIdx--
 		}
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{R: 0x0b, G: 0x14, B: 0x1a, A: 0xff}, clip.Rect{Max: gtx.Constraints.Max}.Op()) // latar solid (tanpa app tembus)
 	item := g.Items[u.statusItemIdx]
+	// reaksi emoji cepat (ala IG story) → ReactStatus.
+	for i := range u.stEmoji {
+		for u.stEmoji[i].Clicked(gtx) {
+			if u.core != nil {
+				u.core.ReactStatus(g.Jid, item.ID, statusEmojis[i])
+				u.stReplied = statusEmojis[i] // umpan balik singkat
+			}
+		}
+	}
+	// balas teks → ReplyStatus (DM ke poster, mengutip status).
+	sendReply := func() {
+		t := strings.TrimSpace(u.stReplyEd.Text())
+		if t != "" && u.core != nil {
+			u.core.ReplyStatus(g.Jid, item.ID, item.Text, t)
+			u.stReplyEd.SetText("")
+			u.stReplied = "✓"
+		}
+	}
+	for u.stReplySend.Clicked(gtx) {
+		sendReply()
+	}
+	for {
+		ev, ok := u.stReplyEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			sendReply()
+		}
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 0x0b, G: 0x14, B: 0x1a, A: 0xff}, clip.Rect{Max: gtx.Constraints.Max}.Op()) // latar solid (tanpa app tembus)
 	gtx.Constraints.Min = gtx.Constraints.Max // isi penuh layar → konten ter-center vertikal
 	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// progress bar tersegmen (1 per item; <=current penuh, sisanya redup).
@@ -4942,7 +4977,75 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 				}),
 			)
 		}),
+		// bilah bawah: reaksi emoji cepat + kotak balas (status milik sendiri tak ada).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if g.Mine {
+				return layout.Dimensions{}
+			}
+			white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(16), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+					// baris emoji reaksi cepat.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceEvenly}.Layout(gtx,
+							emojiBtns(gtx, u.th, u.stEmoji[:])...,
+						)
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+					// kotak balas (pill gelap + editor + tombol kirim).
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						macro := op.Record(gtx.Ops)
+						dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(16), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+									e := material.Editor(u.th, &u.stReplyEd, "Balas…")
+									e.Color, e.HintColor, e.TextSize = white, color.NRGBA{R: 0xbb, G: 0xbb, B: 0xbb, A: 0xff}, unit.Sp(15)
+									return e.Layout(gtx)
+								}),
+								layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return u.stReplySend.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										return icon(gtx, "send", 22, u.t.Accent)
+									})
+								}),
+							)
+						})
+						call := macro.Stop()
+						rr := dims.Size.Y / 2
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x2a, G: 0x35, B: 0x3c, A: 0xff}, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						call.Add(gtx.Ops)
+						return dims
+					}),
+				)
+			})
+		}),
 	)
+}
+
+// statusEmojis — reaksi cepat status (ala IG story / WhatsApp).
+var statusEmojis = [6]string{"👍", "❤️", "😂", "😮", "😢", "🙏"}
+
+// emojiBtns — 6 tombol emoji reaksi status (label besar, clickable).
+func emojiBtns(gtx layout.Context, th *material.Theme, clicks []widget.Clickable) []layout.FlexChild {
+	out := make([]layout.FlexChild, 0, len(statusEmojis))
+	for i := range statusEmojis {
+		i := i
+		out = append(out, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if i >= len(clicks) {
+				return layout.Dimensions{}
+			}
+			return clicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(th, 30, statusEmojis[i])
+					return l.Layout(gtx)
+				})
+			})
+		}))
+	}
+	return out
 }
 
 // decodeDataURI — "data:<mime>;base64,<...>" → byte. "" bila bukan data-URI base64.

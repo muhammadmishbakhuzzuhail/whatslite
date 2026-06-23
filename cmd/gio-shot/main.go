@@ -189,6 +189,9 @@ func main() {
 		case "app-contacts":
 			ui.SetView("contacts")
 			ui.Layout(gtx)
+		case "app-renamecontact":
+			ui.SetRenameDemo() // modal edit nama kontak
+			ui.Layout(gtx)
 		case "app-typing":
 			ui.SetTypingDemo("") // bubble mengetik + preview mengetik
 			ui.Layout(gtx)

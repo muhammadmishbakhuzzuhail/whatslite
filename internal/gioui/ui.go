@@ -4908,9 +4908,13 @@ func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.D
 		name = "Pesan"
 	}
 	return layout.Inset{Bottom: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		qcol := u.t.Text2
+		if firstURL(m.QuoteText) != "" { // tautan di kutipan → biru
+			qcol = u.t.Link
+		}
 		macro := op.Record(gtx.Ops)
+		// HUG konten (jangan paksa lebar penuh) → balasan teks pendek = bubble pendek.
 		dims := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(10), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					lbl := material.Label(u.th, 13, name)
@@ -4920,7 +4924,7 @@ func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.D
 					return lbl.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return u.previewRow(gtx, m.QuoteText, 13, u.t.Text2, 1) // ikon SVG utk media
+					return u.previewRow(gtx, m.QuoteText, 13, qcol, 1) // ikon SVG utk media + biru utk URL
 				}),
 			)
 		})
@@ -7932,7 +7936,7 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					lbl := material.Label(u.th, 13, m.Sender)
 					lbl.Color = avatarColor(m.Sender)
 					lbl.Font.Weight = font.Bold
-					return lbl.Layout(gtx)
+					return layout.Inset{Bottom: unit.Dp(3)}.Layout(gtx, lbl.Layout) // jarak nama→isi
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if m.QuoteName == "" && m.QuoteText == "" {
@@ -8175,7 +8179,13 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	}
 	bubbleCol := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical, Alignment: colAlign}.Layout(gtx,
-			layout.Rigid(bubbleBody),
+			// klik HANYA pada bubble (bukan ruang kosong baris) → ctx-menu/lightbox.
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if idx < len(u.msgClicks) {
+					return u.msgClicks[idx].Layout(gtx, bubbleBody)
+				}
+				return bubbleBody(gtx)
+			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return u.reactionPills(gtx, m)
 			}),
@@ -8234,11 +8244,12 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 // msgRow — baris pesan; di mode-pilih & terpilih, beri pita accent tipis selebar
 // baris di belakangnya (penanda seleksi).
 func (u *UI) msgRow(gtx layout.Context, idx int, wrap layout.Widget) layout.Dimensions {
+	// msgClicks kini membungkus HANYA bubble (di bubbleCol), jadi baris cuma menata.
 	if !u.selMode || idx >= len(u.messages) || !u.selSet[u.messages[idx].ID] {
-		return u.msgClicks[idx].Layout(gtx, wrap)
+		return wrap(gtx)
 	}
 	macro := op.Record(gtx.Ops)
-	dims := u.msgClicks[idx].Layout(gtx, wrap)
+	dims := wrap(gtx)
 	call := macro.Stop()
 	tint := u.t.Accent
 	tint.A = 32

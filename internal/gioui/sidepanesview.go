@@ -39,7 +39,7 @@ type spCallTag struct{ i int }
 
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
-func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, clicks []widget.Clickable, onCtx func(idx int)) layout.Dimensions {
+func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, clicks []widget.Clickable, onCtx func(idx int), top func(gtx layout.Context) layout.Dimensions) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -59,6 +59,13 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return spPaneHead(gtx, th, t, w, "Panggilan")
+		}),
+		// area cari + filter + bersihkan (dirender ui.go; demo/headless → nil).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if top == nil {
+				return layout.Dimensions{}
+			}
+			return top(gtx)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			if len(calls) == 0 { // empty-state modern: ikon + teks muted terpusat
@@ -247,7 +254,9 @@ func spCallIcon(gtx layout.Context, t Theme, video bool) layout.Dimensions {
 	sz := image.Pt(box, box)
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return icon(gtx, glyph, 20, t.Accent)
+		// Text2 (bukan accent) → indikator JENIS panggilan, bukan tombol palsu
+		// (kita tak bisa originasi panggilan; tap baris = buka chat).
+		return icon(gtx, glyph, 20, t.Text2)
 	})
 	return layout.Dimensions{Size: sz}
 }

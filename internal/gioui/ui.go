@@ -132,11 +132,16 @@ type UI struct {
 	cgCache                       []cpGroup
 	srCache                       []stpItem
 	crCache                       []spCall
-	callCtxID, callCtxName        string             // sasaran menu konteks log panggilan
-	callCtxJID, callCtxInfo       string             // jid kontak + baris info (jenis·status·waktu)
-	callDelOne, callClearAll      widget.Clickable   // aksi menu: hapus entri / bersihkan semua
-	callOpenChat                  widget.Clickable   // aksi menu: buka chat kontak
-	callRowClicks                 []widget.Clickable // tap → buka chat + hover (gaya kartu)
+	callCtxID, callCtxName        string              // sasaran menu konteks log panggilan
+	callCtxJID, callCtxInfo       string              // jid kontak + baris info (jenis·status·waktu)
+	callDelOne, callClearAll      widget.Clickable    // aksi menu: hapus entri / bersihkan semua
+	callOpenChat                  widget.Clickable    // aksi menu: buka chat kontak
+	callRowClicks                 []widget.Clickable  // tap → buka chat + hover (gaya kartu)
+	callSearchEd                  widget.Editor       // cari log panggilan (filter nama)
+	callFilterMissed              bool                // chip "Tak terjawab" aktif
+	callFilterClicks              [2]widget.Clickable // 0=Semua, 1=Tak terjawab
+	callClearBtn                  widget.Clickable    // ikon sapu di header → bersihkan semua
+	callClearOK, callClearCancel  widget.Clickable    // konfirmasi bersihkan log
 	chCache                       []chnChannel
 	comCache                      []comItem
 	comFetching                   bool // komunitas sedang di-fetch (async)
@@ -726,6 +731,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chnSearchEd.SingleLine = true
 	u.chFollowEd.SingleLine = true
 	u.comSearchEd.SingleLine = true
+	u.callSearchEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
@@ -1380,6 +1386,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.joinLinkLayer(gtx)
 	case "callctx":
 		u.callCtxLayer(gtx)
+	case "callclear":
+		u.callClearLayer(gtx)
 	}
 }
 
@@ -2701,6 +2709,118 @@ func callInfoLine(c spCall) string {
 	return kind + " · " + status + " · " + c.time
 }
 
+// callsTop — di bawah header pane Panggilan: kotak cari + chip filter (Semua/Tak
+// terjawab) + ikon sapu (bersihkan log). Menangani kliknya lalu menggambar.
+func (u *UI) callsTop(gtx layout.Context) layout.Dimensions {
+	for u.callFilterClicks[0].Clicked(gtx) {
+		u.callFilterMissed = false
+	}
+	for u.callFilterClicks[1].Clicked(gtx) {
+		u.callFilterMissed = true
+	}
+	for u.callClearBtn.Clicked(gtx) {
+		u.overlay = "callclear"
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return u.searchPill(gtx, &u.callSearchEd, "Cari panggilan")
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(2), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.callChip(gtx, 0, "Semua", !u.callFilterMissed) }),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.callChip(gtx, 1, "Tak terjawab", u.callFilterMissed)
+					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { // sapu → bersihkan log
+						return u.callClearBtn.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "trash", 18, u.t.Text2)
+							})
+						})
+					}),
+				)
+			})
+		}),
+	)
+}
+
+// callChip — chip filter pane Panggilan (aktif = accent + putih).
+func (u *UI) callChip(gtx layout.Context, i int, label string, active bool) layout.Dimensions {
+	chip := func(gtx layout.Context) layout.Dimensions {
+		bg, fg := u.t.Bg2, u.t.Text2
+		if active {
+			bg, fg = u.t.Accent, color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+		}
+		macro := op.Record(gtx.Ops)
+		d := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(u.th, 12.5, label)
+			l.Color, l.MaxLines = fg, 1
+			return l.Layout(gtx)
+		})
+		call := macro.Stop()
+		r := gtx.Dp(13)
+		paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return d
+	}
+	return u.callFilterClicks[i].Layout(gtx, chip)
+}
+
+// callClearLayer — konfirmasi bersihkan SELURUH log panggilan.
+func (u *UI) callClearLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	for u.callClearOK.Clicked(gtx) {
+		if u.core != nil {
+			u.core.ClearCallLog()
+		}
+		u.crCache = nil
+		u.overlay = ""
+	}
+	for u.callClearCancel.Clicked(gtx) {
+		u.overlay = ""
+	}
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	btn := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color = col
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(320)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, "Bersihkan log panggilan?")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+				btn(&u.callClearOK, "Bersihkan", red),
+				btn(&u.callClearCancel, "Batal", u.t.Text2),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
 // stickerCtl membangun controller picker stiker (data nyata) + tangani klik kirim.
 // nil bila demo (core nil) → grid placeholder.
 func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
@@ -3859,7 +3979,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				u.overlay = "callctx"
 			}
 		}
-		return SidePanesView(gtx, u.th, u.t, rows, u.callRowClicks, onCtx)
+		return SidePanesView(gtx, u.th, u.t, rows, u.callRowClicks, onCtx, u.callsTop)
 	case "contacts":
 		groups := u.contactGroups()
 		u.handleContactsPane(gtx)
@@ -7329,22 +7449,37 @@ func (u *UI) callRows() []spCall {
 	if u.core == nil {
 		return nil
 	}
-	if u.crCache != nil && time.Since(u.crAt) < time.Second {
-		return u.crCache
+	if u.crCache == nil || time.Since(u.crAt) >= time.Second {
+		cs := u.core.GetCalls()
+		out := make([]spCall, 0, len(cs))
+		for _, c := range cs {
+			out = append(out, spCall{
+				id:     c.ID,
+				jid:    c.JID,
+				name:   c.Name,
+				time:   time.Unix(c.TS, 0).Format("15.04"),
+				video:  c.Video,
+				missed: c.Status == "missed",
+			})
+		}
+		u.crCache, u.crAt = out, time.Now()
 	}
-	cs := u.core.GetCalls()
-	out := make([]spCall, 0, len(cs))
-	for _, c := range cs {
-		out = append(out, spCall{
-			id:     c.ID,
-			jid:    c.JID,
-			name:   c.Name,
-			time:   time.Unix(c.TS, 0).Format("15.04"),
-			video:  c.Video,
-			missed: c.Status == "missed",
-		})
+	// filter: chip "Tak terjawab" + kotak cari (nama). Daftar mentah tetap di-cache.
+	rows := u.crCache
+	q := strings.ToLower(strings.TrimSpace(u.callSearchEd.Text()))
+	if q == "" && !u.callFilterMissed {
+		return rows
 	}
-	u.crCache, u.crAt = out, time.Now()
+	out := make([]spCall, 0, len(rows))
+	for _, c := range rows {
+		if u.callFilterMissed && !c.missed {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(c.name), q) {
+			continue
+		}
+		out = append(out, c)
+	}
 	return out
 }
 

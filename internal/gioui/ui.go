@@ -70,21 +70,17 @@ type UI struct {
 	linkStates    map[string]*rtInteractiveText // state per-pesan utk URL klik
 
 	// picker stiker (tombol stiker composer → overlay "picker").
-	stickerClick  widget.Clickable
-	pickerScrim   widget.Clickable // ketuk luar kartu picker → tutup
-	pkTab         int              // 0 = Stiker, 1 = GIF (online: Tenor/KLIPY/Sticker.ly)
-	pkTabClicks   [2]widget.Clickable
-	gifSearchEd   widget.Editor            // cari online (submit → cari)
-	onlineKey     string                   // "tab|query" yg sedang/sudah dimuat
-	onlineGen     int                      // generasi fetch (buang hasil basi)
-	onlineItems   []app.GifDTO             // hasil online (tab+query aktif)
-	onlineClicks  []widget.Clickable       // paralel onlineItems (tap → kirim)
-	remoteThumbs  map[string]paint.ImageOp // previewURL → thumb
-	remoteTried   map[string]bool
-	stickerCache  []app.StickerDTO
-	stickerThumbs map[string]paint.ImageOp // hash → thumbnail
-	stickerTried  map[string]bool
-	stickerClicks []widget.Clickable
+	stickerClick widget.Clickable
+	pickerScrim  widget.Clickable // ketuk luar kartu picker → tutup
+	pkTab        int              // 0 = Stiker, 1 = GIF (online: Tenor/KLIPY/Sticker.ly)
+	pkTabClicks  [2]widget.Clickable
+	gifSearchEd  widget.Editor            // cari online (submit → cari)
+	onlineKey    string                   // "tab|query" yg sedang/sudah dimuat
+	onlineGen    int                      // generasi fetch (buang hasil basi)
+	onlineItems  []app.GifDTO             // hasil online (tab+query aktif)
+	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
+	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
+	remoteTried  map[string]bool
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
@@ -773,8 +769,6 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.gifSearchEd.Submit = true
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
-	u.stickerThumbs = map[string]paint.ImageOp{}
-	u.stickerTried = map[string]bool{}
 	if core == nil { // demo: foto sintetis utk membuktikan avatar-foto bulat + thumb
 		u.photos["Andi Pratama"] = synthPhoto()
 		u.media["m13"] = synthPhoto() // bubble image demo (m14 video = placeholder+play)
@@ -2656,52 +2650,6 @@ func (u *UI) ensureRemoteThumb(url string) {
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
 		u.remoteThumbs[url] = op
-		u.photoMu.Unlock()
-	}()
-}
-
-// ensureGifThumb — poster GIF (mp4) via ffmpeg (OnMediaPoster) → cache (reuse
-// stickerThumbs map; hash unik). decodeImage gagal utk mp4 → poster.
-func (u *UI) ensureGifThumb(hash string) {
-	if hash == "" || u.stickerTried[hash] {
-		return
-	}
-	u.stickerTried[hash] = true
-	go func() {
-		b := u.core.SavedGifBytes(hash)
-		img := decodeImage(b)
-		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
-			img = u.OnMediaPoster(b, ".mp4")
-		}
-		if img == nil {
-			return
-		}
-		op := paint.NewImageOp(img)
-		u.photoMu.Lock()
-		u.stickerThumbs[hash] = op
-		u.photoMu.Unlock()
-	}()
-}
-
-// ensureStickerThumb memuat byte stiker (StickerBytes) sekali per hash → decode
-// (webp) → cache ImageOp. Async agar tak memblok UI.
-func (u *UI) ensureStickerThumb(hash string) {
-	if hash == "" || u.stickerTried[hash] {
-		return
-	}
-	u.stickerTried[hash] = true
-	go func() {
-		b := u.core.StickerBytes(hash)
-		img := decodeImage(b)
-		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
-			img = u.OnMediaPoster(b, ".webp") // stiker animasi (ANMF) → frame poster ffmpeg
-		}
-		if img == nil {
-			return
-		}
-		op := paint.NewImageOp(img)
-		u.photoMu.Lock() // pakai lock yg sama (akses peta dari goroutine)
-		u.stickerThumbs[hash] = op
 		u.photoMu.Unlock()
 	}()
 }

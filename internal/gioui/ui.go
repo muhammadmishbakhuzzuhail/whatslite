@@ -322,6 +322,7 @@ type UI struct {
 	// menu aksi baris chat (klik-kanan): SNAPSHOT chat saat menu dibuka (aksi pakai
 	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
 	chatCtxChat      app.ChatDTO
+	rowMenuClicks    []widget.Clickable // chevron aksi-cepat per baris chat (muncul saat hover)
 	chatCtxItems     [6]widget.Clickable
 	headMenuClick    widget.Clickable // ikon overflow header → menu chat terbuka
 	headSearchClick  widget.Clickable // ikon cari header → cari DALAM chat aktif
@@ -915,6 +916,9 @@ func (u *UI) refresh() {
 	}
 	if len(u.clicks) < len(u.chats) {
 		u.clicks = make([]widget.Clickable, len(u.chats))
+	}
+	if len(u.rowMenuClicks) < len(u.chats) {
+		u.rowMenuClicks = make([]widget.Clickable, len(u.chats))
 	}
 	if len(u.msgClicks) < len(u.messages) {
 		u.msgClicks = make([]widget.Clickable, len(u.messages))
@@ -4483,7 +4487,16 @@ func (u *UI) handleChatClicks(gtx layout.Context) {
 
 // rowInner — isi baris chat (clickable buka-chat + konten + bg hover/aktif).
 func (u *UI) rowInner(gtx layout.Context, i int, c app.ChatDTO) layout.Dimensions {
+	// chevron aksi-cepat (hover) → menu chatctx (pin/bisukan/arsip/hapus/dll).
+	// Clickable BERSARANG di dalam u.clicks[i] → klik chevron tak membuka chat.
+	if i < len(u.rowMenuClicks) {
+		for u.rowMenuClicks[i].Clicked(gtx) {
+			u.chatCtxChat = c
+			u.overlay = "chatctx"
+		}
+	}
 	return u.clicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		hovRow := u.clicks[i].Hovered() // reveal chevron saat hover
 		// rekam konten dulu → tahu ukuran baris → gambar bg hover/aktif di BELAKANG.
 		macro := op.Record(gtx.Ops)
 		// modern (Telegram/Linear): baris lebih lega (vert 12), avatar 54, tanpa divider.
@@ -4504,6 +4517,19 @@ func (u *UI) rowInner(gtx layout.Context, i int, c app.ChatDTO) layout.Dimension
 								return u.previewLine(gtx, c)
 							}),
 						)
+					}),
+					// chevron aksi-cepat — hanya saat hover; tap → menu chatctx.
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !hovRow || i >= len(u.rowMenuClicks) {
+							return layout.Dimensions{}
+						}
+						return layout.Inset{Left: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return u.rowMenuClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, "chevrondown", 18, u.t.Text2)
+								})
+							})
+						})
 					}),
 				)
 			})

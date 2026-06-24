@@ -392,19 +392,21 @@ type UI struct {
 	inChatCur    int   // match aktif (0-based)
 
 	// sub-pane setelan (profil/penyimpanan) + navigasi kembali.
-	setSub          string
-	setBack         widget.Clickable
-	setProfileClick widget.Clickable
-	profNameEd      widget.Editor // edit nama (sub-pane profil)
-	profAboutEd     widget.Editor // edit tentang
-	profUsernameEd  widget.Editor // edit nama pengguna (@handle)
-	profUsernameErr string        // pesan validasi username
-	profSave        widget.Clickable
-	profLoaded      bool                // editor sudah diisi nilai saat ini?
-	profName        string              // nama profil sendiri (avatar rail)
-	selfJID         string              // JID sendiri (foto profil avatar rail)
-	profFetched     bool                // profil sudah diambil sekali
-	privacyClicks   [8]widget.Clickable // baris privasi (siklus nilai → SetPrivacy)
+	setSub           string
+	setBack          widget.Clickable
+	setProfileClick  widget.Clickable
+	profNameEd       widget.Editor // edit nama (sub-pane profil)
+	profAboutEd      widget.Editor // edit tentang
+	profUsernameEd   widget.Editor // edit nama pengguna (@handle)
+	profUsernameErr  string        // pesan validasi username
+	profSave         widget.Clickable
+	profLoaded       bool                // editor sudah diisi nilai saat ini?
+	profName         string              // nama profil sendiri (avatar rail)
+	selfJID          string              // JID sendiri (foto profil avatar rail)
+	metaJID          string              // JID bot Meta AI (avatar/subtitle berlabel)
+	metaPromptClicks [4]widget.Clickable // chip prompt saran di chat Meta AI kosong
+	profFetched      bool                // profil sudah diambil sekali
+	privacyClicks    [8]widget.Clickable // baris privasi (siklus nilai → SetPrivacy)
 
 	chats     []app.ChatDTO
 	selected  string
@@ -850,6 +852,9 @@ func (u *UI) refresh() {
 			p := u.core.GetProfile()
 			u.profName, u.selfJID, u.profFetched = p.Name, p.Jid, true
 		}
+		if u.metaJID == "" { // JID bot Meta AI (utk avatar/subtitle berlabel) — sekali
+			u.metaJID = u.core.MetaAIJID()
+		}
 		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
@@ -868,6 +873,9 @@ func (u *UI) refresh() {
 				if u.groupSub != "" {
 					sub = u.groupSub
 				}
+			}
+			if u.metaJID != "" && u.selected == u.metaJID { // bot tak punya presence
+				sub = "Asisten Meta AI"
 			}
 			u.subtitle = sub
 		}
@@ -5666,6 +5674,14 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
 	sz := image.Pt(d, d)
+	if jid != "" && jid == u.metaJID { // bot Meta AI → avatar berlogo (lingkaran accent + swirl)
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return icon(gtx, "metaai", int(float32(dp)*0.62), color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+		})
+		return layout.Dimensions{Size: sz}
+	}
 	u.ensureAvatar(name, jid)
 	// Foto in-memory (byte engine → ImageOp) di-mask bulat; else inisial.
 	u.photoMu.Lock()
@@ -8245,6 +8261,93 @@ func (u *UI) metaAIView(gtx layout.Context) layout.Dimensions {
 	})
 }
 
+// metaPrompts — prompt saran di chat Meta AI kosong (ala WhatsApp). Tap → isi composer.
+var metaPrompts = []string{
+	"Beri aku ide judul presentasi",
+	"Jelaskan sebuah konsep dengan sederhana",
+	"Bantu tulis pesan singkat yang sopan",
+	"Rekomendasi film untuk akhir pekan",
+}
+
+// metaAIIntro — sambutan + prompt saran saat chat Meta AI belum ada pesan. Tap chip
+// → isi composer (user tinggal kirim). Header + composer tetap (ini area pesan).
+func (u *UI) metaAIIntro(gtx layout.Context) layout.Dimensions {
+	for i := range u.metaPromptClicks {
+		if i >= len(metaPrompts) {
+			break
+		}
+		if u.metaPromptClicks[i].Clicked(gtx) {
+			u.editor.SetText(metaPrompts[i])
+			gtx.Execute(key.FocusCmd{Tag: &u.editor})
+		}
+	}
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	gtx.Constraints.Min = gtx.Constraints.Max
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // logo bulat accent + swirl
+				d := gtx.Dp(72)
+				sz := image.Pt(d, d)
+				paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+				gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "metaai", 44, white)
+				})
+				return layout.Dimensions{Size: sz}
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 20, "Meta AI")
+				l.Color, l.Font.Weight, l.Alignment = u.t.Text, font.SemiBold, text.Middle
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Max.X = gtx.Dp(360)
+				l := material.Label(u.th, 13.5, "Tanya apa saja — minta ide, penjelasan, atau bantuan menulis.")
+				l.Color, l.Alignment = u.t.Text2, text.Middle
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(18)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { // chip prompt (vertikal)
+				gtx.Constraints.Max.X = gtx.Dp(360)
+				children := make([]layout.FlexChild, 0, len(metaPrompts)*2)
+				for i := range metaPrompts {
+					if i >= len(u.metaPromptClicks) {
+						break
+					}
+					i := i
+					if i > 0 {
+						children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout))
+					}
+					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.metaPromptClicks[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							macro := op.Record(gtx.Ops)
+							d := layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Min.X = gtx.Constraints.Max.X
+								l := material.Label(u.th, 14, metaPrompts[i])
+								l.Color, l.MaxLines = u.t.Text, 1
+								return l.Layout(gtx)
+							})
+							call := macro.Stop()
+							r := gtx.Dp(12)
+							bg := u.t.Bg2
+							if u.metaPromptClicks[i].Hovered() {
+								bg = u.t.Hover
+							}
+							paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+							call.Add(gtx.Ops)
+							return d
+						})
+					}))
+				}
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+			}),
+		)
+	})
+}
+
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
 	if u.view == "metaai" {
@@ -8283,6 +8386,9 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			return u.pinnedBarView(gtx, pinned)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if u.metaJID != "" && u.selected == u.metaJID && len(u.messages) == 0 {
+				return u.metaAIIntro(gtx) // chat Meta AI kosong → sambutan + prompt saran
+			}
 			if len(u.msgClicks) < len(u.messages) { // jamin sebelum index (mid-frame GetMessages)
 				u.msgClicks = make([]widget.Clickable, len(u.messages))
 			}

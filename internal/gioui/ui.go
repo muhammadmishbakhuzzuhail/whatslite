@@ -1215,7 +1215,7 @@ func (u *UI) pinSetLayer(gtx layout.Context) {
 			setPIN()
 		}
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(340), gtx.Dp(340)
@@ -1296,7 +1296,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	case "info":
 		u.handleInfo(gtx) // aksi blokir/keluar grup
 		// drawer kanan 400px + dim di kiri-nya
-		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		w := gtx.Dp(400)
 		off := op.Offset(image.Pt(gtx.Constraints.Max.X-w, 0)).Push(gtx.Ops)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
@@ -1309,7 +1309,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		MsgInfoView(gtx, u.th, u.t)
 	case "reaction":
 		u.handleReaction(gtx)
-		paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max.X, gtx.Constraints.Max.Y = gtx.Dp(352), gtx.Dp(400)
 			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList, ActiveCat: u.rpCat, TabClicks: u.rpTabClicks})
@@ -1354,13 +1354,13 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		}
 		AttachMenuView(gtx, u.th, u.t, &AttachCtl{Clicks: u.attachClicks})
 	case "msgctx":
-		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(220), gtx.Dp(220)
 			return u.ctxMenuView(gtx)
 		})
 	case "chatctx":
-		paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+		paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(240), gtx.Dp(240)
 			return u.chatCtxView(gtx)
@@ -1417,7 +1417,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 // callCtxLayer — menu konteks log panggilan (klik-kanan baris): Hapus entri ini /
 // Bersihkan seluruh log. core.DeleteCall/ClearCallLog + invalidasi cache.
 func (u *UI) callCtxLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	refresh := func() { u.crCache = nil } // paksa callRows refetch
 	for u.callOpenChat.Clicked(gtx) {
 		u.openCallChat(u.callCtxJID, u.callCtxName)
@@ -1513,7 +1513,7 @@ func dispLabel(secs int) string {
 // disappearingLayer — picker timer pesan sementara per-chat (Mati/24 jam/7 hari/90
 // hari). Pilih → core.SetChatDisappearing + simpan label lokal + tutup.
 func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.dispClose.Clicked(gtx) {
 		u.overlay = ""
 	}
@@ -1585,7 +1585,7 @@ func (u *UI) disappearingLayer(gtx layout.Context) layout.Dimensions {
 // joinLinkLayer — modal gabung grup lewat tautan: pratinjau nama (async) + tombol
 // Gabung (JoinGroupLink → buka chat) / Batal.
 func (u *UI) joinLinkLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.joinCancel.Clicked(gtx) {
 		u.overlay, u.joinLink, u.joinPreview = "", "", ""
 	}
@@ -1686,7 +1686,7 @@ func (u *UI) handleMemberCtx(gtx layout.Context) {
 // memberCtxLayer — menu konteks anggota grup: kirim pesan, (admin saja) jadikan/
 // hapus admin + keluarkan. Aksi admin hanya muncul bila saya admin grup ini.
 func (u *UI) memberCtxLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
 	normalUser := strings.HasSuffix(u.mctJID, "@s.whatsapp.net")
 	row := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
@@ -1742,7 +1742,7 @@ func (u *UI) memberCtxLayer(gtx layout.Context) layout.Dimensions {
 // deleteConfirmLayer — dialog konfirmasi hapus pesan: "Hapus untuk saya" selalu;
 // "Hapus untuk semua orang" hanya bila pesan SENDIRI (revoke). Paritas WhatsApp.
 func (u *UI) deleteConfirmLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	m := u.delTarget
 	own := m.Dir == "out" && !m.Revoked
 	del := func(everyone bool) {
@@ -1806,7 +1806,7 @@ func (u *UI) deleteConfirmLayer(gtx layout.Context) layout.Dimensions {
 }
 
 func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	target := u.renameTarget // sasaran rename (kontak intip/ctx); "" → chat terpilih
 	if target == "" {
 		target = u.selected
@@ -1906,7 +1906,7 @@ func (u *UI) renameContactLayer(gtx layout.Context) layout.Dimensions {
 // newContactLayer — modal "Kontak baru": nama + nomor → AddContact (verifikasi
 // IsOnWhatsApp). Galat nomor tak terdaftar → tampil di ncErr (merah).
 func (u *UI) newContactLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	save := func() {
 		if u.core == nil {
 			u.overlay = ""
@@ -2018,7 +2018,7 @@ func (u *UI) contactCtxLayer(gtx layout.Context) layout.Dimensions {
 		u.overlay = ""
 		return layout.Dimensions{}
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 90}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	blocked := u.core != nil && u.core.IsBlocked(c.JID)
 	blockLbl, blockIcon := "Blokir kontak", "block"
 	if blocked {
@@ -2112,7 +2112,7 @@ func (u *UI) contactCtxLayer(gtx layout.Context) layout.Dimensions {
 		macro := op.Record(gtx.Ops)
 		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		call := macro.Stop()
-		rr := gtx.Dp(10)
+		rr := gtx.Dp(12)
 		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 		call.Add(gtx.Ops)
 		return dims
@@ -2121,7 +2121,7 @@ func (u *UI) contactCtxLayer(gtx layout.Context) layout.Dimensions {
 
 // encryptionLayer — kartu info enkripsi end-to-end (paritas WhatsApp "Enkripsi").
 func (u *UI) encryptionLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.encClose.Clicked(gtx) {
 		u.overlay = ""
 	}
@@ -2172,7 +2172,7 @@ func (u *UI) encryptionLayer(gtx layout.Context) layout.Dimensions {
 // mediaGalleryLayer — galeri "Media, tautan, dokumen": grid foto/video chat aktif
 // (core.GetChatMedia). Ketuk → lightbox. Backdrop/tutup di tepi.
 func (u *UI) mediaGalleryLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	var media []app.MessageDTO
 	if u.core != nil {
 		media = u.core.GetChatMedia(u.selected)
@@ -2558,7 +2558,7 @@ func (u *UI) groupCreateLayer(gtx layout.Context) {
 			selCount++
 		}
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		w, h := gtx.Dp(390), gtx.Dp(520)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
@@ -2795,7 +2795,7 @@ func (u *UI) callChip(gtx layout.Context, i int, label string, active bool) layo
 
 // callClearLayer — konfirmasi bersihkan SELURUH log panggilan.
 func (u *UI) callClearLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.callClearOK.Clicked(gtx) {
 		if u.core != nil {
 			u.core.ClearCallLog()
@@ -3107,7 +3107,7 @@ func (u *UI) contactSendLayer(gtx layout.Context) {
 		}
 	}
 	u.contactSendList.Axis = layout.Vertical
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		w, h := gtx.Dp(408), gtx.Dp(460)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
@@ -3192,7 +3192,7 @@ func (u *UI) locComposeLayer(gtx layout.Context) {
 		}
 		u.overlay = ""
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(360), gtx.Dp(360)
 		return composeCard(gtx, u.th, u.t, "Bagikan lokasi", []composeField{
@@ -3291,7 +3291,7 @@ func (u *UI) pollComposeLayer(gtx layout.Context) {
 		}
 		u.overlay = ""
 	}
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = gtx.Dp(408), gtx.Dp(408)
 		return u.pollComposeCard(gtx)
@@ -3515,7 +3515,7 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	call := macro.Stop()
-	rr := gtx.Dp(10)
+	rr := gtx.Dp(12)
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
@@ -3620,7 +3620,7 @@ func (u *UI) chatCtxView(gtx layout.Context) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	call := macro.Stop()
-	rr := gtx.Dp(10)
+	rr := gtx.Dp(12)
 	paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return dims
@@ -5596,6 +5596,8 @@ const (
 	capRemote = 200 // thumb stiker/GIF online (preview kecil)
 	capPhotos = 150 // avatar ter-decode (banyak anggota grup → bisa numpuk)
 	capTrans  = 100 // teks terjemahan tersimpan
+
+	scrimA = 120 // alpha scrim backdrop SEMUA overlay/dropdown (konsistensi)
 )
 
 // avatarKey — kunci ganda cache avatar: photos di-key nama, photoTried di-key jid.
@@ -7853,7 +7855,7 @@ func approxURISize(uri string) string {
 // mediaPreviewLayer — pratinjau media sebelum kirim: thumbnail + caption + toggle
 // sekali-lihat (image/video) + Batal/Kirim. Kirim → SendMedia(caption, viewOnce).
 func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	u.pendMu.Lock()
 	kind, uri, img, hasImg, vo := u.pendKind, u.pendURI, u.pendImg, u.pendImgHas, u.pendVO
 	u.pendMu.Unlock()
@@ -8144,7 +8146,7 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 // groupEditLayer — modal edit info grup: editor Nama + Deskripsi + Simpan/Batal
 // → core.SetGroupSubject + SetGroupDescription.
 func (u *UI) groupEditLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.gedCancel.Clicked(gtx) {
 		u.overlay = ""
 	}
@@ -8226,7 +8228,7 @@ func (u *UI) groupEditLayer(gtx layout.Context) layout.Dimensions {
 // inviteLinkLayer — modal link undangan grup: tampil link (atau "Memuat…") +
 // tombol Salin (clipboard) + Tutup.
 func (u *UI) inviteLinkLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	link := u.inviteLink
 	shown := link
 	if shown == "" {
@@ -8296,7 +8298,7 @@ func (u *UI) inviteLinkLayer(gtx layout.Context) layout.Dimensions {
 // scheduleLayer — modal jadwalkan pesan: pratinjau teks + 3 preset waktu + batal.
 // Pilih preset → core.ScheduleMessage(chat, teks, unix) lalu kosongkan composer.
 func (u *UI) scheduleLayer(gtx layout.Context) layout.Dimensions {
-	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	now := time.Now()
 	in1h := now.Add(time.Hour)
 	tonight := time.Date(now.Year(), now.Month(), now.Day(), 20, 0, 0, 0, now.Location())

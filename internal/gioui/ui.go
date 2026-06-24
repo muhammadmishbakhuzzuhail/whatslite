@@ -81,6 +81,7 @@ type UI struct {
 	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
+	pkGridList   widget.List // scroll grid picker
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
@@ -2583,7 +2584,7 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 	if len(u.onlineClicks) < len(items) {
 		u.onlineClicks = make([]widget.Clickable, len(items))
 	}
-	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], SearchEd: &u.gifSearchEd, Empty: "Memuat…"}
+	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], SearchEd: &u.gifSearchEd, Grid: &u.pkGridList, Empty: "Memuat…"}
 	if items != nil {
 		ctl.Empty = "Tak ada hasil"
 	}

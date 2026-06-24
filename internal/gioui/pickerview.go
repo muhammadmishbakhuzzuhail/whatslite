@@ -37,6 +37,7 @@ type PkCtl struct {
 	TabClicks []widget.Clickable // paralel [Stiker, GIF]
 	Empty     string             // pesan saat hasil kosong
 	SearchEd  *widget.Editor     // input cari online (nil = tanpa)
+	Grid      *widget.List       // grid bisa di-scroll (banyak hasil)
 }
 
 // PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
@@ -62,8 +63,13 @@ func pxToDp(gtx layout.Context, px int) unit.Dp { return unit.Dp(float32(px) / g
 
 // pkCard — .stk-panel: Bg, radius 14, border 1px Line, lebar 520, padding 10, kolom isi.
 func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
-	w := gtx.Dp(520)
-	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+	w := gtx.Dp(420)
+	h := gtx.Dp(440)
+	if h > gtx.Constraints.Max.Y {
+		h = gtx.Constraints.Max.Y
+	}
+	gtx.Constraints.Min = image.Pt(w, h)
+	gtx.Constraints.Max = image.Pt(w, h) // tinggi tetap → grid scroll di dalam, tak meluber
 
 	macro := op.Record(gtx.Ops)
 	dims := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -103,23 +109,21 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 				return dims
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
-			// grid stiker/GIF (thumbnail), atau pesan kosong.
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			// grid stiker/GIF (scroll, isi tinggi sisa), atau pesan kosong.
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				if ctl != nil && len(ctl.Items) == 0 {
 					msg := ctl.Empty
 					if msg == "" {
 						msg = "Belum ada — simpan stiker/GIF dari chat dulu."
 					}
-					return layout.Inset{Top: unit.Dp(40), Bottom: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						gtx.Constraints.Min.X = gtx.Constraints.Max.X
-						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							lbl := material.Label(th, 14, msg)
-							lbl.Color, lbl.MaxLines = t.Text2, 2
-							return lbl.Layout(gtx)
-						})
+					gtx.Constraints.Min = gtx.Constraints.Max
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, 14, msg)
+						lbl.Color, lbl.MaxLines = t.Text2, 2
+						return lbl.Layout(gtx)
 					})
 				}
-				return pkGrid(gtx, t, ctl)
+				return pkGrid(gtx, th, t, ctl)
 			}),
 		)
 	})
@@ -197,7 +201,7 @@ func pkTabBtn(gtx layout.Context, th *material.Theme, t Theme, tb pkTab) layout.
 
 // pkGrid — .stk-grid: grid auto-fill minmax(84px,1fr), gap 6. Render stiker nyata
 // (ctl.Items, tappable) atau 2 baris placeholder (ctl nil = demo).
-func pkGrid(gtx layout.Context, t Theme, ctl *PkCtl) layout.Dimensions {
+func pkGrid(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
 	gap := gtx.Dp(6)
 	avail := gtx.Constraints.Max.X
 	minCell := gtx.Dp(84)
@@ -207,22 +211,25 @@ func pkGrid(gtx layout.Context, t Theme, ctl *PkCtl) layout.Dimensions {
 	}
 	cell := (avail - (cols-1)*gap) / cols
 
-	n := 2 * cols // placeholder: 2 baris
+	n := 2 * cols // placeholder demo: 2 baris
 	if ctl != nil {
 		n = len(ctl.Items)
 	}
 	rows := (n + cols - 1) / cols
-	if rows < 1 && ctl == nil {
+	if rows < 1 {
 		rows = 2
 	}
-
-	rowChildren := make([]layout.FlexChild, 0, rows*2)
-	for ri := 0; ri < rows; ri++ {
-		ri := ri
-		if ri > 0 {
-			rowChildren = append(rowChildren, layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout))
-		}
-		rowChildren = append(rowChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+	var lst *widget.List
+	if ctl != nil && ctl.Grid != nil {
+		lst = ctl.Grid
+	} else {
+		lst = &widget.List{}
+	}
+	lst.Axis = layout.Vertical
+	// SCROLL: daftar baris (tiap baris = `cols` sel). Hanya baris terlihat dirender →
+	// tak meluber keluar kartu (perbaiki layout rusak + sel kosong di bawah).
+	return material.List(th, lst).Layout(gtx, rows, func(gtx layout.Context, ri int) layout.Dimensions {
+		row := func(gtx layout.Context) layout.Dimensions {
 			cellChildren := make([]layout.FlexChild, 0, cols*2)
 			for ci := 0; ci < cols; ci++ {
 				idx := ri*cols + ci
@@ -234,7 +241,7 @@ func pkGrid(gtx layout.Context, t Theme, ctl *PkCtl) layout.Dimensions {
 						return pkCell(gtx, t, cell, PkItem{})
 					}
 					if idx >= len(ctl.Items) {
-						return layout.Dimensions{Size: image.Pt(cell, cell)} // sel kosong
+						return layout.Dimensions{Size: image.Pt(cell, cell)}
 					}
 					body := func(gtx layout.Context) layout.Dimensions { return pkCell(gtx, t, cell, ctl.Items[idx]) }
 					if idx < len(ctl.Clicks) {
@@ -244,9 +251,10 @@ func pkGrid(gtx layout.Context, t Theme, ctl *PkCtl) layout.Dimensions {
 				}))
 			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, cellChildren...)
-		}))
-	}
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, rowChildren...)
+		}
+		// jarak antar-baris.
+		return layout.Inset{Bottom: pxToDp(gtx, gap)}.Layout(gtx, row)
+	})
 }
 
 // pkCell — .stk-cell: kotak persegi Bg2 radius 10; gambar thumbnail bila ada.

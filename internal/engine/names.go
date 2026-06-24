@@ -112,6 +112,12 @@ func (e *Engine) canonSender(src types.MessageSource) string {
 	return s.String()
 }
 
+// MetaAIJID = JID bot Meta AI WhatsApp (gratis, jalan di server Meta). Kirim teks
+// ke sini lewat SendText biasa → SendMessage whatsmeow otomatis menambah
+// MessageSecret + BotMetadata, dan balasan AI masuk lewat alur OnMessage normal.
+// Tak butuh API key / biaya. Ketersediaan tergantung region & akun.
+func (e *Engine) MetaAIJID() string { return types.NewMetaAIJID.String() }
+
 // CanonicalJID menyatukan identitas chat 1:1 ke SATU bentuk kanonik agar tak ada
 // chat ganda. whatsmeow kini sering memakai JID privasi (@lid) untuk percakapan
 // yang sama yang sebelumnya tersimpan sebagai nomor (@s.whatsapp.net) → 2 baris

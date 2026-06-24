@@ -205,6 +205,15 @@ func (a *App) GetState() string {
 }
 
 // SendText mengirim & menyimpan pesan keluar; kembalikan ID (atau "" bila gagal).
+// MetaAIJID mengembalikan JID bot Meta AI (gratis, server-side). "" bila engine
+// belum siap. UI memakai ini untuk membuka chat Meta AI dari rail.
+func (a *App) MetaAIJID() string {
+	if a.eng == nil {
+		return ""
+	}
+	return a.eng.MetaAIJID()
+}
+
 func (a *App) SendText(jid, text string) string {
 	if a.eng == nil {
 		return ""

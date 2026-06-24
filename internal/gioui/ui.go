@@ -3376,8 +3376,8 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	// kelompok atas: Meta AI + nav (chats..contacts); settings (gerigi) + avatar
 	// profil dipisah ke DASAR rail. railNav terakhir = "settings".
 	last := len(railNav) - 1
-	for u.railMetaC.Clicked(gtx) { // Meta AI → layar Meta AI (placeholder, belum ada backend)
-		u.view, u.selected = "metaai", ""
+	for u.railMetaC.Clicked(gtx) { // Meta AI → buka chat bot Meta AI (gratis, server Meta)
+		u.openMetaAI(gtx)
 	}
 	top := []layout.FlexChild{
 		layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
@@ -7766,8 +7766,28 @@ func (u *UI) handleMsgExtras(gtx layout.Context) {
 	}
 }
 
-// metaAIView — layar Meta AI (placeholder). Belum ada backend AI; tampilkan
-// branding + keterangan agar tombol rail Meta AI bisa DIBUKA (bukan tombol mati).
+// openMetaAI membuka chat bot Meta AI (gratis, jalan di server Meta — bukan API
+// berbayar). Live: buka thread JID bot → kirim/terima lewat alur chat biasa
+// (whatsmeow otomatis menambah bot-metadata; balasan masuk via OnMessage).
+// Demo/headless atau JID tak tersedia → layar placeholder metaAIView.
+func (u *UI) openMetaAI(gtx layout.Context) {
+	jid := ""
+	if u.core != nil {
+		jid = u.core.MetaAIJID()
+	}
+	if jid == "" {
+		u.view, u.selected = "metaai", ""
+		return
+	}
+	u.selected, u.selName, u.selGroup = jid, "Meta AI", false
+	u.view = "chats"
+	u.core.OpenChat(jid)
+	u.messages = u.core.GetMessages(jid)
+	u.msgList.ScrollTo(len(u.messages))
+}
+
+// metaAIView — layar Meta AI (placeholder, dipakai saat JID bot tak tersedia /
+// mode demo). Live, Meta AI dibuka sebagai chat biasa lewat openMetaAI.
 func (u *UI) metaAIView(gtx layout.Context) layout.Dimensions {
 	gtx.Constraints.Min = gtx.Constraints.Max
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

@@ -233,6 +233,7 @@ type UI struct {
 	transMu    sync.Mutex
 	transText  map[string]string // msgID → teks terjemahan (async)
 	transTried map[string]bool   // msgID sudah dicoba terjemah
+	transOrder []string          // urutan masuk transText (FIFO evict → cap RAM)
 	expanded   map[string]bool   // msgID → teks panjang dibentangkan (show more/less)
 	moreClicks map[string]*widget.Clickable
 
@@ -449,6 +450,7 @@ type UI struct {
 	aboutClicks      [11]widget.Clickable // chip saran "Tentang" (profil)
 	editor           widget.Editor
 	photos           map[string]paint.ImageOp // foto avatar in-memory (nama → op)
+	photoOrder       []avatarKey              // urutan masuk photos (FIFO evict → cap RAM)
 	photoMu          sync.Mutex               // lindungi photos (diisi dari goroutine loader)
 	photoTried       map[string]time.Time     // jid → waktu coba terakhir (retry stlh cooldown bila gagal)
 
@@ -4667,6 +4669,8 @@ func (u *UI) ensureAvatar(name, jid string) {
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
 		u.photos[name] = op
+		u.photoOrder = append(u.photoOrder, avatarKey{name: name, jid: jid})
+		u.capPhotosLocked()
 		u.photoMu.Unlock()
 	}()
 }
@@ -5572,7 +5576,13 @@ const (
 	capMedia  = 80  // media bubble ter-decode (foto/poster/stiker)
 	capGif    = 4   // GIF .gif aktif (semua frame di RAM)
 	capRemote = 200 // thumb stiker/GIF online (preview kecil)
+	capPhotos = 150 // avatar ter-decode (banyak anggota grup → bisa numpuk)
+	capTrans  = 100 // teks terjemahan tersimpan
 )
+
+// avatarKey — kunci ganda cache avatar: photos di-key nama, photoTried di-key jid.
+// Disimpan berpasangan agar eviction bisa membersihkan keduanya.
+type avatarKey struct{ name, jid string }
 
 // capMediaLocked/capGifLocked/capRemoteLocked — batasi cache gambar di RAM (FIFO)
 // agar pemakaian tak naik terus selama sesi. Pemanggil HARUS pegang mutex terkait
@@ -6417,9 +6427,32 @@ func (u *UI) ensureTranslate(id, text string) {
 		if out != "" && out != text {
 			u.transMu.Lock()
 			u.transText[id] = out
+			u.transOrder = append(u.transOrder, id)
+			u.capTransLocked()
 			u.transMu.Unlock()
 		}
 	}()
+}
+
+// capPhotosLocked / capTransLocked — batasi cache avatar (gambar) + terjemahan di
+// RAM (FIFO). Pemanggil pegang mutex terkait (photoMu / transMu). Saat evict, hapus
+// juga penanda → bisa dimuat ulang.
+func (u *UI) capPhotosLocked() {
+	for len(u.photoOrder) > capPhotos {
+		k := u.photoOrder[0]
+		u.photoOrder = u.photoOrder[1:]
+		delete(u.photos, k.name)
+		delete(u.photoTried, k.jid)
+	}
+}
+
+func (u *UI) capTransLocked() {
+	for len(u.transOrder) > capTrans {
+		id := u.transOrder[0]
+		u.transOrder = u.transOrder[1:]
+		delete(u.transText, id)
+		delete(u.transTried, id)
+	}
 }
 
 // translatedWidget — widget baris terjemahan ("Diterjemahkan" + teks) bila ada.

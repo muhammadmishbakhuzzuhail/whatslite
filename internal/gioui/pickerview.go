@@ -280,12 +280,16 @@ func pkGrid(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 				}
 				cellChildren = append(cellChildren, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					if ctl == nil {
-						return pkCell(gtx, t, cell, PkItem{})
+						return pkCell(gtx, th, t, cell, PkItem{}, false, false)
 					}
 					if idx >= len(ctl.Items) {
 						return layout.Dimensions{Size: image.Pt(cell, cell)}
 					}
-					body := func(gtx layout.Context) layout.Dimensions { return pkCell(gtx, t, cell, ctl.Items[idx]) }
+					isGif := ctl.Tab == 1
+					hov := idx < len(ctl.Clicks) && ctl.Clicks[idx].Hovered()
+					body := func(gtx layout.Context) layout.Dimensions {
+						return pkCell(gtx, th, t, cell, ctl.Items[idx], isGif, hov)
+					}
 					if idx < len(ctl.Clicks) {
 						return ctl.Clicks[idx].Layout(gtx, body)
 					}
@@ -300,14 +304,34 @@ func pkGrid(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 }
 
 // pkCell — .stk-cell: kotak persegi Bg2 radius 10; gambar thumbnail bila ada.
-func pkCell(gtx layout.Context, t Theme, side int, item PkItem) layout.Dimensions {
+func pkCell(gtx layout.Context, th *material.Theme, t Theme, side int, item PkItem, isGif, hovered bool) layout.Dimensions {
 	sz := image.Pt(side, side)
 	r := gtx.Dp(10)
-	paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	rr := clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}
+	paint.FillShape(gtx.Ops, t.Bg2, rr.Op(gtx.Ops))
 	if item.Has {
-		cl := clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
+		cl := rr.Push(gtx.Ops)
 		drawImageFill(gtx.Ops, item.Thumb, side)
 		cl.Pop()
+	}
+	if hovered { // overlay + cincin accent (jelas sel mana yg ditunjuk)
+		paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 40}, rr.Op(gtx.Ops))
+		bw := gtx.Dp(2)
+		paint.FillShape(gtx.Ops, t.Accent, clip.Stroke{Path: rr.Path(gtx.Ops), Width: float32(bw)}.Op())
+	}
+	if isGif { // badge "GIF" pojok kiri-bawah → beda jelas dari stiker
+		bm := op.Record(gtx.Ops)
+		bd := layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2), Left: unit.Dp(5), Right: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(th, 9, "GIF")
+			l.Color, l.Font.Weight = color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}, font.Bold
+			return l.Layout(gtx)
+		})
+		bcall := bm.Stop()
+		br := gtx.Dp(4)
+		off := op.Offset(image.Pt(gtx.Dp(4), side-bd.Size.Y-gtx.Dp(4))).Push(gtx.Ops)
+		paint.FillShape(gtx.Ops, color.NRGBA{A: 0xb0}, clip.RRect{Rect: image.Rectangle{Max: bd.Size}, NW: br, NE: br, SE: br, SW: br}.Op(gtx.Ops))
+		bcall.Add(gtx.Ops)
+		off.Pop()
 	}
 	return layout.Dimensions{Size: sz}
 }

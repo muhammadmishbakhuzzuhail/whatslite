@@ -81,6 +81,7 @@ type UI struct {
 	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
+	remoteOrder  []string            // urutan masuk remoteThumbs (FIFO evict → cap RAM browsing online)
 	chnPic       map[string]string   // jid saluran → URL CDN foto (dari ChannelDTO.Picture)
 	pkGridList   widget.List         // scroll grid picker
 	pkCatClicks  [8]widget.Clickable // chip kategori GIF/stiker
@@ -453,6 +454,8 @@ type UI struct {
 
 	media      map[string]paint.ImageOp // thumbnail media bubble (msgID → op)
 	mediaGif   map[string]gifAnim       // msgID → frame animasi (GIF .gif asli; auto-loop di bubble)
+	mediaOrder []string                 // urutan masuk media (FIFO evict → cap RAM)
+	gifOrder   []string                 // urutan masuk mediaGif (FIFO evict; paling berat)
 	mediaMu    sync.Mutex
 	mediaTried map[string]bool // msgID yg sudah dicoba ambil
 
@@ -3016,6 +3019,8 @@ func (u *UI) ensureRemoteThumb(url string) {
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
 		u.remoteThumbs[url] = op
+		u.remoteOrder = append(u.remoteOrder, url)
+		u.capRemoteLocked()
 		u.photoMu.Unlock()
 	}()
 }
@@ -3052,6 +3057,8 @@ func (u *UI) ensureSavedThumb(hash string, gif bool) {
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
 		u.remoteThumbs[key] = op
+		u.remoteOrder = append(u.remoteOrder, key)
+		u.capRemoteLocked()
 		u.photoMu.Unlock()
 	}()
 }
@@ -5529,8 +5536,12 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 				u.mediaMu.Lock()
 				if len(frames) > 1 {
 					u.mediaGif[id] = gifAnim{frames: frames, delays: delays}
+					u.gifOrder = append(u.gifOrder, id)
+					u.capGifLocked()
 				}
 				u.media[id] = frames[0] // frame-0 utk ukuran + fallback
+				u.mediaOrder = append(u.mediaOrder, id)
+				u.capMediaLocked()
 				u.mediaMu.Unlock()
 				return
 			}
@@ -5549,8 +5560,49 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 		op := paint.NewImageOp(img)
 		u.mediaMu.Lock()
 		u.media[id] = op
+		u.mediaOrder = append(u.mediaOrder, id)
+		u.capMediaLocked()
 		u.mediaMu.Unlock()
 	}()
+}
+
+// Batas cache gambar di RAM (FIFO evict) — jaga pemakaian RAM tetap rendah meski
+// sesi panjang. capGif kecil (frame RGBA penuh = paling berat per item).
+const (
+	capMedia  = 80  // media bubble ter-decode (foto/poster/stiker)
+	capGif    = 4   // GIF .gif aktif (semua frame di RAM)
+	capRemote = 200 // thumb stiker/GIF online (preview kecil)
+)
+
+// capMediaLocked/capGifLocked/capRemoteLocked — batasi cache gambar di RAM (FIFO)
+// agar pemakaian tak naik terus selama sesi. Pemanggil HARUS pegang mutex terkait
+// (mediaMu utk media/gif, photoMu utk remote). Saat entri di-evict, hapus juga
+// penanda "tried" → akses berikutnya memuat ulang (decode async).
+func (u *UI) capMediaLocked() {
+	for len(u.mediaOrder) > capMedia {
+		k := u.mediaOrder[0]
+		u.mediaOrder = u.mediaOrder[1:]
+		delete(u.media, k)
+		delete(u.mediaGif, k)
+		delete(u.mediaTried, k)
+	}
+}
+
+func (u *UI) capGifLocked() {
+	for len(u.gifOrder) > capGif {
+		k := u.gifOrder[0]
+		u.gifOrder = u.gifOrder[1:]
+		delete(u.mediaGif, k) // frame animasi dilepas; poster (media[k]) tetap → fallback statis
+	}
+}
+
+func (u *UI) capRemoteLocked() {
+	for len(u.remoteOrder) > capRemote {
+		k := u.remoteOrder[0]
+		u.remoteOrder = u.remoteOrder[1:]
+		delete(u.remoteThumbs, k)
+		delete(u.remoteTried, k)
+	}
 }
 
 // mediaThumb — thumbnail media bubble (image/video/gif): kotak membulat 220px (rasio

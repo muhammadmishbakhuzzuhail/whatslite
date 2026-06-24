@@ -7446,7 +7446,7 @@ func (u *UI) scheduleLayer(gtx layout.Context) layout.Dimensions {
 // pinnedBarView — bilah pesan-tersemat di bawah header (ikon pin accent + teks
 // pesan + jumlah bila >1). Ketuk → lompat ke pesan tersemat terbaru.
 func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.Dimensions {
-	h := gtx.Dp(40)
+	h := gtx.Dp(48)
 	w := gtx.Constraints.Max.X
 	sz := image.Pt(w, h)
 	paint.FillShape(gtx.Ops, u.t.HeadBg, clip.Rect{Max: sz}.Op())
@@ -7456,26 +7456,27 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 	if cur >= len(pinned) {
 		cur = 0
 	}
-	// indikator segmen kiri (satu segmen per pin, segmen aktif terang) — ala WhatsApp.
+	// indikator segmen vertikal kiri (1 segmen/pin, aktif terang) — satu-satunya
+	// indikator (tanpa ikon pin ganda) agar bersih.
 	bw := gtx.Dp(3)
+	vpad := gtx.Dp(8)
 	if n := len(pinned); n > 1 {
-		gap := gtx.Dp(2)
-		pad := gtx.Dp(6)
-		seg := (h - 2*pad - (n-1)*gap) / n
-		if seg < gtx.Dp(3) {
-			seg = gtx.Dp(3)
+		gap := gtx.Dp(3)
+		seg := (h - 2*vpad - (n-1)*gap) / n
+		if seg < gtx.Dp(4) {
+			seg = gtx.Dp(4)
 		}
-		y := pad
+		y := vpad
 		for i := 0; i < n; i++ {
-			c := withAlpha(u.t.Accent, 0x55)
+			c := withAlpha(u.t.Accent, 0x44)
 			if i == cur {
 				c = u.t.Accent
 			}
-			paint.FillShape(gtx.Ops, c, clip.RRect{Rect: image.Rect(0, y, bw, y+seg), NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
+			paint.FillShape(gtx.Ops, c, clip.RRect{Rect: image.Rect(gtx.Dp(10), y, gtx.Dp(10)+bw, y+seg), NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
 			y += seg + gap
 		}
 	} else {
-		paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: image.Pt(bw, h)}.Op())
+		paint.FillShape(gtx.Ops, u.t.Accent, clip.RRect{Rect: image.Rect(gtx.Dp(10), vpad, gtx.Dp(10)+bw, h-vpad), NW: bw / 2, NE: bw / 2, SE: bw / 2, SW: bw / 2}.Op(gtx.Ops))
 	}
 
 	top := pinned[cur]
@@ -7485,33 +7486,30 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 	}
 	label := "Pesan tersemat"
 	if len(pinned) > 1 {
-		label = "Pesan tersemat " + itoa(cur+1) + "/" + itoa(len(pinned))
+		label = "Pesan tersemat · " + itoa(cur+1) + "/" + itoa(len(pinned))
 	}
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	return u.pinnedBar.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Inset{Left: unit.Dp(14), Right: unit.Dp(12), Top: unit.Dp(5), Bottom: unit.Dp(5)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: unit.Dp(22), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.Inset{Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return icon(gtx, "pin", 16, u.t.Accent)
-					})
-				}),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							l := material.Label(u.th, 11.5, label)
-							l.Color = u.t.Accent
-							l.MaxLines = 1
+							l := material.Label(u.th, 12, label)
+							l.Color, l.MaxLines, l.Font.Weight = u.t.Accent, 1, font.Medium
 							return l.Layout(gtx)
 						}),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							l := material.Label(u.th, 13, preview)
-							l.Color = u.t.Text2
-							l.MaxLines = 1
-							return l.Layout(gtx)
+							return u.previewRow(gtx, preview, 13.5, u.t.Text2, 1) // ikon SVG utk media
 						}),
 					)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+				// ikon pin di KANAN (subtil) — hint sematkan, tak menduplikasi indikator kiri.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, "pin", 16, u.t.Text2)
 				}),
 			)
 		})
@@ -8171,6 +8169,22 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			}
 		}
 		call.Add(gtx.Ops)
+		// chevron dropdown saat hover (ala WhatsApp Desktop) — petunjuk menu aksi.
+		if !m.Revoked && idx < len(u.msgClicks) && u.msgClicks[idx].Hovered() {
+			cd := gtx.Dp(22)
+			cx := dims.Size.X - cd - gtx.Dp(4)
+			off := op.Offset(image.Pt(cx, gtx.Dp(4))).Push(gtx.Ops)
+			rad := cd / 2
+			cbg := u.t.InBg
+			if out {
+				cbg = u.t.OutBg
+			}
+			paint.FillShape(gtx.Ops, cbg, clip.RRect{Rect: image.Rectangle{Max: image.Pt(cd, cd)}, NW: rad, NE: rad, SE: rad, SW: rad}.Op(gtx.Ops))
+			cg := gtx
+			cg.Constraints.Min, cg.Constraints.Max = image.Pt(cd, cd), image.Pt(cd, cd)
+			layout.Center.Layout(cg, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "chevrondown", 16, u.t.Text2) })
+			off.Pop()
+		}
 		return dims
 	}
 	colAlign := layout.Start

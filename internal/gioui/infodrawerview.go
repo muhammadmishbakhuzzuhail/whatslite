@@ -159,7 +159,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 			if !d.Group || len(d.Members) == 0 {
 				return layout.Dimensions{}
 			}
-			return infoDrawerMembers(gtx, th, t, d.Members, d.MemberClicks)
+			return infoDrawerMembers(gtx, th, t, d.Members, d.MemberClicks, d.Av)
 		}),
 		// pengaturan admin grup (hanya admin) — kirim/ubah-info/persetujuan.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -229,7 +229,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 
 // infoDrawerMembers — header "N anggota" + baris anggota (avatar 40 + nama + admin).
 // clicks (paralel members) → baris bisa diketik (buka DM anggota).
-func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members []InfoMember, clicks []widget.Clickable) layout.Dimensions {
+func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members []InfoMember, clicks []widget.Clickable, av cpAvatarFn) layout.Dimensions {
 	children := make([]layout.FlexChild, 0, len(members)+1)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(4), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -246,6 +246,9 @@ func infoDrawerMembers(gtx layout.Context, th *material.Theme, t Theme, members 
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if av != nil && m.JID != "" {
+								return av(gtx, m.Name, m.JID, 40)
+							}
 							return infoDrawerAvatar(gtx, th, m.Name, 40)
 						}),
 						layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),

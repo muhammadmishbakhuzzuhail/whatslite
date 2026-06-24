@@ -19,40 +19,132 @@ import (
 	"gioui.org/widget/material"
 )
 
-// RpCtl = state interaktif pemilih reaksi. nil → grid statis (gio-shot). Clicks:
-// 1 clickable per emoji (urut rpEmoji).
+// RpCtl = state interaktif pemilih emoji. Clicks: 1 per emoji KATEGORI AKTIF.
 type RpCtl struct {
-	Clicks []widget.Clickable
-	List   *widget.List // grid emoji bisa di-scroll (banyak emoji)
+	Clicks    []widget.Clickable
+	List      *widget.List       // grid emoji bisa di-scroll
+	ActiveCat int                // kategori aktif (tab)
+	TabClicks []widget.Clickable // paralel rpCats (ganti kategori)
 }
 
-// RpEmoji mengekspos daftar emoji reaksi (utk pemetaan indeks→glyph di handler UI).
-func RpEmoji() []string { return rpEmoji }
+// rpCat — satu kategori emoji (ikon tab + glyph).
+type rpCat struct {
+	icon  string
+	emoji []string
+}
 
-// rpEmoji — daftar glyph emoji warna utk grid (render via material.Label).
-var rpEmoji = []string{
-	// Smileys & emosi
+// rpCats — emoji per kategori (ala keyboard HP), dikurasi agar tak tofu di
+// NotoColorEmoji. Kategori 0 (Smiley) default + dipakai utk reaksi.
+var rpCats = []rpCat{
+	{"emojiface", rpSmileys},
+	{"contacts", rpPeople},
+	{"emoji", rpNature},
+	{"locpin", rpFood},
+	{"play", rpActivity},
+	{"sticker", rpObjects},
+	{"globe", rpSymbols},
+}
+
+// RpEmoji — emoji bar reaksi cepat (kategori smiley); pemetaan indeks→glyph.
+func RpEmoji() []string { return rpSmileys }
+
+// rpCatCount — jumlah kategori emoji.
+func rpCatCount() int { return len(rpCats) }
+
+// rpMaxCatLen — panjang kategori terbesar (utk alokasi clickable).
+func rpMaxCatLen() int {
+	m := 0
+	for _, c := range rpCats {
+		if len(c.emoji) > m {
+			m = len(c.emoji)
+		}
+	}
+	return m
+}
+
+// rpCatEmoji — glyph kategori ke-i (aman bila indeks di luar batas).
+func rpCatEmoji(i int) []string {
+	if i < 0 || i >= len(rpCats) {
+		i = 0
+	}
+	return rpCats[i].emoji
+}
+
+var rpSmileys = []string{
 	"😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊",
 	"😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙", "😋", "😛", "😜", "🤪",
 	"😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏",
 	"😒", "🙄", "😬", "😌", "😔", "😪", "🤤", "😴", "😷", "🤒", "🤕", "🤢",
 	"🤮", "🤧", "🥵", "🥶", "🥴", "😵", "🤯", "🤠", "🥳", "😎", "🤓", "🧐",
 	"😕", "😟", "🙁", "😮", "😯", "😲", "😳", "🥺", "😦", "😧", "😨", "😰",
-	"😥", "😢", "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "😤", "😡",
-	"😠", "🤬", "😈", "👿", "💀", "💩", "🤡", "👻", "👽", "🤖",
-	// Gestur & tubuh
-	"👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "👏", "🙌", "🙏", "🤝", "💪",
-	"👋", "🤙", "👈", "👉", "👆", "👇", "✊", "👊", "🫶", "❤️‍🔥", "👀", "🧠",
-	// Hati & simbol
+	"😥", "😢", "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "😤", "😠",
+	"😡", "🤬", "😈", "👿", "💀", "💩", "🤡", "👹", "👺", "👻", "👽", "🤖",
+	"😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾",
+}
+
+var rpPeople = []string{
+	"👍", "👎", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "🤙", "👈",
+	"👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋", "🤝", "👏", "🙌",
+	"👐", "🤲", "🙏", "✊", "👊", "🤛", "🤜", "💪", "🦾", "✍️", "🫶", "🤳",
+	"💅", "👀", "👁️", "👅", "👄", "🧠", "🫀", "🦷", "👶", "🧒", "👦", "👧",
+	"🧑", "👨", "👩", "🧓", "👴", "👵", "🧔", "👮", "🕵️", "💂", "👷", "🤴",
+	"👸", "👰", "🤵", "🧑‍⚕️", "🧑‍🏫", "🧑‍💻", "🧑‍🍳", "🧑‍🌾", "👼", "🎅", "🤶", "🦸",
+	"🦹", "🧙", "🧚", "🧛", "🧜", "🧝", "🙅", "🙆", "💁", "🙋", "🙇", "🤦",
+	"🤷", "💆", "💇", "🚶", "🏃", "💃", "🕺", "👯", "🧘", "🛀",
+}
+
+var rpNature = []string{
+	"🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐻‍❄️", "🐨", "🐯", "🦁",
+	"🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒", "🐔", "🐧", "🐦",
+	"🐤", "🐣", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛",
+	"🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🦂", "🐢", "🐍", "🦎", "🦖", "🐙",
+	"🦑", "🦐", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅",
+	"🐆", "🦓", "🦍", "🐘", "🦏", "🐪", "🐫", "🦒", "🐃", "🐂", "🐄", "🐎",
+	"🐖", "🐏", "🐑", "🐐", "🦌", "🐕", "🐩", "🐈", "🐓", "🦃", "🕊️", "🐇",
+	"🐁", "🐀", "🌸", "🌹", "🌺", "🌻", "🌷", "🌼", "🌵", "🌲", "🌳", "🌴",
+	"🍀", "🍁", "🍂", "🍃", "🌿", "☘️", "🌍", "🌙", "⭐", "🌟", "☀️", "🌈",
+}
+
+var rpFood = []string{
+	"🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍈", "🍒",
+	"🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️",
+	"🌽", "🥕", "🧄", "🧅", "🥔", "🍠", "🥐", "🍞", "🥖", "🥨", "🧀", "🥚",
+	"🍳", "🧇", "🥞", "🥓", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥙",
+	"🥗", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🍤", "🍙", "🍚", "🍘", "🍢",
+	"🍡", "🍧", "🍨", "🍦", "🥧", "🍰", "🎂", "🍮", "🍭", "🍬", "🍫", "🍿",
+	"🍩", "🍪", "🌰", "🥜", "🍯", "☕", "🍵", "🧋", "🥤", "🍺", "🍻", "🥂",
+	"🍷", "🥃", "🍸", "🍹", "🍾", "🥄", "🍴", "🍽️",
+}
+
+var rpActivity = []string{
+	"⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉", "🥏", "🎱", "🏓", "🏸",
+	"🏒", "🏑", "🥍", "🏏", "⛳", "🏹", "🎣", "🥊", "🥋", "🎽", "⛸️", "🥌",
+	"🛷", "🎿", "⛷️", "🏂", "🏋️", "🤼", "🤸", "🤺", "🤾", "🏌️", "🏇", "🧘",
+	"🏄", "🏊", "🤽", "🚣", "🧗", "🚵", "🚴", "🏆", "🥇", "🥈", "🥉", "🏅",
+	"🎖️", "🏵️", "🎗️", "🎫", "🎟️", "🎪", "🤹", "🎭", "🎨", "🎬", "🎤", "🎧",
+	"🎼", "🎹", "🥁", "🎷", "🎺", "🎸", "🎻", "🎲", "♟️", "🎯", "🎳", "🎮",
+	"🎰", "🧩",
+}
+
+var rpObjects = []string{
+	"⌚", "📱", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "💽", "💾", "💿", "📀", "📷",
+	"📸", "📹", "🎥", "📽️", "🎞️", "📞", "☎️", "📟", "📠", "📺", "📻", "🎙️",
+	"⏱️", "⏰", "🕰️", "⏳", "🔋", "🔌", "💡", "🔦", "🕯️", "🧯", "🛢️", "💸",
+	"💵", "💴", "💶", "💷", "💰", "💳", "💎", "⚖️", "🔧", "🔨", "⚒️", "🛠️",
+	"⛏️", "🔩", "⚙️", "🧱", "⛓️", "🧲", "🔫", "💣", "🧨", "🔪", "🗡️", "⚔️",
+	"🛡️", "🚪", "🪑", "🚽", "🚿", "🛁", "🧴", "🧷", "🧹", "🧺", "🧻", "🧼",
+	"🔑", "🗝️", "📦", "📫", "📮", "📜", "📃", "📄", "📑", "📊", "📈", "📉",
+	"📅", "📆", "📌", "📍", "📎", "✂️", "🖊️", "✏️", "📚", "📖", "🔖", "🔗",
+}
+
+var rpSymbols = []string{
 	"❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "💔", "❣️", "💕",
-	"💞", "💓", "💗", "💖", "💘", "💝", "💯", "💢", "💥", "💫", "💦", "💨",
-	"🔥", "✨", "🌟", "⭐", "🎉", "🎊", "🎈", "🎁", "🏆", "🥇", "👑", "💎",
-	// Hewan & alam
-	"🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮",
-	"🐷", "🐸", "🐵", "🐔", "🦄", "🐝", "🦋", "🌸", "🌹", "🌻", "🌈", "🍀",
-	// Makanan & aktivitas
-	"🍕", "🍔", "🍟", "🌮", "🍩", "🍪", "🎂", "🍰", "🍫", "🍿", "☕", "🍺",
-	"⚽", "🏀", "🎮", "🎵", "🎸", "🚀", "⚡", "💡", "📌", "✅", "❌", "❓",
+	"💞", "💓", "💗", "💖", "💘", "💝", "💟", "❤️‍🔥", "💯", "💢", "💥", "💫",
+	"💦", "💨", "🕳️", "💬", "💭", "🔥", "✨", "🌟", "⭐", "🌠", "⚡", "☄️",
+	"✅", "❌", "❎", "✔️", "❓", "❗", "❕", "❔", "‼️", "⁉️", "💲", "💱",
+	"⚠️", "🚫", "🔞", "📵", "🚭", "❇️", "✳️", "❄️", "🎉", "🎊", "🎈", "🎁",
+	"🎀", "🏆", "🥇", "👑", "💎", "🔔", "🔕", "🎵", "🎶", "➕", "➖", "➗",
+	"♻️", "🔱", "⚜️", "🔰", "✅", "🆗", "🆕", "🆙", "🆒", "🆓", "🔟", "💠",
 }
 
 // ReactionPickerView menggambar backdrop transparan penuh lalu kartu popup terpusat
@@ -79,17 +171,71 @@ func rpCard(gtx layout.Context, th *material.Theme, t Theme, ctl *RpCtl) layout.
 	inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(w-bw, h-bw)}
 	paint.FillShape(gtx.Ops, t.Bg, clip.RRect{Rect: inner, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 
-	// grid emoji mengisi kartu: 8 per baris, sel 40px, terpusat.
+	// tab kategori (atas) + grid emoji kategori aktif (scroll).
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	rpGrid(gtx, th, t, w, h, ctl)
+	layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return rpTabs(gtx, th, t, ctl) }),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return rpGrid(gtx, th, t, w, h, ctl) }),
+	)
 	return layout.Dimensions{Size: sz}
 }
 
-// rpGrid menata emoji dlm grid 8 kolom yg BISA DI-SCROLL (banyak emoji). Tiap baris
-// = Flex 8 sel; daftar baris via material.List vertikal. Hover sel → bg bulat.
+// rpTabs — baris ikon kategori; tab aktif diberi garis-bawah accent.
+func rpTabs(gtx layout.Context, th *material.Theme, t Theme, ctl *RpCtl) layout.Dimensions {
+	active := 0
+	if ctl != nil {
+		active = ctl.ActiveCat
+	}
+	return layout.Inset{Top: unit.Dp(6), Left: unit.Dp(6), Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		children := make([]layout.FlexChild, 0, len(rpCats))
+		for i := range rpCats {
+			i := i
+			children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				cell := func(gtx layout.Context) layout.Dimensions {
+					col := t.Text2
+					if i == active {
+						col = t.Accent
+					}
+					return layout.Stack{Alignment: layout.S}.Layout(gtx,
+						layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Min.X = gtx.Constraints.Max.X
+								return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, rpCats[i].icon, 20, col)
+								})
+							})
+						}),
+						layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+							if i != active {
+								return layout.Dimensions{}
+							}
+							hh := gtx.Dp(2)
+							return layout.S.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								paint.FillShape(gtx.Ops, t.Accent, clip.Rect{Max: image.Pt(gtx.Constraints.Max.X, hh)}.Op())
+								return layout.Dimensions{Size: image.Pt(gtx.Constraints.Max.X, hh)}
+							})
+						}),
+					)
+				}
+				if ctl != nil && i < len(ctl.TabClicks) {
+					return ctl.TabClicks[i].Layout(gtx, cell)
+				}
+				return cell(gtx)
+			}))
+		}
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+	})
+}
+
+// rpGrid menata emoji KATEGORI AKTIF dlm grid 8 kolom yg BISA DI-SCROLL.
 func rpGrid(gtx layout.Context, th *material.Theme, t Theme, w, h int, ctl *RpCtl) layout.Dimensions {
 	const cols = 8
-	rows := (len(rpEmoji) + cols - 1) / cols
+	active := 0
+	if ctl != nil {
+		active = ctl.ActiveCat
+	}
+	emojis := rpCatEmoji(active)
+	rows := (len(emojis) + cols - 1) / cols
 	var lst *widget.List
 	if ctl != nil && ctl.List != nil {
 		lst = ctl.List
@@ -103,14 +249,14 @@ func rpGrid(gtx layout.Context, th *material.Theme, t Theme, w, h int, ctl *RpCt
 			for c := 0; c < cols; c++ {
 				i := row*cols + c
 				children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					if i >= len(rpEmoji) {
+					if i >= len(emojis) {
 						return layout.Dimensions{Size: image.Pt(0, gtx.Dp(42))}
 					}
 					var clk *widget.Clickable
 					if ctl != nil && i < len(ctl.Clicks) {
 						clk = &ctl.Clicks[i]
 					}
-					return rpCell(gtx, th, t, rpEmoji[i], clk)
+					return rpCell(gtx, th, t, emojis[i], clk)
 				}))
 			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)

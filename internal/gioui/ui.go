@@ -230,6 +230,8 @@ type UI struct {
 
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
+	rpTabClicks []widget.Clickable
+	rpCat       int
 	rpList      widget.List
 	reactMsgID  string
 	reactSender string
@@ -736,7 +738,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.pinSetEd.SingleLine, u.pinSetEd.Submit, u.pinSetEd.Mask = true, true, '•'
 	u.pinSetEd.Filter = "0123456789"
 	u.locked = core != nil && core.HasAppPIN()
-	u.rpClicks = make([]widget.Clickable, len(RpEmoji()))
+	u.rpClicks = make([]widget.Clickable, rpMaxCatLen())
+	u.rpTabClicks = make([]widget.Clickable, rpCatCount())
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]time.Time{}
 	u.media = map[string]paint.ImageOp{}
@@ -1231,7 +1234,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max.X, gtx.Constraints.Max.Y = gtx.Dp(352), gtx.Dp(400)
-			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList})
+			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList, ActiveCat: u.rpCat, TabClicks: u.rpTabClicks})
 		})
 	case "lightbox":
 		for u.lightboxClose.Clicked(gtx) {
@@ -2880,9 +2883,22 @@ func (u *UI) fwdCtl() *FwdCtl {
 // handleReaction memproses klik emoji di pemilih reaksi: bila ada target pesan →
 // core.React; bila tidak (dibuka dari tombol emoji composer) → sisipkan ke editor.
 func (u *UI) handleReaction(gtx layout.Context) {
+	for i := range u.rpTabClicks { // ganti kategori emoji
+		if i >= rpCatCount() {
+			break
+		}
+		if u.rpTabClicks[i].Clicked(gtx) {
+			u.rpCat = i
+			u.rpList.Position = layout.Position{} // reset scroll ke atas
+		}
+	}
+	em := rpCatEmoji(u.rpCat)
 	for i := range u.rpClicks {
+		if i >= len(em) {
+			break
+		}
 		for u.rpClicks[i].Clicked(gtx) {
-			glyph := RpEmoji()[i]
+			glyph := em[i]
 			if u.reactMsgID != "" {
 				if u.core != nil {
 					u.core.React(u.selected, u.reactMsgID, u.reactSender, glyph, u.reactFromMe)
@@ -6523,7 +6539,16 @@ func (u *UI) statusEmojiLayer(gtx layout.Context) {
 	g := u.statusGroupsCache[u.statusViewIdx]
 	if u.statusItemIdx < len(g.Items) {
 		item := g.Items[u.statusItemIdx]
-		em := RpEmoji()
+		for i := range u.rpTabClicks { // ganti kategori emoji
+			if i >= rpCatCount() {
+				break
+			}
+			if u.rpTabClicks[i].Clicked(gtx) {
+				u.rpCat = i
+				u.rpList.Position = layout.Position{}
+			}
+		}
+		em := rpCatEmoji(u.rpCat)
 		for i := range u.rpClicks {
 			if i >= len(em) {
 				break
@@ -6540,7 +6565,7 @@ func (u *UI) statusEmojiLayer(gtx layout.Context) {
 		u.overlay = "statusview"
 	}
 	u.backdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
-	ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList})
+	ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList, ActiveCat: u.rpCat, TabClicks: u.rpTabClicks})
 }
 
 // statusEmojis — reaksi cepat status (ala IG story / WhatsApp).
@@ -8922,7 +8947,17 @@ func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
 		h = minH
 	}
 	psz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	// border tipis (Line) → area teks jelas; isi SearchBg inset 1px.
+	focused := gtx.Focused(&u.editor)
+	bcol := u.t.Line
+	if focused {
+		bcol = u.t.Accent // fokus → cincin accent
+	}
+	paint.FillShape(gtx.Ops, bcol, clip.RRect{Rect: image.Rectangle{Max: psz}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	bw := gtx.Dp(1)
+	in := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(psz.X-bw, psz.Y-bw)}
+	ir := rr - bw
+	paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: in, NW: ir, NE: ir, SE: ir, SW: ir}.Op(gtx.Ops))
 	call.Add(gtx.Ops)
 	return layout.Dimensions{Size: psz}
 }

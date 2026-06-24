@@ -154,6 +154,9 @@ type UI struct {
 	openChannel    string              // jid channel terbuka (reader di section 3); "" = tak ada
 	openChanName   string              // nama channel terbuka
 	openChanSubs   string              // subscriber channel terbuka (header reader)
+	openChanRole   string              // peran kita di channel terbuka (owner/admin → composer)
+	chnPostEd      widget.Editor       // composer post saluran (owner/admin)
+	chnPostBtn     widget.Clickable    // tombol kirim post saluran
 	openChanVer    bool                // channel terverifikasi (header reader)
 	chMsgList      widget.List         // gulir post channel reader
 	chMsgsCache    []app.ChannelMsgDTO // cache post channel terbuka
@@ -737,6 +740,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chFollowEd.SingleLine = true
 	u.comSearchEd.SingleLine = true
 	u.callSearchEd.SingleLine = true
+	u.chnPostEd.SingleLine = true
+	u.chnPostEd.Submit = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
@@ -5853,7 +5858,7 @@ func (u *UI) channelRows() []chnChannel {
 			cs := u.core.GetChannels()
 			out := make([]chnChannel, 0, len(cs))
 			for _, c := range cs {
-				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, verified: c.Verified})
+				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, role: c.Role, verified: c.Verified})
 			}
 			u.chMu.Lock()
 			for _, c := range cs {
@@ -5957,7 +5962,70 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 				return u.channelPost(gtx, msgs[i], i)
 			})
 		}),
+		// composer post (hanya owner/admin) — PostChannel.
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if u.openChanRole != "owner" && u.openChanRole != "admin" {
+				return layout.Dimensions{}
+			}
+			return u.channelComposer(gtx)
+		}),
 	)
+}
+
+// channelComposer — input kirim post utk saluran yang kita kelola (owner/admin).
+func (u *UI) channelComposer(gtx layout.Context) layout.Dimensions {
+	send := func() {
+		txt := strings.TrimSpace(u.chnPostEd.Text())
+		if txt == "" || u.core == nil || u.openChannel == "" {
+			return
+		}
+		u.core.PostChannel(u.openChannel, txt)
+		u.chnPostEd.SetText("")
+		u.chMsgsJID = "" // paksa muat ulang feed
+	}
+	for {
+		ev, ok := u.chnPostEd.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			send()
+		}
+	}
+	for u.chnPostBtn.Clicked(gtx) {
+		send()
+	}
+	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(8), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					e := material.Editor(u.th, &u.chnPostEd, "Tulis postingan…")
+					e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(14)
+					return e.Layout(gtx)
+				})
+				call := macro.Stop()
+				rr := dims.Size.Y / 2
+				paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.chnPostBtn.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					d := gtx.Dp(40)
+					sz := image.Pt(d, d)
+					paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+					gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+					layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "send", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+					})
+					return layout.Dimensions{Size: sz}
+				})
+			}),
+		)
+	})
 }
 
 // channelPost — satu kartu post channel: teks + (waktu · N views) + tombol reaksi.
@@ -6108,7 +6176,8 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 				if rows[i].jid != "" {
 					u.openChannel, u.openChanName = rows[i].jid, rows[i].name
 					u.openChanSubs, u.openChanVer = rows[i].subs, rows[i].verified
-					u.chMsgsJID = "" // paksa muat post
+					u.openChanRole = rows[i].role // owner/admin → boleh posting
+					u.chMsgsJID = ""              // paksa muat post
 				}
 			}
 		}

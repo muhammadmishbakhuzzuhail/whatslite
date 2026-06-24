@@ -29,6 +29,7 @@ type chnChannel struct {
 	subs     string
 	jid      string
 	pic      string // URL CDN foto saluran (dari ChannelDTO.Picture); "" = inisial
+	role     string // peran kita: owner/admin (boleh posting) | subscriber
 	follow   bool
 	verified bool // lencana centang (channel terverifikasi)
 }

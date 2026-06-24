@@ -71,6 +71,7 @@ func (a *App) SendMedia(jid, kind, caption, fileName, dataURI string, viewOnce b
 		ID: id, ChatJID: jid, Text: txt, Kind: kind, Thumb: thumb,
 		Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -89,6 +90,7 @@ func (a *App) SendTextMentioned(jid, text string, mentions []string) string {
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -107,6 +109,7 @@ func (a *App) Reply(jid, text, quotedID, quotedSender, quotedText string) string
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -355,6 +358,7 @@ func (a *App) SendSticker(jid, dataURI string) string {
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "sticker", Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -379,6 +383,7 @@ func (a *App) SendGif(jid, dataURI string) string {
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "gif", Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -405,6 +410,7 @@ func (a *App) SendContact(jid, displayName, phone string) string {
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "contact", Text: "👤 " + displayName, Thumb: num, Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -424,6 +430,7 @@ func (a *App) SendLocation(jid string, lat, lng float64, name string) string {
 		ID: id, ChatJID: jid, Kind: "location", Text: nonEmpty(name, "📍 Lokasi"),
 		Thumb: fmt.Sprintf("%f,%f", lat, lng), Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }
@@ -443,6 +450,7 @@ func (a *App) SendPoll(jid, question string, options []string, selectable int) s
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Kind: "poll", Text: question, Thumb: string(optJSON), Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif → tandai terbaca
 	a.emit("wa:message", jid)
 	return id
 }

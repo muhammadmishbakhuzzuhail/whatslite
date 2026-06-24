@@ -230,6 +230,7 @@ type UI struct {
 
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
 	rpClicks    []widget.Clickable
+	rpList      widget.List
 	reactMsgID  string
 	reactSender string
 	reactFromMe bool
@@ -1225,7 +1226,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 110}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max.X, gtx.Constraints.Max.Y = gtx.Dp(352), gtx.Dp(400)
-			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks})
+			return ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList})
 		})
 	case "lightbox":
 		for u.lightboxClose.Clicked(gtx) {
@@ -6532,7 +6533,7 @@ func (u *UI) statusEmojiLayer(gtx layout.Context) {
 		u.overlay = "statusview"
 	}
 	u.backdrop.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Max} })
-	ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks})
+	ReactionPickerView(gtx, u.th, u.t, &RpCtl{Clicks: u.rpClicks, List: &u.rpList})
 }
 
 // statusEmojis — reaksi cepat status (ala IG story / WhatsApp).

@@ -23,6 +23,7 @@ import (
 // 1 clickable per emoji (urut rpEmoji).
 type RpCtl struct {
 	Clicks []widget.Clickable
+	List   *widget.List // grid emoji bisa di-scroll (banyak emoji)
 }
 
 // RpEmoji mengekspos daftar emoji reaksi (utk pemetaan indeks→glyph di handler UI).
@@ -30,13 +31,28 @@ func RpEmoji() []string { return rpEmoji }
 
 // rpEmoji — daftar glyph emoji warna utk grid (render via material.Label).
 var rpEmoji = []string{
-	"😀", "😂", "😍", "👍", "🙏", "🎉", "❤️", "🔥",
-	"😢", "😮", "😘", "😎", "🤔", "😭", "🥰", "😅",
-	"😊", "😡", "🤣", "👏", "💯", "🙌", "🤩", "😴",
-	"😱", "🤗", "😇", "🥳", "😏", "😉", "😋", "🤯",
-	"👌", "✌️", "🤝", "💪", "🙈", "👀", "💀", "🤡",
-	"⭐", "🌟", "💥", "✨", "🎈", "🍕", "☕", "🌈",
-	"🐶", "🐱", "🦄", "🌸", "🍀", "🚀", "⚡", "💖",
+	// Smileys & emosi
+	"😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊",
+	"😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙", "😋", "😛", "😜", "🤪",
+	"😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "😏",
+	"😒", "🙄", "😬", "😌", "😔", "😪", "🤤", "😴", "😷", "🤒", "🤕", "🤢",
+	"🤮", "🤧", "🥵", "🥶", "🥴", "😵", "🤯", "🤠", "🥳", "😎", "🤓", "🧐",
+	"😕", "😟", "🙁", "😮", "😯", "😲", "😳", "🥺", "😦", "😧", "😨", "😰",
+	"😥", "😢", "😭", "😱", "😖", "😣", "😞", "😓", "😩", "😫", "😤", "😡",
+	"😠", "🤬", "😈", "👿", "💀", "💩", "🤡", "👻", "👽", "🤖",
+	// Gestur & tubuh
+	"👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "👏", "🙌", "🙏", "🤝", "💪",
+	"👋", "🤙", "👈", "👉", "👆", "👇", "✊", "👊", "🫶", "❤️‍🔥", "👀", "🧠",
+	// Hati & simbol
+	"❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "💔", "❣️", "💕",
+	"💞", "💓", "💗", "💖", "💘", "💝", "💯", "💢", "💥", "💫", "💦", "💨",
+	"🔥", "✨", "🌟", "⭐", "🎉", "🎊", "🎈", "🎁", "🏆", "🥇", "👑", "💎",
+	// Hewan & alam
+	"🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮",
+	"🐷", "🐸", "🐵", "🐔", "🦄", "🐝", "🦋", "🌸", "🌹", "🌻", "🌈", "🍀",
+	// Makanan & aktivitas
+	"🍕", "🍔", "🍟", "🌮", "🍩", "🍪", "🎂", "🍰", "🍫", "🍿", "☕", "🍺",
+	"⚽", "🏀", "🎮", "🎵", "🎸", "🚀", "⚡", "💡", "📌", "✅", "❌", "❓",
 }
 
 // ReactionPickerView menggambar backdrop transparan penuh lalu kartu popup terpusat
@@ -69,58 +85,60 @@ func rpCard(gtx layout.Context, th *material.Theme, t Theme, ctl *RpCtl) layout.
 	return layout.Dimensions{Size: sz}
 }
 
-// rpGrid menata emoji dlm grid 8 kolom, tiap sel ~40px, glyph terpusat. Padding 12.
+// rpGrid menata emoji dlm grid 8 kolom yg BISA DI-SCROLL (banyak emoji). Tiap baris
+// = Flex 8 sel; daftar baris via material.List vertikal. Hover sel → bg bulat.
 func rpGrid(gtx layout.Context, th *material.Theme, t Theme, w, h int, ctl *RpCtl) layout.Dimensions {
-	cols := 8
-	pad := gtx.Dp(12)
-	cell := gtx.Dp(40)
-	gap := (w - 2*pad - cols*cell) / (cols - 1)
-	if gap < 0 {
-		gap = 0
+	const cols = 8
+	rows := (len(rpEmoji) + cols - 1) / cols
+	var lst *widget.List
+	if ctl != nil && ctl.List != nil {
+		lst = ctl.List
+	} else {
+		lst = &widget.List{}
 	}
-
-	x0 := pad
-	y := pad
-	for i := 0; i < len(rpEmoji); i++ {
-		col := i % cols
-		if col == 0 && i != 0 {
-			y += cell + gap
-		}
-		if y+cell > h-pad {
-			break
-		}
-		x := x0 + col*(cell+gap)
-		var clk *widget.Clickable
-		if ctl != nil && i < len(ctl.Clicks) {
-			clk = &ctl.Clicks[i]
-		}
-		rpCell(gtx, th, t, rpEmoji[i], x, y, cell, clk)
-	}
-	return layout.Dimensions{Size: image.Pt(w, h)}
+	lst.Axis = layout.Vertical
+	return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return material.List(th, lst).Layout(gtx, rows, func(gtx layout.Context, row int) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, cols)
+			for c := 0; c < cols; c++ {
+				i := row*cols + c
+				children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					if i >= len(rpEmoji) {
+						return layout.Dimensions{Size: image.Pt(0, gtx.Dp(42))}
+					}
+					var clk *widget.Clickable
+					if ctl != nil && i < len(ctl.Clicks) {
+						clk = &ctl.Clicks[i]
+					}
+					return rpCell(gtx, th, t, rpEmoji[i], clk)
+				}))
+			}
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+		})
+	})
 }
 
-// rpCell menggambar satu glyph emoji terpusat dlm sel cellxcell pd offset (x,y).
-// clk != nil → sel bisa diklik (registrasi area pointer ikut ter-offset).
-func rpCell(gtx layout.Context, th *material.Theme, t Theme, glyph string, x, y, cell int, clk *widget.Clickable) {
-	sz := image.Pt(cell, cell)
-	macro := op.Record(gtx.Ops)
-	cgtx := gtx
-	cgtx.Constraints.Min, cgtx.Constraints.Max = sz, sz
+// rpCell — satu sel emoji (klik = pilih). Hover → bg bulat (jelas mana yg ditunjuk).
+func rpCell(gtx layout.Context, th *material.Theme, t Theme, glyph string, clk *widget.Clickable) layout.Dimensions {
+	d := gtx.Dp(42)
+	sz := image.Pt(gtx.Constraints.Max.X, d)
 	body := func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		if clk != nil && clk.Hovered() { // bg bulat hover
+			cd := gtx.Dp(38)
+			off := op.Offset(image.Pt((sz.X-cd)/2, (d-cd)/2)).Push(gtx.Ops)
+			rad := cd / 2
+			paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: image.Rectangle{Max: image.Pt(cd, cd)}, NW: rad, NE: rad, SE: rad, SW: rad}.Op(gtx.Ops))
+			off.Pop()
+		}
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, unit.Sp(22), glyph)
-			lbl.Color = t.Text
-			lbl.MaxLines = 1
+			lbl := material.Label(th, unit.Sp(23), glyph)
+			lbl.Color, lbl.MaxLines = t.Text, 1
 			return lbl.Layout(gtx)
 		})
 	}
 	if clk != nil {
-		clk.Layout(cgtx, body)
-	} else {
-		body(cgtx)
+		return clk.Layout(gtx, body)
 	}
-	call := macro.Stop()
-	off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
-	call.Add(gtx.Ops)
-	off.Pop()
+	return body(gtx)
 }

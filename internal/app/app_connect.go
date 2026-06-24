@@ -218,5 +218,6 @@ func (a *App) SendText(jid, text string) string {
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
+	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif di chat → tandai terbaca
 	return id
 }

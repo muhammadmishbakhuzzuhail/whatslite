@@ -132,8 +132,9 @@ type UI struct {
 	cgCache                       []cpGroup
 	srCache                       []stpItem
 	crCache                       []spCall
-	callCtxID, callCtxName        string           // sasaran menu konteks log panggilan
-	callDelOne, callClearAll      widget.Clickable // aksi menu: hapus entri / bersihkan semua
+	callCtxID, callCtxName        string             // sasaran menu konteks log panggilan
+	callDelOne, callClearAll      widget.Clickable   // aksi menu: hapus entri / bersihkan semua
+	callRowClicks                 []widget.Clickable // hover per-baris panggilan (gaya kartu)
 	chCache                       []chnChannel
 	comCache                      []comItem
 	comFetching                   bool // komunitas sedang di-fetch (async)
@@ -3689,13 +3690,16 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		return SettingsView(gtx, u.th, u.t, ctl)
 	case "calls":
 		rows := u.callRows()
+		if len(u.callRowClicks) < len(rows) {
+			u.callRowClicks = make([]widget.Clickable, len(rows))
+		}
 		onCtx := func(idx int) {
 			if idx >= 0 && idx < len(rows) {
 				u.callCtxID, u.callCtxName = rows[idx].id, rows[idx].name
 				u.overlay = "callctx"
 			}
 		}
-		return SidePanesView(gtx, u.th, u.t, rows, onCtx)
+		return SidePanesView(gtx, u.th, u.t, rows, u.callRowClicks, onCtx)
 	case "contacts":
 		groups := u.contactGroups()
 		u.handleContactsPane(gtx)

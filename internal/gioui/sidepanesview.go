@@ -18,7 +18,9 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
 
@@ -36,13 +38,14 @@ type spCallTag struct{ i int }
 
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
-func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, onCtx func(idx int)) layout.Dimensions {
+func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, clicks []widget.Clickable, onCtx func(idx int)) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 
-	if calls == nil { // data demo (render standalone / gio-shot)
+	demo := calls == nil
+	if demo { // data demo (render standalone / gio-shot)
 		calls = []spCall{
 			{name: "Andi Pratama", time: "19.08", video: true, missed: true},
 			{name: "Keluarga", time: "18.41", video: false, missed: false},
@@ -51,46 +54,90 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 		}
 	}
 
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return spPaneHead(gtx, th, t, w, "Panggilan")
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			// .chat-list { padding: 4px 8px; }
-			return layout.Inset{Top: unit.Dp(4), Bottom: unit.Dp(4), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			if len(calls) == 0 { // empty-state modern: ikon + teks muted terpusat
+				return spEmptyState(gtx, th, t, "calls", "Belum ada panggilan", "Riwayat panggilan masuk muncul di sini.")
+			}
+			// daftar baris: padding lega, hover membulat lembut (gaya kartu modern).
+			return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				children := make([]layout.FlexChild, 0, len(calls))
 				for i := range calls {
 					c, idx := calls[i], i
 					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						macro := op.Record(gtx.Ops)
-						dims := spCallRow(gtx, th, t, c)
-						call := macro.Stop()
-						// klik-kanan baris → menu konteks (Hapus / Bersihkan). Demo (onCtx nil) → non-interaktif.
-						if onCtx != nil && c.id != "" {
-							tag := spCallTag{idx}
-							for {
-								ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
-								if !ok {
-									break
-								}
-								if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
-									onCtx(idx)
-								}
-							}
-							area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-							event.Op(gtx.Ops, tag)
-							call.Add(gtx.Ops)
-							area.Pop()
-						} else {
-							call.Add(gtx.Ops)
+						var rc *widget.Clickable
+						if idx < len(clicks) {
+							rc = &clicks[idx]
 						}
-						return dims
+						body := func(gtx layout.Context) layout.Dimensions {
+							macro := op.Record(gtx.Ops)
+							dims := spCallRow(gtx, th, t, c)
+							call := macro.Stop()
+							if rc != nil && rc.Hovered() { // hover membulat (modern)
+								rr := gtx.Dp(10)
+								paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+							}
+							// klik-kanan baris → menu konteks (Hapus / Bersihkan). Demo → non-interaktif.
+							if onCtx != nil && c.id != "" {
+								tag := spCallTag{idx}
+								for {
+									ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+									if !ok {
+										break
+									}
+									if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+										onCtx(idx)
+									}
+								}
+								area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+								event.Op(gtx.Ops, tag)
+								call.Add(gtx.Ops)
+								area.Pop()
+							} else {
+								call.Add(gtx.Ops)
+							}
+							return dims
+						}
+						if rc != nil {
+							return rc.Layout(gtx, body)
+						}
+						return body(gtx)
 					}))
 				}
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 			})
 		}),
 	)
+}
+
+// spEmptyState — keadaan kosong modern (ikon garis besar + judul + subteks muted)
+// terpusat di area pane. Dipakai pane Panggilan/Status saat tak ada data.
+func spEmptyState(gtx layout.Context, th *material.Theme, t Theme, ico, title, sub string) layout.Dimensions {
+	gtx.Constraints.Min = gtx.Constraints.Max
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return icon(gtx, ico, 56, t.Text2)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(th, 16, title)
+				l.Color, l.Font.Weight, l.Alignment = t.Text, font.Medium, text.Middle
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Max.X = gtx.Dp(300)
+				l := material.Label(th, 13.5, sub)
+				l.Color, l.Alignment = t.Text2, text.Middle
+				return l.Layout(gtx)
+			}),
+		)
+	})
 }
 
 // spPaneHead — .sidebar-head { height: 60px; padding: 0 18px; background: head-bg;

@@ -323,6 +323,7 @@ type UI struct {
 	// ini, bukan index — u.chats di-replace tiap refresh & bisa reorder).
 	chatCtxChat      app.ChatDTO
 	rowMenuClicks    []widget.Clickable // chevron aksi-cepat per baris chat (muncul saat hover)
+	toasts           []toastItem        // pesan error sementara (auto-hilang)
 	chatCtxItems     [6]widget.Clickable
 	headMenuClick    widget.Clickable // ikon overflow header → menu chat terbuka
 	headSearchClick  widget.Clickable // ikon cari header → cari DALAM chat aktif
@@ -891,6 +892,9 @@ func (u *UI) refresh() {
 		}
 		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
+		for _, msg := range u.core.TakeToasts() { // error app → toast UI
+			u.toasts = append(u.toasts, toastItem{text: msg, until: time.Now().Add(4 * time.Second)})
+		}
 		if u.selected != "" {
 			// limit di-reset 80 saat ganti chat; tumbuh saat scroll ke atas (maybeLoadOlder).
 			if u.msgLimitChat != u.selected {
@@ -1024,7 +1028,56 @@ func (u *UI) body(gtx layout.Context) layout.Dimensions {
 	if u.overlay != "" {
 		u.overlayLayer(gtx)
 	}
+	u.toastLayer(gtx) // toast error di atas segalanya (auto-hilang)
 	return dims
+}
+
+// toastItem — satu pesan toast + waktu kedaluwarsa.
+type toastItem struct {
+	text  string
+	until time.Time
+}
+
+// toastLayer — tumpukan toast error di bawah-tengah body (auto-hilang ~4s).
+// Pesan masuk dari core.TakeToasts (di refresh). Tanpa toast aktif → no-op.
+func (u *UI) toastLayer(gtx layout.Context) {
+	// buang yg kedaluwarsa.
+	live := u.toasts[:0]
+	for _, t := range u.toasts {
+		if gtx.Now.Before(t.until) {
+			live = append(live, t)
+		}
+	}
+	u.toasts = live
+	if len(u.toasts) == 0 {
+		return
+	}
+	gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(300 * time.Millisecond)}) // redraw → auto-hilang
+	layout.Inset{Bottom: unit.Dp(84)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.S.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, len(u.toasts))
+			for i := range u.toasts {
+				t := u.toasts[i]
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(4), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						gtx.Constraints.Max.X = gtx.Dp(420)
+						d := layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 13.5, t.text)
+							l.Color, l.MaxLines = color.NRGBA{R: 255, G: 255, B: 255, A: 255}, 2
+							return l.Layout(gtx)
+						})
+						call := macro.Stop()
+						rr := gtx.Dp(10)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x32, G: 0x3a, B: 0x40, A: 0xf2}, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						call.Add(gtx.Ops)
+						return d
+					})
+				}))
+			}
+			return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx, children...)
+		})
+	})
 }
 
 // handleSettings memproses klik baris pane setelan: Tema (toggle gelap/terang)

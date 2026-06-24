@@ -39,6 +39,9 @@ type App struct {
 	labelsMu sync.RWMutex      // melindungi labels
 	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB
 
+	toastMu sync.Mutex // melindungi toasts
+	toasts  []string   // antrian pesan error utk ditampilkan UI (drain via TakeToasts)
+
 	retentionDays int // 0 = simpan selamanya; >0 = prune pesan lebih tua (kec. berbintang/disematkan)
 
 	keepDeleted atomic.Bool // anti-delete: simpan isi pesan yang ditarik (default on)
@@ -62,9 +65,32 @@ type App struct {
 }
 
 // emit dulu menyiarkan event UI ke Wails/Svelte. UI Gio TAK pakai event (polling
-// state tiap 600ms) & Svelte sudah dihapus → no-op. Dipertahankan agar pemanggil
-// (banyak) tetap kompilasi.
-func (a *App) emit(event string, data ...any) {}
+// state tiap 600ms). Kebanyakan event jadi no-op, KECUALI "wa:error" → ditampung
+// sbg toast (UI ambil via TakeToasts) agar kegagalan tak senyap.
+func (a *App) emit(event string, data ...any) {
+	if event == "wa:error" && len(data) > 0 {
+		if s, ok := data[0].(string); ok && strings.TrimSpace(s) != "" {
+			a.toastMu.Lock()
+			a.toasts = append(a.toasts, s)
+			if len(a.toasts) > 5 { // jaga antrian kecil
+				a.toasts = a.toasts[len(a.toasts)-5:]
+			}
+			a.toastMu.Unlock()
+		}
+	}
+}
+
+// TakeToasts mengembalikan + mengosongkan antrian pesan toast (error) utk UI Gio.
+func (a *App) TakeToasts() []string {
+	a.toastMu.Lock()
+	defer a.toastMu.Unlock()
+	if len(a.toasts) == 0 {
+		return nil
+	}
+	out := a.toasts
+	a.toasts = nil
+	return out
+}
 
 // logErr mencatat error (UI Gio in-process; tak ada lagi runtime Wails).
 func (a *App) logErr(msg string) { log.Println("[engine]", msg) }

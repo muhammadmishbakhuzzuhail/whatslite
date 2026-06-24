@@ -438,6 +438,7 @@ type UI struct {
 	comRowClicks     []widget.Clickable   // paralel komunitas (tap → buka detail)
 	comSubClicks     []widget.Clickable   // paralel sub-grup komunitas terbuka (tap → buka chat)
 	comBack          widget.Clickable     // tombol ← di detail komunitas
+	comAddBtn        widget.Clickable     // "Tambah anggota" di detail komunitas
 	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
 	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
 	aboutOpen        bool                 // dropdown saran Tentang terbuka?
@@ -6729,6 +6730,7 @@ func (u *UI) comCtl(rows []comItem) *ComCtl {
 				u.comSubClicks = make([]widget.Clickable, len(ctl.Open.groups))
 			}
 			ctl.SubClicks = u.comSubClicks[:len(ctl.Open.groups)]
+			ctl.AddBtn = &u.comAddBtn
 		} else {
 			u.comOpen = "" // komunitas hilang → kembali ke daftar
 		}
@@ -6741,6 +6743,14 @@ func (u *UI) comCtl(rows []comItem) *ComCtl {
 func (u *UI) handleCommunities(gtx layout.Context, rows []comItem) {
 	for u.comBack.Clicked(gtx) {
 		u.comOpen = ""
+	}
+	for u.comAddBtn.Clicked(gtx) { // detail komunitas → tambah anggota (UpdateGroupParticipants induk)
+		if u.comOpen != "" {
+			u.gcMode, u.gcGroupJID = "addmember", u.comOpen
+			u.gcSel = map[string]bool{}
+			u.gcNameEd.SetText("")
+			u.overlay = "groupcreate"
+		}
 	}
 	for i := range rows {
 		if i >= len(u.comRowClicks) {

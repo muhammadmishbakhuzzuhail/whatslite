@@ -44,6 +44,7 @@ type ComCtl struct {
 	Open      *comItem
 	Back      *widget.Clickable
 	SubClicks []widget.Clickable                         // paralel Open.groups (tap → buka chat grup)
+	AddBtn    *widget.Clickable                          // detail: "Tambah anggota" → pemilih kontak
 	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (filter komunitas); nil = tak ditampilkan
 }
 
@@ -131,6 +132,27 @@ func comDetailView(gtx layout.Context, th *material.Theme, t Theme, w int, ctl *
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return comDetailHead(gtx, th, t, w, c.name, ctl.Back)
+		}),
+		// aksi "Tambah anggota" (UpdateGroupParticipants pada komunitas induk).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			row := func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "contacts", 22, t.Accent) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 15, "Tambah anggota")
+							l.Color = t.Accent
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			}
+			if ctl.AddBtn != nil {
+				return ctl.AddBtn.Layout(gtx, row)
+			}
+			return row(gtx)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(4), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

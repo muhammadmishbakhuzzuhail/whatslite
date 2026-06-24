@@ -29,9 +29,6 @@ import (
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/gioui"
 )
 
-// chnExploreEd — editor cari utk render case "channels-explore".
-var chnExploreEd widget.Editor
-
 // ctClicks/ctInfo — clickable kontak PERSISTEN lintas-frame (case "contacts") agar
 // state hover/klik bertahan dari frame-1 (daftar) ke frame-2 (gambar+hover).
 var ctClicks, ctInfo = make([]widget.Clickable, 3), make([]widget.Clickable, 3)
@@ -119,7 +116,7 @@ func main() {
 		case "channels":
 			gioui.ChannelsPaneView(gtx, th, t, nil, nil)
 		case "channels-explore":
-			gioui.ChannelsPaneView(gtx, th, t, nil, &gioui.ChnCtl{Active: 1, Tabs: make([]widget.Clickable, 2), Rows: make([]widget.Clickable, 4), Search: &chnExploreEd})
+			gioui.ChannelsPaneView(gtx, th, t, nil, &gioui.ChnCtl{Active: 1, Tabs: make([]widget.Clickable, 2), Rows: make([]widget.Clickable, 4)})
 		case "communities":
 			gioui.CommunitiesPaneView(gtx, th, t, nil)
 		case "bubbleextras":

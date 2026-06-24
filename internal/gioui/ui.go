@@ -156,6 +156,8 @@ type UI struct {
 	chFetching     bool          // saluran diikuti sedang di-fetch
 	chnExpFetching bool          // direktori jelajah sedang di-fetch
 	chnSearchEd    widget.Editor // kotak cari direktori channels (tab Jelajahi)
+	chFollowEd     widget.Editor // kotak cari saluran DIIKUTI (filter lokal, section 2 ala chat)
+	comSearchEd    widget.Editor // kotak cari Komunitas (filter lokal, section 2 ala chat)
 	ctSearchEd     widget.Editor // kotak cari daftar Kontak (section 2)
 	cgQuery        string        // query terakhir daftar kontak (invalidasi cache)
 
@@ -716,6 +718,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.statusList.Axis = layout.Vertical
 	u.mediaGalList.Axis = layout.Vertical
 	u.chnSearchEd.SingleLine = true
+	u.chFollowEd.SingleLine = true
+	u.comSearchEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
@@ -3881,8 +3885,14 @@ func (u *UI) computeShown() {
 
 // searchBar — input pencarian membulat (ikon + editor) di var(--search-bg).
 func (u *UI) searchBar(gtx layout.Context) layout.Dimensions {
+	return u.searchPill(gtx, &u.searchEd, "Cari atau mulai chat baru")
+}
+
+// searchPill — kotak cari pil membulat ala chat (ikon + editor, focus ring accent).
+// Komponen tunggal agar section-2 seragam (chats + Saluran/Komunitas pakai ini).
+func (u *UI) searchPill(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {
 	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Top: unit.Dp(8), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		focused := gtx.Focused(&u.searchEd)
+		focused := gtx.Focused(ed)
 		ico := u.t.Text2
 		if focused {
 			ico = u.t.Accent // ikon ikut accent saat fokus (modern)
@@ -3895,7 +3905,7 @@ func (u *UI) searchBar(gtx layout.Context) layout.Dimensions {
 				}),
 				layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					e := material.Editor(u.th, &u.searchEd, "Cari atau mulai chat baru")
+					e := material.Editor(u.th, ed, hint)
 					e.TextSize = unit.Sp(14)
 					e.Color = u.t.Text
 					e.HintColor = u.t.Text2
@@ -5455,8 +5465,19 @@ func (u *UI) channelRows() []chnChannel {
 		}()
 	}
 	u.chMu.Lock()
-	defer u.chMu.Unlock()
-	return u.chCache
+	rows := u.chCache
+	u.chMu.Unlock()
+	q := strings.ToLower(strings.TrimSpace(u.chFollowEd.Text())) // filter lokal ala chat
+	if q == "" {
+		return rows
+	}
+	out := make([]chnChannel, 0, len(rows))
+	for _, c := range rows {
+		if strings.Contains(strings.ToLower(c.name), q) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // channelMsgs — post channel terbuka (cache TTL 3s).
@@ -5619,7 +5640,14 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 	if len(u.chnRowOpens) < len(rows) {
 		u.chnRowOpens = make([]widget.Clickable, len(rows))
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Search: &u.chnSearchEd, Av: u.channelAvatar}
+	pill := func(gtx layout.Context) layout.Dimensions {
+		ed, hint := &u.chFollowEd, "Cari saluran diikuti"
+		if u.chnTab == 1 { // Jelajahi → editor direktori (query jaringan)
+			ed, hint = &u.chnSearchEd, "Cari saluran"
+		}
+		return u.searchPill(gtx, ed, hint)
+	}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).
@@ -6170,14 +6198,28 @@ func (u *UI) communityRows() []comItem {
 		}()
 	}
 	u.chMu.Lock()
-	defer u.chMu.Unlock()
-	return u.comCache
+	rows := u.comCache
+	u.chMu.Unlock()
+	q := strings.ToLower(strings.TrimSpace(u.comSearchEd.Text())) // filter lokal ala chat
+	if q == "" {
+		return rows
+	}
+	out := make([]comItem, 0, len(rows))
+	for _, c := range rows {
+		if strings.Contains(strings.ToLower(c.name), q) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // comCtl membangun ComCtl dari komunitas nyata + state buka/detail. Tangani klik
 // di handleCommunities (DI LUAR layout, sebelum ini dipanggil).
 func (u *UI) comCtl(rows []comItem) *ComCtl {
 	ctl := &ComCtl{Items: rows, NewBtn: &u.comNewBtn, Back: &u.comBack}
+	ctl.Pill = func(gtx layout.Context) layout.Dimensions {
+		return u.searchPill(gtx, &u.comSearchEd, "Cari komunitas")
+	}
 	if len(u.comRowClicks) < len(rows) {
 		u.comRowClicks = make([]widget.Clickable, len(rows))
 	}

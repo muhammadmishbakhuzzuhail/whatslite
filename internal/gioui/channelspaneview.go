@@ -38,10 +38,10 @@ type chnChannel struct {
 type ChnCtl struct {
 	Tabs   []widget.Clickable // 0=Diikuti, 1=Jelajahi
 	Active int
-	Rows   []widget.Clickable // aksi per-channel (ikuti/unfollow)
-	Opens  []widget.Clickable // buka channel (tap baris diikuti → reader)
-	Search *widget.Editor     // kotak cari direktori (hanya tab Jelajahi; nil = tak ditampilkan)
-	Av     cpAvatarFn         // penggambar avatar (foto channel asli); nil = inisial
+	Rows   []widget.Clickable                         // aksi per-channel (ikuti/unfollow)
+	Opens  []widget.Clickable                         // buka channel (tap baris diikuti → reader)
+	Pill   func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (Diikuti=filter lokal, Jelajahi=direktori)
+	Av     cpAvatarFn                                 // penggambar avatar (foto channel asli); nil = inisial
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -86,12 +86,12 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return chnTabs(gtx, th, t, white, tabs, ctl)
 		}),
-		// kotak cari direktori (tab Jelajahi).
+		// kotak cari ala chat (kedua tab): Diikuti = filter lokal, Jelajahi = direktori.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if active != 1 || ctl == nil || ctl.Search == nil {
+			if ctl == nil || ctl.Pill == nil {
 				return layout.Dimensions{}
 			}
-			return chnSearchBar(gtx, th, t, ctl.Search)
+			return ctl.Pill(gtx)
 		}),
 		// daftar .ch-row.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -144,30 +144,6 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 // h2 19/SemiBold.
 func chnPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
 	return paneHead(gtx, th, t, w, title)
-}
-
-// chnSearchBar — kotak cari direktori channels (ikon search + editor, bg membulat).
-func chnSearchBar(gtx layout.Context, th *material.Theme, t Theme, ed *widget.Editor) layout.Dimensions {
-	return layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12), Bottom: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		macro := op.Record(gtx.Ops)
-		dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "search", 18, t.Text2) }),
-				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
-				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-					e := material.Editor(th, ed, "Cari channel")
-					e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(15)
-					return e.Layout(gtx)
-				}),
-			)
-		})
-		call := macro.Stop()
-		r := gtx.Dp(8)
-		paint.FillShape(gtx.Ops, t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
-		call.Add(gtx.Ops)
-		return dims
-	})
 }
 
 // chnTabs — .ch-tabs { gap: 6px; padding: 2px 12px 10px } : dua tombol flex-1.

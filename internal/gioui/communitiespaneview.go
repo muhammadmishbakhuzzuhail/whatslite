@@ -43,7 +43,8 @@ type ComCtl struct {
 	NewBtn    *widget.Clickable
 	Open      *comItem
 	Back      *widget.Clickable
-	SubClicks []widget.Clickable // paralel Open.groups (tap → buka chat grup)
+	SubClicks []widget.Clickable                         // paralel Open.groups (tap → buka chat grup)
+	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (filter komunitas); nil = tak ditampilkan
 }
 
 // CommunitiesPaneView — sidebar 408px (t.SidebarBg) berisi pane KOMUNITAS:
@@ -72,6 +73,13 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return comPaneHead(gtx, th, t, w, "Komunitas")
+		}),
+		// kotak cari ala chat (filter komunitas lokal).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if ctl == nil || ctl.Pill == nil {
+				return layout.Dimensions{}
+			}
+			return ctl.Pill(gtx)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			row := func(gtx layout.Context) layout.Dimensions { return comNewRow(gtx, th, t) }

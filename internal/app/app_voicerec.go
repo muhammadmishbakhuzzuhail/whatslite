@@ -105,21 +105,30 @@ func (a *App) stopRec() (tmp string, secs int) {
 	return tmp, int(time.Since(start).Seconds())
 }
 
-// StopVoiceRecordAndSend — finalisasi rekaman + kirim sbg voice note ke chat.
-func (a *App) StopVoiceRecordAndSend(chat string) {
+// StopVoiceRecord — finalisasi rekaman → (data-URI ogg, detik). TAK mengirim;
+// pemanggil bisa pratinjau/trim dulu. "" bila gagal/kosong.
+func (a *App) StopVoiceRecord() (string, int) {
 	tmp, secs := a.stopRec()
 	if tmp == "" {
-		return
+		return "", 0
 	}
 	defer os.Remove(tmp)
 	data, err := os.ReadFile(tmp)
 	if err != nil || len(data) == 0 {
-		return
+		return "", 0
 	}
 	if secs < 1 {
 		secs = 1
 	}
-	uri := "data:audio/ogg;base64," + base64.StdEncoding.EncodeToString(data)
+	return "data:audio/ogg;base64," + base64.StdEncoding.EncodeToString(data), secs
+}
+
+// StopVoiceRecordAndSend — finalisasi rekaman + kirim langsung sbg voice note.
+func (a *App) StopVoiceRecordAndSend(chat string) {
+	uri, secs := a.StopVoiceRecord()
+	if uri == "" {
+		return
+	}
 	a.SendMedia(chat, "voice", "", "", uri, false, secs)
 }
 

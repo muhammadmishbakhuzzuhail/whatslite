@@ -244,8 +244,9 @@ type UI struct {
 	pendURI      string        // data-URI berkas terpilih
 	pendName     string        // nama berkas asli (dokumen) — utk rename di preview
 	pendNameEd   widget.Editor // editor rename nama dokumen
-	pendTrimA    widget.Editor // trim video: mulai (detik)
-	pendTrimB    widget.Editor // trim video: akhir (detik; kosong = sampai habis)
+	pendTrimA    widget.Editor // trim video/voice: mulai (detik)
+	pendTrimB    widget.Editor // trim video/voice: akhir (detik; kosong = sampai habis)
+	pendSecs     int           // durasi voice note (utk metadata SendMedia)
 	pendImg      paint.ImageOp
 	pendImgHas   bool
 	capEd        widget.Editor    // caption media
@@ -647,6 +648,7 @@ func (u *UI) SetPendingMediaNamed(kind, name, dataURI string) {
 	u.pendNameEd.SetText(name)
 	u.pendTrimA.SetText("")
 	u.pendTrimB.SetText("")
+	u.pendSecs = 0
 }
 
 func (u *UI) clearPending() {
@@ -7932,16 +7934,27 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 			if kind == "document" {
 				fn = strings.TrimSpace(u.pendNameEd.Text()) // nama hasil rename
 			}
-			if kind == "video" { // potong durasi bila diisi (ffmpeg stream-copy)
-				a := parseSec(u.pendTrimA.Text())
-				b := parseSec(u.pendTrimB.Text())
-				if (a > 0 || b > 0) && u.core != nil {
-					if nu := u.core.TrimMedia(uri, a, b); nu != "" {
+			secs := 0
+			if kind == "voice" {
+				secs = u.pendSecs
+			}
+			if kind == "video" || kind == "voice" { // potong durasi bila diisi
+				ta, tb := parseSec(u.pendTrimA.Text()), parseSec(u.pendTrimB.Text())
+				if ta > 0 || tb > 0 {
+					if nu := u.core.TrimMedia(uri, ta, tb); nu != "" {
 						uri = nu
+						if kind == "voice" { // sesuaikan metadata durasi voice
+							switch {
+							case tb > ta:
+								secs = int(tb - ta)
+							case secs > int(ta):
+								secs -= int(ta)
+							}
+						}
 					}
 				}
 			}
-			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), fn, uri, vo, 0)
+			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), fn, uri, vo, secs)
 			u.messages = u.core.GetMessages(u.selected)
 			u.msgList.ScrollTo(len(u.messages))
 		}
@@ -8120,9 +8133,9 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 						return l.Layout(gtx)
 					})
 				}),
-				// video: potong durasi (mulai–akhir detik) via ffmpeg stream-copy.
+				// video/voice: potong durasi (mulai–akhir detik) via ffmpeg stream-copy.
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if kind != "video" {
+					if kind != "video" && kind != "voice" {
 						return layout.Dimensions{}
 					}
 					sec := func(ed *widget.Editor, hint string) layout.FlexChild {
@@ -9794,7 +9807,12 @@ func (u *UI) recordingBar(gtx layout.Context) layout.Dimensions {
 	}
 	for u.recSend.Clicked(gtx) {
 		if u.core != nil {
-			u.core.StopVoiceRecordAndSend(u.selected)
+			uri, secs := u.core.StopVoiceRecord() // selesai rekam → pratinjau (trim) dulu
+			if uri != "" {
+				u.SetPendingMediaNamed("voice", "", uri)
+				u.pendSecs = secs
+				u.overlay = "mediapreview"
+			}
 		}
 	}
 	secs := 0

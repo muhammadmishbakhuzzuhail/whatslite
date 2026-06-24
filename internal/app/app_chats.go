@@ -349,7 +349,26 @@ func (a *App) GetMessages(jid string) (out []MessageDTO) {
 	if a.store == nil {
 		return
 	}
-	ms, err := a.store.ListMessages(a.ctx, jid, 80)
+	return a.GetMessagesN(jid, 80)
+}
+
+// GetMessagesN: hingga `limit` pesan TERBARU dari DB lokal (pagination scroll-atas
+// dgn menaikkan limit). limit<=0 → 80.
+func (a *App) GetMessagesN(jid string, limit int) (out []MessageDTO) {
+	out = []MessageDTO{}
+	defer func() {
+		if r := recover(); r != nil {
+			out = []MessageDTO{}
+			a.logErr(fmt.Sprintf("GetMessagesN recover: %v", r))
+		}
+	}()
+	if a.store == nil {
+		return
+	}
+	if limit <= 0 {
+		limit = 80
+	}
+	ms, err := a.store.ListMessages(a.ctx, jid, limit)
 	if err != nil {
 		return
 	}

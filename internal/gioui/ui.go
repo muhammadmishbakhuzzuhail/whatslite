@@ -82,6 +82,8 @@ type UI struct {
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
 	pkGridList   widget.List // scroll grid picker
+	msgLimit     int         // jumlah pesan dimuat utk chat aktif (tumbuh saat scroll atas)
+	msgLimitChat string      // chat yg msgLimit-nya berlaku
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
@@ -812,7 +814,11 @@ func (u *UI) refresh() {
 		u.qr = u.core.QRCode()
 		u.chats = u.core.GetChats()
 		if u.selected != "" {
-			u.messages = u.core.GetMessages(u.selected)
+			// limit di-reset 80 saat ganti chat; tumbuh saat scroll ke atas (maybeLoadOlder).
+			if u.msgLimitChat != u.selected {
+				u.msgLimitChat, u.msgLimit = u.selected, 80
+			}
+			u.messages = u.core.GetMessagesN(u.selected, u.msgLimit)
 			sub := u.core.ChatSubtitle(u.selected)
 			// grup: presence per-pengguna tak berlaku → tampil daftar anggota, KECUALI
 			// ada yg mengetik/merekam (override). DM: tetap presence.
@@ -6941,6 +6947,26 @@ func (u *UI) maybeLoadOlder() {
 	if u.msgList.Position.First > 3 { // belum di dekat atas
 		return
 	}
+	if u.msgLimit <= 0 {
+		u.msgLimit = 80
+	}
+	// dekat atas + sudah memuat sebanyak limit → ada kemungkinan pesan LAMA lain di
+	// DB lokal. Naikkan limit + muat ulang (prepend); jaga posisi scroll.
+	if len(u.messages) >= u.msgLimit && u.msgLimit < 5000 {
+		if u.olderReqChat == u.selected && time.Since(u.olderReqAt) < 400*time.Millisecond {
+			return // throttle (hindari lonjakan limit per-frame)
+		}
+		u.olderReqChat, u.olderReqAt = u.selected, time.Now()
+		old := len(u.messages)
+		u.msgLimit += 80
+		u.msgLimitChat = u.selected
+		u.messages = u.core.GetMessagesN(u.selected, u.msgLimit)
+		if added := len(u.messages) - old; added > 0 {
+			u.msgList.Position.First += added // pesan baru di ATAS → geser agar view tetap
+		}
+		return
+	}
+	// DB lokal habis → minta history lama dari server (whatsmeow on-demand).
 	u.requestOlder(u.selected)
 }
 

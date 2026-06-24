@@ -123,7 +123,14 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 					if ctl != nil && idx < len(ctl.Opens) {
 						oc = &ctl.Opens[idx]
 					}
-					return chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
+					macro := op.Record(gtx.Ops)
+					dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
+					call := macro.Stop()
+					if rc != nil && rc.Hovered() { // bg hover (selaras chat)
+						paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+					}
+					call.Add(gtx.Ops)
+					return dims
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

@@ -707,11 +707,20 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 	for i := range items {
 		it, idx := items[i], i
 		children[i] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			row := func(gtx layout.Context) layout.Dimensions { return setRow(gtx, th, t, it) }
-			if ctl != nil && idx < len(ctl.Clicks) { // baris jadi clickable
-				return ctl.Clicks[idx].Layout(gtx, row)
+			if ctl != nil && idx < len(ctl.Clicks) { // baris jadi clickable + bg hover (selaras chat)
+				c := &ctl.Clicks[idx]
+				return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					macro := op.Record(gtx.Ops)
+					dims := setRow(gtx, th, t, it)
+					call := macro.Stop()
+					if c.Hovered() {
+						paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+					}
+					call.Add(gtx.Ops)
+					return dims
+				})
 			}
-			return row(gtx)
+			return setRow(gtx, th, t, it)
 		})
 	}
 	return flex.Layout(gtx, children...)

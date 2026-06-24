@@ -8999,7 +8999,7 @@ func (u *UI) sendCurrent() {
 }
 
 func (u *UI) composerPill(gtx layout.Context) layout.Dimensions {
-	rr := gtx.Dp(22)
+	rr := gtx.Dp(12) // sedikit membulat (bukan pil penuh) — lebih modern
 	minH := gtx.Dp(40)
 	maxH := gtx.Dp(140) // ~6 baris lalu menggulir di dalam (ala WhatsApp)
 	// Enter → kirim (SubmitEvent); Shift+Enter → baris baru (editor SingleLine=false,

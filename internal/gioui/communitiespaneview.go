@@ -12,6 +12,7 @@ import (
 
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -94,11 +95,20 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 			for i := range items {
 				it, idx := items[i], i
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					row := func(gtx layout.Context) layout.Dimensions { return comRow(gtx, th, t, it) }
 					if ctl.RowClicks != nil && idx < len(ctl.RowClicks) {
-						return ctl.RowClicks[idx].Layout(gtx, row)
+						c := &ctl.RowClicks[idx]
+						return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							macro := op.Record(gtx.Ops)
+							dims := comRow(gtx, th, t, it)
+							call := macro.Stop()
+							if c.Hovered() {
+								paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+							}
+							call.Add(gtx.Ops)
+							return dims
+						})
 					}
-					return row(gtx)
+					return comRow(gtx, th, t, it)
 				}))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

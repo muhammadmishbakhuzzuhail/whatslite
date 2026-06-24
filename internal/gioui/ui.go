@@ -4791,7 +4791,7 @@ func (u *UI) locationBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensi
 			w := gtx.Dp(220)
 			h := gtx.Dp(120)
 			box := image.Pt(w, h)
-			r := gtx.Dp(10)
+			r := gtx.Dp(cardR)
 			cl := clip.RRect{Rect: image.Rectangle{Max: box}, NW: r, NE: r, SE: r, SW: r}.Push(gtx.Ops)
 			// peta gaya: latar + "jalan" (garis terang) + 2 blok samar.
 			paint.FillShape(gtx.Ops, u.t.Bg2, clip.Rect{Max: box}.Op())
@@ -4904,7 +4904,7 @@ func (u *UI) docBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			d := gtx.Dp(40)
 			sz := image.Pt(d, d)
-			r := gtx.Dp(8)
+			r := gtx.Dp(cardR)
 			paint.FillShape(gtx.Ops, withAlpha(u.t.Accent, 0x33), clip.RRect{Rect: image.Rectangle{Max: sz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions { return icon(gtx, "docfile", 22, u.t.Accent) })
@@ -5008,6 +5008,46 @@ func (u *UI) waveform(gtx layout.Context, prog float32) layout.Dimensions {
 }
 
 // stickerBubble — stiker: gambar ~128 tanpa gelembung (bg transparan di bubble()).
+// mediaTimeChip — chip waktu + centang status di pojok kanan-bawah `box` (overlay
+// ala WhatsApp). Dipakai media tanpa-caption + sticker. tick warnai status.
+func (u *UI) mediaTimeChip(gtx layout.Context, m app.MessageDTO, box image.Point) {
+	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	cg := gtx
+	cg.Constraints.Min = image.Point{}
+	macro := op.Record(cg.Ops)
+	ch := layout.Inset{Top: unit.Dp(3), Bottom: unit.Dp(3), Left: unit.Dp(7), Right: unit.Dp(7)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(u.th, 11, m.Time)
+				lbl.Color = white
+				return lbl.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if m.Dir != "out" {
+					return layout.Dimensions{}
+				}
+				tn, tc := "check", white // tick ikut status (read=biru)
+				switch m.Status {
+				case "read":
+					tn, tc = "checks", u.t.Tick
+				case "delivered":
+					tn = "checks"
+				}
+				return layout.Inset{Left: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return icon(gtx, tn, 14, tc)
+				})
+			}),
+		)
+	})
+	call := macro.Stop()
+	mgn := gtx.Dp(6)
+	off := op.Offset(image.Pt(box.X-ch.Size.X-mgn, box.Y-ch.Size.Y-mgn)).Push(gtx.Ops)
+	rr := ch.Size.Y / 2
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 0x66}, clip.RRect{Rect: image.Rectangle{Max: ch.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	off.Pop()
+}
+
 func (u *UI) stickerBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensions {
 	u.ensureMedia(u.selected, m.ID, "sticker")
 	u.mediaMu.Lock()
@@ -5023,6 +5063,7 @@ func (u *UI) stickerBubble(gtx layout.Context, m app.MessageDTO) layout.Dimensio
 		cl := clip.Rect{Max: box}.Push(gtx.Ops)
 		drawImageFill(gtx.Ops, iop, box.X)
 		cl.Pop()
+		u.mediaTimeChip(gtx, m, box) // waktu+tick chip pojok kanan-bawah (konsisten dgn media)
 		return layout.Dimensions{Size: box}
 	}
 	// fallback: kotak transparan + ikon stiker.
@@ -5462,7 +5503,7 @@ func (u *UI) pollOption(gtx layout.Context, label string, cnt, total int) layout
 		)
 	})
 	call := macro.Stop()
-	r := gtx.Dp(8)
+	r := gtx.Dp(cardR)
 	paint.FillShape(gtx.Ops, u.t.Line, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 	bw := gtx.Dp(1)
 	inner := image.Rectangle{Min: image.Pt(bw, bw), Max: image.Pt(dims.Size.X-bw, dims.Size.Y-bw)}
@@ -5549,7 +5590,7 @@ func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.D
 			)
 		})
 		call := macro.Stop()
-		r := gtx.Dp(5)
+		r := gtx.Dp(chipR)
 		// latar kutipan: sedikit kontras dari bubble.
 		qbg := u.t.InBg
 		if out {
@@ -5642,6 +5683,15 @@ const (
 	capTrans  = 100 // teks terjemahan tersimpan
 
 	scrimA = 120 // alpha scrim backdrop SEMUA overlay/dropdown (konsistensi)
+
+	// Metrik bubble (konsistensi lintas-tipe). Lebar: teks 66%/560; media thumb
+	// capMediaW; SEMUA kartu terstruktur (doc/poll/audio/voice/lokasi/kontak) =
+	// capCard. Radius: bubble luar bubR, kartu/thumb dalam cardR, chip/quote chipR.
+	capCard   = 300
+	capMediaW = 320
+	bubR      = 14
+	cardR     = 10
+	chipR     = 6
 )
 
 // avatarKey — kunci ganda cache avatar: photos di-key nama, photoTried di-key jid.
@@ -5698,7 +5748,7 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(time.Duration(d) * time.Millisecond)})
 	}
 
-	w := gtx.Dp(320) // ~2x dari sebelumnya (220) — thumbnail lebih besar/jelas
+	w := gtx.Dp(capMediaW) // lebar thumbnail media (konsisten lintas image/video/gif)
 	if w > gtx.Constraints.Max.X {
 		w = gtx.Constraints.Max.X
 	}
@@ -5713,7 +5763,7 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 		}
 	}
 	box := image.Pt(w, h)
-	r := gtx.Dp(10)
+	r := gtx.Dp(cardR)
 
 	thumb := func(gtx layout.Context) layout.Dimensions {
 		if ok {
@@ -5757,49 +5807,14 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 				return lbl.Layout(gtx)
 			})
 			call := macro.Stop()
-			rr := gtx.Dp(5)
+			rr := gtx.Dp(chipR)
 			paint.FillShape(gtx.Ops, color.NRGBA{A: 150}, clip.RRect{Rect: image.Rectangle{Max: bd.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 			call.Add(gtx.Ops)
 			off.Pop()
 		}
 		// chip waktu + centang di kanan-bawah thumbnail (tanpa caption → overlay ala WA).
 		if m.Text == "" {
-			white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-			cg := gtx
-			cg.Constraints.Min = image.Point{} // play-overlay set Min=box → reset agar chip hug-content
-			macro := op.Record(cg.Ops)
-			ch := layout.Inset{Top: unit.Dp(3), Bottom: unit.Dp(3), Left: unit.Dp(7), Right: unit.Dp(7)}.Layout(cg, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(u.th, 11, m.Time)
-						lbl.Color = white
-						return lbl.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if m.Dir != "out" {
-							return layout.Dimensions{}
-						}
-						// tick ikut status (read=biru) — jangan hilangkan info spt sebelumnya.
-						tn, tc := "check", white
-						switch m.Status {
-						case "read":
-							tn, tc = "checks", u.t.Tick
-						case "delivered":
-							tn = "checks"
-						}
-						return layout.Inset{Left: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return icon(gtx, tn, 14, tc)
-						})
-					}),
-				)
-			})
-			call := macro.Stop()
-			mgn := gtx.Dp(6)
-			off := op.Offset(image.Pt(box.X-ch.Size.X-mgn, box.Y-ch.Size.Y-mgn)).Push(gtx.Ops)
-			rr := ch.Size.Y / 2
-			paint.FillShape(gtx.Ops, color.NRGBA{A: 0x66}, clip.RRect{Rect: image.Rectangle{Max: ch.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-			call.Add(gtx.Ops)
-			off.Pop()
+			u.mediaTimeChip(gtx, m, box)
 		}
 		return layout.Dimensions{Size: box}
 	}
@@ -6623,7 +6638,7 @@ func (u *UI) linkCardWidget(url string) layout.Widget {
 		return nil
 	}
 	return func(gtx layout.Context) layout.Dimensions {
-		rr := gtx.Dp(8)
+		rr := gtx.Dp(cardR)
 		macro := op.Record(gtx.Ops)
 		dims := func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -9282,22 +9297,22 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					case "sticker":
 						return u.stickerBubble(gtx, m) // transparan, tanpa gelembung
 					case "poll":
-						capW(300)
+						capW(capCard)
 						return u.pollBubble(gtx, m) // pertanyaan + opsi
 					case "document":
-						capW(300)
+						capW(capCard)
 						return u.docBubble(gtx, m)
 					case "audio":
-						capW(280)
+						capW(capCard)
 						return u.musicBubble(gtx, m) // berkas musik: art + judul + progress
 					case "voice", "ptt":
-						capW(260)
+						capW(capCard)
 						return u.voiceBubble(gtx, m)
 					case "location":
-						capW(270)
+						capW(capCard)
 						return u.locationBubble(gtx, m)
 					case "contact", "vcard":
-						capW(260)
+						capW(capCard)
 						return u.contactBubble(gtx, m)
 					}
 					txt := m.Text

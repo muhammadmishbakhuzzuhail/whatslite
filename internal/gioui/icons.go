@@ -97,8 +97,8 @@ var iconPaths = map[string]string{
 	"communities":  `<circle cx="9" cy="8.5" r="3"/><path d="M3.5 18.5c0-3 2.4-4.5 5.5-4.5s5.5 1.5 5.5 4.5"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M16 14.2c2.6.1 4.5 1.5 4.5 4.3"/>`,
 	"report":       `<path d="M5 21V4"/><path d="M5 4.5h12l-2.2 4 2.2 4H5"/>`,
 	"media":        `<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M5 17l4.5-4 3 2.5L16 11l3 3.5"/>`,
-	// Meta AI: cincin/swirl konsentris (perkiraan mono dari logo gradien Meta).
-	"metaai": `<path d="M5 14.5C5 9 7.5 5.5 11 5.5c4.5 0 5 6 8 6 1.7 0 3-1.4 3-3.2"/><path d="M19 9.5C19 15 16.5 18.5 13 18.5c-4.5 0-5-6-8-6-1.7 0-3 1.4-3 3.2"/>`,
+	// Meta AI: lemniscate (infinity) miring — bentuk mono yang mengenali logo Meta.
+	"metaai": `<g transform="rotate(-20 12 12)"><path d="M12 12C9.7 8.8 5 8.8 5 12c0 3.2 4.7 3.2 7 0 2.3-3.2 7-3.2 7 0 0 3.2-4.7 3.2-7 0z"/></g>`,
 }
 
 type iconKey struct {

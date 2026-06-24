@@ -81,7 +81,7 @@ type UI struct {
 	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
-	chnPic       map[string]string // jid saluran → URL CDN foto (dari ChannelDTO.Picture)
+	chnPic       map[string]string   // jid saluran → URL CDN foto (dari ChannelDTO.Picture)
 	pkGridList   widget.List         // scroll grid picker
 	pkCatClicks  [8]widget.Clickable // chip kategori GIF/stiker
 	msgLimit     int                 // jumlah pesan dimuat utk chat aktif (tumbuh saat scroll atas)
@@ -3376,12 +3376,13 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	// kelompok atas: Meta AI + nav (chats..contacts); settings (gerigi) + avatar
 	// profil dipisah ke DASAR rail. railNav terakhir = "settings".
 	last := len(railNav) - 1
-	for u.railMetaC.Clicked(gtx) { // Meta AI (placeholder — belum ada backend)
+	for u.railMetaC.Clicked(gtx) { // Meta AI → layar Meta AI (placeholder, belum ada backend)
+		u.view, u.selected = "metaai", ""
 	}
 	top := []layout.FlexChild{
 		layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return u.railIconBtn(gtx, &u.railMetaC, "metaai", "Meta AI", false)
+			return u.railIconBtn(gtx, &u.railMetaC, "metaai", "Meta AI", u.view == "metaai")
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
 	}
@@ -5485,7 +5486,9 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.channelAvatar(gtx, u.openChanName, u.openChannel, 42) }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.channelAvatar(gtx, u.openChanName, u.openChannel, 42)
+					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -7763,8 +7766,37 @@ func (u *UI) handleMsgExtras(gtx layout.Context) {
 	}
 }
 
+// metaAIView — layar Meta AI (placeholder). Belum ada backend AI; tampilkan
+// branding + keterangan agar tombol rail Meta AI bisa DIBUKA (bukan tombol mati).
+func (u *UI) metaAIView(gtx layout.Context) layout.Dimensions {
+	gtx.Constraints.Min = gtx.Constraints.Max
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return icon(gtx, "metaai", 72, u.t.Accent)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				l := material.Label(u.th, 22, "Meta AI")
+				l.Color, l.Font.Weight, l.Alignment = u.t.Text, font.SemiBold, text.Middle
+				return l.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Max.X = gtx.Dp(360)
+				l := material.Label(u.th, 14, "Asisten Meta AI belum tersedia di WhatsLite — fitur ini menunggu dukungan backend.")
+				l.Color, l.Alignment = u.t.Text2, text.Middle
+				return l.Layout(gtx)
+			}),
+		)
+	})
+}
+
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
+	if u.view == "metaai" {
+		return u.metaAIView(gtx) // layar Meta AI (placeholder; belum ada backend AI)
+	}
 	if u.view != "channels" {
 		u.openChannel = "" // keluar dari pane channels → tutup reader
 	}

@@ -129,8 +129,17 @@ func TestDecodeDataURI(t *testing.T) {
 }
 
 func TestNextPrivacyPrivValue(t *testing.T) {
-	if nextPrivacy("all") != "contacts" || nextPrivacy("contacts") != "none" || nextPrivacy("none") != "all" || nextPrivacy("") != "all" {
-		t.Errorf("siklus nextPrivacy salah")
+	// default (mis. lastseen): all→contacts→none→all
+	if nextPrivacy("lastseen", "all") != "contacts" || nextPrivacy("lastseen", "contacts") != "none" || nextPrivacy("lastseen", "none") != "all" || nextPrivacy("lastseen", "") != "all" {
+		t.Errorf("siklus nextPrivacy default salah")
+	}
+	// online: hanya all↔match_last_seen
+	if nextPrivacy("online", "all") != "match_last_seen" || nextPrivacy("online", "match_last_seen") != "all" {
+		t.Errorf("siklus nextPrivacy online salah")
+	}
+	// readreceipts: hanya all↔none
+	if nextPrivacy("readreceipts", "all") != "none" || nextPrivacy("readreceipts", "none") != "all" {
+		t.Errorf("siklus nextPrivacy readreceipts salah")
 	}
 	if privValue("all") != "Semua orang" || privValue("none") != "Tidak ada" {
 		t.Errorf("privValue terjemahan salah")

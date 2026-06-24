@@ -708,6 +708,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 		u.dark = core.ThemeDark() // pulihkan preferensi tema tersimpan
 	}
 	u.t = newTheme(u.dark)
+	u.syncPalette()
 	u.chatList.Axis = layout.Vertical
 	u.msgList.Axis = layout.Vertical
 	u.contactList.Axis = layout.Vertical
@@ -785,7 +786,21 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 }
 
 // SetDark: ganti tema (dipakai render-tool utk audit light/dark).
-func (u *UI) SetDark(d bool) { u.dark = d; u.t = newTheme(d) }
+func (u *UI) SetDark(d bool) { u.dark = d; u.t = newTheme(d); u.syncPalette() }
+
+// syncPalette — selaraskan material.Theme.Palette dgn tema aktif supaya widget
+// material bawaan (terutama SCROLLBAR + label tanpa Color eksplisit) memakai warna
+// yg kontras. Tanpa ini, Palette default (Fg hitam) → scrollbar gelap tak terlihat
+// di tema gelap.
+func (u *UI) syncPalette() {
+	if u.th == nil {
+		return
+	}
+	u.th.Palette.Fg = u.t.Text
+	u.th.Palette.Bg = u.t.Bg
+	u.th.Palette.ContrastBg = u.t.Accent
+	u.th.Palette.ContrastFg = color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
+}
 
 // SetView/Deselect: utk render-tool menguji state navigasi headless.
 func (u *UI) SetView(v string) { u.view = v }
@@ -1004,6 +1019,7 @@ func (u *UI) handleSettings(gtx layout.Context) {
 	for u.setClicks[3].Clicked(gtx) { // Tema → toggle gelap/terang
 		u.dark = !u.dark
 		u.t = newTheme(u.dark)
+		u.syncPalette()
 		if u.core != nil {
 			u.core.SetThemeDark(u.dark) // persist lintas-restart
 		}
@@ -5147,13 +5163,16 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	iop, ok := u.media[m.ID]
 	u.mediaMu.Unlock()
 
-	w := gtx.Dp(220)
+	w := gtx.Dp(320) // ~2x dari sebelumnya (220) — thumbnail lebih besar/jelas
+	if w > gtx.Constraints.Max.X {
+		w = gtx.Constraints.Max.X
+	}
 	h := w * 3 / 4
 	if ok {
 		s := iop.Size()
 		if s.X > 0 && s.Y > 0 {
 			h = w * s.Y / s.X
-			if max := gtx.Dp(300); h > max {
+			if max := gtx.Dp(420); h > max {
 				h = max
 			}
 		}

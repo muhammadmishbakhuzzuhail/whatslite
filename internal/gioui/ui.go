@@ -324,6 +324,7 @@ type UI struct {
 	chatCtxChat      app.ChatDTO
 	rowMenuClicks    []widget.Clickable // chevron aksi-cepat per baris chat (muncul saat hover)
 	toasts           []toastItem        // pesan error sementara (auto-hilang)
+	keyTag           struct{}           // target fokus shortcut keyboard global (Esc/Ctrl+F)
 	chatCtxItems     [6]widget.Clickable
 	headMenuClick    widget.Clickable // ikon overflow header → menu chat terbuka
 	headSearchClick  widget.Clickable // ikon cari header → cari DALAM chat aktif
@@ -977,6 +978,61 @@ func demoMessages() []app.MessageDTO {
 	}
 }
 
+// handleShortcuts — shortcut keyboard global. Fokus diraih oleh keyTag saat IDLE
+// (tak ada overlay & tak sedang mengetik di editor utama) → Esc/Ctrl+F bekerja saat
+// menjelajah; saat mengetik, editor yg dapat tombol (Gio routing by-focus).
+func (u *UI) handleShortcuts(gtx layout.Context) {
+	event.Op(gtx.Ops, &u.keyTag)
+	idle := u.overlay == "" && !gtx.Focused(&u.editor) && !gtx.Focused(&u.searchEd) &&
+		!gtx.Focused(&u.svEd) && !gtx.Focused(&u.gifSearchEd)
+	if idle && !gtx.Focused(&u.keyTag) {
+		gtx.Execute(key.FocusCmd{Tag: &u.keyTag})
+	}
+	for {
+		ev, ok := gtx.Event(
+			key.Filter{Focus: &u.keyTag, Name: key.NameEscape},
+			key.Filter{Focus: &u.keyTag, Name: "F", Required: key.ModShortcut},
+		)
+		if !ok {
+			break
+		}
+		ke, ok := ev.(key.Event)
+		if !ok || ke.State != key.Press {
+			continue
+		}
+		switch {
+		case ke.Name == key.NameEscape:
+			u.escAction()
+		case ke.Name == "F": // Ctrl/Cmd+F → cari pesan global
+			if u.core != nil && u.view != "search" {
+				u.svPrevView = u.view
+				u.svEd.SetText("")
+				u.svHits = u.svHits[:0]
+				u.view = "search"
+				gtx.Execute(key.FocusCmd{Tag: &u.svEd})
+			}
+		}
+	}
+}
+
+// escAction — Esc: tutup yg paling atas dulu (overlay → mode-pilih → reply/edit →
+// kembali ke daftar chat).
+func (u *UI) escAction() {
+	switch {
+	case u.overlay != "":
+		u.overlay = ""
+	case u.selMode:
+		u.selMode = false
+		u.selSet = map[string]bool{}
+	case u.replyTo != "" || u.editTarget != "":
+		u.clearReply()
+		u.clearEdit()
+		u.editor.SetText("")
+	case u.view != "chats":
+		u.view = "chats"
+	}
+}
+
 func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 	if time.Since(u.lastFetch) > 600*time.Millisecond {
 		u.refresh()
@@ -991,6 +1047,8 @@ func (u *UI) Layout(gtx layout.Context) layout.Dimensions {
 		u.overlay = "mediapreview"
 	}
 	u.pendMu.Unlock()
+
+	u.handleShortcuts(gtx) // Esc (tutup/kembali) + Ctrl+F (cari pesan)
 
 	// Titlebar custom (CSD Wayland) di atas; sisanya = body. Pada X11/headless tetap
 	// digambar (tak merusak) — aksi window hanya jalan bila OnWinAction di-set.

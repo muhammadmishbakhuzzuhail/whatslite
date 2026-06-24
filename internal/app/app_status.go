@@ -27,14 +27,14 @@ type StatusItemDTO struct {
 
 // StatusGroupDTO = semua status satu kontak (atau milik sendiri).
 type StatusGroupDTO struct {
-	Jid   string          `json:"jid"`
-	Name  string          `json:"name"`
-	Time  string          `json:"time"` // waktu update terbaru
-	Mine  bool            `json:"mine"`
-	Seen  bool            `json:"seen"` // semua item sudah dilihat → cincin abu
-	Count int             `json:"count"`
-	SeenCount int         `json:"seenCount"` // jumlah item sudah dilihat (utk segmen cincin)
-	Items []StatusItemDTO `json:"items"`     // urut lama→baru (utk tap-through viewer)
+	Jid       string          `json:"jid"`
+	Name      string          `json:"name"`
+	Time      string          `json:"time"` // waktu update terbaru
+	Mine      bool            `json:"mine"`
+	Seen      bool            `json:"seen"` // semua item sudah dilihat → cincin abu
+	Count     int             `json:"count"`
+	SeenCount int             `json:"seenCount"` // jumlah item sudah dilihat (utk segmen cincin)
+	Items     []StatusItemDTO `json:"items"`     // urut lama→baru (utk tap-through viewer)
 }
 
 // GetStatuses mengembalikan status 24 jam terakhir, dikelompokkan per pengirim.
@@ -54,8 +54,8 @@ func (a *App) GetStatuses() (out []StatusGroupDTO) {
 		self = userPart(a.eng.SelfJID())
 	}
 	groups := map[string]*StatusGroupDTO{}
-	seen := map[string]bool{}     // dedup re-kirim: 1 unggahan kadang tiba >1× dgn ID beda
-	var order []string            // urut kemunculan = update terbaru dulu (ms terbaru dulu)
+	seen := map[string]bool{} // dedup re-kirim: 1 unggahan kadang tiba >1× dgn ID beda
+	var order []string        // urut kemunculan = update terbaru dulu (ms terbaru dulu)
 	for _, m := range ms {
 		key := m.Sender
 		// kunci konten: 1 status sama (sender+detik+jenis+teks) → hitung sekali walau

@@ -152,7 +152,8 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
-	setClicks [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
+	setClicks  [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
+	langClicks [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -943,6 +944,22 @@ func (u *UI) handleSettings(gtx layout.Context) {
 	}
 	for u.setClicks[1].Clicked(gtx) { // Privasi → sub-pane
 		u.setSub = "privacy"
+	}
+	for u.setClicks[2].Clicked(gtx) { // Notifikasi → toggle aktif/nonaktif (persist)
+		if u.core != nil {
+			u.core.SetNotificationsOn(!u.core.NotificationsOn())
+		}
+	}
+	for u.setClicks[4].Clicked(gtx) { // Bahasa → sub-pane pemilih
+		u.setSub = "language"
+	}
+	for i := range langOrder { // pilih bahasa di sub-pane
+		if i >= len(u.langClicks) {
+			break
+		}
+		if u.langClicks[i].Clicked(gtx) && u.core != nil {
+			u.core.SetLanguage(langOrder[i].code)
+		}
 	}
 	for u.setClicks[3].Clicked(gtx) { // Tema → toggle gelap/terang
 		u.dark = !u.dark
@@ -3378,6 +3395,11 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		ctl := &SettingsCtl{
 			Dark: u.dark, KeepDeleted: kd, Retention: ret, AppLock: lock, Clicks: u.setClicks[:],
 			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
+			Notifications: u.core == nil || u.core.NotificationsOn(),
+			Language:      "id", LangClicks: u.langClicks[:],
+		}
+		if u.core != nil {
+			ctl.Language = u.core.Language()
 		}
 		if u.setSub != "" && u.core != nil { // data sub-pane
 			switch u.setSub {

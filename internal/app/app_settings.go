@@ -118,6 +118,45 @@ func (a *App) SetThemeDark(dark bool) {
 	_ = a.store.SetMeta(a.ctx, "theme_dark", v)
 }
 
+// NotificationsOn mengembalikan preferensi notifikasi (default aktif).
+func (a *App) NotificationsOn() bool {
+	if a.store == nil {
+		return true
+	}
+	return a.store.GetMeta(a.ctx, "notifications", "1") != "0"
+}
+
+// SetNotificationsOn menyimpan preferensi notifikasi (persist).
+func (a *App) SetNotificationsOn(on bool) {
+	if a.store == nil {
+		return
+	}
+	v := "1"
+	if !on {
+		v = "0"
+	}
+	_ = a.store.SetMeta(a.ctx, "notifications", v)
+}
+
+// Language mengembalikan kode bahasa UI tersimpan (default "id").
+func (a *App) Language() string {
+	if a.store == nil {
+		return "id"
+	}
+	if v := a.store.GetMeta(a.ctx, "lang", "id"); v != "" {
+		return v
+	}
+	return "id"
+}
+
+// SetLanguage menyimpan kode bahasa UI (persist).
+func (a *App) SetLanguage(code string) {
+	if a.store == nil || code == "" {
+		return
+	}
+	_ = a.store.SetMeta(a.ctx, "lang", code)
+}
+
 // GetRetention mengembalikan jumlah hari retensi pesan (0 = selamanya).
 func (a *App) GetRetention() int { return a.retentionDays }
 

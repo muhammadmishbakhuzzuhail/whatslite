@@ -192,6 +192,9 @@ func main() {
 		case "app-set-storage":
 			ui.SetSettingsSub("storage")
 			ui.Layout(gtx)
+		case "app-set-language":
+			ui.SetSettingsSub("language")
+			ui.Layout(gtx)
 		case "app-calls":
 			ui.SetView("calls")
 			ui.Layout(gtx)

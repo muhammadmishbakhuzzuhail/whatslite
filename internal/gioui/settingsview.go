@@ -48,6 +48,25 @@ type SettingsCtl struct {
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
 	PrivacyClicks                  []widget.Clickable
+	Notifications                  bool               // toggle baris "Notifikasi" (persist)
+	Language                       string             // kode bahasa UI aktif ("id"/"en"/…)
+	LangClicks                     []widget.Clickable // baris pemilih bahasa (sub-pane)
+}
+
+// langOrder — pilihan bahasa UI (kode + label). Indeks = indeks LangClicks.
+var langOrder = []struct{ code, label string }{
+	{"id", "Bahasa Indonesia"}, {"en", "English"}, {"ms", "Bahasa Melayu"},
+	{"es", "Español"}, {"ar", "العربية"},
+}
+
+// langLabel — label tampil dari kode bahasa (default Indonesia).
+func langLabel(code string) string {
+	for _, l := range langOrder {
+		if l.code == code {
+			return l.label
+		}
+	}
+	return "Bahasa Indonesia"
 }
 
 // SettingsView merender pane setelan penuh ke seluruh area gtx.
@@ -90,6 +109,8 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 		title = "Akun"
 	case "help":
 		title = "Bantuan"
+	case "language":
+		title = "Bahasa"
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -105,6 +126,8 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 				return setAccountPane(gtx, th, t, ctl)
 			case "help":
 				return setHelpPane(gtx, th, t, ctl)
+			case "language":
+				return setLanguagePane(gtx, th, t, ctl)
 			}
 			return setProfilePane(gtx, th, t, ctl)
 		}),
@@ -141,6 +164,46 @@ func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	if len(children) == 0 {
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return setProfileField(gtx, th, t, "Privasi", "—")
+		}))
+	}
+	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
+// setLanguagePane — daftar bahasa UI; baris aktif diberi centang. Ketuk → pilih.
+// Catatan: teks aplikasi saat ini Indonesia; pilihan disimpan utk i18n mendatang.
+func setLanguagePane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	cur := "id"
+	if ctl != nil && ctl.Language != "" {
+		cur = ctl.Language
+	}
+	children := make([]layout.FlexChild, 0, len(langOrder))
+	for i := range langOrder {
+		l, idx := langOrder[i], i
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			row := func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, 15, l.label)
+							lbl.Color, lbl.MaxLines = t.Text, 1
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if l.code != cur {
+								return layout.Dimensions{}
+							}
+							return icon(gtx, "check", 18, t.Accent)
+						}),
+					)
+				})
+			}
+			if ctl != nil && idx < len(ctl.LangClicks) {
+				return ctl.LangClicks[idx].Layout(gtx, row)
+			}
+			return row(gtx)
 		}))
 	}
 	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -584,6 +647,22 @@ type setItem struct {
 	danger bool
 }
 
+// notifDesc — keterangan baris Notifikasi (Aktif/Nonaktif).
+func notifDesc(ctl *SettingsCtl) string {
+	if ctl == nil || ctl.Notifications {
+		return "Aktif"
+	}
+	return "Nonaktif"
+}
+
+// langDesc — keterangan baris Bahasa (label bahasa aktif).
+func langDesc(ctl *SettingsCtl) string {
+	if ctl == nil {
+		return "Bahasa Indonesia"
+	}
+	return langLabel(ctl.Language)
+}
+
 func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
 	themeDesc := "Terang, gelap, atau ikuti sistem"
 	themeOn := false
@@ -601,9 +680,9 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 	items := []setItem{
 		{name: "Akun", desc: "Notifikasi keamanan, info akun", icon: "info"},                                                                        // 0
 		{name: "Privasi", desc: "Terakhir dilihat, blokir, kunci aplikasi", icon: "lock"},                                                           // 1
-		{name: "Notifikasi", desc: "Aktif", icon: "bell", hasSw: true, swOn: true},                                                                  // 2
+		{name: "Notifikasi", desc: notifDesc(ctl), icon: "bell", hasSw: true, swOn: ctl == nil || ctl.Notifications},                                // 2
 		{name: "Tema", desc: themeDesc, icon: "theme", hasSw: ctl != nil, swOn: themeOn},                                                            // 3
-		{name: "Bahasa", desc: "Bahasa Indonesia", icon: "globe"},                                                                                   // 4
+		{name: "Bahasa", desc: langDesc(ctl), icon: "globe"},                                                                                        // 4
 		{name: "Penyimpanan", desc: "Kelola ruang & data", icon: "disk"},                                                                            // 5
 		{name: "Retensi", desc: retentionDesc(ctl), icon: "clock"},                                                                                  // 6
 		{name: "Simpan pesan dihapus", desc: "Lihat pesan yang ditarik pengirim", icon: "eyeoff", hasSw: true, swOn: ctl == nil || ctl.KeepDeleted}, // 7

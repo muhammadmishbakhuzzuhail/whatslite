@@ -250,6 +250,7 @@ type UI struct {
 	pendSend    widget.Clickable
 	pendCancel  widget.Clickable
 	pendRotate  widget.Clickable // putar 90° (image)
+	pendFlip    widget.Clickable // cermin horizontal (image)
 	pendCrop    widget.Clickable // terapkan potong
 	cropActive  bool             // ada seleksi potong
 	cropA       image.Point      // sudut awal seleksi (koord box gambar)
@@ -7832,6 +7833,23 @@ func (u *UI) syncDraft() {
 	u.draftChat = u.selected
 }
 
+// approxURISize — perkiraan ukuran berkas dari data-URI base64 (tanpa decode).
+func approxURISize(uri string) string {
+	n := len(uri)
+	if i := strings.Index(uri, "base64,"); i >= 0 {
+		n = len(uri) - i - len("base64,")
+	}
+	b := n * 3 / 4 // base64 → byte
+	switch {
+	case b >= 1<<20:
+		return itoa(b>>20) + " MB"
+	case b >= 1<<10:
+		return itoa(b>>10) + " KB"
+	default:
+		return itoa(b) + " B"
+	}
+}
+
 // mediaPreviewLayer — pratinjau media sebelum kirim: thumbnail + caption + toggle
 // sekali-lihat (image/video) + Batal/Kirim. Kirim → SendMedia(caption, viewOnce).
 func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
@@ -7857,6 +7875,17 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 				u.pendMu.Unlock()
 				uri, img, hasImg = nu, nop, true
 				u.cropActive = false // dimensi berubah → buang seleksi
+			}
+		}
+	}
+	for u.pendFlip.Clicked(gtx) { // cermin horizontal gambar
+		if uri != "" {
+			if nu, nop, ok := flipDataURIH(uri); ok {
+				u.pendMu.Lock()
+				u.pendURI, u.pendImg, u.pendImgHas = nu, nop, true
+				u.pendMu.Unlock()
+				uri, img, hasImg = nu, nop, true
+				u.cropActive = false
 			}
 		}
 	}
@@ -7999,11 +8028,29 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 							off.Pop()
 						}
 						roundBtn(&u.pendRotate, bw-d-gtx.Dp(8), "rotate")
+						roundBtn(&u.pendFlip, bw-2*d-gtx.Dp(14), "flip")
 						if u.cropActive {
-							roundBtn(&u.pendCrop, bw-2*d-gtx.Dp(14), "check")
+							roundBtn(&u.pendCrop, bw-3*d-gtx.Dp(20), "check")
 						}
 					}
 					return layout.Dimensions{Size: box}
+				}),
+				// info berkas (dokumen/non-gambar): jenis + perkiraan ukuran.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if hasImg {
+						return layout.Dimensions{}
+					}
+					kl := map[string]string{"document": "Dokumen", "video": "Video", "audio": "Audio", "voice": "Pesan suara"}[kind]
+					if kl == "" {
+						kl = "Berkas"
+					}
+					label := kl + " · " + approxURISize(uri)
+					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						l := material.Label(u.th, 13, label)
+						l.Color, l.Alignment, l.MaxLines = u.t.Text2, text.Middle, 1
+						return l.Layout(gtx)
+					})
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 				// caption.

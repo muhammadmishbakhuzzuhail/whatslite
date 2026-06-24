@@ -166,6 +166,27 @@ func rotateDataURI90(uri string) (string, paint.ImageOp, bool) {
 	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
 }
 
+// flipDataURIH — cermin horizontal gambar data-URI (kiri↔kanan), encode ulang JPEG.
+func flipDataURIH(uri string) (string, paint.ImageOp, bool) {
+	img := decodeImage(decodeDataURI(uri))
+	if img == nil {
+		return uri, paint.ImageOp{}, false
+	}
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			dst.Set(w-1-x, y, img.At(b.Min.X+x, b.Min.Y+y))
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 88}); err != nil {
+		return uri, paint.ImageOp{}, false
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
+}
+
 // cropDataURI — potong gambar data-URI ke rect r (koordinat piksel gambar),
 // encode ulang JPEG. Kembalikan (uri baru, ImageOp baru, true). r<4px → gagal.
 func cropDataURI(uri string, r image.Rectangle) (string, paint.ImageOp, bool) {

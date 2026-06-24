@@ -247,11 +247,12 @@ func pickAndSend(expl *explorer.Explorer, core *app.App, ui *gioui.UI, chat, cat
 		kind = "video"
 	}
 	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
-	if category == "document" { // dokumen → kirim langsung (tanpa pratinjau)
-		core.SendMedia(chat, kind, "", "", uri, false, 0)
-		return
+	name := "" // nama berkas asli (utk rename dokumen di pratinjau)
+	if f, ok := rc.(interface{ Name() string }); ok {
+		name = filepath.Base(f.Name())
 	}
-	ui.SetPendingMedia(kind, uri) // media → pratinjau (caption + sekali-lihat) di UI
+	// Semua kategori (termasuk dokumen) → pratinjau dulu: caption / rename / info.
+	ui.SetPendingMediaNamed(kind, name, uri)
 }
 
 // pickAndSetPhoto — dialog berkas (gambar) → data-URI → SetMyPhoto (foto profil).

@@ -187,6 +187,20 @@ func flipDataURIH(uri string) (string, paint.ImageOp, bool) {
 	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(dst), true
 }
 
+// compressDataURI — encode ulang gambar JPEG kualitas lebih rendah (q55) → ukuran
+// kirim lebih kecil. Piksel tak berubah (ImageOp sama), hanya byte URI menyusut.
+func compressDataURI(uri string) (string, paint.ImageOp, bool) {
+	img := decodeImage(decodeDataURI(uri))
+	if img == nil {
+		return uri, paint.ImageOp{}, false
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 55}); err != nil {
+		return uri, paint.ImageOp{}, false
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), paint.NewImageOp(img), true
+}
+
 // cropDataURI — potong gambar data-URI ke rect r (koordinat piksel gambar),
 // encode ulang JPEG. Kembalikan (uri baru, ImageOp baru, true). r<4px → gagal.
 func cropDataURI(uri string, r image.Rectangle) (string, paint.ImageOp, bool) {

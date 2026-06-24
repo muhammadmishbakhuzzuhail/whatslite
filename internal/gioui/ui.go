@@ -238,24 +238,27 @@ type UI struct {
 	moreClicks map[string]*widget.Clickable
 
 	// pratinjau media sebelum kirim (pilih berkas → overlay caption + sekali-lihat).
-	pendMu      sync.Mutex
-	pendHas     bool
-	pendKind    string // image | video | document
-	pendURI     string // data-URI berkas terpilih
-	pendImg     paint.ImageOp
-	pendImgHas  bool
-	capEd       widget.Editor    // caption media
-	pendVO      bool             // sekali-lihat (view-once)
-	pendVOClick widget.Clickable // toggle sekali-lihat
-	pendSend    widget.Clickable
-	pendCancel  widget.Clickable
-	pendRotate  widget.Clickable // putar 90° (image)
-	pendFlip    widget.Clickable // cermin horizontal (image)
-	pendCrop    widget.Clickable // terapkan potong
-	cropActive  bool             // ada seleksi potong
-	cropA       image.Point      // sudut awal seleksi (koord box gambar)
-	cropB       image.Point      // sudut akhir seleksi
-	cropTagV    int              // tag pointer area potong
+	pendMu       sync.Mutex
+	pendHas      bool
+	pendKind     string        // image | video | document
+	pendURI      string        // data-URI berkas terpilih
+	pendName     string        // nama berkas asli (dokumen) — utk rename di preview
+	pendNameEd   widget.Editor // editor rename nama dokumen
+	pendImg      paint.ImageOp
+	pendImgHas   bool
+	capEd        widget.Editor    // caption media
+	pendVO       bool             // sekali-lihat (view-once)
+	pendVOClick  widget.Clickable // toggle sekali-lihat
+	pendSend     widget.Clickable
+	pendCancel   widget.Clickable
+	pendRotate   widget.Clickable // putar 90° (image)
+	pendFlip     widget.Clickable // cermin horizontal (image)
+	pendCompress widget.Clickable // kompres kualitas (image)
+	pendCrop     widget.Clickable // terapkan potong
+	cropActive   bool             // ada seleksi potong
+	cropA        image.Point      // sudut awal seleksi (koord box gambar)
+	cropB        image.Point      // sudut akhir seleksi
+	cropTagV     int              // tag pointer area potong
 
 	unreadDivID    string // ID pesan tempat divider "belum dibaca" digambar ("" = tak ada)
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
@@ -621,7 +624,11 @@ func (u *UI) SetMediaPreviewDemo() {
 // SetPendingMedia — dipanggil cmd setelah pilih berkas (media): simpan untuk
 // pratinjau (caption + sekali-lihat) sebelum kirim. Aman dari goroutine (mutex);
 // overlay dibuka di Layout (thread UI). kind: image|video|document.
-func (u *UI) SetPendingMedia(kind, dataURI string) {
+func (u *UI) SetPendingMedia(kind, dataURI string) { u.SetPendingMediaNamed(kind, "", dataURI) }
+
+// SetPendingMediaNamed — seperti SetPendingMedia + nama berkas asli (dokumen) utk
+// pratinjau rename. name "" → editor nama kosong.
+func (u *UI) SetPendingMediaNamed(kind, name, dataURI string) {
 	var op paint.ImageOp
 	hasImg := false
 	if kind == "image" {
@@ -631,9 +638,11 @@ func (u *UI) SetPendingMedia(kind, dataURI string) {
 	}
 	u.pendMu.Lock()
 	u.pendKind, u.pendURI, u.pendImg, u.pendImgHas = kind, dataURI, op, hasImg
+	u.pendName = name
 	u.pendHas, u.pendVO = true, false
 	u.pendMu.Unlock()
 	u.capEd.SetText("")
+	u.pendNameEd.SetText(name)
 }
 
 func (u *UI) clearPending() {
@@ -749,6 +758,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.callSearchEd.SingleLine = true
 	u.chnPostEd.SingleLine = true
 	u.chnPostEd.Submit = true
+	u.pendNameEd.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
@@ -7891,9 +7901,23 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 			}
 		}
 	}
+	for u.pendCompress.Clicked(gtx) { // kompres kualitas → ukuran kirim lebih kecil
+		if uri != "" {
+			if nu, nop, ok := compressDataURI(uri); ok {
+				u.pendMu.Lock()
+				u.pendURI, u.pendImg, u.pendImgHas = nu, nop, true
+				u.pendMu.Unlock()
+				uri, img, hasImg = nu, nop, true
+			}
+		}
+	}
 	for u.pendSend.Clicked(gtx) {
 		if u.core != nil && u.selected != "" {
-			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), "", uri, vo, 0)
+			fn := ""
+			if kind == "document" {
+				fn = strings.TrimSpace(u.pendNameEd.Text()) // nama hasil rename
+			}
+			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), fn, uri, vo, 0)
 			u.messages = u.core.GetMessages(u.selected)
 			u.msgList.ScrollTo(len(u.messages))
 		}
@@ -8031,23 +8055,41 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 						}
 						roundBtn(&u.pendRotate, bw-d-gtx.Dp(8), "rotate")
 						roundBtn(&u.pendFlip, bw-2*d-gtx.Dp(14), "flip")
+						roundBtn(&u.pendCompress, bw-3*d-gtx.Dp(20), "compress")
 						if u.cropActive {
-							roundBtn(&u.pendCrop, bw-3*d-gtx.Dp(20), "check")
+							roundBtn(&u.pendCrop, bw-4*d-gtx.Dp(26), "check")
 						}
 					}
 					return layout.Dimensions{Size: box}
 				}),
-				// info berkas (dokumen/non-gambar): jenis + perkiraan ukuran.
+				// dokumen: editor RENAME nama berkas (rounded) — only non-image.
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if hasImg {
+					if hasImg || kind != "document" {
 						return layout.Dimensions{}
 					}
-					kl := map[string]string{"document": "Dokumen", "video": "Video", "audio": "Audio", "voice": "Pesan suara"}[kind]
+					return layout.Inset{Top: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						d := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							e := material.Editor(u.th, &u.pendNameEd, "Nama berkas")
+							e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(14)
+							return e.Layout(gtx)
+						})
+						call := macro.Stop()
+						rr := gtx.Dp(8)
+						paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						call.Add(gtx.Ops)
+						return d
+					})
+				}),
+				// info berkas: jenis + perkiraan ukuran (gambar juga → feedback kompres).
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					kl := map[string]string{"image": "Gambar", "document": "Dokumen", "video": "Video", "audio": "Audio", "voice": "Pesan suara"}[kind]
 					if kl == "" {
 						kl = "Berkas"
 					}
 					label := kl + " · " + approxURISize(uri)
-					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						gtx.Constraints.Min.X = gtx.Constraints.Max.X
 						l := material.Label(u.th, 13, label)
 						l.Color, l.Alignment, l.MaxLines = u.t.Text2, text.Middle, 1

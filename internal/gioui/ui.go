@@ -5753,8 +5753,16 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 						if m.Dir != "out" {
 							return layout.Dimensions{}
 						}
+						// tick ikut status (read=biru) — jangan hilangkan info spt sebelumnya.
+						tn, tc := "check", white
+						switch m.Status {
+						case "read":
+							tn, tc = "checks", u.t.Tick
+						case "delivered":
+							tn = "checks"
+						}
 						return layout.Inset{Left: unit.Dp(3)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							return icon(gtx, "checks", 14, white)
+							return icon(gtx, tn, 14, tc)
 						})
 					}),
 				)
@@ -9149,7 +9157,14 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 				gtx.Constraints.Min.X = mw
 			}
 		}
-		return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// Bubble media-saja (image/video/gif tanpa caption) → padding tipis 3dp agar
+		// thumbnail nyaris memenuhi bubble (frame OutBg tipis, ala WhatsApp), bukan
+		// frame tebal 8dp. Tipe lain tetap 6/8.
+		padX, padY := unit.Dp(8), unit.Dp(6)
+		if m.Text == "" && (m.Type == "image" || m.Type == "video" || m.Type == "gif") {
+			padX, padY = unit.Dp(3), unit.Dp(3)
+		}
+		return layout.Inset{Top: padY, Bottom: padY, Left: padX, Right: padX}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			// metaRow — jam + "diedit" + centang status (dipakai inline ATAU baris bawah).
 			metaRow := func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,

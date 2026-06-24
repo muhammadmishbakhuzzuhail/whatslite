@@ -492,7 +492,7 @@ func (a *App) toDTO(ms []storage.Message) []MessageDTO {
 			}
 		}
 		out = append(out, MessageDTO{
-			ID: m.ID, Dir: dir, Type: kind, Text: m.Text, Thumb: thumb,
+			ID: m.ID, Dir: dir, Type: kind, Text: a.resolveMentions(m.Text), Thumb: thumb,
 			Time: hm(m.Timestamp), Ts: m.Timestamp.Unix(), Sender: senderName, SenderID: m.Sender,
 			SenderPhone: senderPhone, SenderSaved: senderSaved, Status: status,
 			Pinned: m.Pinned, Edited: m.Edited, Revoked: m.Revoked,

@@ -827,7 +827,7 @@ func demoChats() []app.ChatDTO {
 		{ID: "1", Name: "Andi Pratama", Preview: "Mantap! Sampai nanti malam 🙌", Time: "19.08", Sent: true, Status: "read", Pinned: true, Presence: "online"},
 		{ID: "2", Name: "Keluarga", Preview: "Ibu: Jangan lupa makan ya nak", Time: "18.41", Group: true, Badge: 2, Unread: true},
 		{ID: "3", Name: "Sarah", Preview: "Oke besok aku kabarin lagi", Time: "17.55", Badge: 1234, Unread: true}, // presence "" → tanpa titik (hidden/unknown)
-		{ID: "4", Name: "Tim Proyek X", Preview: "Budi: file-nya udah aku upload", Time: "16.20", Group: true, Badge: 12, Unread: true},
+		{ID: "4", Name: "Tim Proyek X", Preview: "Wohati Damar: 🏷️ Stiker", Time: "16.20", Group: true, Badge: 12, Unread: true},
 		{ID: "5", Name: "Rian", Preview: "Haha iya bener banget 😄", Time: "14.03", Badge: 5, Unread: true, Muted: true, Presence: "offline"},
 	}
 }
@@ -3995,10 +3995,7 @@ func (u *UI) previewLine(gtx layout.Context, c app.ChatDTO) layout.Dimensions {
 			if typing != "" {
 				txt, col = typing, u.t.Accent
 			}
-			lbl := material.Label(u.th, 14, txt)
-			lbl.Color = col
-			lbl.MaxLines = 1
-			return lbl.Layout(gtx)
+			return u.previewRow(gtx, txt, 14, col, 1) // ikon SVG utk ringkasan media
 		}),
 		// indikator: bisu (mute) + sematkan (pin) + badge belum-dibaca.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -4860,6 +4857,50 @@ func (u *UI) pollOption(gtx layout.Context, label string, cnt, total int) layout
 	return dims
 }
 
+// previewIcons — pemetaan emoji-awalan ringkasan media (storage/engine) → ikon SVG.
+// Emoji VS16 (🖼️/🏷️ dll) sering jadi tofu; ganti dgn ikon garis biar rapi.
+var previewIcons = []struct{ emoji, icon string }{
+	{"🖼️", "media"}, {"🖼", "media"}, {"🎬", "video"}, {"🏷️", "sticker"}, {"🏷", "sticker"},
+	{"🎤", "mic"}, {"🎵", "media"}, {"📄", "docfile"}, {"📍", "locpin"}, {"👤", "contacts"},
+	{"🎞️", "gifb"}, {"🎞", "gifb"}, {"📊", "pollq"}, {"📷", "media"}, {"📸", "media"},
+}
+
+// mediaPreviewSplit — temukan emoji media di `s` → (ikonSVG, teksSebelum, teksSesudah).
+// Emoji bisa di awal (kutipan: "🖼️ Foto") atau setelah "Nama: " (daftar chat). ""=tak ada.
+func mediaPreviewSplit(s string) (ic, before, after string) {
+	for _, p := range previewIcons {
+		if i := strings.Index(s, p.emoji); i >= 0 {
+			return p.icon, s[:i], strings.TrimSpace(s[i+len(p.emoji):])
+		}
+	}
+	return "", s, ""
+}
+
+// previewRow — baris ringkasan: [sebelum] ikonSVG [sesudah] (ganti emoji tofu).
+func (u *UI) previewRow(gtx layout.Context, text string, size unit.Sp, col color.NRGBA, maxLines int) layout.Dimensions {
+	ic, before, after := mediaPreviewSplit(text)
+	mk := func(s string) func(layout.Context) layout.Dimensions {
+		return func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(u.th, size, s)
+			l.Color, l.MaxLines = col, maxLines
+			return l.Layout(gtx)
+		}
+	}
+	if ic == "" {
+		return mk(text)(gtx)
+	}
+	children := make([]layout.FlexChild, 0, 4)
+	if before != "" {
+		children = append(children, layout.Rigid(mk(before)))
+	}
+	children = append(children,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, ic, int(size)+1, col) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
+		layout.Flexed(1, mk(after)),
+	)
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+}
+
 // quoteBlock — kutipan pesan yg dibalas, di dalam bubble (garis accent kiri + nama
 // + teks), latar agak gelap. margin-bottom kecil sebelum isi.
 func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.Dimensions {
@@ -4880,10 +4921,7 @@ func (u *UI) quoteBlock(gtx layout.Context, m app.MessageDTO, out bool) layout.D
 					return lbl.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(u.th, 13, m.QuoteText)
-					lbl.Color = u.t.Text2
-					lbl.MaxLines = 1
-					return lbl.Layout(gtx)
+					return u.previewRow(gtx, m.QuoteText, 13, u.t.Text2, 1) // ikon SVG utk media
 				}),
 			)
 		})

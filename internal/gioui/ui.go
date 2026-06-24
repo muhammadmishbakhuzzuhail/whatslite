@@ -2954,7 +2954,8 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		}
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.ctxItems[i].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
 					dcol := u.t.Text
 					if it.label == "Hapus" {
@@ -2970,6 +2971,12 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 						}),
 					)
 				})
+				call := macro.Stop()
+				if u.ctxItems[i].Hovered() { // bg hover → jelas item mana yg ditunjuk
+					paint.FillShape(gtx.Ops, u.t.Hover, clip.Rect{Max: dims.Size}.Op())
+				}
+				call.Add(gtx.Ops)
+				return dims
 			})
 		}))
 	}
@@ -8397,11 +8404,17 @@ func (u *UI) composer(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16), Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.emojiClick, "emoji") }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.glyphBtnTip(gtx, &u.emojiClick, "emoji", "Emoji & reaksi")
+					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.stickerClick, "sticker") }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.glyphBtnTip(gtx, &u.stickerClick, "sticker", "Stiker & GIF")
+					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.glyphBtn(gtx, &u.attachClick, "plus") }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.glyphBtnTip(gtx, &u.attachClick, "plus", "Lampirkan")
+					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return u.composerPill(gtx) }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
@@ -8605,12 +8618,28 @@ func (u *UI) sendOrMic(gtx layout.Context) layout.Dimensions {
 }
 
 func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) layout.Dimensions {
+	return u.glyphBtnTip(gtx, c, iconName, "")
+}
+
+// glyphBtnTip — tombol ikon 40px dgn bg-hover bulat + tooltip (di atas) saat hover.
+func (u *UI) glyphBtnTip(gtx layout.Context, c *widget.Clickable, iconName, tip string) layout.Dimensions {
 	body := func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(40)
 		sz := image.Pt(d, d)
 		gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+		col := u.t.RailIco
+		if c != nil && c.Hovered() { // bg bulat + ikon accent saat hover
+			rad := d / 2
+			paint.FillShape(gtx.Ops, u.t.Hover, clip.RRect{Rect: image.Rectangle{Max: sz}, NW: rad, NE: rad, SE: rad, SW: rad}.Op(gtx.Ops))
+			col = u.t.Accent
+			if tip != "" {
+				m := op.Record(gtx.Ops)
+				u.tipAbove(gtx, d, tip)
+				op.Defer(gtx.Ops, m.Stop())
+			}
+		}
 		layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return icon(gtx, iconName, 24, u.t.RailIco)
+			return icon(gtx, iconName, 24, col)
 		})
 		return layout.Dimensions{Size: sz}
 	}
@@ -8618,6 +8647,35 @@ func (u *UI) glyphBtn(gtx layout.Context, c *widget.Clickable, iconName string) 
 		return body(gtx)
 	}
 	return c.Layout(gtx, body)
+}
+
+// tipAbove — tooltip kecil DI ATAS tombol (utk composer di bawah layar). Kotak
+// inverse-tema + caret bawah menunjuk tombol.
+func (u *UI) tipAbove(gtx layout.Context, btnH int, txt string) {
+	tipBg, tipFg := u.t.Text, u.t.SidebarBg
+	cg := gtx
+	cg.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(240), gtx.Dp(40))}
+	m := op.Record(gtx.Ops)
+	lbl := material.Label(u.th, 12, txt)
+	lbl.Color, lbl.MaxLines = tipFg, 1
+	dims := layout.UniformInset(unit.Dp(7)).Layout(cg, lbl.Layout)
+	call := m.Stop()
+	r := gtx.Dp(6)
+	cx := gtx.Dp(20) // ~tengah tombol (40/2)
+	y := -dims.Size.Y - gtx.Dp(8)
+	off := op.Offset(image.Pt(cx-dims.Size.X/2, y)).Push(gtx.Ops)
+	paint.FillShape(gtx.Ops, tipBg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	off.Pop()
+	// caret segitiga bawah.
+	var p clip.Path
+	p.Begin(gtx.Ops)
+	cw := gtx.Dp(5)
+	p.MoveTo(f32.Pt(float32(cx-cw), float32(y+dims.Size.Y)))
+	p.LineTo(f32.Pt(float32(cx+cw), float32(y+dims.Size.Y)))
+	p.LineTo(f32.Pt(float32(cx), float32(y+dims.Size.Y+cw)))
+	p.Close()
+	paint.FillShape(gtx.Ops, tipBg, clip.Outline{Path: p.End()}.Op())
 }
 
 // sendCurrent — kirim isi composer (teks atau balasan), reset editor + banner +

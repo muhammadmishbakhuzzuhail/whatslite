@@ -72,8 +72,8 @@ type UI struct {
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick widget.Clickable
 	pickerScrim  widget.Clickable // ketuk luar kartu picker → tutup
-	pkTab        int              // 0 = Stiker, 1 = GIF (online: Tenor/KLIPY/Sticker.ly)
-	pkTabClicks  [2]widget.Clickable
+	pkTab        int              // 0 = Stiker, 1 = GIF (online), 2 = Tersimpan (koleksi lokal)
+	pkTabClicks  [3]widget.Clickable
 	gifSearchEd  widget.Editor            // cari online (submit → cari)
 	onlineKey    string                   // "tab|query" yg sedang/sudah dimuat
 	onlineGen    int                      // generasi fetch (buang hasil basi)
@@ -2262,6 +2262,14 @@ func (u *UI) doCtxAction(gtx layout.Context, label string) {
 		u.transMu.Unlock()
 	case "Salin":
 		gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(m.Text))})
+	case "Simpan stiker":
+		if u.core != nil {
+			u.core.SaveSticker(u.selected, m.ID)
+		}
+	case "Simpan GIF":
+		if u.core != nil {
+			u.core.SaveGif(u.selected, m.ID)
+		}
 	}
 }
 
@@ -2634,10 +2642,51 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 	if u.core == nil {
 		return nil
 	}
-	for i := range u.pkTabClicks { // ganti tab Stiker/GIF → muat ulang
+	for i := range u.pkTabClicks { // ganti tab Stiker/GIF/Tersimpan → muat ulang
 		if u.pkTabClicks[i].Clicked(gtx) {
 			u.pkTab, u.onlineKey = i, ""
 		}
+	}
+	if u.pkTab == 2 { // Tersimpan: koleksi lokal (tanpa fetch/search/kategori)
+		type sv struct {
+			hash string
+			gif  bool
+		}
+		var entries []sv
+		for _, s := range u.core.ListSavedStickers() {
+			entries = append(entries, sv{s.Hash, false})
+		}
+		for _, g := range u.core.ListSavedGifs() {
+			entries = append(entries, sv{g.Hash, true})
+		}
+		if len(u.onlineClicks) < len(entries) {
+			u.onlineClicks = make([]widget.Clickable, len(entries))
+		}
+		ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], Grid: &u.pkGridList,
+			Empty: "Belum ada — simpan stiker/GIF dari chat dulu."}
+		ctl.Items = make([]PkItem, len(entries))
+		for i, e := range entries {
+			e := e
+			u.ensureSavedThumb(e.hash, e.gif)
+			u.photoMu.Lock()
+			op, ok := u.remoteThumbs["sv:"+e.hash]
+			u.photoMu.Unlock()
+			ctl.Items[i] = PkItem{Thumb: op, Has: ok, Gif: e.gif}
+			if i < len(u.onlineClicks) {
+				for u.onlineClicks[i].Clicked(gtx) { // tap → kirim dari koleksi
+					if chat := u.selected; chat != "" {
+						if e.gif {
+							u.core.SendSavedGif(chat, e.hash)
+						} else {
+							u.core.SendSavedSticker(chat, e.hash)
+						}
+					}
+					u.overlay = ""
+				}
+			}
+		}
+		ctl.Clicks = u.onlineClicks
+		return ctl
 	}
 	for { // submit di kotak cari → muat ulang
 		ev, ok := u.gifSearchEd.Update(gtx)
@@ -2765,6 +2814,42 @@ func (u *UI) ensureRemoteThumb(url string) {
 		op := paint.NewImageOp(img)
 		u.photoMu.Lock()
 		u.remoteThumbs[url] = op
+		u.photoMu.Unlock()
+	}()
+}
+
+// ensureSavedThumb — decode thumbnail stiker/GIF TERSIMPAN dari bytes lokal (disk)
+// sekali → cache di remoteThumbs["sv:"+hash]. Animasi → frame poster. Async.
+func (u *UI) ensureSavedThumb(hash string, gif bool) {
+	if hash == "" || u.core == nil {
+		return
+	}
+	key := "sv:" + hash
+	u.photoMu.Lock()
+	if u.remoteTried[key] {
+		u.photoMu.Unlock()
+		return
+	}
+	u.remoteTried[key] = true
+	u.photoMu.Unlock()
+	go func() {
+		var b []byte
+		ext := ".webp"
+		if gif {
+			b, ext = u.core.SavedGifBytes(hash), ".gif"
+		} else {
+			b = u.core.StickerBytes(hash)
+		}
+		img := decodeImage(b)
+		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
+			img = u.OnMediaPoster(b, ext)
+		}
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.photoMu.Lock()
+		u.remoteThumbs[key] = op
 		u.photoMu.Unlock()
 	}()
 }
@@ -3136,6 +3221,13 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		items = append(items, ctxItem{"editpen", "Edit", ""})
 	case isMediaType(m.Type) && u.OnSaveMedia != nil:
 		items = append(items, ctxItem{"download", "Unduh", ""})
+	}
+	if !m.Revoked && (m.Type == "sticker" || m.Type == "gif") { // simpan ke koleksi lokal
+		lbl := "Simpan stiker"
+		if m.Type == "gif" {
+			lbl = "Simpan GIF"
+		}
+		items = append(items, ctxItem{"star", lbl, ""})
 	}
 	if !m.Revoked { // sematkan / lepas sematan (PinMessage)
 		pinLabel := "Sematkan"

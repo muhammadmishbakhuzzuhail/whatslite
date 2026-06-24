@@ -26,6 +26,7 @@ import (
 type PkItem struct {
 	Thumb paint.ImageOp
 	Has   bool
+	Gif   bool // item ini GIF (badge "GIF") — dipakai tab Tersimpan yg campur stiker+GIF
 }
 
 // PkCtl = state interaktif picker stiker. nil → grid placeholder demo. Items +
@@ -190,7 +191,7 @@ type pkTab struct {
 // pkTabs — .stk-tabs: 4 tombol flex sama lebar, gap 6, padding 8, radius 9.
 // aktif = Accent + putih; lainnya = Bg2 + text2/600.
 func pkTabs(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
-	labels := []string{"Stiker", "GIF"}
+	labels := []string{"Stiker", "GIF", "Tersimpan"}
 	active := 0
 	if ctl != nil {
 		active = ctl.Tab
@@ -285,7 +286,7 @@ func pkGrid(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 					if idx >= len(ctl.Items) {
 						return layout.Dimensions{Size: image.Pt(cell, cell)}
 					}
-					isGif := ctl.Tab == 1
+					isGif := ctl.Tab == 1 || ctl.Items[idx].Gif
 					hov := idx < len(ctl.Clicks) && ctl.Clicks[idx].Hovered()
 					body := func(gtx layout.Context) layout.Dimensions {
 						return pkCell(gtx, th, t, cell, ctl.Items[idx], isGif, hov)

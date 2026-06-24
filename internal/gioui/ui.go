@@ -81,6 +81,7 @@ type UI struct {
 	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
+	chnPic       map[string]string // jid saluran → URL CDN foto (dari ChannelDTO.Picture)
 	pkGridList   widget.List         // scroll grid picker
 	pkCatClicks  [8]widget.Clickable // chip kategori GIF/stiker
 	msgLimit     int                 // jumlah pesan dimuat utk chat aktif (tumbuh saat scroll atas)
@@ -774,6 +775,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.moreClicks = map[string]*widget.Clickable{}
 	u.remoteThumbs = map[string]paint.ImageOp{}
 	u.remoteTried = map[string]bool{}
+	u.chnPic = map[string]string{}
 	u.gifSearchEd.SingleLine = true
 	u.gifSearchEd.Submit = true
 	u.pollClicks = map[string][]widget.Clickable{}
@@ -5302,6 +5304,39 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 	return layout.Dimensions{Size: sz}
 }
 
+// channelAvatar — foto saluran bulat dari URL CDN (chnPic[jid]) lewat
+// ensureRemoteThumb (cache per-URL). TIDAK memanggil AvatarBytes/GetNewsletterInfo
+// (jalur lama: 1 IQ jaringan per saluran). URL kosong → inisial warna.
+func (u *UI) channelAvatar(gtx layout.Context, name, jid string, dp int) layout.Dimensions {
+	d := gtx.Dp(unit.Dp(dp))
+	sz := image.Pt(d, d)
+	u.chMu.Lock()
+	url := u.chnPic[jid]
+	u.chMu.Unlock()
+	if url != "" {
+		u.ensureRemoteThumb(url)
+		u.photoMu.Lock()
+		ph, ok := u.remoteThumbs[url]
+		u.photoMu.Unlock()
+		if ok {
+			cl := clip.Ellipse{Max: sz}.Push(gtx.Ops)
+			drawImageFill(gtx.Ops, ph, d)
+			cl.Pop()
+			return layout.Dimensions{Size: sz}
+		}
+	}
+	col := avatarColor(name)
+	paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(u.th, unit.Sp(float32(dp)*0.4), initial(name))
+		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+		lbl.Font.Weight = font.Bold
+		return lbl.Layout(gtx)
+	})
+	return layout.Dimensions{Size: sz}
+}
+
 // contactGroups membangun pane Kontak dari kontak nyata (core.GetContacts),
 // dikelompokkan per huruf awal nama (urut). nil = mode demo.
 func (u *UI) contactGroups() []cpGroup {
@@ -5387,9 +5422,12 @@ func (u *UI) channelRows() []chnChannel {
 				cs := u.core.GetRecommendedChannels(q)
 				out := make([]chnChannel, 0, len(cs))
 				for _, c := range cs {
-					out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true, verified: c.Verified})
+					out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, follow: true, verified: c.Verified})
 				}
 				u.chMu.Lock()
+				for _, c := range cs {
+					u.chnPic[c.JID] = c.Picture
+				}
 				u.chnExpCache, u.chnExpAt, u.chnExpFetching = out, time.Now(), false
 				u.chMu.Unlock()
 			}()
@@ -5405,9 +5443,12 @@ func (u *UI) channelRows() []chnChannel {
 			cs := u.core.GetChannels()
 			out := make([]chnChannel, 0, len(cs))
 			for _, c := range cs {
-				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, verified: c.Verified})
+				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, verified: c.Verified})
 			}
 			u.chMu.Lock()
+			for _, c := range cs {
+				u.chnPic[c.JID] = c.Picture
+			}
 			u.chCache, u.chAt, u.chFetching = out, time.Now(), false
 			u.chMu.Unlock()
 		}()
@@ -5444,7 +5485,7 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
 			return layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, u.openChanName, u.openChannel, 42) }),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.channelAvatar(gtx, u.openChanName, u.openChannel, 42) }),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -5575,7 +5616,7 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 	if len(u.chnRowOpens) < len(rows) {
 		u.chnRowOpens = make([]widget.Clickable, len(rows))
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Search: &u.chnSearchEd, Av: u.avatar}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Search: &u.chnSearchEd, Av: u.channelAvatar}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).

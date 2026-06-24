@@ -28,6 +28,7 @@ type chnChannel struct {
 	name     string
 	subs     string
 	jid      string
+	pic      string // URL CDN foto saluran (dari ChannelDTO.Picture); "" = inisial
 	follow   bool
 	verified bool // lencana centang (channel terverifikasi)
 }

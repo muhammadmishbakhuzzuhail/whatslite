@@ -31,6 +31,7 @@ type comSub struct {
 type comItem struct {
 	jid    string
 	name   string
+	desc   string // deskripsi komunitas (utk edit info)
 	sub    string // "N grup · Grup A, Grup B, …"
 	groups []comSub
 }
@@ -45,6 +46,7 @@ type ComCtl struct {
 	Back      *widget.Clickable
 	SubClicks []widget.Clickable                         // paralel Open.groups (tap → buka chat grup)
 	AddBtn    *widget.Clickable                          // detail: "Tambah anggota" → pemilih kontak
+	EditBtn   *widget.Clickable                          // detail: "Edit info" komunitas (nama/deskripsi)
 	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (filter komunitas); nil = tak ditampilkan
 }
 
@@ -155,6 +157,26 @@ func comDetailView(gtx layout.Context, th *material.Theme, t Theme, w int, ctl *
 				return ctl.AddBtn.Layout(gtx, row)
 			}
 			return row(gtx)
+		}),
+		// aksi "Edit info" (SetGroupSubject/Description pada komunitas induk).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if ctl.EditBtn == nil {
+				return layout.Dimensions{}
+			}
+			return ctl.EditBtn.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "editpen", 22, t.Accent) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(th, 15, "Edit info")
+							l.Color = t.Accent
+							return l.Layout(gtx)
+						}),
+					)
+				})
+			})
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(4), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

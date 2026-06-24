@@ -451,6 +451,8 @@ type UI struct {
 	comSubClicks     []widget.Clickable   // paralel sub-grup komunitas terbuka (tap → buka chat)
 	comBack          widget.Clickable     // tombol ← di detail komunitas
 	comAddBtn        widget.Clickable     // "Tambah anggota" di detail komunitas
+	comEditBtn       widget.Clickable     // "Edit info" komunitas (reuse groupEdit)
+	geTarget         string               // sasaran groupEdit non-chat (komunitas induk); "" = chat aktif
 	railMetaC        widget.Clickable     // tombol Meta AI di rail (section 1)
 	aboutToggle      widget.Clickable     // chevron buka/tutup dropdown saran Tentang
 	aboutOpen        bool                 // dropdown saran Tentang terbuka?
@@ -6979,7 +6981,7 @@ func (u *UI) communityRows() []comItem {
 				if len(names) > 0 {
 					sub += " · " + strings.Join(names, ", ")
 				}
-				out = append(out, comItem{jid: c.JID, name: c.Name, sub: sub, groups: groups})
+				out = append(out, comItem{jid: c.JID, name: c.Name, desc: c.Description, sub: sub, groups: groups})
 			}
 			u.chMu.Lock()
 			u.comCache, u.comAt, u.comFetching = out, time.Now(), false
@@ -7026,6 +7028,7 @@ func (u *UI) comCtl(rows []comItem) *ComCtl {
 			}
 			ctl.SubClicks = u.comSubClicks[:len(ctl.Open.groups)]
 			ctl.AddBtn = &u.comAddBtn
+			ctl.EditBtn = &u.comEditBtn
 		} else {
 			u.comOpen = "" // komunitas hilang → kembali ke daftar
 		}
@@ -7045,6 +7048,21 @@ func (u *UI) handleCommunities(gtx layout.Context, rows []comItem) {
 			u.gcSel = map[string]bool{}
 			u.gcNameEd.SetText("")
 			u.overlay = "groupcreate"
+		}
+	}
+	for u.comEditBtn.Clicked(gtx) { // detail komunitas → edit nama/deskripsi induk (reuse groupEdit)
+		if u.comOpen != "" {
+			u.geTarget = u.comOpen
+			name, desc := "", ""
+			for i := range rows {
+				if rows[i].jid == u.comOpen {
+					name, desc = rows[i].name, rows[i].desc
+					break
+				}
+			}
+			u.gedName.SetText(name)
+			u.gedDesc.SetText(desc)
+			u.overlay = "groupedit"
 		}
 	}
 	for i := range rows {
@@ -8437,16 +8455,24 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 func (u *UI) groupEditLayer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	for u.gedCancel.Clicked(gtx) {
+		u.geTarget = ""
 		u.overlay = ""
 	}
 	for u.gedSave.Clicked(gtx) {
-		if u.core != nil && u.selected != "" {
-			if n := strings.TrimSpace(u.gedName.Text()); n != "" {
-				u.core.SetGroupSubject(u.selected, n)
-			}
-			u.core.SetGroupDescription(u.selected, strings.TrimSpace(u.gedDesc.Text()))
-			u.selName = strings.TrimSpace(u.gedName.Text())
+		target := u.selected // default chat terbuka; geTarget != "" → komunitas induk
+		if u.geTarget != "" {
+			target = u.geTarget
 		}
+		if u.core != nil && target != "" {
+			if n := strings.TrimSpace(u.gedName.Text()); n != "" {
+				u.core.SetGroupSubject(target, n)
+				if u.geTarget == "" {
+					u.selName = n // hanya update judul header bila mengedit chat aktif
+				}
+			}
+			u.core.SetGroupDescription(target, strings.TrimSpace(u.gedDesc.Text()))
+		}
+		u.geTarget = ""
 		u.overlay = ""
 	}
 	field := func(gtx layout.Context, ed *widget.Editor, hint string) layout.Dimensions {

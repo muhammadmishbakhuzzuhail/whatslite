@@ -56,8 +56,12 @@ func TestComputeShown(t *testing.T) {
 
 func TestDayKeyLabel(t *testing.T) {
 	now := time.Now()
-	a := now.Unix()
-	b := now.Add(3 * time.Hour).Unix() // jam beda, hari sama
+	// anchor ke TENGAH HARI agar +3 jam tak pernah lewati tengah malam (test
+	// dulu flaky: dijalankan malam, now+3h jatuh ke besok → dayKey beda).
+	y, mo, d := now.Date()
+	noon := time.Date(y, mo, d, 12, 0, 0, 0, now.Location())
+	a := noon.Unix()
+	b := noon.Add(3 * time.Hour).Unix() // 15:00 — jam beda, hari sama
 	if dayKey(a) != dayKey(b) {
 		t.Errorf("dayKey berbeda utk jam beda di hari sama")
 	}

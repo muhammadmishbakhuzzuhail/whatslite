@@ -13,6 +13,8 @@ import (
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -21,6 +23,9 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 )
+
+// pkCellTag — tag pointer per sel grid (klik-kanan → hapus dari Tersimpan).
+type pkCellTag struct{ i int }
 
 // PkItem = satu stiker tersimpan: thumbnail (di-decode in-process) + ada/tidak.
 type PkItem struct {
@@ -42,6 +47,7 @@ type PkCtl struct {
 	Cats      []string           // chip kategori (preset query); [0] = Tren (trending)
 	CatClicks []widget.Clickable // paralel Cats
 	CatActive int                // chip kategori aktif (-1 = none/cari manual)
+	OnCtx     func(idx int)      // klik-kanan sel (tab Tersimpan → hapus); nil = nonaktif
 }
 
 // PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
@@ -291,10 +297,32 @@ func pkGrid(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 					body := func(gtx layout.Context) layout.Dimensions {
 						return pkCell(gtx, th, t, cell, ctl.Items[idx], isGif, hov)
 					}
+					wrapped := body
 					if idx < len(ctl.Clicks) {
-						return ctl.Clicks[idx].Layout(gtx, body)
+						wrapped = func(gtx layout.Context) layout.Dimensions { return ctl.Clicks[idx].Layout(gtx, body) }
 					}
-					return body(gtx)
+					if ctl.OnCtx == nil { // tanpa hapus (tab Stiker/GIF) → tap saja
+						return wrapped(gtx)
+					}
+					// klik-kanan → hapus dari Tersimpan.
+					macro := op.Record(gtx.Ops)
+					dims := wrapped(gtx)
+					call := macro.Stop()
+					tag := pkCellTag{idx}
+					for {
+						ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+						if !ok {
+							break
+						}
+						if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+							ctl.OnCtx(idx)
+						}
+					}
+					area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+					event.Op(gtx.Ops, tag)
+					call.Add(gtx.Ops)
+					area.Pop()
+					return dims
 				}))
 			}
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, cellChildren...)

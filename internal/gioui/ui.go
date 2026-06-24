@@ -2893,6 +2893,17 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 			}
 		}
 		ctl.Clicks = u.onlineClicks
+		ctl.OnCtx = func(idx int) { // klik-kanan → hapus dari koleksi
+			if idx < 0 || idx >= len(entries) || u.core == nil {
+				return
+			}
+			e := entries[idx]
+			if e.gif {
+				u.core.DeleteSavedGif(e.hash)
+			} else {
+				u.core.DeleteSavedSticker(e.hash)
+			}
+		}
 		return ctl
 	}
 	for { // submit di kotak cari → muat ulang

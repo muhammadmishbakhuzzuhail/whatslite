@@ -132,6 +132,8 @@ type UI struct {
 	cgCache                       []cpGroup
 	srCache                       []stpItem
 	crCache                       []spCall
+	callCtxID, callCtxName        string           // sasaran menu konteks log panggilan
+	callDelOne, callClearAll      widget.Clickable // aksi menu: hapus entri / bersihkan semua
 	chCache                       []chnChannel
 	comCache                      []comItem
 	comFetching                   bool // komunitas sedang di-fetch (async)
@@ -1371,7 +1373,64 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.memberCtxLayer(gtx)
 	case "joinlink":
 		u.joinLinkLayer(gtx)
+	case "callctx":
+		u.callCtxLayer(gtx)
 	}
+}
+
+// callCtxLayer — menu konteks log panggilan (klik-kanan baris): Hapus entri ini /
+// Bersihkan seluruh log. core.DeleteCall/ClearCallLog + invalidasi cache.
+func (u *UI) callCtxLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	refresh := func() { u.crCache = nil } // paksa callRows refetch
+	for u.callDelOne.Clicked(gtx) {
+		if u.core != nil && u.callCtxID != "" {
+			u.core.DeleteCall(u.callCtxID)
+		}
+		refresh()
+		u.overlay = ""
+	}
+	for u.callClearAll.Clicked(gtx) {
+		if u.core != nil {
+			u.core.ClearCallLog()
+		}
+		refresh()
+		u.overlay = ""
+	}
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	item := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(300)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(6), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13, orDash(u.callCtxName))
+					l.Color, l.MaxLines = u.t.Text2, 1
+					return l.Layout(gtx)
+				})
+			}),
+			item(&u.callDelOne, "Hapus dari log", u.t.Text),
+			item(&u.callClearAll, "Bersihkan log panggilan", red),
+		)
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
 }
 
 // dispOptions — pilihan timer pesan sementara WhatsApp (label + detik).
@@ -3629,7 +3688,14 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		}
 		return SettingsView(gtx, u.th, u.t, ctl)
 	case "calls":
-		return SidePanesView(gtx, u.th, u.t, u.callRows())
+		rows := u.callRows()
+		onCtx := func(idx int) {
+			if idx >= 0 && idx < len(rows) {
+				u.callCtxID, u.callCtxName = rows[idx].id, rows[idx].name
+				u.overlay = "callctx"
+			}
+		}
+		return SidePanesView(gtx, u.th, u.t, rows, onCtx)
 	case "contacts":
 		groups := u.contactGroups()
 		u.handleContactsPane(gtx)
@@ -7082,6 +7148,7 @@ func (u *UI) callRows() []spCall {
 	out := make([]spCall, 0, len(cs))
 	for _, c := range cs {
 		out = append(out, spCall{
+			id:     c.ID,
 			name:   c.Name,
 			time:   time.Unix(c.TS, 0).Format("15.04"),
 			video:  c.Video,

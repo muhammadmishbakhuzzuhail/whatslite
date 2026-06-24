@@ -49,6 +49,24 @@ func isPhoneLike(s string) bool {
 	return hasDigit
 }
 
+// DeleteCall menghapus satu entri dari log panggilan.
+func (a *App) DeleteCall(id string) {
+	if a.store == nil || id == "" {
+		return
+	}
+	_ = a.store.DeleteCall(a.ctx, id)
+	a.emit("wa:callupdate", "")
+}
+
+// ClearCallLog mengosongkan seluruh log panggilan.
+func (a *App) ClearCallLog() {
+	if a.store == nil {
+		return
+	}
+	_ = a.store.ClearCalls(a.ctx)
+	a.emit("wa:callupdate", "")
+}
+
 // RejectCall menolak panggilan masuk (callID) dari jid, lalu tandai log "rejected".
 func (a *App) RejectCall(jid, callID string) {
 	if a.eng == nil {

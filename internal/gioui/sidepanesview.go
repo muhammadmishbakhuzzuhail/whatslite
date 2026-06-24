@@ -12,24 +12,31 @@ import (
 	"image/color"
 
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 )
 
-// spCall = satu baris demo panggilan.
+// spCall = satu baris panggilan.
 type spCall struct {
+	id     string // id log (utk hapus); "" = demo
 	name   string
 	time   string
 	video  bool
 	missed bool
 }
 
+// spCallTag — tag pointer per baris panggilan (klik-kanan → menu konteks).
+type spCallTag struct{ i int }
+
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
-func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall) layout.Dimensions {
+func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, onCtx func(idx int)) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -53,9 +60,31 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 			return layout.Inset{Top: unit.Dp(4), Bottom: unit.Dp(4), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				children := make([]layout.FlexChild, 0, len(calls))
 				for i := range calls {
-					c := calls[i]
+					c, idx := calls[i], i
 					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return spCallRow(gtx, th, t, c)
+						macro := op.Record(gtx.Ops)
+						dims := spCallRow(gtx, th, t, c)
+						call := macro.Stop()
+						// klik-kanan baris → menu konteks (Hapus / Bersihkan). Demo (onCtx nil) → non-interaktif.
+						if onCtx != nil && c.id != "" {
+							tag := spCallTag{idx}
+							for {
+								ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+								if !ok {
+									break
+								}
+								if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+									onCtx(idx)
+								}
+							}
+							area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+							event.Op(gtx.Ops, tag)
+							call.Add(gtx.Ops)
+							area.Pop()
+						} else {
+							call.Add(gtx.Ops)
+						}
+						return dims
 					}))
 				}
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)

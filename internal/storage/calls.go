@@ -39,6 +39,18 @@ func (s *Store) SetCallStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+// DeleteCall menghapus satu entri log panggilan.
+func (s *Store) DeleteCall(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM calls WHERE id=?`, id)
+	return err
+}
+
+// ClearCalls mengosongkan seluruh log panggilan.
+func (s *Store) ClearCalls(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM calls`)
+	return err
+}
+
 // ListCalls mengembalikan log panggilan terbaru (maks 200).
 func (s *Store) ListCalls(ctx context.Context) ([]Call, error) {
 	rows, err := s.db.QueryContext(ctx,

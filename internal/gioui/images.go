@@ -22,6 +22,12 @@ import (
 	_ "golang.org/x/image/webp" // decode stiker .webp (statis) via image.Decode
 )
 
+// gifAnim — frame animasi GIF ter-decode (auto-loop di thumbnail bubble).
+type gifAnim struct {
+	frames []paint.ImageOp
+	delays []int
+}
+
 // gifFrames: byte GIF → frame-frame ter-komposit (paint.ImageOp) + delay(ms) +
 // ukuran. Pure-Go (stdlib image/gif). Disposal disederhanakan (akumulasi Over —
 // benar utk "keep" yg paling umum). Animasi: pilih frame per waktu.

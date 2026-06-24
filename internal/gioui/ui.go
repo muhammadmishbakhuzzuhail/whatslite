@@ -436,6 +436,7 @@ type UI struct {
 	photoTried       map[string]time.Time     // jid → waktu coba terakhir (retry stlh cooldown bila gagal)
 
 	media      map[string]paint.ImageOp // thumbnail media bubble (msgID → op)
+	mediaGif   map[string]gifAnim       // msgID → frame animasi (GIF .gif asli; auto-loop di bubble)
 	mediaMu    sync.Mutex
 	mediaTried map[string]bool // msgID yg sudah dicoba ambil
 
@@ -765,6 +766,7 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.photos = map[string]paint.ImageOp{}
 	u.photoTried = map[string]time.Time{}
 	u.media = map[string]paint.ImageOp{}
+	u.mediaGif = map[string]gifAnim{}
 	u.mediaTried = map[string]bool{}
 	u.dispTimer = map[string]int{}
 	u.drafts = map[string]string{}
@@ -5311,6 +5313,19 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 	u.mediaMu.Unlock()
 	go func() {
 		b := u.core.MediaBytes(chat, id)
+		// GIF .gif ASLI (magic "GIF8") → decode frame utuh utk auto-loop di bubble.
+		// (GIF WA biasanya mp4 / stiker webp-animasi → tak kena sini; tetap poster.)
+		if len(b) >= 6 && (string(b[:6]) == "GIF89a" || string(b[:6]) == "GIF87a") {
+			if frames, delays, _, _ := gifFrames(b); len(frames) >= 1 {
+				u.mediaMu.Lock()
+				if len(frames) > 1 {
+					u.mediaGif[id] = gifAnim{frames: frames, delays: delays}
+				}
+				u.media[id] = frames[0] // frame-0 utk ukuran + fallback
+				u.mediaMu.Unlock()
+				return
+			}
+		}
 		img := decodeImage(b)
 		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
 			ext := ".mp4"
@@ -5336,7 +5351,17 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 	u.ensureMedia(u.selected, m.ID, m.Type)
 	u.mediaMu.Lock()
 	iop, ok := u.media[m.ID]
+	anim, animated := u.mediaGif[m.ID]
 	u.mediaMu.Unlock()
+	if animated && len(anim.frames) > 1 { // GIF asli → frame per waktu + jadwal redraw
+		idx := frameAt(anim.delays, int(gtx.Now.UnixNano()/1e6))
+		iop, ok = anim.frames[idx], true
+		d := anim.delays[idx]
+		if d <= 0 {
+			d = 100
+		}
+		gtx.Execute(op.InvalidateCmd{At: gtx.Now.Add(time.Duration(d) * time.Millisecond)})
+	}
 
 	w := gtx.Dp(320) // ~2x dari sebelumnya (220) — thumbnail lebih besar/jelas
 	if w > gtx.Constraints.Max.X {
@@ -5373,7 +5398,8 @@ func (u *UI) mediaThumb(gtx layout.Context, m app.MessageDTO) layout.Dimensions 
 			})
 		}
 		// play-overlay (video/gif): lingkaran gelap + segitiga putih di tengah.
-		if m.Type == "video" || m.Type == "gif" {
+		// GIF asli yg SUDAH auto-loop → tak perlu tombol play.
+		if (m.Type == "video" || m.Type == "gif") && !animated {
 			gtx.Constraints.Min, gtx.Constraints.Max = box, box
 			layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				d := gtx.Dp(46)

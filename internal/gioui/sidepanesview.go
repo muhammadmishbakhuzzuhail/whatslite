@@ -27,6 +27,7 @@ import (
 // spCall = satu baris panggilan.
 type spCall struct {
 	id     string // id log (utk hapus); "" = demo
+	jid    string // kontak (utk tap → buka chat)
 	name   string
 	time   string
 	video  bool

@@ -133,8 +133,10 @@ type UI struct {
 	srCache                       []stpItem
 	crCache                       []spCall
 	callCtxID, callCtxName        string             // sasaran menu konteks log panggilan
+	callCtxJID, callCtxInfo       string             // jid kontak + baris info (jenis·status·waktu)
 	callDelOne, callClearAll      widget.Clickable   // aksi menu: hapus entri / bersihkan semua
-	callRowClicks                 []widget.Clickable // hover per-baris panggilan (gaya kartu)
+	callOpenChat                  widget.Clickable   // aksi menu: buka chat kontak
+	callRowClicks                 []widget.Clickable // tap → buka chat + hover (gaya kartu)
 	chCache                       []chnChannel
 	comCache                      []comItem
 	comFetching                   bool // komunitas sedang di-fetch (async)
@@ -1386,6 +1388,10 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 func (u *UI) callCtxLayer(gtx layout.Context) layout.Dimensions {
 	paint.FillShape(gtx.Ops, color.NRGBA{A: 130}, clip.Rect{Max: gtx.Constraints.Max}.Op())
 	refresh := func() { u.crCache = nil } // paksa callRows refetch
+	for u.callOpenChat.Clicked(gtx) {
+		u.openCallChat(u.callCtxJID, u.callCtxName)
+		u.overlay = ""
+	}
 	for u.callDelOne.Clicked(gtx) {
 		if u.core != nil && u.callCtxID != "" {
 			u.core.DeleteCall(u.callCtxID)
@@ -1418,13 +1424,29 @@ func (u *UI) callCtxLayer(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 		macro := op.Record(gtx.Ops)
 		dims := layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			// header: nama + baris info panggilan (jenis · status · waktu).
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(6), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					l := material.Label(u.th, 13, orDash(u.callCtxName))
-					l.Color, l.MaxLines = u.t.Text2, 1
-					return l.Layout(gtx)
+				return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(8), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 15, orDash(u.callCtxName))
+							l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 1
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if u.callCtxInfo == "" {
+								return layout.Dimensions{}
+							}
+							return layout.Inset{Top: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 12.5, u.callCtxInfo)
+								l.Color, l.MaxLines = u.t.Text2, 1
+								return l.Layout(gtx)
+							})
+						}),
+					)
 				})
 			}),
+			item(&u.callOpenChat, "Buka chat", u.t.Text),
 			item(&u.callDelOne, "Hapus dari log", u.t.Text),
 			item(&u.callClearAll, "Bersihkan log panggilan", red),
 		)
@@ -2638,6 +2660,47 @@ func (u *UI) gcContactRow(gtx layout.Context, c app.ContactRowDTO, sel bool) lay
 	})
 }
 
+// handleCalls — tap baris panggilan → buka chat (DM) dgn kontak itu. whatsmeow tak
+// bisa originasi panggilan (tak ada WebRTC), jadi "telepon balik" = buka chat.
+func (u *UI) handleCalls(gtx layout.Context, rows []spCall) {
+	for i := range rows {
+		if i >= len(u.callRowClicks) {
+			break
+		}
+		if u.callRowClicks[i].Clicked(gtx) {
+			u.openCallChat(rows[i].jid, rows[i].name)
+		}
+	}
+}
+
+// openCallChat — buka percakapan kontak dari pane Panggilan / menu konteksnya.
+func (u *UI) openCallChat(jid, name string) {
+	if jid == "" {
+		return
+	}
+	u.selected, u.selName, u.selGroup = jid, name, false
+	u.view = "chats"
+	if u.core != nil {
+		u.core.OpenChat(jid)
+		u.messages = u.core.GetMessages(jid)
+		u.prefetchHistory(jid)
+	}
+	u.msgList.ScrollTo(len(u.messages))
+}
+
+// callInfoLine — baris info panggilan "Jenis · Status · Waktu" (read-only).
+func callInfoLine(c spCall) string {
+	kind := "Suara"
+	if c.video {
+		kind = "Video"
+	}
+	status := "Masuk"
+	if c.missed {
+		status = "Tak terjawab"
+	}
+	return kind + " · " + status + " · " + c.time
+}
+
 // stickerCtl membangun controller picker stiker (data nyata) + tangani klik kirim.
 // nil bila demo (core nil) → grid placeholder.
 func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
@@ -3787,9 +3850,12 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		if len(u.callRowClicks) < len(rows) {
 			u.callRowClicks = make([]widget.Clickable, len(rows))
 		}
+		u.handleCalls(gtx, rows) // tap baris → buka chat (panggilan tak bisa diorigin engine)
 		onCtx := func(idx int) {
 			if idx >= 0 && idx < len(rows) {
-				u.callCtxID, u.callCtxName = rows[idx].id, rows[idx].name
+				c := rows[idx]
+				u.callCtxID, u.callCtxName, u.callCtxJID = c.id, c.name, c.jid
+				u.callCtxInfo = callInfoLine(c)
 				u.overlay = "callctx"
 			}
 		}
@@ -7271,6 +7337,7 @@ func (u *UI) callRows() []spCall {
 	for _, c := range cs {
 		out = append(out, spCall{
 			id:     c.ID,
+			jid:    c.JID,
 			name:   c.Name,
 			time:   time.Unix(c.TS, 0).Format("15.04"),
 			video:  c.Video,

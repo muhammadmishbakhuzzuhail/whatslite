@@ -494,6 +494,9 @@ type UI struct {
 	ctxItems [12]widget.Clickable // item menu (base6 + salin + edit/unduh + pin + pilih + terjemah)
 
 	lightboxMsg   string           // msgID gambar yg dibuka di lightbox ("" = tutup)
+	lbFullMsg     string           // msgID yg sedang di-decode full-res utk lightbox
+	lbFullOp      paint.ImageOp    // foto full-res transien (lightbox saja; tak di-cache)
+	lbFullHas     bool             // lbFullOp siap?
 	lightboxCap   string           // caption gambar lightbox
 	lightboxClose widget.Clickable // tombol ✕ tutup lightbox
 	lightboxSave  widget.Clickable // tombol unduh → simpan media ke disk
@@ -1452,6 +1455,7 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 	case "lightbox":
 		for u.lightboxClose.Clicked(gtx) {
 			u.overlay, u.lightboxMsg, u.lightboxCap = "", "", ""
+			u.lbFullMsg, u.lbFullHas, u.lbFullOp = "", false, paint.ImageOp{} // lepas full-res transien
 		}
 		for u.lightboxSave.Clicked(gtx) { // unduh → simpan ke disk (dialog native)
 			if u.OnSaveMedia != nil && u.lightboxMsg != "" {
@@ -1466,9 +1470,12 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		paint.FillShape(gtx.Ops, color.NRGBA{A: 235}, lbRect)
 		ctl := &LbCtl{Caption: u.lightboxCap, Close: &u.lightboxClose, Save: &u.lightboxSave}
 		if u.lightboxMsg != "" {
-			u.ensureMedia(u.selected, u.lightboxMsg, "image")
+			u.ensureMedia(u.selected, u.lightboxMsg, "image") // thumb 640 (fallback cepat)
+			u.ensureLightboxFull(u.selected, u.lightboxMsg)   // full-res transien (tajam)
 			u.mediaMu.Lock()
-			if imgOp, ok := u.media[u.lightboxMsg]; ok {
+			if u.lbFullHas && u.lbFullMsg == u.lightboxMsg { // utamakan full-res
+				ctl.Img, ctl.Has = u.lbFullOp, true
+			} else if imgOp, ok := u.media[u.lightboxMsg]; ok {
 				ctl.Img, ctl.Has = imgOp, true
 			}
 			u.mediaMu.Unlock()
@@ -3152,7 +3159,7 @@ func (u *UI) ensureRemoteThumb(url string) {
 	u.photoMu.Unlock()
 	go func() {
 		b := decodeDataURI(u.core.FetchRemoteMedia(url))
-		img := decodeImage(b)
+		img := decodeImageScaled(b, 320) // thumb online → downscale (hemat RAM)
 		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
 			ext := ".gif"
 			if strings.Contains(url, ".webp") {
@@ -3196,7 +3203,7 @@ func (u *UI) ensureSavedThumb(hash string, gif bool) {
 		} else {
 			b = u.core.StickerBytes(hash)
 		}
-		img := decodeImage(b)
+		img := decodeImageScaled(b, 320) // thumb tersimpan → downscale
 		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
 			img = u.OnMediaPoster(b, ext)
 		}
@@ -4837,7 +4844,7 @@ func (u *UI) ensureAvatar(name, jid string) {
 	u.photoMu.Unlock()
 	go func() {
 		b := u.core.AvatarBytes(jid)
-		img := decodeImage(b)
+		img := decodeImageScaled(b, 256) // avatar → downscale (tampil ≤200dp)
 		if img == nil {
 			return // gagal/kosong → cooldown lewat ensureAvatar berikutnya
 		}
@@ -5121,6 +5128,33 @@ func (u *UI) waveform(gtx layout.Context, prog float32) layout.Dimensions {
 }
 
 // stickerBubble — stiker: gambar ~128 tanpa gelembung (bg transparan di bubble()).
+// ensureLightboxFull — decode foto FULL-RES (transien, TAK di-cache) utk lightbox
+// agar tajam saat layar penuh, sementara bubble cuma pegang thumb 640 (hemat RAM).
+func (u *UI) ensureLightboxFull(chat, id string) {
+	if u.core == nil || id == "" {
+		return
+	}
+	u.mediaMu.Lock()
+	if u.lbFullMsg == id { // sudah/sedang utk id ini
+		u.mediaMu.Unlock()
+		return
+	}
+	u.lbFullMsg, u.lbFullHas, u.lbFullOp = id, false, paint.ImageOp{}
+	u.mediaMu.Unlock()
+	go func() {
+		img := decodeImage(u.core.MediaBytes(chat, id)) // full-res
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.mediaMu.Lock()
+		if u.lbFullMsg == id {
+			u.lbFullOp, u.lbFullHas = op, true
+		}
+		u.mediaMu.Unlock()
+	}()
+}
+
 // mediaTimeChip — chip waktu + centang status di pojok kanan-bawah `box` (overlay
 // ala WhatsApp). Dipakai media tanpa-caption + sticker. tick warnai status.
 func (u *UI) mediaTimeChip(gtx layout.Context, m app.MessageDTO, box image.Point) {
@@ -5766,7 +5800,7 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 				return
 			}
 		}
-		img := decodeImage(b)
+		img := decodeImageScaled(b, 640) // bubble media → downscale ke ukuran tampil (hemat RAM)
 		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
 			ext := ".mp4"
 			if kind == "sticker" {
@@ -6731,7 +6765,7 @@ func (u *UI) ensureLinkPreview(url string) {
 		u.linkPrev[url] = dto
 		u.linkMu.Unlock()
 		if dto.Image != "" {
-			if img := decodeImage(decodeDataURI(u.core.FetchRemoteMedia(dto.Image))); img != nil {
+			if img := decodeImageScaled(decodeDataURI(u.core.FetchRemoteMedia(dto.Image)), 320); img != nil {
 				op := paint.NewImageOp(img)
 				u.linkMu.Lock()
 				u.linkImg[url] = op

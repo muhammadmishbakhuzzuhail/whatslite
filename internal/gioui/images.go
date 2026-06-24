@@ -16,6 +16,8 @@ import (
 	"image/jpeg"
 	_ "image/png"
 
+	xdraw "golang.org/x/image/draw"
+
 	"gioui.org/f32"
 	"gioui.org/op"
 	"gioui.org/op/paint"
@@ -112,6 +114,47 @@ func decodeImage(b []byte) image.Image {
 		return nil
 	}
 	return img
+}
+
+// decodeImageScaled — seperti decodeImage tapi DI-DOWNSCALE ke sisi-terpanjang
+// maxDim sebelum dipakai (kunci hemat RAM ala Telegram: thumbnail bubble ~640px,
+// avatar ~256px — bukan foto 12MP full-res yg jadi RGBA puluhan MB). Sudah kecil →
+// dipakai apa adanya. maxDim<=0 → tanpa skala.
+func decodeImageScaled(b []byte, maxDim int) image.Image {
+	if len(b) == 0 {
+		return nil
+	}
+	if maxDim <= 0 {
+		return decodeImage(b)
+	}
+	if cfg, _, err := image.DecodeConfig(bytes.NewReader(b)); err == nil && cfg.Width <= maxDim && cfg.Height <= maxDim {
+		return decodeImage(b) // sumber sudah ≤ target → tak perlu skala
+	}
+	src := decodeImage(b)
+	if src == nil {
+		return nil
+	}
+	sb := src.Bounds()
+	w, h := sb.Dx(), sb.Dy()
+	if w <= maxDim && h <= maxDim {
+		return src
+	}
+	if w >= h {
+		h = h * maxDim / w
+		w = maxDim
+	} else {
+		w = w * maxDim / h
+		h = maxDim
+	}
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.ApproxBiLinear.Scale(dst, dst.Bounds(), src, sb, xdraw.Src, nil) // src full-res dibuang stlh ini
+	return dst
 }
 
 // drawImageFill: gambar img memenuhi kotak d×d (cover, di-scale), di dalam clip

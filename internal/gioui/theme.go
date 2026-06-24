@@ -55,6 +55,7 @@ type Theme struct {
 	Hover     color.NRGBA
 	Accent    color.NRGBA
 	Tick      color.NRGBA
+	Link      color.NRGBA // warna tautan (biru) di teks bubble
 	Selected  color.NRGBA
 }
 
@@ -73,7 +74,7 @@ func newTheme(dark bool) Theme {
 			SearchBg: hex("#202c33"), Wallpaper: hex("#0b141a"), InBg: hex("#202c33"),
 			OutBg: hex("#005c4b"), Text: hex("#e9edef"), Text2: hex("#8696a0"),
 			Hover: hex("#2a3942"), Accent: hex("#00a884"), Tick: hex("#53bdeb"),
-			Selected: hex("#2a3942"),
+			Link: hex("#53bdeb"), Selected: hex("#2a3942"),
 		}
 	}
 	// WhatsApp Web light (resmi): panel #fff, list-header #f0f2f5, bubble-out
@@ -85,7 +86,7 @@ func newTheme(dark bool) Theme {
 		SearchBg: hex("#f0f2f5"), Wallpaper: hex("#efeae2"), InBg: hex("#ffffff"),
 		OutBg: hex("#d9fdd3"), Text: hex("#111b21"), Text2: hex("#667781"),
 		Hover: hex("#f5f6f6"), Accent: hex("#00a884"), Tick: hex("#53bdeb"),
-		Selected: hex("#f0f2f5"),
+		Link: hex("#027eb5"), Selected: hex("#f0f2f5"),
 	}
 }
 

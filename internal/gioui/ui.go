@@ -203,6 +203,8 @@ type UI struct {
 	transMu    sync.Mutex
 	transText  map[string]string // msgID → teks terjemahan (async)
 	transTried map[string]bool   // msgID sudah dicoba terjemah
+	expanded   map[string]bool   // msgID → teks panjang dibentangkan (show more/less)
+	moreClicks map[string]*widget.Clickable
 
 	// pratinjau media sebelum kirim (pilih berkas → overlay caption + sekali-lihat).
 	pendMu      sync.Mutex
@@ -740,6 +742,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.linkTried = map[string]bool{}
 	u.transText = map[string]string{}
 	u.transTried = map[string]bool{}
+	u.expanded = map[string]bool{}
+	u.moreClicks = map[string]*widget.Clickable{}
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -852,6 +856,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m24", Dir: "in", Type: "sticker", Time: "08.21", Sender: "Rian", Ts: now},
 		{ID: "m25", Dir: "out", Type: "gif", Time: "08.22", Status: "delivered", Ts: now},
 		{ID: "m26", Dir: "in", Type: "text", Text: "Format: *tebal* _miring_ ~coret~ ```mono``` cek https://wa.me/123 ya", Time: "08.23", Sender: "Budi Santoso", Ts: now},
+		{ID: "m27", Dir: "in", Type: "text", Sender: "Faisal TI2", Time: "08.24", Ts: now, Text: "‼️ADVOUPDATE‼️\n[INFO ADVOKASI: SURAT EDARAN PEMBAYARAN UKT SEMESTER GASAL 2026/2027]\n\nHalo sobat ILKOM ✨\nGimana nih kabarnya temen-temen? 😊\n\nBerdasarkan SE Nomor: B/7933/UN37/TM.01.00/2026 tentang Surat Edaran Pembayaran UKT Semester Gasal 2026/2027, terlampir...\n\n• Informasi Pengurangan UKT\n• Informasi Angsuran UKT\n• Timeline pembayaran UKT\n\nUntuk informasi selengkapnya, dapat dilihat pada link berikut.\nhttps://drive.google.com/file/d/1lnR0uT6apnBEIFB1xLhXQZabvmupmU6L/view?usp=drive_link\n\nDemikian informasi yang kami sampaikan, Terima kasih ✨\n\n———\n#HIMAILKOM2026\n#KabinetAstasae\n#DivisiEksternal"},
 	}
 }
 
@@ -4478,6 +4483,16 @@ func (u *UI) mentionText(gtx layout.Context, text string, mentions []app.Mention
 // formattedText — renderer teks kaya: parse marker WhatsApp → run bergaya, warnai
 // URL (link, bisa diklik) + @mention (accent). id != "" → state interaktif per-pesan
 // (deteksi klik URL → OnOpenURL). Dipakai bubble chat & post channel.
+// clk — clickable per-id (lazy) utk peta tombol bubble (show-more / terjemah).
+func (u *UI) clk(m map[string]*widget.Clickable, id string) *widget.Clickable {
+	c := m[id]
+	if c == nil {
+		c = &widget.Clickable{}
+		m[id] = c
+	}
+	return c
+}
+
 func (u *UI) formattedText(gtx layout.Context, text string, mentions []app.MentionDTO, size unit.Sp, id string) layout.Dimensions {
 	base := richtext.SpanStyle{Size: size, Color: u.t.Text}
 	spans := u.richSpans(text, mentions, base)
@@ -4581,9 +4596,11 @@ func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.Spa
 			st.Font.Typeface = "Go Mono"
 		}
 		acc := st
-		acc.Color = u.t.Accent
-		// pisah run jadi span normal vs accent (URL / @mention).
-		for _, sp := range coloredSpans(r.text, mentions, st, acc) {
+		acc.Color = u.t.Accent // @mention → accent
+		link := st
+		link.Color = u.t.Link // URL → biru
+		// pisah run jadi span normal vs tautan(biru)/mention(accent).
+		for _, sp := range coloredSpans(r.text, mentions, st, link, acc) {
 			if r.strike {
 				sp.Content = strikeThrough(sp.Content)
 			}
@@ -4599,7 +4616,7 @@ func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.Spa
 
 // coloredSpans — pisah `text` pada token accent (URL via reURL + "@Name" mention),
 // warna accent; sisanya pakai `base`. Pertahankan Font dari base (gaya format).
-func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.SpanStyle) []richtext.SpanStyle {
+func coloredSpans(text string, mentions []app.MentionDTO, base, linkSt, acc richtext.SpanStyle) []richtext.SpanStyle {
 	type tok struct {
 		s, e  int
 		isURL bool
@@ -4640,11 +4657,12 @@ func coloredSpans(text string, mentions []app.MentionDTO, base, acc richtext.Spa
 			spans = append(spans, s)
 		}
 		a := acc
-		a.Content = text[t.s:t.e]
-		if t.isURL { // URL → bisa diklik (buka browser) + metadata url
+		if t.isURL { // URL → biru + bisa diklik (buka browser) + metadata url
+			a = linkSt
 			a.Interactive = true
 			a.Set("url", text[t.s:t.e])
 		}
+		a.Content = text[t.s:t.e]
 		spans = append(spans, a)
 		i = t.e
 	}
@@ -7419,6 +7437,16 @@ func (u *UI) pinnedBarView(gtx layout.Context, pinned []app.MessageDTO) layout.D
 	})
 }
 
+// handleMsgExtras — proses klik "Baca selengkapnya/Sembunyikan" DI LUAR layout
+// list (Clicked di dalam closure material.List tak selalu memicu).
+func (u *UI) handleMsgExtras(gtx layout.Context) {
+	for id, c := range u.moreClicks {
+		for c.Clicked(gtx) {
+			u.expanded[id] = !u.expanded[id]
+		}
+	}
+}
+
 func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	drawWallpaper(gtx, u.t)
 	if u.view != "channels" {
@@ -7430,8 +7458,9 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 	if u.selected == "" {
 		return EmptyConversationView(gtx, u.th, u.t) // splash saja (tanpa pil demo)
 	}
-	u.syncDraft()      // ganti chat → simpan draft lama, muat draft chat baru
-	u.maybeLoadOlder() // gulir mendekati atas → minta history lama (lazy, throttled)
+	u.syncDraft()          // ganti chat → simpan draft lama, muat draft chat baru
+	u.maybeLoadOlder()     // gulir mendekati atas → minta history lama (lazy, throttled)
+	u.handleMsgExtras(gtx) // toggle "Baca selengkapnya" (DI LUAR list, ala handleChatClicks)
 	pinned := u.pinnedMsgs()
 	if u.pinnedIdx >= len(pinned) {
 		u.pinnedIdx = 0
@@ -7796,7 +7825,19 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	}
 	firstOfRun := idx == 0 || !sameRun(u.messages[idx-1], m)
 
-	maxW := gtx.Constraints.Max.X * 66 / 100
+	// lebar bubble: 66% area, TAPI dibatasi absolut ~560dp (jendela lebar tak bikin
+	// baris super-panjang) + sisakan ruang avatar di grup.
+	avail := gtx.Constraints.Max.X
+	if u.selGroup {
+		avail -= gtx.Dp(46) // gutter avatar
+	}
+	maxW := avail * 66 / 100
+	if cap := gtx.Dp(560); maxW > cap {
+		maxW = cap
+	}
+	if min := gtx.Dp(90); maxW < min {
+		maxW = min
+	}
 	// susun konten bubble
 	content := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = maxW
@@ -7901,20 +7942,56 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					if txt == "" && m.Type != "" && m.Type != "text" {
 						txt = "[" + m.Type + "]"
 					}
-					textW := func(gtx layout.Context) layout.Dimensions {
-						if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA), tanpa format
-							sz := unit.Sp(26)
-							if n == 1 {
-								sz = unit.Sp(40)
-							} else if n == 2 {
-								sz = unit.Sp(32)
-							}
-							lbl := material.Label(u.th, sz, txt)
-							lbl.Color = u.t.Text
-							return lbl.Layout(gtx)
+					// teks panjang → ringkas + "Baca selengkapnya" (show more/less).
+					runes := []rune(txt)
+					nl := strings.Count(txt, "\n")
+					isLong := (m.Type == "" || m.Type == "text") && !m.Revoked && (len(runes) > 450 || nl > 7)
+					expanded := u.expanded[m.ID]
+					disp := txt
+					if isLong && !expanded {
+						cut := string(runes) // potong: maks 6 baris ATAU 380 char, mana lebih dulu
+						if parts := strings.SplitN(cut, "\n", 7); len(parts) > 6 {
+							cut = strings.Join(parts[:6], "\n")
 						}
-						// format WhatsApp (*tebal* _miring_ ~coret~ ```mono```) + URL biru + @mention.
-						return u.formattedText(gtx, txt, m.Mentions, unit.Sp(15), m.ID)
+						if cr := []rune(cut); len(cr) > 380 {
+							cut = string(cr[:380])
+						}
+						disp = strings.TrimRight(cut, " \n\t") + "…"
+					}
+					textW := func(gtx layout.Context) layout.Dimensions {
+						body := func(gtx layout.Context) layout.Dimensions {
+							if n := emojiOnlyCount(txt); n > 0 { // 1-3 emoji saja → diperbesar (ala WA), tanpa format
+								sz := unit.Sp(26)
+								if n == 1 {
+									sz = unit.Sp(40)
+								} else if n == 2 {
+									sz = unit.Sp(32)
+								}
+								lbl := material.Label(u.th, sz, txt)
+								lbl.Color = u.t.Text
+								return lbl.Layout(gtx)
+							}
+							// format WhatsApp (*tebal* _miring_ ~coret~ ```mono```) + URL biru + @mention.
+							return u.formattedText(gtx, disp, m.Mentions, unit.Sp(15), m.ID)
+						}
+						if !isLong {
+							return body(gtx)
+						}
+						label := "Baca selengkapnya"
+						if expanded {
+							label = "Sembunyikan"
+						}
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(body),
+							layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return u.clk(u.moreClicks, m.ID).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 13.5, label)
+									l.Color, l.Font.Weight = u.t.Text2, font.Medium
+									return l.Layout(gtx)
+								})
+							}),
+						)
 					}
 					var card layout.Widget
 					if url := firstURL(txt); url != "" { // pratinjau tautan di atas teks
@@ -8024,15 +8101,45 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if firstOfRun {
 		gapTop = unit.Dp(8)
 	}
+	// avatar gutter (grup): foto pengirim di sisi pengirim, sejajar bawah bubble.
+	// Hanya di bubble TERAKHIR run (avatarnya "menempel" pesan terbawah, ala WhatsApp);
+	// bubble lain dlm run sisakan gutter kosong agar sejajar. Berlaku in + out (saya).
+	lastOfRun := idx == len(u.messages)-1 || !sameRun(m, u.messages[idx+1])
+	avGutter := func(gtx layout.Context) layout.Dimensions {
+		d := gtx.Dp(28)
+		if !lastOfRun || noBubble {
+			return layout.Dimensions{Size: image.Pt(d, d)}
+		}
+		name, jid := m.Sender, m.SenderID
+		if out {
+			name, jid = u.profName, u.selfJID
+			if name == "" {
+				name = "Saya"
+			}
+		}
+		return u.avatar(gtx, name, jid, 28)
+	}
+	bubbleCol := func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical, Alignment: colAlign}.Layout(gtx,
+			layout.Rigid(bubbleBody),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return u.reactionPills(gtx, m)
+			}),
+		)
+	}
 	wrap := func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: gapTop, Bottom: unit.Dp(1)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			if !u.selGroup { // DM → tanpa avatar (spt sekarang)
+				return align.Layout(gtx, bubbleCol)
+			}
 			return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical, Alignment: colAlign}.Layout(gtx,
-					layout.Rigid(bubbleBody),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return u.reactionPills(gtx, m)
-					}),
-				)
+				sp := layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout)
+				if out { // pesan saya → avatar di kanan
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+						layout.Rigid(bubbleCol), sp, layout.Rigid(avGutter))
+				}
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+					layout.Rigid(avGutter), sp, layout.Rigid(bubbleCol))
 			})
 		})
 	}

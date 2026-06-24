@@ -878,6 +878,7 @@ func demoMessages() []app.MessageDTO {
 		{ID: "m25", Dir: "out", Type: "gif", Time: "08.22", Status: "delivered", Ts: now},
 		{ID: "m26", Dir: "in", Type: "text", Text: "Format: *tebal* _miring_ ~coret~ ```mono``` cek https://wa.me/123 ya", Time: "08.23", Sender: "Budi Santoso", Ts: now},
 		{ID: "m27", Dir: "in", Type: "text", Sender: "Faisal TI2", Time: "08.24", Ts: now, Text: "‼️ADVOUPDATE‼️\n[INFO ADVOKASI: SURAT EDARAN PEMBAYARAN UKT SEMESTER GASAL 2026/2027]\n\nHalo sobat ILKOM ✨\nGimana nih kabarnya temen-temen? 😊\n\nBerdasarkan SE Nomor: B/7933/UN37/TM.01.00/2026 tentang Surat Edaran Pembayaran UKT Semester Gasal 2026/2027, terlampir...\n\n• Informasi Pengurangan UKT\n• Informasi Angsuran UKT\n• Timeline pembayaran UKT\n\nUntuk informasi selengkapnya, dapat dilihat pada link berikut.\nhttps://drive.google.com/file/d/1lnR0uT6apnBEIFB1xLhXQZabvmupmU6L/view?usp=drive_link\n\nDemikian informasi yang kami sampaikan, Terima kasih ✨\n\n———\n#HIMAILKOM2026\n#KabinetAstasae\n#DivisiEksternal"},
+		{ID: "m28", Dir: "out", Type: "text", Text: "Ok", Time: "08.25", Status: "read", Ts: now, QuoteID: "m27", QuoteName: "Faisal TI2", QuoteText: "INFO ADVOKASI: SURAT EDARAN PEMBAYARAN UKT"},
 	}
 }
 
@@ -8019,6 +8020,24 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	// susun konten bubble
 	content := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = maxW
+		// balasan (ada kutipan): set lebar kolom = lebar kutipan (min 220, cap maxW).
+		// Ini (a) bikin bubble ~selebar kutipan spt WhatsApp & (b) jam rata kanan-BAWAH
+		// (metaRow E mengisi lebar kolom, tak melayang di tengah).
+		if !m.Revoked && (m.QuoteName != "" || m.QuoteText != "") {
+			qg := gtx
+			qg.Constraints.Min = image.Point{}
+			qm := op.Record(gtx.Ops)
+			qd := u.quoteBlock(qg, m, out)
+			qm.Stop() // ukur saja, jangan gambar
+			mw := qd.Size.X
+			if min := gtx.Dp(220); mw < min {
+				mw = min
+			}
+			if mw > maxW {
+				mw = maxW
+			}
+			gtx.Constraints.Min.X = mw
+		}
 		return layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(9), Right: unit.Dp(9)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			// metaRow — jam + "diedit" + centang status (dipakai inline ATAU baris bawah).
 			metaRow := func(gtx layout.Context) layout.Dimensions {
@@ -8058,7 +8077,8 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return layout.Inset{Bottom: unit.Dp(3)}.Layout(gtx, lbl.Layout) // jarak nama→isi
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if m.QuoteName == "" && m.QuoteText == "" {
+					// pesan ditarik → TANPA kutipan (cuma "Pesan ini telah dihapus").
+					if m.Revoked || (m.QuoteName == "" && m.QuoteText == "") {
 						return layout.Dimensions{}
 					}
 					qb := func(gtx layout.Context) layout.Dimensions { return u.quoteBlock(gtx, m, out) }
@@ -8179,7 +8199,9 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					trBlock := u.translatedWidget(m.ID) // terjemahan di bawah teks
 					if card == nil && trBlock == nil {
 						// teks 1-baris pendek → jam INLINE di kanan baris (ala WhatsApp).
-						if (m.Type == "" || m.Type == "text") && !m.Revoked {
+						// TAPI kalau ada kutipan, bubble lebar (selebar kutipan) → jam di
+						// kanan-BAWAH (bukan inline mepet teks pendek, biar tak melayang).
+						if (m.Type == "" || m.Type == "text") && !m.Revoked && m.QuoteName == "" && m.QuoteText == "" {
 							cg := gtx
 							cg.Constraints.Min = image.Point{}
 							tmac := op.Record(gtx.Ops)

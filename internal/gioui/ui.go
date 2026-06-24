@@ -72,10 +72,15 @@ type UI struct {
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick  widget.Clickable
 	pickerScrim   widget.Clickable // ketuk luar kartu picker → tutup
-	pkTab         int              // 0 = Stiker, 1 = GIF
+	pkTab         int              // 0 = Stiker, 1 = GIF (online: Tenor/KLIPY/Sticker.ly)
 	pkTabClicks   [2]widget.Clickable
-	gifCache      []app.SavedGifDTO
-	gifClicks     []widget.Clickable
+	gifSearchEd   widget.Editor            // cari online (submit → cari)
+	onlineKey     string                   // "tab|query" yg sedang/sudah dimuat
+	onlineGen     int                      // generasi fetch (buang hasil basi)
+	onlineItems   []app.GifDTO             // hasil online (tab+query aktif)
+	onlineClicks  []widget.Clickable       // paralel onlineItems (tap → kirim)
+	remoteThumbs  map[string]paint.ImageOp // previewURL → thumb
+	remoteTried   map[string]bool
 	stickerCache  []app.StickerDTO
 	stickerThumbs map[string]paint.ImageOp // hash → thumbnail
 	stickerTried  map[string]bool
@@ -762,6 +767,10 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.transTried = map[string]bool{}
 	u.expanded = map[string]bool{}
 	u.moreClicks = map[string]*widget.Clickable{}
+	u.remoteThumbs = map[string]paint.ImageOp{}
+	u.remoteTried = map[string]bool{}
+	u.gifSearchEd.SingleLine = true
+	u.gifSearchEd.Submit = true
 	u.pollClicks = map[string][]widget.Clickable{}
 	u.pollVoteCache = map[string]pollVoteEntry{}
 	u.stickerThumbs = map[string]paint.ImageOp{}
@@ -2536,73 +2545,119 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 	if u.core == nil {
 		return nil
 	}
-	for i := range u.pkTabClicks { // ganti tab Stiker/GIF
+	for i := range u.pkTabClicks { // ganti tab Stiker/GIF → muat ulang
 		if u.pkTabClicks[i].Clicked(gtx) {
-			u.pkTab = i
+			u.pkTab, u.onlineKey = i, ""
 		}
 	}
-	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:]}
-	if u.pkTab == 1 { // ---- GIF ----
-		if u.gifCache == nil {
-			u.gifCache = u.core.ListSavedGifs()
+	for { // submit di kotak cari → muat ulang
+		ev, ok := u.gifSearchEd.Update(gtx)
+		if !ok {
+			break
 		}
-		if len(u.gifClicks) < len(u.gifCache) {
-			u.gifClicks = make([]widget.Clickable, len(u.gifCache))
+		if _, ok := ev.(widget.SubmitEvent); ok {
+			u.onlineKey = ""
 		}
-		ctl.Empty = "Belum ada GIF — simpan GIF dari chat dulu."
-		ctl.Items = make([]PkItem, len(u.gifCache))
-		for i, g := range u.gifCache {
-			u.ensureGifThumb(g.Hash)
-			u.photoMu.Lock()
-			op, ok := u.stickerThumbs[g.Hash]
-			u.photoMu.Unlock()
-			if ok {
-				ctl.Items[i] = PkItem{Thumb: op, Has: true}
-			}
-			if i < len(u.gifClicks) {
-				for u.gifClicks[i].Clicked(gtx) { // tap GIF → kirim
-					if u.selected != "" {
-						u.core.SendSavedGif(u.selected, g.Hash)
-						u.messages = u.core.GetMessages(u.selected)
-					}
-					u.overlay, u.gifCache = "", nil
-					u.msgList.ScrollTo(len(u.messages))
-				}
-			}
-		}
-		ctl.Clicks = u.gifClicks
-		return ctl
 	}
-	// ---- Stiker ----
-	if u.stickerCache == nil {
-		u.stickerCache = u.core.ListSavedStickers()
-	}
-	if len(u.stickerClicks) < len(u.stickerCache) {
-		u.stickerClicks = make([]widget.Clickable, len(u.stickerCache))
-	}
-	ctl.Empty = "Belum ada stiker — simpan stiker dari chat dulu."
-	ctl.Items = make([]PkItem, len(u.stickerCache))
-	for i, s := range u.stickerCache {
-		u.ensureStickerThumb(s.Hash)
+	query := strings.TrimSpace(u.gifSearchEd.Text())
+	key := itoa(u.pkTab) + "|" + query
+	if u.onlineKey != key { // tab/query berubah → fetch online (async)
+		u.onlineKey = key
+		u.onlineGen++
+		gen, tab, q := u.onlineGen, u.pkTab, query
 		u.photoMu.Lock()
-		op, ok := u.stickerThumbs[s.Hash]
+		u.onlineItems = nil
+		u.photoMu.Unlock()
+		go func() {
+			var page app.GifPage
+			if tab == 1 {
+				page = u.core.SearchGifs(q, "")
+			} else {
+				page = u.core.SearchStickers(q, "")
+			}
+			u.photoMu.Lock()
+			if gen == u.onlineGen {
+				u.onlineItems = page.Items
+			}
+			u.photoMu.Unlock()
+		}()
+	}
+	u.photoMu.Lock()
+	items := u.onlineItems
+	u.photoMu.Unlock()
+	if len(u.onlineClicks) < len(items) {
+		u.onlineClicks = make([]widget.Clickable, len(items))
+	}
+	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], SearchEd: &u.gifSearchEd, Empty: "Memuat…"}
+	if items != nil {
+		ctl.Empty = "Tak ada hasil"
+	}
+	ctl.Items = make([]PkItem, len(items))
+	for i, it := range items {
+		u.ensureRemoteThumb(it.Preview)
+		u.photoMu.Lock()
+		op, ok := u.remoteThumbs[it.Preview]
 		u.photoMu.Unlock()
 		if ok {
 			ctl.Items[i] = PkItem{Thumb: op, Has: true}
 		}
-		if i < len(u.stickerClicks) {
-			for u.stickerClicks[i].Clicked(gtx) { // tap stiker → kirim
-				if u.selected != "" {
-					u.core.SendSavedSticker(u.selected, s.Hash)
-					u.messages = u.core.GetMessages(u.selected)
+		if i < len(u.onlineClicks) {
+			for u.onlineClicks[i].Clicked(gtx) { // tap → unduh penuh + kirim
+				chat, sendURL, sticker := u.selected, it.Mp4, u.pkTab == 0
+				if chat != "" {
+					go func() {
+						uri := u.core.FetchRemoteMedia(sendURL)
+						if uri == "" {
+							return
+						}
+						if sticker {
+							u.core.SendSticker(chat, uri)
+						} else {
+							u.core.SendGif(chat, uri)
+						}
+					}()
 				}
-				u.overlay, u.stickerCache = "", nil
-				u.msgList.ScrollTo(len(u.messages))
+				u.overlay = ""
 			}
 		}
 	}
-	ctl.Clicks = u.stickerClicks
+	ctl.Clicks = u.onlineClicks
 	return ctl
+}
+
+// ensureRemoteThumb — unduh + decode thumbnail preview (URL) sekali → cache.
+// GIF/webp animasi → frame poster (OnMediaPoster). Async.
+func (u *UI) ensureRemoteThumb(url string) {
+	if url == "" {
+		return
+	}
+	u.photoMu.Lock()
+	if u.remoteTried[url] {
+		u.photoMu.Unlock()
+		return
+	}
+	u.remoteTried[url] = true
+	u.photoMu.Unlock()
+	go func() {
+		b := decodeDataURI(u.core.FetchRemoteMedia(url))
+		img := decodeImage(b)
+		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
+			ext := ".gif"
+			if strings.Contains(url, ".webp") {
+				ext = ".webp"
+			} else if strings.Contains(url, ".mp4") {
+				ext = ".mp4"
+			}
+			img = u.OnMediaPoster(b, ext)
+		}
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.photoMu.Lock()
+		u.remoteThumbs[url] = op
+		u.photoMu.Unlock()
+	}()
 }
 
 // ensureGifThumb — poster GIF (mp4) via ffmpeg (OnMediaPoster) → cache (reuse

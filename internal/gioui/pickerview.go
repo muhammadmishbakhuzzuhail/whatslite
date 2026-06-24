@@ -35,7 +35,8 @@ type PkCtl struct {
 	Clicks    []widget.Clickable
 	Tab       int                // 0 = Stiker, 1 = GIF
 	TabClicks []widget.Clickable // paralel [Stiker, GIF]
-	Empty     string             // pesan saat koleksi kosong
+	Empty     string             // pesan saat hasil kosong
+	SearchEd  *widget.Editor     // input cari online (nil = tanpa)
 }
 
 // PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
@@ -72,7 +73,36 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return pkTabs(gtx, th, t, ctl)
 			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+			// kotak cari online (Enter → cari).
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl == nil || ctl.SearchEd == nil {
+					return layout.Dimensions{}
+				}
+				macro := op.Record(gtx.Ops)
+				dims := layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Min.X = gtx.Constraints.Max.X
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return icon(gtx, "search", 16, t.Text2) }),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							hint := "Cari GIF"
+							if ctl.Tab == 0 {
+								hint = "Cari stiker"
+							}
+							e := material.Editor(th, ctl.SearchEd, hint)
+							e.Color, e.HintColor, e.TextSize = t.Text, t.Text2, unit.Sp(14)
+							return e.Layout(gtx)
+						}),
+					)
+				})
+				call := macro.Stop()
+				r := gtx.Dp(9)
+				paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+				call.Add(gtx.Ops)
+				return dims
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
 			// grid stiker/GIF (thumbnail), atau pesan kosong.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				if ctl != nil && len(ctl.Items) == 0 {

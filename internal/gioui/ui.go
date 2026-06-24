@@ -244,6 +244,8 @@ type UI struct {
 	pendURI      string        // data-URI berkas terpilih
 	pendName     string        // nama berkas asli (dokumen) — utk rename di preview
 	pendNameEd   widget.Editor // editor rename nama dokumen
+	pendTrimA    widget.Editor // trim video: mulai (detik)
+	pendTrimB    widget.Editor // trim video: akhir (detik; kosong = sampai habis)
 	pendImg      paint.ImageOp
 	pendImgHas   bool
 	capEd        widget.Editor    // caption media
@@ -643,6 +645,8 @@ func (u *UI) SetPendingMediaNamed(kind, name, dataURI string) {
 	u.pendMu.Unlock()
 	u.capEd.SetText("")
 	u.pendNameEd.SetText(name)
+	u.pendTrimA.SetText("")
+	u.pendTrimB.SetText("")
 }
 
 func (u *UI) clearPending() {
@@ -759,6 +763,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.chnPostEd.SingleLine = true
 	u.chnPostEd.Submit = true
 	u.pendNameEd.SingleLine = true
+	u.pendTrimA.SingleLine = true
+	u.pendTrimB.SingleLine = true
 	u.renameEd.SingleLine, u.renameEd.Submit = true, true
 	u.ctSearchEd.SingleLine = true
 	u.ncName.SingleLine = true
@@ -7845,6 +7851,15 @@ func (u *UI) syncDraft() {
 	u.draftChat = u.selected
 }
 
+// parseSec — parse detik (float) dari teks editor trim; <0/invalid → 0.
+func parseSec(s string) float64 {
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil || f < 0 {
+		return 0
+	}
+	return f
+}
+
 // approxURISize — perkiraan ukuran berkas dari data-URI base64 (tanpa decode).
 func approxURISize(uri string) string {
 	n := len(uri)
@@ -7916,6 +7931,15 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 			fn := ""
 			if kind == "document" {
 				fn = strings.TrimSpace(u.pendNameEd.Text()) // nama hasil rename
+			}
+			if kind == "video" { // potong durasi bila diisi (ffmpeg stream-copy)
+				a := parseSec(u.pendTrimA.Text())
+				b := parseSec(u.pendTrimB.Text())
+				if (a > 0 || b > 0) && u.core != nil {
+					if nu := u.core.TrimMedia(uri, a, b); nu != "" {
+						uri = nu
+					}
+				}
 			}
 			u.core.SendMedia(u.selected, kind, strings.TrimSpace(u.capEd.Text()), fn, uri, vo, 0)
 			u.messages = u.core.GetMessages(u.selected)
@@ -8094,6 +8118,44 @@ func (u *UI) mediaPreviewLayer(gtx layout.Context) layout.Dimensions {
 						l := material.Label(u.th, 13, label)
 						l.Color, l.Alignment, l.MaxLines = u.t.Text2, text.Middle, 1
 						return l.Layout(gtx)
+					})
+				}),
+				// video: potong durasi (mulai–akhir detik) via ffmpeg stream-copy.
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if kind != "video" {
+						return layout.Dimensions{}
+					}
+					sec := func(ed *widget.Editor, hint string) layout.FlexChild {
+						return layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							macro := op.Record(gtx.Ops)
+							d := layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Min.X = gtx.Constraints.Max.X
+								e := material.Editor(u.th, ed, hint)
+								e.Color, e.HintColor, e.TextSize = u.t.Text, u.t.Text2, unit.Sp(14)
+								return e.Layout(gtx)
+							})
+							call := macro.Stop()
+							rr := gtx.Dp(8)
+							paint.FillShape(gtx.Ops, u.t.SearchBg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+							call.Add(gtx.Ops)
+							return d
+						})
+					}
+					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 12.5, "Potong  ")
+								l.Color = u.t.Text2
+								return l.Layout(gtx)
+							}),
+							sec(&u.pendTrimA, "mulai dtk"),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 13, "  –  ")
+								l.Color = u.t.Text2
+								return l.Layout(gtx)
+							}),
+							sec(&u.pendTrimB, "akhir dtk"),
+						)
 					})
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),

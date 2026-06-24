@@ -3544,6 +3544,7 @@ func chatCtxActions(c app.ChatDTO) []chatCtxAction {
 		{"star", "Pesan berbintang", "starred", false},
 		{"archive", "Arsipkan", "archive", false},
 		{"message", "Tandai belum dibaca", "unread", false},
+		{"eraser", "Bersihkan chat", "clear", false},
 		{"trash", "Hapus chat", "delete", true},
 	}
 }
@@ -3569,6 +3570,11 @@ func (u *UI) doChatAction(action string, c app.ChatDTO) {
 		u.core.MarkUnread(c.ID, true)
 	case "delete":
 		u.core.DeleteChat(c.ID)
+	case "clear":
+		u.core.ClearChat(c.ID) // kosongkan pesan, pertahankan chat (Meta AI: "mulai baru")
+		if c.ID == u.selected {
+			u.messages = u.core.GetMessagesN(u.selected, u.msgLimit)
+		}
 	}
 	u.chats = u.core.GetChats()
 }

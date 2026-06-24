@@ -45,6 +45,7 @@ var iconPaths = map[string]string{
 	"star":     `<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.5l1.1-6L3.4 9.3l6-.8z"/>`,
 	"info":     `<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>`,
 	"trash":    `<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/>`,
+	"eraser":   `<path d="M4 15.5 11.5 8a2 2 0 0 1 2.8 0l3.7 3.7a2 2 0 0 1 0 2.8L13.5 19.5H8.5z"/><path d="M8.5 19.5H20"/>`,
 	"check":    `<path d="M3 7.5l3.5 3.5L14 4"/>`,
 	"checks":   `<path d="M1 7.5l3.5 3.5L12 4"/><path d="M7 11l3.5 3.5L18 7"/>`,
 	"back":     `<path d="M15 5l-7 7 7 7"/>`,

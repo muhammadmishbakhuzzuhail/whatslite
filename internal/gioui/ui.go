@@ -71,6 +71,7 @@ type UI struct {
 
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick  widget.Clickable
+	pickerScrim   widget.Clickable // ketuk luar kartu picker → tutup
 	stickerCache  []app.StickerDTO
 	stickerThumbs map[string]paint.ImageOp // hash → thumbnail
 	stickerTried  map[string]bool
@@ -1252,6 +1253,12 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		}
 		LightboxView(gtx, u.th, u.t, ctl)
 	case "picker":
+		for u.pickerScrim.Clicked(gtx) { // ketuk di luar kartu → tutup
+			u.overlay = ""
+		}
+		u.pickerScrim.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Dimensions{Size: gtx.Constraints.Max} // area scrim (di bawah kartu)
+		})
 		PickerView(gtx, u.th, u.t, u.stickerCtl(gtx))
 	case "attach":
 		u.handleAttach(gtx)

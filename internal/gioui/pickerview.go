@@ -35,14 +35,26 @@ type PkCtl struct {
 	Clicks []widget.Clickable
 }
 
-// PickerView menggambar kartu pemilih stiker terpusat di atas latar app.
+// PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
+// bukan layar penuh — latar app tetap terlihat (scrim redup). ala WhatsApp Desktop.
 func PickerView(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
-	paint.FillShape(gtx.Ops, t.Bg2, clip.Rect{Max: gtx.Constraints.Max}.Op())
-
-	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return pkCard(gtx, th, t, ctl)
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 80}, clip.Rect{Max: gtx.Constraints.Max}.Op()) // scrim, bukan opaque
+	// jangkar kiri-bawah area chat (di atas composer): kiri = lebar rail+sidebar.
+	left := gtx.Dp(540)
+	if left > gtx.Constraints.Max.X-gtx.Dp(280) {
+		left = gtx.Dp(12) // jendela sempit → mepet kiri
+	}
+	return layout.Inset{Left: unit.Dp(0), Bottom: unit.Dp(72), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.SW.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Left: pxToDp(gtx, left)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return pkCard(gtx, th, t, ctl)
+			})
+		})
 	})
 }
+
+// pxToDp — konversi px → unit.Dp (utk inset dinamis).
+func pxToDp(gtx layout.Context, px int) unit.Dp { return unit.Dp(float32(px) / gtx.Metric.PxPerDp) }
 
 // pkCard — .stk-panel: Bg, radius 14, border 1px Line, lebar 520, padding 10, kolom isi.
 func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {

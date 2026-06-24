@@ -72,6 +72,10 @@ type UI struct {
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick  widget.Clickable
 	pickerScrim   widget.Clickable // ketuk luar kartu picker → tutup
+	pkTab         int              // 0 = Stiker, 1 = GIF
+	pkTabClicks   [2]widget.Clickable
+	gifCache      []app.SavedGifDTO
+	gifClicks     []widget.Clickable
 	stickerCache  []app.StickerDTO
 	stickerThumbs map[string]paint.ImageOp // hash → thumbnail
 	stickerTried  map[string]bool
@@ -2532,20 +2536,59 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 	if u.core == nil {
 		return nil
 	}
+	for i := range u.pkTabClicks { // ganti tab Stiker/GIF
+		if u.pkTabClicks[i].Clicked(gtx) {
+			u.pkTab = i
+		}
+	}
+	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:]}
+	if u.pkTab == 1 { // ---- GIF ----
+		if u.gifCache == nil {
+			u.gifCache = u.core.ListSavedGifs()
+		}
+		if len(u.gifClicks) < len(u.gifCache) {
+			u.gifClicks = make([]widget.Clickable, len(u.gifCache))
+		}
+		ctl.Empty = "Belum ada GIF — simpan GIF dari chat dulu."
+		ctl.Items = make([]PkItem, len(u.gifCache))
+		for i, g := range u.gifCache {
+			u.ensureGifThumb(g.Hash)
+			u.photoMu.Lock()
+			op, ok := u.stickerThumbs[g.Hash]
+			u.photoMu.Unlock()
+			if ok {
+				ctl.Items[i] = PkItem{Thumb: op, Has: true}
+			}
+			if i < len(u.gifClicks) {
+				for u.gifClicks[i].Clicked(gtx) { // tap GIF → kirim
+					if u.selected != "" {
+						u.core.SendSavedGif(u.selected, g.Hash)
+						u.messages = u.core.GetMessages(u.selected)
+					}
+					u.overlay, u.gifCache = "", nil
+					u.msgList.ScrollTo(len(u.messages))
+				}
+			}
+		}
+		ctl.Clicks = u.gifClicks
+		return ctl
+	}
+	// ---- Stiker ----
 	if u.stickerCache == nil {
 		u.stickerCache = u.core.ListSavedStickers()
 	}
 	if len(u.stickerClicks) < len(u.stickerCache) {
 		u.stickerClicks = make([]widget.Clickable, len(u.stickerCache))
 	}
-	items := make([]PkItem, len(u.stickerCache))
+	ctl.Empty = "Belum ada stiker — simpan stiker dari chat dulu."
+	ctl.Items = make([]PkItem, len(u.stickerCache))
 	for i, s := range u.stickerCache {
 		u.ensureStickerThumb(s.Hash)
 		u.photoMu.Lock()
 		op, ok := u.stickerThumbs[s.Hash]
 		u.photoMu.Unlock()
 		if ok {
-			items[i] = PkItem{Thumb: op, Has: true}
+			ctl.Items[i] = PkItem{Thumb: op, Has: true}
 		}
 		if i < len(u.stickerClicks) {
 			for u.stickerClicks[i].Clicked(gtx) { // tap stiker → kirim
@@ -2558,7 +2601,31 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 			}
 		}
 	}
-	return &PkCtl{Items: items, Clicks: u.stickerClicks}
+	ctl.Clicks = u.stickerClicks
+	return ctl
+}
+
+// ensureGifThumb — poster GIF (mp4) via ffmpeg (OnMediaPoster) → cache (reuse
+// stickerThumbs map; hash unik). decodeImage gagal utk mp4 → poster.
+func (u *UI) ensureGifThumb(hash string) {
+	if hash == "" || u.stickerTried[hash] {
+		return
+	}
+	u.stickerTried[hash] = true
+	go func() {
+		b := u.core.SavedGifBytes(hash)
+		img := decodeImage(b)
+		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
+			img = u.OnMediaPoster(b, ".mp4")
+		}
+		if img == nil {
+			return
+		}
+		op := paint.NewImageOp(img)
+		u.photoMu.Lock()
+		u.stickerThumbs[hash] = op
+		u.photoMu.Unlock()
+	}()
 }
 
 // ensureStickerThumb memuat byte stiker (StickerBytes) sekali per hash → decode
@@ -2569,7 +2636,11 @@ func (u *UI) ensureStickerThumb(hash string) {
 	}
 	u.stickerTried[hash] = true
 	go func() {
-		img := decodeImage(u.core.StickerBytes(hash))
+		b := u.core.StickerBytes(hash)
+		img := decodeImage(b)
+		if img == nil && u.OnMediaPoster != nil && len(b) > 0 {
+			img = u.OnMediaPoster(b, ".webp") // stiker animasi (ANMF) → frame poster ffmpeg
+		}
 		if img == nil {
 			return
 		}

@@ -31,8 +31,11 @@ type PkItem struct {
 // PkCtl = state interaktif picker stiker. nil → grid placeholder demo. Items +
 // Clicks paralel (tap → kirim stiker).
 type PkCtl struct {
-	Items  []PkItem
-	Clicks []widget.Clickable
+	Items     []PkItem
+	Clicks    []widget.Clickable
+	Tab       int                // 0 = Stiker, 1 = GIF
+	TabClicks []widget.Clickable // paralel [Stiker, GIF]
+	Empty     string             // pesan saat koleksi kosong
 }
 
 // PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
@@ -65,34 +68,28 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 	dims := layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			// .stk-tabs — baris tab (margin-bottom 10).
+			// tab Stiker | GIF.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return pkTabs(gtx, th, t)
+				return pkTabs(gtx, th, t, ctl)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
-			// .stk-search — pil Bg2, radius 9, padding 8/12 (margin-bottom 8).
+			// grid stiker/GIF (thumbnail), atau pesan kosong.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return pkSearch(gtx, th, t)
-			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
-			// .gif-cats — baris chip kategori.
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return pkCats(gtx, th, t)
-			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
-			// .stk-grid — grid stiker (thumbnail nyata bila ctl, else placeholder).
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl != nil && len(ctl.Items) == 0 {
+					msg := ctl.Empty
+					if msg == "" {
+						msg = "Belum ada — simpan stiker/GIF dari chat dulu."
+					}
+					return layout.Inset{Top: unit.Dp(40), Bottom: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, 14, msg)
+							lbl.Color, lbl.MaxLines = t.Text2, 2
+							return lbl.Layout(gtx)
+						})
+					})
+				}
 				return pkGrid(gtx, t, ctl)
-			}),
-			layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
-			// .stk-credit — kredit 10/text2 di tengah (margin-top 6).
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				gtx.Constraints.Min.X = gtx.Constraints.Max.X
-				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 10, "Powered by Sticker.ly")
-					lbl.Color = t.Text2
-					return lbl.Layout(gtx)
-				})
 			}),
 		)
 	})
@@ -116,21 +113,26 @@ type pkTab struct {
 
 // pkTabs — .stk-tabs: 4 tombol flex sama lebar, gap 6, padding 8, radius 9.
 // aktif = Accent + putih; lainnya = Bg2 + text2/600.
-func pkTabs(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	tabs := []pkTab{
-		{label: "Online", active: true},
-		{label: "Terkini"},
-		{label: "Paket"},
-		{label: "Buat"},
+func pkTabs(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.Dimensions {
+	labels := []string{"Stiker", "GIF"}
+	active := 0
+	if ctl != nil {
+		active = ctl.Tab
 	}
-	children := make([]layout.FlexChild, 0, len(tabs)*2)
-	for i, tb := range tabs {
+	children := make([]layout.FlexChild, 0, len(labels)*2)
+	for i, lb := range labels {
 		if i > 0 {
 			children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout))
 		}
-		tb := tb
+		i, lb := i, lb
 		children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return pkTabBtn(gtx, th, t, tb)
+			btn := func(gtx layout.Context) layout.Dimensions {
+				return pkTabBtn(gtx, th, t, pkTab{label: lb, active: i == active})
+			}
+			if ctl != nil && i < len(ctl.TabClicks) {
+				return ctl.TabClicks[i].Layout(gtx, btn)
+			}
+			return btn(gtx)
 		}))
 	}
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)

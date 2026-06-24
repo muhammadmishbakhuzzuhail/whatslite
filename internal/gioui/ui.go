@@ -3791,7 +3791,7 @@ func (u *UI) rail(gtx layout.Context) layout.Dimensions {
 	top := []layout.FlexChild{
 		layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return u.railIconBtn(gtx, &u.railMetaC, "metaai", "Meta AI", u.view == "metaai")
+			return u.railIconBtn(gtx, &u.railMetaC, "metaai", "Meta AI", u.view == "metaai" || (u.metaJID != "" && u.view == "chats" && u.selected == u.metaJID))
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
 	}
@@ -8778,7 +8778,7 @@ func (u *UI) conversation(gtx layout.Context) layout.Dimensions {
 			}
 			return layout.Stack{}.Layout(gtx,
 				layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(18), Right: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return material.List(u.th, &u.msgList).Layout(gtx, len(u.messages), func(gtx layout.Context, i int) layout.Dimensions {
 							return u.bubble(gtx, i)
 						})

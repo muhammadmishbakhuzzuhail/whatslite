@@ -110,8 +110,10 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 							macro := op.Record(gtx.Ops)
 							dims := comRow(gtx, th, t, it)
 							call := macro.Stop()
-							if c.Hovered() {
-								paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+							if c.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+								m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
+								rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+								paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 							}
 							call.Add(gtx.Ops)
 							return dims

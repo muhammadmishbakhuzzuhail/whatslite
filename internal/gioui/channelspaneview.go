@@ -128,8 +128,10 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 					macro := op.Record(gtx.Ops)
 					dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
 					call := macro.Stop()
-					if rc != nil && rc.Hovered() { // bg hover (selaras chat)
-						paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+					if rc != nil && rc.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+						m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
+						rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+						paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 					}
 					call.Add(gtx.Ops)
 					return dims

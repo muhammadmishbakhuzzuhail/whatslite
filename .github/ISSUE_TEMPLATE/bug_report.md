@@ -20,9 +20,8 @@ Briefly describe what's wrong.
 
 ## Environment
 - Distro / version:
-- WebKitGTK version (`pacman -Q webkit2gtk` / `dpkg -l | grep webkit`):
+- Session type (Wayland or X11) + GPU/driver (`glxinfo | grep "OpenGL renderer"`):
 - App commit/tag:
-- Build tags used (`webkit2_41 netgo`?):
 
 ## Logs
 If relevant, run with `WALITE_DEBUG=1` and paste the logs (redact personal data).

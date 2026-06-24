@@ -20,10 +20,9 @@ import (
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
-// StartupHeadless menyalakan engine tanpa Wails (UI Gio). Mengembalikan error agar
-// pemanggil bisa keluar bersih bila init gagal.
+// StartupHeadless menyalakan engine untuk UI Gio in-process. Mengembalikan error
+// agar pemanggil bisa keluar bersih bila init gagal.
 func (a *App) StartupHeadless(ctx context.Context) error {
-	a.headless = true
 	a.ctx = ctx
 
 	dataDir, err := engine.DefaultDataDir()

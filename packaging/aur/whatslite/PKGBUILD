@@ -5,12 +5,12 @@
 pkgname=whatslite
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Lightweight desktop WhatsApp client for Linux (no Chromium; WebKitGTK + whatsmeow)"
+pkgdesc="Lightweight desktop WhatsApp client for Linux (pure-Go Gio + whatsmeow)"
 arch=('x86_64')
 url="https://github.com/muhammadmishbakhuzzuhail/whatslite"
 license=('GPL-3.0-or-later')
-depends=('webkit2gtk-4.1' 'gtk3')
-makedepends=('go' 'nodejs' 'npm' 'git' 'pkgconf')
+depends=('libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxfixes' 'vulkan-icd-loader' 'opus' 'mpv')
+makedepends=('go' 'git' 'pkgconf')
 provides=('whatslite')
 conflicts=('whatslite-git')
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/muhammadmishbakhuzzuhail/whatslite/archive/v${pkgver}.tar.gz")
@@ -18,19 +18,15 @@ sha256sums=('34f76e64bd3c74f34ed95eb73db89d3b3aaa4796ca792339a322feca63ffdfa7')
 
 build() {
 	cd "${pkgname}-${pkgver}"
-	# Build the Wails CLI into a local GOBIN (no global install needed).
 	export GOPATH="${srcdir}/gopath"
-	export GOBIN="${srcdir}/gobin"
-	export PATH="${GOBIN}:${PATH}"
-	go install github.com/wailsapp/wails/v2/cmd/wails@latest
-	# webkit2_41 → WebKitGTK 4.1; netgo → pure-Go DNS (avoids the WebKitGTK
-	# CGo-resolver crash). Wails runs `npm install` + `npm run build` itself.
-	wails build -tags "webkit2_41 netgo" -clean -ldflags "-X main.version=v${pkgver}"
+	export CGO_ENABLED=1
+	# Pure-Go Gio UI with the whatsmeow engine in-process — a single binary.
+	go build -o whatslite -ldflags "-X main.version=v${pkgver}" ./cmd/whatslite-gio
 }
 
 package() {
 	cd "${pkgname}-${pkgver}"
-	install -Dm755 "build/bin/whatslite" "${pkgdir}/usr/bin/whatslite"
+	install -Dm755 "whatslite" "${pkgdir}/usr/bin/whatslite"
 	install -Dm644 "build/linux/whatslite.desktop" "${pkgdir}/usr/share/applications/whatslite.desktop"
 	install -Dm644 "build/linux/whatslite.svg" "${pkgdir}/usr/share/icons/hicolor/scalable/apps/whatslite.svg"
 	install -Dm644 "LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"

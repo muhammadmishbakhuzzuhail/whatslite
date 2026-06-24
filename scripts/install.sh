@@ -8,7 +8,7 @@ BIN="$ROOT/build/bin/whatslite"
 
 if [[ ! -x "$BIN" ]]; then
   echo "Binary belum ada. Build dulu:" >&2
-  echo "  wails build -tags \"webkit2_41 netgo\"" >&2
+  echo "  go build -o build/bin/whatslite ./cmd/whatslite-gio" >&2
   exit 1
 fi
 

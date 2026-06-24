@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bangun AppImage portabel dari binary hasil `wails build`.
+# Bangun AppImage portabel dari binary Gio (go build ./cmd/whatslite-gio).
 # Butuh: linuxdeploy + appimagetool (otomatis diunduh ke ./build/tools bila tak ada).
 set -euo pipefail
 
@@ -9,7 +9,7 @@ TOOLS="$ROOT/build/tools"
 APPDIR="$ROOT/build/AppDir"
 
 if [[ ! -x "$BIN" ]]; then
-  echo "Binary belum ada. Build dulu: wails build -tags \"webkit2_41 netgo\"" >&2
+  echo "Binary belum ada. Build dulu: go build -o build/bin/whatslite ./cmd/whatslite-gio" >&2
   exit 1
 fi
 

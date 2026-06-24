@@ -10,11 +10,11 @@ with a native macOS app** and **3–6× lighter than WhatsApp Web**.
 > in-memory (bytes → image, no media-server); voice = libopus (cgo), video = libmpv (cgo); WhatsApp SVG
 > icons via oksvg; colors match WhatsApp Web exactly.
 >
-> The frontend was rewritten three times — Svelte/Wails (WebKitGTK), then Qt6/QML, now **Gio**. The
-> **Svelte/Wails** app stays in the repo (`main.go`, `frontend/`) as the design reference + AUR target; the
-> **Qt6/QML** frontend has been removed. The primary/packaged app is **Gio** (`cmd/whatslite-gio`).
+> The frontend was rewritten three times — first Svelte/Wails (WebKitGTK), then Qt6/QML, now **Gio**. Both
+> earlier frontends have been **fully removed**: there is no WebView, no Chromium, no Node/npm, and no
+> `frontend/` build step. The shipping app is a single pure-Go **Gio** binary (`cmd/whatslite-gio`).
 
-Run: `./cmd/whatslite-gio/run.sh` (real session) or `run.sh demo` (static UI). Headless UI render for
+Run: `go run ./cmd/whatslite-gio`. Headless UI render for
 audits: `cmd/gio-shot` / `tools/snap-gio.sh`. Capture the live app: see [`docs/ui-capture.md`](./docs/ui-capture.md).
 
 See [`PRODUCT-BRIEF.md`](./PRODUCT-BRIEF.md) for product direction and
@@ -68,12 +68,11 @@ machine-translated)**.
 | **Render** | Gio GPU backend (OpenGL/Vulkan) — **no WebView, no bundled Chromium** |
 | **Media** | in-memory (bytes→image, no media-server); voice libopus, video libmpv (cgo); SVG icons via oksvg |
 | **Storage** | SQLite for session/keys/messages; media as files (not in the DB) |
-| **Reference FE** | Svelte/Wails (WebKitGTK) kept in `main.go` + `frontend/` (design source; AUR target) |
 
 - Local data: `~/.local/share/whatslite/` · media cache: `~/.cache/whatslite/` (XDG).
-- The key differentiator is the **lean architecture** (local-first, media-as-file instead of base64 in the
-  DB, evicted cache, bounded message retention, no telemetry) to offset the WebView overhead. Details in
-  `PRODUCT-BRIEF.md` §12.3.
+- The key differentiator is the **lean architecture** (native pure-Go GPU UI with no WebView/Chromium,
+  local-first, media-as-file instead of base64 in the DB, evicted cache, bounded message retention, no
+  telemetry). Details in `PRODUCT-BRIEF.md` §12.3.
 
 ## Install
 
@@ -98,7 +97,7 @@ makepkg -si                     # pulls deps, builds, installs
 
 ### Any distro (Flatpak)
 
-A Flatpak bundles its own WebKitGTK + glibc, so it runs anywhere — including older distros the prebuilt
+A Flatpak bundles its own runtime + glibc, so it runs anywhere — including older distros the prebuilt
 binary can't reach. Build/install it from [`packaging/flatpak/`](./packaging/flatpak/) (experimental,
 self-hosted for now):
 
@@ -115,72 +114,64 @@ Build from source (below), or use the prebuilt binary from
 
 ## Build prerequisites (Linux)
 
-The primary app is **Gio** (`cmd/whatslite-gio`). Requires **Go** + Gio's GPU/windowing libs +
-**libopus** (voice) + **libmpv** (video). On Arch/CachyOS:
+The app is **Gio** (`cmd/whatslite-gio`). Requires **Go** + Gio's GL/Wayland/X11 libs +
+**libopus** (voice) + **libmpv** (video). No WebKitGTK, no GTK3, no Node/npm. On Arch/CachyOS:
 
 ```sh
-sudo pacman -S --needed go pkgconf opus mpv \
-  libglvnd libxkbcommon wayland libx11 libxcursor vulkan-icd-loader
+sudo pacman -S --needed go mesa wayland libxkbcommon libx11 libxcursor libxfixes \
+  vulkan-icd-loader opus mpv pkgconf
 ```
 
 (Debian/Ubuntu: `golang-go pkg-config build-essential libopus-dev libmpv-dev libgl1-mesa-dev \
-libegl1-mesa-dev libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libvulkan-dev`.)
-
-The legacy **Svelte/Wails** reference frontend additionally needs **WebKitGTK 4.1 + GTK3** and the
-**Wails CLI** (`webkit2gtk-4.1 gtk3`; `go install …/wails/v2/cmd/wails@latest`).
+libegl1-mesa-dev libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libxfixes-dev libvulkan-dev`.)
 
 ## Build & run
 
 ```sh
-# Primary: Gio app (engine in-process). Real WhatsApp session:
-./cmd/whatslite-gio/run.sh
-# …or static demo data (UI without network):
-./cmd/whatslite-gio/run.sh demo
-# manual: go build -o whatslite-gio ./cmd/whatslite-gio && ./whatslite-gio
+# The Gio app (engine in-process). Real WhatsApp session:
+go run ./cmd/whatslite-gio
+# …or build a binary named `whatslite`:
+go build -o whatslite ./cmd/whatslite-gio && ./whatslite
 
 # Headless UI render (audit/screenshots, no GPU window needed):
 go build -o gio-shot ./cmd/gio-shot && ./gio-shot out.png app-chat
 
 # debug CLI (engine only, no UI; static binary):
 CGO_ENABLED=0 go build -o walite-cli ./cmd/walite-cli && ./walite-cli
-
-# legacy reference frontend (Svelte/Wails, needs WebKitGTK 4.1):
-wails build -tags "webkit2_41 netgo"   # output at ./build/bin/whatslite
 ```
-
-> `netgo` (pure-Go DNS) is recommended to avoid the CGo getaddrinfo resolver clashing with C runtimes.
 
 On first launch a **QR screen** appears in the window. Scan it via:
 **WhatsApp on your phone → Linked Devices → Link a device.**
 The session and messages are stored locally, so subsequent runs don't require scanning again.
 
-Verbose mode (debug logs): `WALITE_DEBUG=1 wails dev`
+Verbose mode (debug logs): `WALITE_DEBUG=1 go run ./cmd/whatslite-gio`
 
 ## Compatibility
 
-The app links **WebKitGTK 4.1** (`libwebkit2gtk-4.1.so.0`) + GTK3 and is **not statically linkable**
-(Wails uses cgo). So there are two independent requirements to run a **prebuilt binary**:
+The app is a Gio GPU UI that links **OpenGL/EGL + Wayland/X11** libs and **libopus**/**libmpv** (cgo), so it
+is **not statically linkable**. No WebKitGTK or GTK3 is required. To run a **prebuilt binary** you need:
 
-1. **WebKitGTK 4.1** present (not the older 4.0), and
+1. A working **OpenGL/EGL** stack and a **Wayland or X11** session (Mesa drivers), and
 2. **glibc ≥ 2.34** (the released x86_64 binary is built on an older toolchain to keep this floor low).
 
-| Distro | Prebuilt 4.1 binary | Build from source |
+| Distro | Prebuilt binary | Build from source |
 |---|---|---|
 | Arch / CachyOS, Manjaro | ✅ | ✅ |
 | Ubuntu 22.04 / 24.04, Mint 21+, Pop!_OS 22.04+ | ✅ | ✅ |
 | Debian 12 (bookworm) / 13 (trixie) | ✅ | ✅ |
 | Fedora 40+ | ✅ | ✅ |
 | openSUSE Leap 15.6 / Tumbleweed | ✅ | ✅ |
-| Ubuntu 20.04, Debian 11 | ❌ (no 4.1, glibc too old) | ❌ |
-| RHEL / Rocky / Alma 8 & 9 | ❌ (WebKitGTK is 4.0-only) | ❌ as 4.1 |
+| Ubuntu 20.04, Debian 11 | ❌ (glibc too old) | ✅ |
+| RHEL / Rocky / Alma 8 & 9 | ❌ (glibc too old) | ✅ |
 
-**Building from source works on any distro** that packages `webkit2gtk` (4.0 *or* 4.1) + GTK3 + Go — pick
-the matching Wails tag (`webkit2_41` for 4.1; omit it for 4.0). For **older / EL distros or "just works
-anywhere"**, a **Flatpak** (bundles its own WebKitGTK + glibc via the GNOME runtime) is the universal path —
-a manifest is in [`packaging/flatpak/`](./packaging/flatpak/) (build it locally / self-host; experimental).
-**ARM64 (aarch64)** is supported but needs a separate native build (no binary shipped yet).
+**Building from source works on any distro** that packages Mesa/GL + Wayland/X11 dev libs + libopus +
+libmpv + Go. For **older / EL distros or "just works anywhere"**, a **Flatpak** (bundles its own runtime +
+glibc) is the universal path — a manifest is in [`packaging/flatpak/`](./packaging/flatpak/) (build it
+locally / self-host; experimental). **ARM64 (aarch64)** is supported but needs a separate native build (no
+binary shipped yet).
 
-> The `.AppImage` route is unreliable for WebKitGTK apps and is not published — use Flatpak for portability.
+> CI ([`.github/workflows/build.yml`](./.github/workflows/build.yml)) runs `go vet ./...`, `go test ./...`,
+> and builds `./cmd/whatslite-gio` + `./cmd/gio-shot`.
 
 ## Limitations (not possible client-side)
 

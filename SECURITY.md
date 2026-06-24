@@ -12,7 +12,7 @@ This project stores your **WhatsApp session and end-to-end encryption keys** loc
 - Leakage of secrets to logs or the network (unexpected telemetry).
 
 **Out of scope:** the risk of Meta banning your account (that's a documented ToS consequence, not a bug),
-and vulnerabilities in upstream whatsmeow/Wails (report those to the respective projects).
+and vulnerabilities in upstream whatsmeow/Gio (report those to the respective projects).
 
 ## How to report
 

@@ -6,8 +6,8 @@ Two PKGBUILDs (each is its own AUR package — one directory each):
 - **`whatslite-git/`** — `whatslite-git`: builds the **latest commit** from source. Tracks `main`.
 
 They declare each other in `conflicts`, so only one can be installed at a time. Both build natively
-(Wails uses cgo + WebKitGTK and cannot cross-compile) and stamp the version into `main.version` via
-`-ldflags`.
+(Gio uses cgo for GL/Wayland/voice/video and cannot cross-compile) and stamp the version into
+`main.version` via `-ldflags`.
 
 ## Try locally (no AUR account needed)
 
@@ -16,8 +16,8 @@ cd packaging/aur/whatslite      # or whatslite-git
 makepkg -si
 ```
 
-Pulls `webkit2gtk-4.1` + `gtk3` (runtime) and `go`/`nodejs`/`npm`/`git` (build), compiles, installs
-`whatslite` to `/usr/bin`, plus the `.desktop` entry and icon.
+Pulls the Gio runtime libs (`libxkbcommon`, `wayland`, `libx11`, `vulkan-icd-loader`, `opus`, `mpv`, …)
+and `go`/`git` (build), compiles, installs `whatslite` to `/usr/bin`, plus the `.desktop` entry and icon.
 
 ## Publish to the AUR
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Render UI Gio (internal/gioui, data demo) ke PNG headless untuk audit paritas
-# vs Svelte. Pakai EGL surfaceless + Mesa software → tak butuh display.
+# Render UI Gio (internal/gioui, data demo) ke PNG headless untuk audit visual.
+# Pakai EGL surfaceless + Mesa software → tak butuh display.
 #
 #   tools/snap-gio.sh [out.png] [w] [h]
 set -e

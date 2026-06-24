@@ -3,14 +3,15 @@
 Goal: ~100% similar to WhatsApp (Web/macOS) **and more optimal on Linux**.
 
 > **Current implementation (2026): the FE is [Gio](https://gioui.org), in-process.**
-> The frontend was rewritten Svelte/Wails → Qt6/QML → **Gio**. The primary app
-> (`cmd/whatslite-gio`) runs the whatsmeow engine + SQLite **in the same process** —
-> no Wails shell, no WebView, no media-server HTTP, no IPC bridge. Media flows
-> in-memory (`MediaBytes`/`AvatarBytes` → `image.Decode` → GPU texture). The UI
-> **polls** the store/engine (`GetChats`/`GetMessages`/`QRCode`/`ChatSubtitle`) rather
-> than reacting to emitted events. The Svelte/Wails description below is the original
-> design (kept as the reference frontend); the Qt6/QML frontend was removed. The lean
-> principles, schema, and roadmap below still apply.
+> The frontend was rewritten Svelte/Wails → Qt6/QML → **Gio**, and both the
+> Svelte/Wails and the Qt6/QML frontends have now been **fully removed**. The app
+> (`cmd/whatslite-gio`) is a single Go process, single window: it runs the whatsmeow
+> engine + SQLite **in the same process** as the UI — no Wails shell, no WebView/Chromium,
+> no Node/npm, no media-server HTTP, no IPC bridge. UI code lives under `internal/gioui/`.
+> Media flows in-memory (`MediaBytes`/`AvatarBytes` → `image.Decode` → GPU texture). The
+> UI does **not** consume emitted events — it **polls** the store/engine
+> (`GetChats`/`GetMessages`/`QRCode`/`ChatSubtitle`) on a ~600–700ms ticker and calls
+> `Invalidate()` to repaint. The lean principles, schema, and roadmap below still apply.
 
 This document is the source of truth for the architecture + a phased roadmap.
 
@@ -20,7 +21,9 @@ This document is the source of truth for the architecture + a phased roadmap.
 - **The DB stores small text/metadata; media = FILES on disk** (path in the DB). No
   large bytes / base64 in the DB.
 - **Lazy + cache + eviction** on every heavy path (media, profile photos, rendering).
-- **Event-driven**: engine emits → store persists → UI reacts. Idempotent.
+- **Engine→store is event-wired, UI is polling**: engine emits → store persists
+  (the `wireEvents` half is kept); the UI then polls the store/engine on a ticker rather
+  than reacting to emitted events. Idempotent.
 - **Linux-native** where it matters (single-instance, XDG, sound alerts only — no desktop notifications, by design).
 
 ---
@@ -38,12 +41,11 @@ Current (Gio, in-process — one binary, no shell/bridge/media-server):
 └─ Store (SQLite, modernc)          ── normalized schema, FTS5, WAL, file-refs
 ```
 
-Original / reference FE (Svelte in WebKitGTK via Wails — `main.go` + `frontend/`):
-```
-┌─ Frontend (Svelte in WebKitGTK) ── virtualized list, lazy media, thin state
-├─ App/Service (Go, Wails bindings) ── + media-server (AssetServer ServeHTTP), alerts
-├─ Engine / └─ Store                ── (shared with the Gio app)
-```
+The App layer (`internal/app`) is shared and entered via `App.StartupHeadless(ctx)`
+(sets `headless=true`); it exposes `Get*`/`Send*`/… methods the Gio UI polls. The old
+Wails `Startup`/`DomReady` lifecycle, the `window.go.main.App` JS binding, and
+`runtime.EventsEmit`-based event emission have all been **deleted** — `App.emit(...)` is
+now a no-op kept only so existing callers compile.
 
 Rules: whatsmeow types don't leak outside the engine; the UI doesn't know SQL; media never
 becomes base64 in the DB.
@@ -80,9 +82,9 @@ Optimizations:
 - **Receive**: save a (small) JPEG thumbnail → **file** `media/th/<id>.jpg`,
   store `thumb_path`. Save the media proto (for later download) in `media_blob`.
 - **Display**: the UI renders `thumb_path` first (instant, blur-up). As it nears
-  the viewport (IntersectionObserver) → request `/media/<chat>/<id>` →
-  asset-server, cache-first (exists) → save `media/full/<id>.<ext>` →
-  set `media_path`. Swap thumb→full smoothly.
+  the viewport (the Gio list reports visible rows) → request the full media,
+  cache-first → decode the bytes in-memory to a GPU texture (no HTTP, no data URIs)
+  and persist to `media/full/<id>.<ext>` → set `media_path`. Swap thumb→full smoothly.
 - **Eviction**: a periodic sweeper — delete the oldest `full/` files when the total
   exceeds the cap (e.g. 512MB), based on atime/access. Small thumbnails may stay.
 - **Profile photos**: same — **file cache** `avatars/<jid>.jpg` + path in the
@@ -107,17 +109,17 @@ disk kept in check (eviction).
 
 ---
 
-## 5. Frontend performance (Linux/WebKitGTK)
+## 5. Frontend performance (Gio, pure-Go GPU)
 
-- **List virtualization**: render only visible messages (windowing). A chat with
-  thousands of messages stays light. (not yet)
-- **Unload**: keep only the active chat (plus a few recent ones) in `allMessages`;
-  drop old ones from JS memory. (not yet)
-- **Lazy media** via IntersectionObserver — DON'T auto-load everything (heavy).
-  Load it near the viewport. (currently auto-loads everything → change this)
-- **CSS**: avoid Blink-only properties (already using clip-path for tails).
-- **WebKitGTK flags**: compositing/DMABUF already handled; `file://` media via the
-  asset-server (done).
+- **List virtualization**: render only visible messages via `widget.List`
+  windowing. A chat with thousands of messages stays light. (not yet)
+- **Unload**: keep only the active chat (plus a few recent ones) in memory;
+  drop old ones from the in-process message cache. (not yet)
+- **Lazy media** keyed off the list's visible rows — DON'T auto-load everything
+  (heavy). Load it near the viewport. (currently auto-loads everything → change this)
+- **Polling cadence**: the UI repaints on `Invalidate()` driven by the ~600–700ms
+  state poll; keep per-frame work cheap so the poll/repaint stays smooth.
+- **In-memory media**: decoded bytes → GPU texture (no `file://`, no asset-server).
 
 ---
 
@@ -153,8 +155,8 @@ Out of lean scope: calls, status/stories, full channels/communities.
   schema v2 (file refs + FTS5 + separate media_blob), thumbnail→file,
   profile photo→file+lazy, **cache eviction**, remove RecomputeSummaries from
   GetChats. → lean DB, lower memory, fast search.
-- **Phase 2 — FE performance**: list virtualization, lazy media (IntersectionObserver),
-  memory unload. → light on big chats.
+- **Phase 2 — FE performance**: `widget.List` virtualization, lazy media (visible-row
+  driven), memory unload. → light on big chats.
 - **Phase 3 — Sync**: on-demand history from the phone, reconnect/backoff.
 - **Phase 4 — Linux-native**: single-instance, .desktop, (tray).
 - **Phase 5 — Features**: @mention, voice recording, group create/info, profile edit,

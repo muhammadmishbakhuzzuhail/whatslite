@@ -3,36 +3,31 @@
 
 package app
 
-// app.go — siklus hidup aplikasi Wails + perkabelan event engine→UI.
+// app.go — struct App + perkabelan event engine→storage.
 //
-// App di-bind ke JS sebagai window.go.main.App; method publik tersebar per
-// domain agar mudah didokumentasikan & diperbaiki:
-//   - app.go         : struct App, startup/domReady/shutdown, OpenChat, helper
-//   - app_chats.go   : GetChats / GetMessages (+ DTO untuk frontend)
+// App = layer aplikasi yang dipakai UI Gio in-process (cmd/whatslite-gio) lewat
+// StartupHeadless. UI TAK pakai event — ia polling state (GetChats/GetMessages/
+// QRCode/ChatSubtitle) tiap ~600ms. Method publik tersebar per domain:
+//   - app.go         : struct App, wireEvents, OpenChat, helper
+//   - app_chats.go   : GetChats / GetMessages
 //   - app_connect.go : Connect / Logout / GetState / SendText (sesi & QR)
-//   - app_media.go   : DownloadMedia + asset-server /media & /avatar
+//   - app_media.go   : DownloadMedia + media/avatar cache
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/engine"
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/storage"
 )
 
-// App = konteks aplikasi Wails. Method publik di sini otomatis ter-bind ke JS
-// sebagai window.go.main.App.<Method>. Event ke UI lewat runtime.EventsEmit.
+// App = konteks aplikasi. UI Gio jalan in-process & polling state; tak ada lagi
+// bind-ke-JS atau emit event (Wails/Svelte sudah dihapus).
 type App struct {
 	ctx        context.Context
 	eng        *engine.Engine
@@ -64,36 +59,24 @@ type App struct {
 	version string // versi build (di-stamp via -ldflags -X main.version) → UI "Tentang"
 
 	wq chan func() // antrian tulis-DB serial (off the whatsmeow socket loop)
-
-	headless bool // true = jalan tanpa Wails (UI Gio in-process) → skip runtime.*
 }
 
-// emit menyiarkan event UI ke Wails (Svelte). Mode headless (Gio) tak pakai event
-// — UI Gio polling state langsung (GetChats/GetMessages/QRCode/ChatSubtitle).
-func (a *App) emit(event string, data ...any) {
-	if !a.headless { // mode Wails: kirim ke JS/Svelte
-		runtime.EventsEmit(a.ctx, event, data...)
-	}
-}
+// emit dulu menyiarkan event UI ke Wails/Svelte. UI Gio TAK pakai event (polling
+// state tiap 600ms) & Svelte sudah dihapus → no-op. Dipertahankan agar pemanggil
+// (banyak) tetap kompilasi.
+func (a *App) emit(event string, data ...any) {}
 
-// logErr mencatat error secara aman di kedua mode: Wails (runtime.LogError) atau
-// headless (log standar). Hindari runtime.* dgn ctx non-Wails yang bisa panik.
-func (a *App) logErr(msg string) {
-	if a.headless {
-		log.Println("[engine]", msg)
-		return
-	}
-	runtime.LogError(a.ctx, msg)
-}
+// logErr mencatat error (UI Gio in-process; tak ada lagi runtime Wails).
+func (a *App) logErr(msg string) { log.Println("[engine]", msg) }
 
-// SetVersion menyetel versi build (dipanggil dari main sebelum wails.Run).
+// SetVersion menyetel versi build (dipanggil dari main saat start).
 func (a *App) SetVersion(v string) {
 	if v != "" {
 		a.version = v
 	}
 }
 
-// Version mengembalikan versi build (di-bind ke FE untuk layar "Tentang").
+// Version mengembalikan versi build (dipakai UI untuk layar "Tentang").
 func (a *App) Version() string {
 	if a.version == "" {
 		return "dev"
@@ -128,127 +111,6 @@ func (a *App) bg(fn func()) {
 }
 
 func NewApp() *App { return &App{} }
-
-// startup: inisialisasi engine + storage (TANPA connect — connect lewat Connect()).
-func (a *App) Startup(ctx context.Context) {
-	a.ctx = ctx
-	// WebKitGTK (terutama di Arch) memasang signal handler tanpa SA_ONSTACK →
-	// crash "non-Go code set up signal handler without SA_ONSTACK". Pulihkan,
-	// lalu ulangi berkala karena JSC bisa menimpanya lagi tiap siklus GC.
-	runtime.ResetSignalHandlers()
-	go func() {
-		t := time.NewTicker(2 * time.Second)
-		defer t.Stop()
-		for range t.C {
-			runtime.ResetSignalHandlers()
-		}
-	}()
-	dataDir, err := engine.DefaultDataDir()
-	if err != nil {
-		runtime.LogError(ctx, "data dir: "+err.Error())
-		return
-	}
-	eng, err := engine.New(ctx, filepath.Join(dataDir, "whatslite.db"), os.Getenv("WALITE_DEBUG") != "")
-	if err != nil {
-		runtime.LogError(ctx, "engine: "+err.Error())
-		return
-	}
-	store, err := storage.New(ctx, filepath.Join(dataDir, "app.db"))
-	if err != nil {
-		runtime.LogError(ctx, "storage: "+err.Error())
-		return
-	}
-	a.eng = eng
-	a.store = store
-	a.loadLabels()
-	// Writer DB tunggal: serialkan semua tulis dari event handler off-socket-loop.
-	a.wq = make(chan func(), 8192)
-	go func() {
-		for fn := range a.wq {
-			// Recover per-tugas: satu panic (nil deref/proto buruk) tak boleh
-			// membunuh drainer → kalau mati, SEMUA tulis DB berikutnya senyap hilang.
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						runtime.LogError(a.ctx, fmt.Sprintf("bg write panic: %v", r))
-					}
-				}()
-				fn()
-			}()
-		}
-	}()
-	a.mediaDir = filepath.Join(dataDir, "media")
-	_ = os.MkdirAll(a.mediaDir, 0o755)
-	a.startMediaEviction(512 << 20) // cap cache media ~512MB (LRU by modtime)
-
-	// Koleksi stiker tersimpan: dir TERPISAH dari media → TAK kena LRU evict,
-	// jadi stiker yang disimpan dari teman bertahan permanen.
-	a.stickerDir = filepath.Join(dataDir, "stickers")
-	_ = os.MkdirAll(a.stickerDir, 0o755)
-	a.gifDir = filepath.Join(dataDir, "gifs")
-	_ = os.MkdirAll(a.gifDir, 0o755)
-
-	// Retensi pesan: default 90 hari. Prune + VACUUM sekali saat boot (off-loop)
-	// → app.db tetap ramping walau riwayat besar. Berbintang/disematkan aman.
-	// Proxy (opsional): terapkan SEBELUM Connect (dipicu FE setelah ini).
-	if px := store.GetMeta(ctx, "proxy", ""); px != "" {
-		_ = eng.SetProxy(px)
-	}
-
-	a.retentionDays = atoiDef(store.GetMeta(ctx, "retention_days", "90"), 90)
-	a.keepDeleted.Store(store.GetMeta(ctx, "keep_deleted", "1") == "1") // anti-delete default ON
-	a.bg(func() {
-		if cut := a.retentionCutoff(); cut > 0 {
-			if n, _ := a.store.PruneMessages(a.ctx, cut); n > 0 {
-				_ = a.store.Vacuum(a.ctx)
-				a.emit("wa:sync", "")
-			}
-		}
-	})
-
-	// Disappearing messages: sapu yang kedaluwarsa saat boot + tiap 60 dtk.
-	go func() {
-		sweep := func() {
-			if a.store == nil {
-				return
-			}
-			if n, _ := a.store.SweepExpired(a.ctx, time.Now().Unix()); n > 0 {
-				a.emit("wa:sync", "")
-			}
-		}
-		sweep()
-		t := time.NewTicker(60 * time.Second)
-		defer t.Stop()
-		for range t.C {
-			sweep()
-		}
-	}()
-
-	bgClose.Store(store.GetMeta(ctx, "bg_close", "0") == "1") // mode latar
-	a.startScheduler()                                        // pesan terjadwal + pengingat (ticker sendiri)
-
-	// IPC single-instance: instance ke-2 yang gagal flock akan men-dial socket ini
-	// → kita angkat window ke depan (bukan diam).
-	sock := filepath.Join(dataDir, ".ipc.sock")
-	os.Remove(sock)
-	if l, err := net.Listen("unix", sock); err == nil {
-		go func() {
-			for {
-				c, e := l.Accept()
-				if e != nil {
-					return
-				}
-				c.Close()
-				runtime.WindowUnminimise(a.ctx)
-				runtime.WindowShow(a.ctx)
-			}
-		}()
-	}
-	// Perbaiki drift urutan/preview dari data lama (build sebelumnya) sekali di awal.
-	_ = store.RecomputeSummaries(ctx)
-
-	a.wireEvents(eng, store)
-}
 
 // wireEvents menyambungkan callback engine → simpan ke storage → emit event UI.
 func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
@@ -728,12 +590,6 @@ func (a *App) OpenChat(jid string) {
 			}
 		}()
 	}
-}
-
-// domReady dipanggil setelah halaman web (WebKit/JSC) selesai dimuat — di sinilah
-// WebKit dipastikan sudah memasang handler-nya, jadi kita pulihkan SA_ONSTACK lagi.
-func (a *App) DomReady(ctx context.Context) {
-	runtime.ResetSignalHandlers()
 }
 
 func (a *App) Shutdown(ctx context.Context) {

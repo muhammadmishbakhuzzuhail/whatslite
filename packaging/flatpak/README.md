@@ -3,8 +3,7 @@
 WhatsLite ships as a **single pure-Go (Gio) binary** with the whatsmeow + SQLite engine running
 **in-process** — one process, one window, no IPC bridge and no separate engine binary. It runs on the
 **freedesktop runtime** (GL/Wayland/X11 + libopus); libmpv (for video playback) is bundled as an extra
-module. The legacy Svelte/Wails (WebKitGTK) UI stays in the repo (`frontend/`) for reference but is not
-packaged. (The old Qt6/QML frontend has been removed.)
+module. (The legacy Svelte/Wails (WebKitGTK) and Qt6/QML frontends have both been removed.)
 
 App ID: **`io.github.muhammadmishbakhuzzuhail.WhatsLite`** (neutral name — no "WhatsApp"/Meta artwork, per
 trademark rules).
@@ -31,7 +30,7 @@ native install — you'll pair the device again the first time).
 
 > Status: **experimental, untested on a clean machine.** Verify the build completes and the app launches
 > before relying on it. The manifest's archive source points at `v0.2.0` with a placeholder sha256 — bump
-> the tag + real sha256 to a release that contains the Gio frontend before building. The bundled `mpv`
+> the tag + real sha256 to a release that contains the Gio UI before building. The bundled `mpv`
 > module is heavy; if video playback isn't needed it can be dropped (voice still works via libopus).
 
 ## Self-hosted Flatpak repo (distribute without Flathub)
@@ -51,7 +50,7 @@ Flathub **forbids network access at build time**, so the manifest's `--share=net
 replaced with vendored sources:
 
 - **Go**: commit a vendor dir (`go mod vendor`) or generate module sources; build with `-mod=vendor`.
-  (The Gio frontend has no npm step, so `flatpak-node-generator` is not needed.)
+  (The Gio UI has no npm step, so `flatpak-node-generator` is not needed.)
 - Keep the neutral app-id, the unofficial disclaimer as the **first** paragraph of the metainfo
   description (already done), and no WhatsApp/Meta trademarks or artwork.
 

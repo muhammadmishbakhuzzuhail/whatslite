@@ -1,24 +1,26 @@
 # Product Brief — WhatsLite (lightweight WhatsApp desktop client for Linux)
 
 > Product-direction document. Output of the PROJECT OVERVIEW + BRAINSTORM + TARGET MARKET sessions.
-> Status: **draft v2** · Date: 2026-06-02 · **Stack changed**: from Gio (native custom-drawn) to
-> **web (HTML/CSS/JS) in the system WebView via Wails (Go)**. Full rationale in Section 12.
+> Status: **draft v2** · Date: 2026-06-02 · **Stack (final)**: a single pure-Go binary using the
+> **Gio immediate-mode GUI toolkit (gioui.org)**, with the whatsmeow + SQLite engine running **in-process**.
+> Full rationale in Section 12.
 
 ---
 
 ## 0. TL;DR
 
 A WhatsApp desktop client for Linux that's **lightweight & efficient**, built on **whatsmeow** (the WhatsApp
-Web multi-device protocol directly over WebSocket). The UI = **web (HTML/CSS/JS)** rendered in the **system
-WebView (WebKitGTK), not a bundled Chromium** — so it's as light as the native macOS app, and far lighter than
-WhatsApp Web/Windows. It fills the gap left by the absence of an official WhatsApp app on Linux.
+Web multi-device protocol directly over WebSocket). The UI = a **native Go immediate-mode GUI** drawn with the
+**Gio toolkit (gioui.org)** — **no browser engine, no Chromium, no WebView at all** — so it's lighter than the
+native macOS app, and far lighter than WhatsApp Web/Windows. It fills the gap left by the absence of an official
+WhatsApp app on Linux.
 
 - **Not** a commercial product — a **low-profile community open-source project**.
 - **Not** full parity with the macOS app — calls & payments are **impossible** (protocol limits).
-- **But** it mirrors WhatsApp macOS's **everyday features + UI/UX** — and can now be **pixel-identical** because the UI = web (CSS).
-- Realistic lightness target: **~120–250 MB loaded** (on par with native macOS, ~3–6× lighter than WhatsApp Web).
-- **Stack: Go (whatsmeow) + Wails + system WebView + HTML/CSS/JS** (see Section 12).
-- **Main differentiator = a lean, optimized architecture** that closes the WebView memory gap (see Section 12.3).
+- **But** it mirrors WhatsApp macOS's **everyday features + UI/UX** — a faithful, custom-drawn look-alike of the desktop layout.
+- Realistic lightness target: **tens of MB loaded** (well below native macOS, far below WhatsApp Web).
+- **Stack: a single pure-Go binary — whatsmeow + SQLite engine in-process + a Gio native UI** (see Section 12).
+- **Main differentiator = a lean, native architecture** with no web stack to drag along (see Section 12.3).
 
 ---
 
@@ -32,47 +34,49 @@ WhatsApp Web/Windows. It fills the gap left by the absence of an official WhatsA
 
 **Key insight:** the weight of WhatsApp desktop is **not** from its features, but from the **BUNDLED browser
 engine** (Electron/WebView2 each haul in their own Chromium + Node). Proof: the **native macOS** app is ~3–4×
-lighter than the Windows version. **The lesson for us:** we may use a web UI, **as long as we don't bundle
-Chromium** — use **the WebView already present on the system (WebKitGTK)**. That sheds ~70–80% of Chromium's
-weight while still giving an identical look and the convenience of the web. The remaining weight (the system
-WebKit engine, ~80–150 MB) we close through **architectural discipline** (Section 12.3).
+lighter than the Windows version. **The lesson for us:** drop the browser entirely — **no Chromium, no system
+WebView, no web layer at all** — and draw the UI natively with **Gio**, a pure-Go immediate-mode toolkit. That
+sheds the full weight of a browser engine while still giving us a faithful WhatsApp-style look. What little
+weight remains is plain native rendering, which we keep small through **architectural discipline** (Section 12.3).
 
 ---
 
 ## 2. Solution
 
 Engine = whatsmeow (Go, MPL-2.0 licensed, already handles media & Signal encryption, small RAM footprint).
-Frontend = **web (HTML/CSS/JS)** rendered in the **system WebView (WebKitGTK)** via **Wails** (a Go shell). A
-single Go binary holds the engine + shell; the web UI is embedded. A TUI is an optional bonus for later.
+Frontend = a **native immediate-mode UI** drawn with **Gio (gioui.org)**, running **in-process** with the
+engine. A single Go binary holds everything — one process, one window, no IPC bridge, no WebView, no Node. A
+TUI is an optional bonus for later.
 
-**Why move from native (Gio) to web?** Three deciding reasons: (1) an **identical WhatsApp look** is nearly
-impossible to hand-draw in Gio but easy in CSS — WhatsApp Web is itself web; (2) the UI matches the
-**maintainer's web skills**, not low-level immediate-mode rendering; (3) there's a **feedback loop** (open it in
-a browser, see it instantly). The cost: higher RAM than Gio — closed by the architecture (Section 12.3).
+**Why native (Gio)?** Three deciding reasons: (1) **no bundled or borrowed browser engine** — the lightest
+possible footprint, the project's whole reason for existing; (2) **one language, one process** — the UI and the
+whatsmeow engine are the same Go program, no shell, no IPC, no sidecar; (3) a faithful WhatsApp-style desktop
+layout can be **drawn directly** with full control over rendering. The cost: the look is hand-built rather than
+borrowed from CSS — paid down by careful component work (Section 12.3).
 
 ### Two separate axes: "lightweight" vs "complete" (a core concept to understand)
 
 ```
-LIGHTWEIGHT? ← determined by whether the browser engine is BUNDLED
-             → system WebView (not a bundled Chromium) → on par with native macOS,
+LIGHTWEIGHT? ← determined by whether a browser engine is present at all
+             → no Chromium, no WebView — native Gio rendering → below native macOS,
                far below WhatsApp Web/Windows  ✅
 
 COMPLETE?    ← determined by PROTOCOL ACCESS (having Meta's code vs not)
              → WE CANNOT match macOS (no calls, etc.)  ❌
 ```
 
-The macOS app is light **because it doesn't bundle a browser** (which we can mimic via the system WebView)
+The macOS app is light **because it doesn't bundle a browser** (which we beat by having no browser at all)
 **and** complete **because it's a Meta app** (which we can't mimic). We get half of that luck — and that half
-(lightweight + easy-to-mimic look) **is exactly what the market needs most.**
+(lightweight + a faithful look) **is exactly what the market needs most.**
 
 ---
 
 ## 3. Selling points (in priority order)
 
-1. **Lightweight & efficient** — on par with the native macOS app, **~3–6× leaner than WhatsApp Web/Windows**
-   (which bundle Chromium). Plus a ~30–50 MB binary & **one extra process**, not 5–10 processes. This is the headline.
+1. **Lightweight & efficient** — below the native macOS app, **far leaner than WhatsApp Web/Windows**
+   (which bundle Chromium). Plus a ~30–50 MB binary & **a single process**, not 5–10. This is the headline.
 2. **Linux-first** — filling a gap, not competing with an official app.
-3. **Lean, optimized architecture** — local-first, virtualized, no telemetry/background service (Section 12.3).
+3. **Lean, native architecture** — single-process, local-first, virtualized, no telemetry/background service (Section 12.3).
 4. **Open-source & auditable** — important for an app that holds your private messages.
 5. **Keyboard-first / scriptable** — relevant to the terminal persona.
 
@@ -82,31 +86,30 @@ The macOS app is light **because it doesn't bundle a browser** (which we can mim
 
 | Metric | Web/Chrome | Windows (WebView2) | macOS (Catalyst) | **Target Linux (us)** |
 |---|---|---|---|---|
-| Idle RAM | ~300–500 MB | ~250–450 MB | ~120–250 MB | **~120–200 MB** |
-| Fully loaded RAM | ~1.0–2.0 GB | ~0.8–1.5 GB | ~300–600 MB | **~200–400 MB** |
-| Browser engine **bundled** | Yes | Yes | No | **No (uses the system WebKitGTK)** |
-| Process count | 5–10+ | 4–8 | 1–2 | **2 (Go + WebView)** |
-| Install size | (browser) | ~150–300 MB | ~150–250 MB | **~30–50 MB (1 binary, WebKit borrowed from the system)** |
+| Idle RAM | ~300–500 MB | ~250–450 MB | ~120–250 MB | **~30–80 MB** |
+| Fully loaded RAM | ~1.0–2.0 GB | ~0.8–1.5 GB | ~300–600 MB | **~120–250 MB** |
+| Browser engine **bundled** | Yes | Yes | No | **No browser at all (native Gio rendering)** |
+| Process count | 5–10+ | 4–8 | 1–2 | **1 (a single Go binary)** |
+| Install size | (browser) | ~150–300 MB | ~150–250 MB | **~30–50 MB (1 self-contained binary)** |
 
 > ⚠️ The Web/Windows/macOS columns are **representative estimates** and vary widely by machine/number of chats.
-> Our target is now **on par with native macOS** (no longer the "tens of MB" of the Gio plan) — a conscious
-> consequence of choosing a web UI. Before this becomes public material, **measure it directly** (PSS) with a
-> consistent methodology.
+> With no browser engine to carry, our target is **below native macOS** — the upside of a native Gio UI. Before
+> this becomes public material, **measure it directly** (PSS) with a consistent methodology.
 
 ### Anatomy of the weight (where the RAM goes & our strategy)
 
-| Component | Chromium (Web/Win) | macOS native | **Us (system WebKit)** |
+| Component | Chromium (Web/Win) | macOS native | **Us (native Gio)** |
 |---|---|---|---|
-| Browser render engine | 150–400 MB (Blink, **bundled**) ⚠️ | 0 (borrows from the OS) | **~80–150 MB (WebKit, borrowed from the system)** |
-| JS engine + heap | 100–300 MB (V8) ⚠️ | 0 | **small — lean JS, no heavy framework** ✅ |
-| Extra runtime (Node) | 30–80 MB | 0 | **0 — engine = compiled Go** ✅ |
+| Browser render engine | 150–400 MB (Blink, **bundled**) ⚠️ | 0 (borrows from the OS) | **0 — no browser; Gio draws via the GPU directly** ✅ |
+| JS engine + heap | 100–300 MB (V8) ⚠️ | 0 | **0 — no JS, no DOM** ✅ |
+| Extra runtime (Node) | 30–80 MB | 0 | **0 — UI + engine = one compiled Go binary** ✅ |
 | Media cache (decoded) | 100–500 MB | controlled | **we control it** (files on disk, LRU) ✅ |
 | Message/chat state | 20–80 MB | 10–40 MB | **10–40 MB** (local-first SQLite) ✅ |
 | Telemetry/background svc | yes | yes | **0** ✅ |
 
-**Our difference vs Chromium-based:** the render engine **borrows from the system** (not bundled) + **no Node** +
-**lean JS** → sheds ~60–75% of the weight. **Our difference vs native macOS:** only the WebKit-engine delta
-(~80–150 MB), which we shrink through the discipline in rows 2–6 (Section 12.3). The biggest risk is still the
+**Our difference vs Chromium-based:** **no browser engine, no JS heap, no Node** → sheds the bulk of the weight.
+**Our difference vs native macOS:** we carry no browser at all, so the only meaningful RAM is the rows below the
+render engine, which we shrink through the discipline in rows 4–6 (Section 12.3). The biggest risk is still the
 **media cache**.
 
 ---
@@ -182,31 +185,31 @@ layout, rounded bubbles, spacing, UX flow). This is legitimate and common — Te
 fixed *brand* look that doesn't follow the OS theme, and Linux users use them without issue.
 
 - **Everyday functionality (text, media, groups, status, etc.): ON PAR.** ~85–90% of daily needs are met.
-- **UI/UX style: CAN BE PIXEL-IDENTICAL.** Because the UI = web (HTML/CSS), the WhatsApp look (which is itself web)
-  can be mirrored exactly — not just "similar in feel" like the old Gio plan. Fixed look, built-in light/dark.
-- **Lightness: ON PAR with native macOS** (not better — that's a consequence of the WebView). But **far below**
-  WhatsApp Web/Windows, and we win on **disk footprint, process count, no-telemetry, lean architecture**.
+- **UI/UX style: A FAITHFUL LOOK-ALIKE.** The UI is custom-drawn in Gio to closely mirror the WhatsApp desktop
+  layout — sidebar+chat, rounded bubbles, spacing, UX flow. Fixed look, built-in light/dark.
+- **Lightness: BELOW native macOS** (we carry no browser engine at all). And **far below** WhatsApp Web/Windows,
+  and we win on **disk footprint, process count, no-telemetry, lean native architecture**.
 - **What STAYS different / lacking:**
-  - Not Meta's official assets — we rewrite the CSS/markup ourselves (can be very similar, but not copying Meta's files).
+  - Not Meta's official assets — we draw our own widgets and icons (can be very close, but not copying Meta's files).
   - Calls/pay are gone (impossible), history sync is limited, some 🟡 features are partial, and depend on protocol changes.
 
-> **Target:** *"WhatsApp macOS's everyday functionality + (nearly) pixel-identical UI/UX, as light as native, far
-> below Chromium"*. What we mirror = layout, style, flow (now cheap via CSS). What we DON'T = calls (impossible).
+> **Target:** *"WhatsApp macOS's everyday functionality + a faithful look-alike UI/UX, lighter than native, far
+> below Chromium"*. What we mirror = layout, style, flow (hand-drawn in Gio). What we DON'T = calls (impossible).
 
 ---
 
 ## 7. Roadmap & estimates (solo/community scale)
 
-Architecture: **the engine (whatsmeow + state + SQLite) is separate from the web frontend.** Engine = a pure Go
-package (ready to become a daemon/headless), frontend = HTML/CSS/JS in the WebView, bridged by Wails. The
-frontend is a **web GUI from the start** (WhatsApp macOS-style look). A TUI is an optional bonus, well behind.
+Architecture: **the engine (whatsmeow + state + SQLite) is a self-contained pure Go package** (ready to become a
+daemon/headless), with the **Gio native UI running in-process** in the same binary — no IPC, no bridge. The UI
+is a **native GUI from the start** (WhatsApp macOS-style look). A TUI is an optional bonus, well behind.
 
 | Phase | Scope | Effort | Target RAM |
 |---|---|---|---|
-| **v0.1 — Minimal daily-driver** | whatsmeow engine + basic web UI; QR pairing, chat list, send/receive text, receive media (click→open externally), reply, reactions, read receipts, typing, alerts, basic history (SQLite); light/dark | a few weeks–2 months | ~120–180 MB |
-| **v0.2 — Media & groups** | inline images + thumbnails, voice notes, documents, full groups, mentions, edit/delete | ~1 month+ | ~150–250 MB |
-| **v0.3 — Social & organization** | Status, polls, pin/archive/mute, local search (FTS), profile photos, blocking | a few weeks+ | ~180–300 MB |
-| **v0.4 — Advanced** | stickers (static→animated), inline video (libmpv), GIF, multi-account, link preview, Channels (read) | ~1 month+ | ~200–400 MB |
+| **v0.1 — Minimal daily-driver** | whatsmeow engine + basic Gio UI; QR pairing, chat list, send/receive text, receive media (click→open externally), reply, reactions, read receipts, typing, alerts, basic history (SQLite); light/dark | a few weeks–2 months | ~40–100 MB |
+| **v0.2 — Media & groups** | inline images + thumbnails, voice notes, documents, full groups, mentions, edit/delete | ~1 month+ | ~80–150 MB |
+| **v0.3 — Social & organization** | Status, polls, pin/archive/mute, local search (FTS), profile photos, blocking | a few weeks+ | ~100–200 MB |
+| **v0.4 — Advanced** | stickers (static→animated), inline video (libmpv), GIF, multi-account, link preview, Channels (read) | ~1 month+ | ~120–250 MB |
 | **v0.x — Experimental** | Communities (partial), live location, daemon/headless, TUI, CLI integration | gradual | — |
 | **❌ NEVER** | Voice/video calls, screen share, payments | — | — |
 
@@ -228,7 +231,7 @@ frontend is a **web GUI from the start** (WhatsApp macOS-style look). A TUI is a
   (Windows users generally don't tolerate fiddly setup/bans and don't value FOSS — not our persona).
 
 **One-sentence positioning:**
-> *"A lightweight, efficient WhatsApp client for Linux — no bundled Chromium, as light as the native macOS app —
+> *"A lightweight, efficient WhatsApp client for Linux — no browser engine, lighter than the native macOS app —
 > for people who care about their RAM. Open-source, used at your own risk."*
 
 The disclaimer ("at your own risk") = **part of the positioning**, not a footnote. It's both honest and a filter for the right users.
@@ -249,17 +252,17 @@ The disclaimer ("at your own risk") = **part of the positioning**, not a footnot
 
 ## 10. LOCKED decisions
 
-- ✅ **No bundled Chromium** — use the **system WebView (WebKitGTK)**. (Revised from "no webview at all":
-  a web UI in the system WebView was chosen for an identical look + the maintainer's web skills; see Section 12.)
+- ✅ **No browser engine at all** — no Chromium, no system WebView. The UI is drawn natively with **Gio**
+  for the lightest possible footprint and a single-process design; see Section 12.
 - ✅ Linux-first; Windows = a distribution bonus later.
 - ✅ A low-profile community FOSS project; the "market" = a community.
 - ✅ Voice/video calls & payments = a **permanent non-goal** (impossible, protocol limits).
-- ✅ Not full feature parity; the anchor = **"everyday functionality + (nearly pixel-identical) macOS UI/UX + as light as native"**.
-- ✅ A **separate engine + frontend** architecture (engine = a pure Go package, ready to become a daemon).
-- ✅ Frontend: **engine first → web UI (Wails) as the primary frontend → TUI as a later bonus**.
-- ✅ UI stack = **web (HTML/CSS/JS) + Wails (Go shell) + WebKitGTK**. Gio/Electron/Tauri/GTK/Qt are **rejected** (Section 12).
+- ✅ Not full feature parity; the anchor = **"everyday functionality + a faithful macOS look-alike UI/UX + lighter than native"**.
+- ✅ A **self-contained pure-Go architecture** (engine = a pure Go package, ready to become a daemon; UI runs in-process).
+- ✅ Build: **engine first → native Gio UI as the primary frontend → TUI as a later bonus**.
+- ✅ UI stack = **a single pure-Go binary: Gio (gioui.org) UI + whatsmeow/SQLite engine in-process**. Electron/Tauri/Wails+WebView/GTK/Qt are **rejected** (Section 12).
 - ✅ Style = **WhatsApp macOS-style look, no user theming**; built-in light/dark only.
-- ✅ **Differentiator = a lean, optimized architecture** (Section 12.3) to close the WebView overhead.
+- ✅ **Differentiator = a lean, native architecture** (Section 12.3) with no web stack to drag along.
 - ✅ v0.1 scope = **a minimal "everyday text chat"** (listed in Section 7).
 - ✅ v0.1 media strategy = **click → open in an external app** (inline deferred to v0.2).
 - ✅ Packaging = **AUR + Flatpak + AppImage** (portable across all distros, X11 + Wayland).
@@ -270,9 +273,7 @@ The disclaimer ("at your own risk") = **part of the positioning**, not a footnot
    **MPL-2.0**, which is GPL-compatible — MPL-2.0 §3.3 permits distributing the larger work under the GPL.
 2. **RAM measurement methodology** to validate the claims in Section 4 before they become public material.
 3. **ToS/legal stance in the README:** how explicit to make the ban-risk disclaimer.
-4. **Web UI framework:** vanilla JS vs a lightweight compiled framework (Preact/Svelte). Default: as minimal as possible.
-5. **Heavy media strategy (v0.2+):** libmpv vs ffmpeg vs a system app for video/GIF.
-6. **Wails v2 vs v3 vs bare `webview_go`:** Wails for DX/bindings; bare-webview if we want the thinnest possible.
+4. **Heavy media strategy (v0.2+):** libmpv vs ffmpeg vs a system app for video/GIF.
 
 ---
 
@@ -283,66 +284,71 @@ The disclaimer ("at your own risk") = **part of the positioning**, not a footnot
 ```
 Engine     : Go + whatsmeow + SQLite (modernc.org/sqlite, pure-Go)
 Architecture : engine = a pure Go package (ready to become a headless daemon),
-             separate from the frontend → reusable by a GUI/TUI/daemon
-Shell      : Wails (Go ↔ system WebView; Go↔JS bindings, bundling, dev-server)
-Frontend   : web — HTML/CSS/JS (vanilla or a lightweight compiled framework)
-             embedded in the binary; TUI = an optional bonus well behind
-Render     : system WebView — WebKitGTK (Linux). Does NOT bundle Chromium.
-Style      : look inspired by WhatsApp macOS (can now be nearly pixel-identical
-             via CSS). No user theming. Built-in light/dark.
+             with the Gio UI running in-process → one binary, one process,
+             reusable by a TUI/daemon
+Frontend   : Gio (gioui.org) — a pure-Go immediate-mode GUI, drawn directly
+             via the GPU; in-process with the engine; TUI = a later bonus
+Render     : native Gio (OpenGL/Vulkan via the OS). NO browser, NO WebView,
+             NO Chromium — no web layer at all.
+Build      : go build ./cmd/whatslite-gio → a single self-contained binary
+Style      : look inspired by WhatsApp macOS, custom-drawn in Gio.
+             No user theming. Built-in light/dark.
 Packaging  : AUR (Arch/CachyOS) + Flatpak (all distros) + AppImage (optional)
-Display    : X11 + Wayland (via Wails's GTK host)
-Dependencies : webkit2gtk + gtk3 (present on all mainstream distros)
+Display    : X11 + Wayland (Gio supports both natively)
+Dependencies : the usual Gio system libs (e.g. libwayland/X11, GPU drivers);
+             NO webkit2gtk, NO Chromium, NO Node/npm
 Rejected   : Electron (bundles Chromium+Node → heavy, against the goal)
-             Tauri (also a system WebView, BUT a Rust shell + the Go engine
-                    as a sidecar = 2 toolchains + an IPC boundary, zero gain)
-             Gio (custom-drawn: identical look nearly impossible, no feedback loop,
-                  not a web skill) — the old stack, abandoned
-             native GTK/Qt (forces the DE look; not a web skill)
+             Wails / system WebView (still hauls in WebKitGTK + a web layer;
+                    a browser engine we don't want)
+             Tauri (a Rust shell + the Go engine as a sidecar = 2 toolchains
+                    + an IPC boundary, zero gain)
+             native GTK/Qt (forces the DE look; extra C deps)
 ```
 
-### 12.2 Why Wails + web (not Gio, not Tauri, not Electron)
+> Historical note: earlier drafts of this brief explored a web UI (HTML/CSS/JS in the system WebView via Wails)
+> and, briefly, a Qt6/QML frontend. **Both have been fully removed.** The shipping client is Gio-only.
+
+### 12.2 Why Gio (not Wails/WebView, not Tauri, not Electron)
 
 | Reason | Explanation |
 |---|---|
-| **Identical WhatsApp look** | UI = CSS; WhatsApp Web is itself web → mirrored exactly, not hand-drawn |
-| **Uses the maintainer's web skills** | HTML/CSS/JS, not low-level immediate-mode; previewable in a browser |
-| **One language for shell+engine** | Wails = a Go shell → whatsmeow lives in the same process, no sidecar/IPC (unlike Tauri's Rust) |
-| **No bundled browser** | Uses the system WebKitGTK → sheds ~70–80% of Chromium's weight (unlike Electron) |
-| **No second runtime** | Engine = compiled Go, not Node → one ~30–50 MB binary |
-| **Portable** | webkit2gtk+gtk3 are on all mainstream distros; X11 & Wayland |
+| **No browser engine at all** | Pure native rendering — no Chromium, no WebKit, no WebView; the lightest possible footprint |
+| **One language, one process** | UI + whatsmeow engine = the same Go program, in-process; no shell, no sidecar, no IPC (unlike Wails/Tauri) |
+| **No second runtime** | No Node, no JS, no DOM → one self-contained ~30–50 MB binary |
+| **Full control of the look** | The WhatsApp desktop layout is drawn directly in Gio — exact spacing, bubbles, animations |
+| **Portable** | Gio targets X11 & Wayland natively; no webkit2gtk/gtk web stack to depend on |
 
 ### 12.3 Architectural advantages & optimizations — THE MAIN DIFFERENTIATOR ⭐
 
-The WebView puts us ~80–150 MB above Gio (the WebKit engine). **We close that gap — and beat the official
-app — through architecture**, not by hoping for a lighter toolkit. This is the project's technical selling point.
+Going native (Gio) means we carry **no browser engine at all** — and we keep the rest small **through
+architecture**, not by hoping for a lighter toolkit. This is the project's technical selling point.
 
 **A. Leaner than WhatsApp Web/Windows (Chromium-based):**
-- **System WebView, not a bundled Chromium** — rendering borrows from the OS; zero MB of browser in our binary.
-- **No Node/JS server runtime** — the "backend" = compiled Go, not a 30–80 MB Node process.
-- **Lean JS frontend** — vanilla or a compiled framework (Preact/Svelte), **not** React + a fat bundle.
+- **No browser engine** — Gio draws the UI directly via the GPU; zero MB of Chromium/WebKit in our binary.
+- **No Node/JS runtime** — the whole program = compiled Go, not a 30–80 MB Node process plus a JS heap.
+- **No DOM, no web framework** — native widgets instead of React + a fat bundle.
 - **Zero telemetry / analytics / background service** — the official app runs background services; we don't.
-- **One binary, ~2 processes** (Go + WebView) vs Chromium's 5–10 processes.
+- **One binary, a single process** vs Chromium's 5–10 processes.
 
-**B. Closing the gap vs native macOS (discipline on the data side — the dominant RAM share):**
-- **Virtualized message list** — only visible DOM nodes exist; thousands of messages ≠ thousands of elements.
-  This keeps the WebKit heap small (a large DOM = the #1 web memory killer).
+**B. Going below native macOS (discipline on the data side — the dominant RAM share):**
+- **Virtualized message list** — Gio's immediate-mode model only lays out visible rows; thousands of messages ≠
+  thousands of retained widgets, keeping the heap small.
 - **Local-first SQLite** — the chat list & messages are read from the local DB, **paginated ~50** + lazy-loaded on scroll;
   the full history never enters RAM.
-- **Media = files on disk, the DB stores the path** — **not** base64 in the DOM (memory killer #2); thumbnails are lazy,
-  full images on-demand, released on leaving the viewport; a **bounded LRU cache**.
-- **Video/GIF/animated stickers → delegated** to libmpv / a system app; codecs aren't pulled into the WebView.
-- **Event-driven (delta) updates** — a new message is sent Go→JS as a single event & inserted, **not** a reload
+- **Media = files on disk, the DB stores the path** — thumbnails are lazy, full images decoded on-demand and
+  released on leaving the viewport; a **bounded LRU cache** of decoded textures.
+- **Video/GIF/animated stickers → delegated** to libmpv / a system app; codecs aren't pulled into the binary.
+- **Event-driven (delta) updates** — a new message updates the model and invalidates a frame, **not** a reload
   of the whole view; minimal allocation & re-layout.
-- **Internal assets**: SVG icons (small), wallpaper via CSS, **system fonts** (no bundled megabytes of fonts).
+- **Internal assets**: SVG/vector icons (small), wallpaper drawn directly, **system fonts** (no bundled megabytes of fonts).
 
 **C. Frugal when idle / hidden:**
-- When the window is hidden: stop UI rendering/animation; only the **Go WebSocket** needs to be alive (a cheap engine).
+- Gio is event-driven — with no input or events, no frames are drawn; when hidden, only the **Go WebSocket** stays
+  alive (a cheap engine).
 - No wasteful polling; the UI only wakes on an event or interaction.
 
-**An honest, marketable claim:** *"as light as the native macOS app, 3–6× leaner than WhatsApp Web, a ~30–50 MB
-binary, two processes, zero telemetry"* — **not** "tens of MB" (that was the Gio dream we've let go). All numbers
-**must be measured (PSS)** before becoming public material.
+**An honest, marketable claim:** *"lighter than the native macOS app, far leaner than WhatsApp Web, a ~30–50 MB
+binary, a single process, zero telemetry"*. All numbers **must be measured (PSS)** before becoming public material.
 
 ### 12.4 Storage (SQLite) — locked, designed to be light
 

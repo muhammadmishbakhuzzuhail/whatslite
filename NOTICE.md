@@ -10,19 +10,20 @@ work under the GPL).
 | Component | License | Notes |
 |---|---|---|
 | [go.mau.fi/whatsmeow](https://github.com/tulir/whatsmeow) | **MPL-2.0** | WhatsApp multi-device protocol library |
-| [github.com/wailsapp/wails/v2](https://github.com/wailsapp/wails) | MIT | Go ↔ system WebView shell |
+| [gioui.org](https://gioui.org) (+ `gioui.org/x`) | Unlicense OR MIT | Immediate-mode GUI toolkit (UI, richtext/styledtext) |
 | [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) | BSD-3-Clause | Pure-Go SQLite (no CGo) |
 | [google.golang.org/protobuf](https://github.com/protocolbuffers/protobuf-go) | BSD-3-Clause | Protobuf runtime |
 | [github.com/mdp/qrterminal/v3](https://github.com/mdp/qrterminal) | MIT | Terminal QR rendering (CLI) |
 | [github.com/skip2/go-qrcode](https://github.com/skip2/go-qrcode) | MIT | QR code generation |
 
-## Frontend (web)
+## Fonts & assets
 
 | Component | License | Notes |
 |---|---|---|
-| [Svelte](https://github.com/sveltejs/svelte) | MIT | UI framework |
-| [Vite](https://github.com/vitejs/vite) | MIT | Build tooling |
-| [emoji-picker-element](https://github.com/nolanlawson/emoji-picker-element) | Apache-2.0 | Emoji & reaction picker (lazy-loaded) |
+| [Go fonts](https://go.dev/blog/go-fonts) (`golang.org/x/image/font/gofont`) | BSD-3-Clause | Bundled UI text faces |
+
+The color-emoji face (**Noto Color Emoji**, OFL-1.1) is **not bundled** — it is loaded from the host's
+system font paths at runtime (`/usr/share/fonts/.../NotoColorEmoji.ttf`).
 
 ## Runtime services (not bundled; called over the network)
 

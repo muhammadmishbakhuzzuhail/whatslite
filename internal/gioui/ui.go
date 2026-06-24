@@ -8119,13 +8119,12 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	if firstOfRun {
 		gapTop = unit.Dp(8)
 	}
-	// avatar gutter (grup): foto pengirim di sisi pengirim, sejajar bawah bubble.
-	// Hanya di bubble TERAKHIR run (avatarnya "menempel" pesan terbawah, ala WhatsApp);
+	// avatar gutter (grup): foto pengirim di sisi pengirim, sejajar ATAS bubble.
+	// Hanya di bubble PERTAMA run (avatar di samping pesan teratas, ala WhatsApp);
 	// bubble lain dlm run sisakan gutter kosong agar sejajar. Berlaku in + out (saya).
-	lastOfRun := idx == len(u.messages)-1 || !sameRun(m, u.messages[idx+1])
 	avGutter := func(gtx layout.Context) layout.Dimensions {
 		d := gtx.Dp(28)
-		if !lastOfRun || noBubble {
+		if !firstOfRun || noBubble {
 			return layout.Dimensions{Size: image.Pt(d, d)}
 		}
 		name, jid := m.Sender, m.SenderID
@@ -8152,11 +8151,11 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			}
 			return align.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				sp := layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout)
-				if out { // pesan saya → avatar di kanan
-					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+				if out { // pesan saya → avatar di kanan, sejajar atas
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx,
 						layout.Rigid(bubbleCol), sp, layout.Rigid(avGutter))
 				}
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx,
 					layout.Rigid(avGutter), sp, layout.Rigid(bubbleCol))
 			})
 		})

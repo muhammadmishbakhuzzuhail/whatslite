@@ -77,16 +77,18 @@ func newTheme(dark bool) Theme {
 			Link: hex("#53bdeb"), Selected: hex("#2a3942"),
 		}
 	}
-	// WhatsApp Web light (resmi): panel #fff, list-header #f0f2f5, bubble-out
-	// #d9fdd3, wallpaper #efeae2, accent #00a884, border #e9edef.
+	// Light MODERN (palet netral ala Tailwind slate + aksen WhatsApp green):
+	// sidebar putih, area chat slate-50, border slate-200, teks slate-900/500,
+	// bubble-in putih + bubble-out green-100, link biru-600. Lebih bersih &
+	// kontemporer daripada beige WA-Web lama.
 	return Theme{
-		Dark: false, RailBg: hex("#f0f2f5"), RailIco: hex("#54656f"),
-		SidebarBg: hex("#efeae2"), Bg: hex("#efeae2"), Bg2: hex("#f0f2f5"),
-		HeadBg: hex("#f0f2f5"), Line: hex("#e9edef"), Divider: hex("#f0f2f5"),
-		SearchBg: hex("#f0f2f5"), Wallpaper: hex("#efeae2"), InBg: hex("#ffffff"),
-		OutBg: hex("#d9fdd3"), Text: hex("#111b21"), Text2: hex("#667781"),
-		Hover: hex("#f5f6f6"), Accent: hex("#00a884"), Tick: hex("#53bdeb"),
-		Link: hex("#027eb5"), Selected: hex("#f0f2f5"),
+		Dark: false, RailBg: hex("#f1f5f9"), RailIco: hex("#475569"),
+		SidebarBg: hex("#ffffff"), Bg: hex("#f8fafc"), Bg2: hex("#f1f5f9"),
+		HeadBg: hex("#ffffff"), Line: hex("#e2e8f0"), Divider: hex("#eef2f6"),
+		SearchBg: hex("#f1f5f9"), Wallpaper: hex("#f8fafc"), InBg: hex("#ffffff"),
+		OutBg: hex("#dcfce7"), Text: hex("#0f172a"), Text2: hex("#64748b"),
+		Hover: hex("#f1f5f9"), Accent: hex("#00a884"), Tick: hex("#10b981"),
+		Link: hex("#2563eb"), Selected: hex("#eef2f6"),
 	}
 }
 

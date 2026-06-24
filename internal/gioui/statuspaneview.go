@@ -57,15 +57,20 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 		list = &widget.List{}
 		list.Axis = layout.Vertical
 	}
-	// daftar gulir: [My status][label TERKINI][baris status...]. Header pane tetap.
+	// daftar gulir: [My status][label TERKINI][baris status... | hint kosong]. Header tetap.
 	const head = 2 // My-status + label
+	empty := len(items) == 0
+	n := head + len(items)
+	if empty { // tetap tampilkan satu baris hint di bawah label TERKINI
+		n = head + 1
+	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// .pane-head — "Status" (tetap, tak ikut gulir).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return stpPaneHead(gtx, th, t, w, "Status")
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return material.List(th, list).Layout(gtx, head+len(items), func(gtx layout.Context, i int) layout.Dimensions {
+			return material.List(th, list).Layout(gtx, n, func(gtx layout.Context, i int) layout.Dimensions {
 				switch i {
 				case 0:
 					row := func(gtx layout.Context) layout.Dimensions { return stpMyStatusRow(gtx, th, t, avFn, selfName, selfJID) }
@@ -76,11 +81,29 @@ func StatusPaneView(gtx layout.Context, th *material.Theme, t Theme, items []stp
 				case 1:
 					return stpSectionLabel(gtx, th, t, "TERKINI")
 				}
+				if empty { // tak ada pembaruan → hint muted (gaya modern)
+					return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(th, 13.5, "Belum ada pembaruan terkini")
+						l.Color = t.Text2
+						return l.Layout(gtx)
+					})
+				}
 				idx := i - head
 				it := items[idx]
 				row := func(gtx layout.Context) layout.Dimensions { return stpStatusRow(gtx, th, t, it, avFn) }
-				if idx < len(clicks) {
-					return clicks[idx].Layout(gtx, row)
+				if idx < len(clicks) { // hover membulat lembut (gaya kartu modern)
+					c := &clicks[idx]
+					return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						dims := row(gtx)
+						call := macro.Stop()
+						if c.Hovered() {
+							rr := gtx.Dp(10)
+							paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						}
+						call.Add(gtx.Ops)
+						return dims
+					})
 				}
 				return row(gtx)
 			})

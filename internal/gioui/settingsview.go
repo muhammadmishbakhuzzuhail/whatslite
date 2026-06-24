@@ -40,6 +40,8 @@ type SettingsCtl struct {
 	// data sub-pane
 	ProfName, ProfAbout, ProfPhone string
 	ProfNameEd, ProfAboutEd        *widget.Editor // edit profil (nil = read-only)
+	ProfUsernameEd                 *widget.Editor // nama pengguna (@handle)
+	ProfUsernameErr                string         // pesan validasi username
 	ProfSave                       *widget.Clickable
 	AboutClicks                    []widget.Clickable // chip saran "Tentang" (paralel aboutPresets)
 	AboutOpen                      bool               // dropdown saran terbuka?
@@ -348,6 +350,27 @@ func setProfilePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 					return layout.Dimensions{}
 				}
 				return setAboutPresets(gtx, th, t, ctl)
+			}),
+			// Nama pengguna (@handle) — fitur baru WhatsApp: kontak tanpa nomor.
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl.ProfUsernameEd == nil {
+					return layout.Dimensions{}
+				}
+				return setEditField(gtx, th, t, "Nama pengguna", ctl.ProfUsernameEd)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl.ProfUsernameEd == nil {
+					return layout.Dimensions{}
+				}
+				msg, col := "Orang bisa hubungi kamu via nama pengguna tanpa nomor.", t.Text2
+				if ctl.ProfUsernameErr != "" {
+					msg, col = ctl.ProfUsernameErr, color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+				}
+				return layout.Inset{Left: unit.Dp(20), Right: unit.Dp(20), Top: unit.Dp(2)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(th, 12, msg)
+					l.Color = col
+					return l.Layout(gtx)
+				})
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return setProfileField(gtx, th, t, "Telepon", orDash(ctl.ProfPhone))

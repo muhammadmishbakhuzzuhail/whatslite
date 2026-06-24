@@ -369,6 +369,8 @@ type UI struct {
 	setProfileClick widget.Clickable
 	profNameEd      widget.Editor // edit nama (sub-pane profil)
 	profAboutEd     widget.Editor // edit tentang
+	profUsernameEd  widget.Editor // edit nama pengguna (@handle)
+	profUsernameErr string        // pesan validasi username
 	profSave        widget.Clickable
 	profLoaded      bool                // editor sudah diisi nilai saat ini?
 	profName        string              // nama profil sendiri (avatar rail)
@@ -716,6 +718,8 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.profNameEd.MaxLen = 25 // batas nama WhatsApp
 	u.profAboutEd.SingleLine = true
 	u.profAboutEd.MaxLen = 139 // batas Tentang WhatsApp
+	u.profUsernameEd.SingleLine = true
+	u.profUsernameEd.MaxLen = 35 // batas username WhatsApp
 	u.pollQEd.SingleLine = true
 	for i := range u.pollOptEds {
 		u.pollOptEds[i].SingleLine = true
@@ -933,10 +937,11 @@ func (u *UI) handleSettings(gtx layout.Context) {
 		u.setSub = "profile"
 		u.profLoaded = false
 	}
-	for u.profSave.Clicked(gtx) { // simpan nama/tentang
+	for u.profSave.Clicked(gtx) { // simpan nama/tentang/username
 		if u.core != nil {
 			u.core.SetMyName(strings.TrimSpace(u.profNameEd.Text()))
 			u.core.SetMyAbout(strings.TrimSpace(u.profAboutEd.Text()))
+			u.profUsernameErr = u.core.SetUsername(u.profUsernameEd.Text()) // validasi + simpan
 		}
 	}
 	for u.aboutToggle.Clicked(gtx) { // chevron → buka/tutup dropdown saran
@@ -3446,9 +3451,11 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				if !u.profLoaded { // isi editor sekali (agar bisa diketik)
 					u.profNameEd.SetText(p.Name)
 					u.profAboutEd.SetText(p.About)
+					u.profUsernameEd.SetText(u.core.Username())
 					u.profLoaded = true
 				}
 				ctl.ProfNameEd, ctl.ProfAboutEd, ctl.ProfSave = &u.profNameEd, &u.profAboutEd, &u.profSave
+				ctl.ProfUsernameEd, ctl.ProfUsernameErr = &u.profUsernameEd, u.profUsernameErr
 				ctl.AboutClicks = u.aboutClicks[:]
 				ctl.AboutToggle, ctl.AboutOpen = &u.aboutToggle, u.aboutOpen
 				ctl.PhotoClick, ctl.Avatar, ctl.SelfJID = &u.profPhotoClick, u.avatar, u.selfJID
@@ -7915,7 +7922,7 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	// susun konten bubble
 	content := func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Max.X = maxW
-		return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(13), Right: unit.Dp(13)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(9), Right: unit.Dp(9)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			// metaRow — jam + "diedit" + centang status (dipakai inline ATAU baris bawah).
 			metaRow := func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	qrcode "github.com/skip2/go-qrcode"
 
@@ -155,6 +156,62 @@ func (a *App) SetLanguage(code string) {
 		return
 	}
 	_ = a.store.SetMeta(a.ctx, "lang", code)
+}
+
+// Username mengembalikan nama pengguna (handle) tersimpan, atau "".
+func (a *App) Username() string {
+	if a.store == nil {
+		return ""
+	}
+	return a.store.GetMeta(a.ctx, "username", "")
+}
+
+// SetUsername memvalidasi (aturan WhatsApp) lalu menyimpan nama pengguna.
+// Kembalikan "" bila sukses, atau pesan error bila tak valid.
+func (a *App) SetUsername(s string) string {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if msg := validateUsername(s); msg != "" {
+		return msg
+	}
+	if a.store != nil {
+		_ = a.store.SetMeta(a.ctx, "username", s)
+	}
+	return ""
+}
+
+// validateUsername — aturan WhatsApp: 3–35 char; huruf kecil a–z, angka, "." dan
+// "_"; min. 1 huruf; tak diawali/diakhiri "."; tak ada ".."; tak diawali "www.".
+func validateUsername(s string) string {
+	if s == "" {
+		return "" // kosong = hapus username (valid)
+	}
+	n := len(s)
+	if n < 3 || n > 35 {
+		return "Nama pengguna harus 3–35 karakter"
+	}
+	if strings.HasPrefix(s, ".") || strings.HasSuffix(s, ".") {
+		return "Tak boleh diawali/diakhiri titik"
+	}
+	if strings.Contains(s, "..") {
+		return "Tak boleh ada titik berurutan"
+	}
+	if strings.HasPrefix(s, "www.") {
+		return "Tak boleh diawali \"www.\""
+	}
+	hasLetter := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLetter = true
+		case r >= '0' && r <= '9', r == '.', r == '_':
+		default:
+			return "Hanya huruf kecil, angka, titik, dan garis bawah"
+		}
+	}
+	if !hasLetter {
+		return "Harus memuat minimal satu huruf"
+	}
+	return ""
 }
 
 // GetRetention mengembalikan jumlah hari retensi pesan (0 = selamanya).

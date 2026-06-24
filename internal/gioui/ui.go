@@ -35,7 +35,6 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"gioui.org/x/richtext"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 )
@@ -65,10 +64,10 @@ type UI struct {
 	olderReqChat string    // chat terakhir diminta history lama (throttle pagination)
 	olderReqAt   time.Time // waktu permintaan history lama terakhir
 
-	pollClicks    map[string][]widget.Clickable        // msgID → clickable per opsi polling
-	pollVoteCache map[string]pollVoteEntry             // msgID → hasil suara (TTL — hindari query/frame)
-	mentionState  richtext.InteractiveText             // state teks ber-mention (warna inline)
-	linkStates    map[string]*richtext.InteractiveText // state per-pesan utk URL klik
+	pollClicks    map[string][]widget.Clickable // msgID → clickable per opsi polling
+	pollVoteCache map[string]pollVoteEntry      // msgID → hasil suara (TTL — hindari query/frame)
+	mentionState  rtInteractiveText             // state teks ber-mention (warna inline)
+	linkStates    map[string]*rtInteractiveText // state per-pesan utk URL klik
 
 	// picker stiker (tombol stiker composer → overlay "picker").
 	stickerClick  widget.Clickable
@@ -4509,25 +4508,25 @@ func (u *UI) clk(m map[string]*widget.Clickable, id string) *widget.Clickable {
 }
 
 func (u *UI) formattedText(gtx layout.Context, text string, mentions []app.MentionDTO, size unit.Sp, id string) layout.Dimensions {
-	base := richtext.SpanStyle{Size: size, Color: u.t.Text}
+	base := rtSpanStyle{Size: size, Color: u.t.Text}
 	spans := u.richSpans(text, mentions, base)
 	st := &u.mentionState
 	if id != "" {
 		if u.linkStates == nil {
-			u.linkStates = map[string]*richtext.InteractiveText{}
+			u.linkStates = map[string]*rtInteractiveText{}
 		}
 		if u.linkStates[id] == nil {
-			u.linkStates[id] = &richtext.InteractiveText{}
+			u.linkStates[id] = &rtInteractiveText{}
 		}
 		st = u.linkStates[id]
 	}
-	dims := richtext.Text(st, u.th.Shaper, spans...).Layout(gtx)
+	dims := rtText(st, u.th.Shaper, spans...).Layout(gtx)
 	for { // klik URL → buka browser
 		span, ev, ok := st.Update(gtx)
 		if !ok {
 			break
 		}
-		if ev.Type == richtext.Click && span != nil && u.OnOpenURL != nil {
+		if ev.Type == rtClick && span != nil && u.OnOpenURL != nil {
 			if url, _ := span.Get("url").(string); url != "" {
 				u.OnOpenURL(url)
 			}
@@ -4597,8 +4596,8 @@ var reURL = regexp.MustCompile(`(?:https?://|www\.)[^\s]+`)
 // richSpans — text → span richtext: gaya format (tebal/miring/coret/mono) +
 // warna URL (accent) & @mention (accent/medium). Coret via U+0336 (richtext tak
 // punya strikethrough).
-func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.SpanStyle) []richtext.SpanStyle {
-	var spans []richtext.SpanStyle
+func (u *UI) richSpans(text string, mentions []app.MentionDTO, base rtSpanStyle) []rtSpanStyle {
+	var spans []rtSpanStyle
 	for _, r := range fmtRuns(text, false, false, false, false) {
 		st := base
 		if r.bold {
@@ -4624,14 +4623,14 @@ func (u *UI) richSpans(text string, mentions []app.MentionDTO, base richtext.Spa
 	}
 	if len(spans) == 0 {
 		base.Content = text
-		spans = []richtext.SpanStyle{base}
+		spans = []rtSpanStyle{base}
 	}
 	return spans
 }
 
 // coloredSpans — pisah `text` pada token accent (URL via reURL + "@Name" mention),
 // warna accent; sisanya pakai `base`. Pertahankan Font dari base (gaya format).
-func coloredSpans(text string, mentions []app.MentionDTO, base, linkSt, acc richtext.SpanStyle) []richtext.SpanStyle {
+func coloredSpans(text string, mentions []app.MentionDTO, base, linkSt, acc rtSpanStyle) []rtSpanStyle {
 	type tok struct {
 		s, e  int
 		isURL bool
@@ -4656,11 +4655,11 @@ func coloredSpans(text string, mentions []app.MentionDTO, base, linkSt, acc rich
 	}
 	if len(toks) == 0 {
 		base.Content = text
-		return []richtext.SpanStyle{base}
+		return []rtSpanStyle{base}
 	}
 	// urut token by start; abaikan tumpang-tindih.
 	sort.Slice(toks, func(a, b int) bool { return toks[a].s < toks[b].s })
-	var spans []richtext.SpanStyle
+	var spans []rtSpanStyle
 	i := 0
 	for _, t := range toks {
 		if t.s < i {
@@ -4690,7 +4689,7 @@ func coloredSpans(text string, mentions []app.MentionDTO, base, linkSt, acc rich
 }
 
 // strikeThrough — sisipkan U+0336 (combining long stroke overlay) tiap rune →
-// efek coret (richtext.SpanStyle tak punya properti strikethrough).
+// efek coret (rtSpanStyle tak punya properti strikethrough).
 func strikeThrough(s string) string {
 	var b strings.Builder
 	b.Grow(len(s) * 2)
@@ -4703,14 +4702,14 @@ func strikeThrough(s string) string {
 
 // mentionSpans — pisah `text` jadi span normal vs span accent pada token "@Name"
 // (dari mentions). Pure → bisa diuji. Token paling-awal di tiap posisi yg dipilih.
-func mentionSpans(text string, mentions []app.MentionDTO, base, acc richtext.SpanStyle) []richtext.SpanStyle {
+func mentionSpans(text string, mentions []app.MentionDTO, base, acc rtSpanStyle) []rtSpanStyle {
 	toks := make([]string, 0, len(mentions))
 	for _, mn := range mentions {
 		if mn.Name != "" {
 			toks = append(toks, "@"+mn.Name)
 		}
 	}
-	var spans []richtext.SpanStyle
+	var spans []rtSpanStyle
 	for i := 0; i < len(text); {
 		bestPos, bestTok := -1, ""
 		for _, tok := range toks {

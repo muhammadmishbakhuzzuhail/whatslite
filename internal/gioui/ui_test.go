@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"gioui.org/layout"
-	"gioui.org/x/richtext"
 
 	"github.com/muhammadmishbakhuzzuhail/whatslite/internal/app"
 )
@@ -184,8 +183,8 @@ func TestRetentionDesc(t *testing.T) {
 }
 
 func TestMentionSpans(t *testing.T) {
-	base := richtext.SpanStyle{Color: color.NRGBA{R: 1}}
-	acc := richtext.SpanStyle{Color: color.NRGBA{G: 1}}
+	base := rtSpanStyle{Color: color.NRGBA{R: 1}}
+	acc := rtSpanStyle{Color: color.NRGBA{G: 1}}
 	mentions := []app.MentionDTO{{Name: "Budi Santoso"}, {Name: "Citra"}}
 	spans := mentionSpans("Halo @Budi Santoso dan @Citra ya", mentions, base, acc)
 	// rangkai ulang Content harus == teks asli

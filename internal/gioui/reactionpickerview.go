@@ -27,22 +27,23 @@ type RpCtl struct {
 	TabClicks []widget.Clickable // paralel rpCats (ganti kategori)
 }
 
-// rpCat — satu kategori emoji (ikon tab + glyph).
+// rpCat — satu kategori emoji (ikon tab + label tooltip + glyph).
 type rpCat struct {
 	icon  string
+	label string
 	emoji []string
 }
 
 // rpCats — emoji per kategori (ala keyboard HP), dikurasi agar tak tofu di
 // NotoColorEmoji. Kategori 0 (Smiley) default + dipakai utk reaksi.
 var rpCats = []rpCat{
-	{"emojiface", rpSmileys},
-	{"contacts", rpPeople},
-	{"emoji", rpNature},
-	{"locpin", rpFood},
-	{"play", rpActivity},
-	{"sticker", rpObjects},
-	{"globe", rpSymbols},
+	{"emojiface", "Smiley & emosi", rpSmileys},
+	{"contacts", "Orang & gestur", rpPeople},
+	{"emoji", "Hewan & alam", rpNature},
+	{"locpin", "Makanan", rpFood},
+	{"play", "Aktivitas", rpActivity},
+	{"sticker", "Objek", rpObjects},
+	{"globe", "Simbol", rpSymbols},
 }
 
 // RpEmoji — emoji bar reaksi cepat (kategori smiley); pemetaan indeks→glyph.
@@ -191,10 +192,16 @@ func rpTabs(gtx layout.Context, th *material.Theme, t Theme, ctl *RpCtl) layout.
 		for i := range rpCats {
 			i := i
 			children = append(children, layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				hovered := ctl != nil && i < len(ctl.TabClicks) && ctl.TabClicks[i].Hovered()
 				cell := func(gtx layout.Context) layout.Dimensions {
 					col := t.Text2
 					if i == active {
 						col = t.Accent
+					}
+					if hovered { // tooltip nama kategori DI BAWAH ikon (di atas grid).
+						m := op.Record(gtx.Ops)
+						rpTipBelow(gtx, th, t, rpCats[i].label)
+						op.Defer(gtx.Ops, m.Stop())
 					}
 					return layout.Stack{Alignment: layout.S}.Layout(gtx,
 						layout.Stacked(func(gtx layout.Context) layout.Dimensions {
@@ -225,6 +232,24 @@ func rpTabs(gtx layout.Context, th *material.Theme, t Theme, ctl *RpCtl) layout.
 		}
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
 	})
+}
+
+// rpTipBelow — tooltip kecil di bawah tab kategori (kotak inverse + teks).
+func rpTipBelow(gtx layout.Context, th *material.Theme, t Theme, txt string) {
+	cg := gtx
+	cg.Constraints = layout.Constraints{Max: image.Pt(gtx.Dp(160), gtx.Dp(28))}
+	m := op.Record(gtx.Ops)
+	lbl := material.Label(th, 11, txt)
+	lbl.Color, lbl.MaxLines = t.SidebarBg, 1
+	dims := layout.UniformInset(unit.Dp(6)).Layout(cg, lbl.Layout)
+	call := m.Stop()
+	r := gtx.Dp(6)
+	cx := gtx.Constraints.Max.X / 2
+	y := gtx.Dp(40)
+	off := op.Offset(image.Pt(cx-dims.Size.X/2, y)).Push(gtx.Ops)
+	paint.FillShape(gtx.Ops, t.Text, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+	call.Add(gtx.Ops)
+	off.Pop()
 }
 
 // rpGrid menata emoji KATEGORI AKTIF dlm grid 8 kolom yg BISA DI-SCROLL.

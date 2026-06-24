@@ -44,7 +44,12 @@ func (e *Engine) ProfilePictureRaw(jid string) ([]byte, error) {
 	}
 	info, err := e.Client.GetProfilePictureInfo(context.Background(), j, &whatsmeow.GetProfilePictureParams{Preview: true})
 	if err != nil || info == nil || info.URL == "" {
-		return nil, nil // tak ada foto
+		// Grup sering TAK punya preview kecil → coba foto penuh. (Kontak juga
+		// kadang begitu.) Tanpa fallback ini foto grup jatuh ke inisial.
+		info, err = e.Client.GetProfilePictureInfo(context.Background(), j, &whatsmeow.GetProfilePictureParams{Preview: false})
+		if err != nil || info == nil || info.URL == "" {
+			return nil, nil // tak ada foto
+		}
 	}
 	resp, err := picHTTP.Get(info.URL)
 	if err != nil {

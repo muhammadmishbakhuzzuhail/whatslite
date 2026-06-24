@@ -7711,7 +7711,8 @@ func (u *UI) infoData() *InfoDrawerData {
 		sub = u.core.GetContactAbout(jid)
 	}
 	d := &InfoDrawerData{Name: u.infoNameOf(), Group: group, Sub: sub}
-	d.Mute = &u.infoMuteC // bisu (DM + grup)
+	d.Av, d.JID = u.avatar, jid // foto profil asli di hero (bukan inisial)
+	d.Mute = &u.infoMuteC       // bisu (DM + grup)
 	d.Media = &u.infoMediaC
 	d.Enc = &u.infoEncC
 	d.Timer = &u.infoTimerC

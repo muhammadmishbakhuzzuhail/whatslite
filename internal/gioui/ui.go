@@ -255,13 +255,16 @@ type UI struct {
 	unreadDivCount int    // jumlah belum-dibaca saat chat dibuka
 
 	// pemilih reaksi: target pesan (kosong = mode sisip emoji ke editor).
-	rpClicks    []widget.Clickable
-	rpTabClicks []widget.Clickable
-	rpCat       int
-	rpList      widget.List
-	reactMsgID  string
-	reactSender string
-	reactFromMe bool
+	rpClicks       []widget.Clickable
+	rpTabClicks    []widget.Clickable
+	rpCat          int
+	rpList         widget.List
+	reactMsgID     string
+	reactChnMsgID  string             // target reaksi post saluran (ReactChannel)
+	reactChnSrv    int64              // server-id post saluran (utk ReactChannel)
+	chnReactClicks []widget.Clickable // tombol reaksi per-post saluran
+	reactSender    string
+	reactFromMe    bool
 
 	// teruskan: id pesan sumber + klik per-chat tujuan + batal.
 	fwdMsgID  string
@@ -3366,12 +3369,18 @@ func (u *UI) handleReaction(gtx layout.Context) {
 		}
 		for u.rpClicks[i].Clicked(gtx) {
 			glyph := em[i]
-			if u.reactMsgID != "" {
+			switch {
+			case u.reactChnMsgID != "": // reaksi post saluran (ReactChannel)
+				if u.core != nil {
+					u.core.ReactChannel(u.openChannel, u.reactChnMsgID, u.reactChnSrv, glyph)
+				}
+				u.reactChnMsgID, u.reactChnSrv = "", 0
+			case u.reactMsgID != "":
 				if u.core != nil {
 					u.core.React(u.selected, u.reactMsgID, u.reactSender, glyph, u.reactFromMe)
 				}
 				u.reactMsgID = ""
-			} else {
+			default:
 				u.editor.Insert(glyph) // sisip emoji ke pesan yg sedang diketik
 			}
 			u.overlay = ""
@@ -5941,15 +5950,25 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 				})
 			}
 			u.chMsgList.Axis = layout.Vertical
+			if len(u.chnReactClicks) < len(msgs) {
+				u.chnReactClicks = make([]widget.Clickable, len(msgs))
+			}
 			return material.List(u.th, &u.chMsgList).Layout(gtx, len(msgs), func(gtx layout.Context, i int) layout.Dimensions {
-				return u.channelPost(gtx, msgs[i])
+				return u.channelPost(gtx, msgs[i], i)
 			})
 		}),
 	)
 }
 
-// channelPost — satu kartu post channel: teks + (waktu · N views).
-func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensions {
+// channelPost — satu kartu post channel: teks + (waktu · N views) + tombol reaksi.
+func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO, idx int) layout.Dimensions {
+	if idx < len(u.chnReactClicks) { // tombol reaksi → buka picker emoji → ReactChannel
+		for u.chnReactClicks[idx].Clicked(gtx) {
+			u.reactChnMsgID, u.reactChnSrv = m.ID, m.ServerID
+			u.reactMsgID = "" // pastikan jalur channel, bukan chat biasa
+			u.overlay = "reaction"
+		}
+	}
 	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(14), Right: unit.Dp(60)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		macro := op.Record(gtx.Ops)
 		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -6006,11 +6025,26 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO) layout.Dimensi
 						meta += "  ·  " + fmtSubs(m.Views) + " dilihat"
 					}
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
-					return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions { // meta kanan-bawah (ala bubble)
-						lbl := material.Label(u.th, 11.5, meta)
-						lbl.Color = u.t.Text2
-						return lbl.Layout(gtx)
-					})
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { // tombol reaksi (kiri)
+							if idx >= len(u.chnReactClicks) {
+								return layout.Dimensions{}
+							}
+							return u.chnReactClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.Inset{Right: unit.Dp(6), Top: unit.Dp(1), Bottom: unit.Dp(1)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, "emoji", 17, u.t.Text2)
+								})
+							})
+						}),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // meta kanan-bawah
+							gtx.Constraints.Min.X = gtx.Constraints.Max.X
+							return layout.E.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(u.th, 11.5, meta)
+								lbl.Color = u.t.Text2
+								return lbl.Layout(gtx)
+							})
+						}),
+					)
 				}),
 			)
 		})

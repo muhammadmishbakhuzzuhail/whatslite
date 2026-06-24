@@ -81,9 +81,10 @@ type UI struct {
 	onlineClicks []widget.Clickable       // paralel onlineItems (tap → kirim)
 	remoteThumbs map[string]paint.ImageOp // previewURL → thumb
 	remoteTried  map[string]bool
-	pkGridList   widget.List // scroll grid picker
-	msgLimit     int         // jumlah pesan dimuat utk chat aktif (tumbuh saat scroll atas)
-	msgLimitChat string      // chat yg msgLimit-nya berlaku
+	pkGridList   widget.List         // scroll grid picker
+	pkCatClicks  [8]widget.Clickable // chip kategori GIF/stiker
+	msgLimit     int                 // jumlah pesan dimuat utk chat aktif (tumbuh saat scroll atas)
+	msgLimitChat string              // chat yg msgLimit-nya berlaku
 
 	statusGroupsCache []app.StatusGroupDTO // grup status terkini (utk viewer)
 	statusClicks      []widget.Clickable
@@ -2561,7 +2562,26 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 			u.onlineKey = ""
 		}
 	}
+	// chip kategori (label → query Tenor). [0] Tren = trending (query kosong).
+	pkCatLabels := []string{"Tren", "Lucu", "Cinta", "Sedih", "Ketawa", "Marah", "Mantap", "Nangis"}
+	pkCatQuery := []string{"", "funny", "love", "sad", "laugh", "angry", "ok", "cry"}
+	for i := range pkCatLabels {
+		if i >= len(u.pkCatClicks) {
+			break
+		}
+		if u.pkCatClicks[i].Clicked(gtx) {
+			u.gifSearchEd.SetText(pkCatQuery[i])
+			u.onlineKey = ""
+		}
+	}
 	query := strings.TrimSpace(u.gifSearchEd.Text())
+	catActive := -1
+	for i, q := range pkCatQuery {
+		if q == query {
+			catActive = i
+			break
+		}
+	}
 	key := itoa(u.pkTab) + "|" + query
 	if u.onlineKey != key { // tab/query berubah → fetch online (async)
 		u.onlineKey = key
@@ -2590,7 +2610,8 @@ func (u *UI) stickerCtl(gtx layout.Context) *PkCtl {
 	if len(u.onlineClicks) < len(items) {
 		u.onlineClicks = make([]widget.Clickable, len(items))
 	}
-	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], SearchEd: &u.gifSearchEd, Grid: &u.pkGridList, Empty: "Memuat…"}
+	ctl := &PkCtl{Tab: u.pkTab, TabClicks: u.pkTabClicks[:], SearchEd: &u.gifSearchEd, Grid: &u.pkGridList,
+		Cats: pkCatLabels, CatClicks: u.pkCatClicks[:], CatActive: catActive, Empty: "Memuat…"}
 	if items != nil {
 		ctl.Empty = "Tak ada hasil"
 	}

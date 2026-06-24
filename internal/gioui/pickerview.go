@@ -38,6 +38,9 @@ type PkCtl struct {
 	Empty     string             // pesan saat hasil kosong
 	SearchEd  *widget.Editor     // input cari online (nil = tanpa)
 	Grid      *widget.List       // grid bisa di-scroll (banyak hasil)
+	Cats      []string           // chip kategori (preset query); [0] = Tren (trending)
+	CatClicks []widget.Clickable // paralel Cats
+	CatActive int                // chip kategori aktif (-1 = none/cari manual)
 }
 
 // PickerView menggambar kartu pemilih stiker sbg POPUP di atas composer (kiri-bawah),
@@ -107,6 +110,45 @@ func pkCard(gtx layout.Context, th *material.Theme, t Theme, ctl *PkCtl) layout.
 				paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 				call.Add(gtx.Ops)
 				return dims
+			}),
+			// chip kategori (preset query) — scroll horizontal sederhana.
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl == nil || len(ctl.Cats) == 0 {
+					return layout.Dimensions{}
+				}
+				return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					children := make([]layout.FlexChild, 0, len(ctl.Cats)*2)
+					for i, c := range ctl.Cats {
+						i, c := i, c
+						if i > 0 {
+							children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout))
+						}
+						children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							chip := func(gtx layout.Context) layout.Dimensions {
+								bg, fg := t.Bg2, t.Text2
+								if i == ctl.CatActive {
+									bg, fg = t.Accent, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
+								}
+								macro := op.Record(gtx.Ops)
+								d := layout.Inset{Top: unit.Dp(5), Bottom: unit.Dp(5), Left: unit.Dp(11), Right: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(th, 12.5, c)
+									l.Color, l.MaxLines = fg, 1
+									return l.Layout(gtx)
+								})
+								call := macro.Stop()
+								r := gtx.Dp(13)
+								paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: image.Rectangle{Max: d.Size}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
+								call.Add(gtx.Ops)
+								return d
+							}
+							if i < len(ctl.CatClicks) {
+								return ctl.CatClicks[i].Layout(gtx, chip)
+							}
+							return chip(gtx)
+						}))
+					}
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx, children...)
+				})
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
 			// grid stiker/GIF (scroll, isi tinggi sisa), atau pesan kosong.

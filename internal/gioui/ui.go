@@ -3681,7 +3681,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				for i := range privacyOrder { // ketuk baris → siklus all→contacts→none
 					if u.privacyClicks[i].Clicked(gtx) {
 						k := privacyOrder[i].key
-						u.core.SetPrivacy(k, nextPrivacy(pv[k]))
+						u.core.SetPrivacy(k, nextPrivacy(k, pv[k]))
 					}
 				}
 			}

@@ -249,16 +249,29 @@ func nextRetention(d int) int {
 	}
 }
 
-// nextPrivacy — siklus nilai privasi all→contacts→none→all.
-func nextPrivacy(cur string) string {
-	switch cur {
-	case "all":
-		return "contacts"
-	case "contacts":
-		return "none"
+// privacyOptions — nilai VALID per setelan privasi (siklus saat baris diketuk).
+// WhatsApp membatasi tiap setelan: Online hanya Semua / Sama-spt-terakhir-dilihat;
+// Laporan dibaca hanya on/off (all/none); sisanya Semua/Kontak/Tidak ada.
+func privacyOptions(key string) []string {
+	switch key {
+	case "online":
+		return []string{"all", "match_last_seen"}
+	case "readreceipts":
+		return []string{"all", "none"}
 	default:
-		return "all"
+		return []string{"all", "contacts", "none"}
 	}
+}
+
+// nextPrivacy — nilai berikutnya dalam siklus VALID utk setelan `key`.
+func nextPrivacy(key, cur string) string {
+	opts := privacyOptions(key)
+	for i, o := range opts {
+		if o == cur {
+			return opts[(i+1)%len(opts)]
+		}
+	}
+	return opts[0]
 }
 
 // privValue — terjemahkan nilai privasi WA ke Indonesia.

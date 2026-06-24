@@ -588,19 +588,8 @@ func setBytes(n int64) string {
 
 // .pane-head { height:56; padding:0 16; head-bg }  h2 { 19/600 }
 func setHead(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	h := gtx.Dp(56)
-	sz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, unit.Sp(19), "Setelan")
-			lbl.Color = t.Text
-			lbl.Font.Weight = font.SemiBold
-			return lbl.Layout(gtx)
-		})
-	})
-	return layout.Dimensions{Size: sz}
+	// pakai header pane kanonik (sama spt "Chat"/"Komunitas") agar judul konsisten.
+	return paneHead(gtx, th, t, gtx.Constraints.Max.X, "Setelan")
 }
 
 // .settings-profile { gap:16; padding:18 16; border-bottom 1px divider }

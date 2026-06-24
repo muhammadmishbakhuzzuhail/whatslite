@@ -8113,9 +8113,11 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 			if mw > maxW {
 				mw = maxW
 			}
-			gtx.Constraints.Min.X = mw
+			if mw > gtx.Constraints.Min.X { // hormati Min.X dari pemanggil (2-pass align)
+				gtx.Constraints.Min.X = mw
+			}
 		}
-		return layout.Inset{Top: unit.Dp(7), Bottom: unit.Dp(7), Left: unit.Dp(9), Right: unit.Dp(9)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			// metaRow — jam + "diedit" + centang status (dipakai inline ATAU baris bawah).
 			metaRow := func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
@@ -8262,7 +8264,7 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return u.clk(u.moreClicks, m.ID).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 									l := material.Label(u.th, 13.5, label)
-									l.Color, l.Font.Weight = u.t.Text2, font.Medium
+									l.Color, l.Font.Weight = u.t.Link, font.Medium // biru (tautan)
 									return l.Layout(gtx)
 								})
 							}),
@@ -8334,6 +8336,19 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 	// stiker & emoji-only → TANPA gelembung (transparan), ala WhatsApp/IG.
 	noBubble := m.Type == "sticker" || (m.Revoked == false && (m.Type == "" || m.Type == "text") && emojiOnlyCount(m.Text) > 0)
 	bubbleBody := func(gtx layout.Context) layout.Dimensions {
+		// 2-PASS: pass-1 ukur lebar natural konten (Min=0); lalu set Min.X = lebar itu
+		// supaya metaRow (layout.E, bawah) RATA KANAN ke tepi bubble — bukan melayang
+		// kiri saat bubble lebih lebar dari teks (nama grup lebar / teks multi-baris).
+		if !noBubble {
+			mg := gtx
+			mg.Constraints.Min = image.Point{}
+			mm := op.Record(gtx.Ops)
+			md := content(mg)
+			mm.Stop()
+			if md.Size.X > gtx.Constraints.Min.X {
+				gtx.Constraints.Min.X = md.Size.X
+			}
+		}
 		// rekam konten utk ukur, lalu gambar bg di belakang
 		macro := op.Record(gtx.Ops)
 		dims := content(gtx)

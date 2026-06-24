@@ -5415,7 +5415,7 @@ func (u *UI) channelRows() []chnChannel {
 	}
 	if u.chnTab == 1 { // Jelajahi → direktori (ASYNC; jangan blok UI tiap frame)
 		q := strings.TrimSpace(u.chnSearchEd.Text())
-		if u.chnExpQuery != q || (u.chnExpCache == nil && !u.chnExpFetching) || (time.Since(u.chnExpAt) > 15*time.Second && !u.chnExpFetching) {
+		if u.chnExpQuery != q || (u.chnExpCache == nil && !u.chnExpFetching) || (time.Since(u.chnExpAt) > 30*time.Second && !u.chnExpFetching) {
 			u.chnExpFetching = true
 			u.chnExpQuery = q
 			go func() {
@@ -5437,7 +5437,7 @@ func (u *UI) channelRows() []chnChannel {
 		return u.chnExpCache
 	}
 	// Saluran diikuti → ASYNC fetch (refresh tiap 10s di latar), kembalikan cache.
-	if (u.chCache == nil && !u.chFetching) || (time.Since(u.chAt) > 10*time.Second && !u.chFetching) {
+	if (u.chCache == nil && !u.chFetching) || (time.Since(u.chAt) > 60*time.Second && !u.chFetching) {
 		u.chFetching = true
 		go func() {
 			cs := u.core.GetChannels()
@@ -6141,7 +6141,7 @@ func (u *UI) communityRows() []comItem {
 		return u.comCache // demo: di-inject via SetCommunityDemo
 	}
 	// ASYNC: GetCommunities = panggilan jaringan → jangan blok UI tiap frame.
-	if (u.comCache == nil && !u.comFetching) || (time.Since(u.comAt) > 15*time.Second && !u.comFetching) {
+	if (u.comCache == nil && !u.comFetching) || (time.Since(u.comAt) > 60*time.Second && !u.comFetching) {
 		u.comFetching = true
 		go func() {
 			cs := u.core.GetCommunities()

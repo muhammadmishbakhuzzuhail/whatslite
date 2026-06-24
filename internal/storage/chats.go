@@ -30,11 +30,16 @@ INSERT INTO chats (jid, name, last_text, last_ts, unread, pinned, archived)
 VALUES (?, ?, '', ?, ?, ?, ?)
 ON CONFLICT(jid) DO UPDATE SET
 	last_ts  = MAX(chats.last_ts, excluded.last_ts),
-	unread   = excluded.unread,
 	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`,
 		jid, name, ts, unread, b2i(pinned), b2i(archived))
 	return err
 }
+
+// CATATAN: unread SENGAJA tak ditimpa saat CONFLICT. Counter unread dari history-
+// sync server sering BASI (mis. chat yg sudah kita baca/kirim tetap dilaporkan
+// unread>0) → reconnect bikin chat "muncul belum dibaca" lagi. Sumber otoritatif =
+// lokal: IncrementUnread (live OnMessage) + reset saat chat dibuka. Row BARU tetap
+// dapat unread server lewat INSERT (populasi awal).
 
 // HistoryChat = metadata satu percakapan dari history-sync (utk SaveHistory).
 type HistoryChat struct {
@@ -63,8 +68,7 @@ INSERT INTO chats (jid, name, last_text, last_ts, unread, pinned, archived)
 VALUES (?, ?, '', ?, ?, ?, ?)
 ON CONFLICT(jid) DO UPDATE SET
 	last_ts  = MAX(chats.last_ts, excluded.last_ts),
-	unread   = excluded.unread,
-	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`)
+	name     = CASE WHEN excluded.name != '' THEN excluded.name ELSE chats.name END`) // unread: lihat UpsertChat (jangan timpa lokal dgn counter server basi)
 	if err != nil {
 		return err
 	}

@@ -615,10 +615,10 @@ func setHead(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions 
 	return paneHead(gtx, th, t, gtx.Constraints.Max.X, "Setelan")
 }
 
-// .settings-profile { gap:16; padding:18 16; border-bottom 1px divider }
+// .settings-profile { gap:16; padding:18 16 } — kartu profil di atas grup setelan
+// (tanpa garis bawah; dipisah dari grup pertama lewat spasi header section).
 func setProfile(gtx layout.Context, th *material.Theme, t Theme, name, about, accent string) layout.Dimensions {
-	w := gtx.Constraints.Max.X
-	dims := layout.Inset{Top: unit.Dp(18), Bottom: unit.Dp(18), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(18), Bottom: unit.Dp(18), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return setAvatar(gtx, th, name, accent, 49)
@@ -644,9 +644,6 @@ func setProfile(gtx layout.Context, th *material.Theme, t Theme, name, about, ac
 			}),
 		)
 	})
-	// border-bottom 1px divider
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y-gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
-	return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
 }
 
 // setItem = struct baris .settings-item (demo)
@@ -702,34 +699,67 @@ func setList(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) 
 		{name: "Bantuan", desc: "Pusat bantuan, ketentuan, lisensi", icon: "info"},                                                                  // 9
 		{name: "Keluar", icon: "power", danger: true},                                                                                               // 10
 	}
-	flex := layout.Flex{Axis: layout.Vertical}
-	children := make([]layout.FlexChild, len(items))
-	for i := range items {
-		it, idx := items[i], i
-		children[i] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			if ctl != nil && idx < len(ctl.Clicks) { // baris jadi clickable + bg hover (selaras chat)
-				c := &ctl.Clicks[idx]
-				return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					macro := op.Record(gtx.Ops)
-					dims := setRow(gtx, th, t, it)
-					call := macro.Stop()
-					if c.Hovered() {
-						paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
-					}
-					call.Add(gtx.Ops)
-					return dims
-				})
-			}
-			return setRow(gtx, th, t, it)
-		})
+	// Kelompokkan baris jadi section (gaya setelan modern iOS/Material). Rentang
+	// [from,to) menunjuk indeks `items` — TETAP 0..10 agar mapping klik di
+	// handleSettings tak berubah. title "" = tanpa header (Keluar di dasar).
+	groups := []struct {
+		title    string
+		from, to int
+	}{
+		{"AKUN & PRIVASI", 0, 3}, // Akun, Privasi, Notifikasi
+		{"TAMPILAN", 3, 5},       // Tema, Bahasa
+		{"DATA", 5, 9},           // Penyimpanan, Retensi, Simpan-dihapus, Kunci
+		{"BANTUAN", 9, 10},       // Bantuan
+		{"", 10, 11},             // Keluar (danger, tanpa header)
 	}
-	return flex.Layout(gtx, children...)
+	var children []layout.FlexChild
+	for _, g := range groups {
+		if g.title != "" {
+			title := g.title
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return setGroupHead(gtx, th, t, title)
+			}))
+		}
+		for i := g.from; i < g.to && i < len(items); i++ {
+			it, idx := items[i], i
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if ctl != nil && idx < len(ctl.Clicks) { // baris clickable + bg hover (selaras chat)
+					c := &ctl.Clicks[idx]
+					return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						dims := setRow(gtx, th, t, it)
+						call := macro.Stop()
+						if c.Hovered() {
+							paint.FillShape(gtx.Ops, t.Hover, clip.Rect{Max: dims.Size}.Op())
+						}
+						call.Add(gtx.Ops)
+						return dims
+					})
+				}
+				return setRow(gtx, th, t, it)
+			}))
+		}
+	}
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 }
 
-// .settings-item { gap:20; padding:14 20; border-bottom 1px divider }
+// setGroupHead — label section setelan (uppercase kecil, warna lembut) ala iOS/
+// Material. Spasi atas memisahkan grup; tak ada garis full-width per-baris.
+func setGroupHead(gtx layout.Context, th *material.Theme, t Theme, title string) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(4), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+		l := material.Label(th, unit.Sp(12), title)
+		l.Color = t.Text2
+		l.Font.Weight = font.SemiBold
+		l.MaxLines = 1
+		return l.Layout(gtx)
+	})
+}
+
+// .settings-item { gap:20; padding:14 20 } — TANPA garis per-baris (gaya setelan
+// modern: pemisah hanya antar-section via header grup + spasi; hover = bg lembut).
 func setRow(gtx layout.Context, th *material.Theme, t Theme, it setItem) layout.Dimensions {
 	danger := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff} // .danger #e35d6a
-	w := gtx.Constraints.Max.X
 	nameCol := t.Text
 	icoCol := t.Text2
 	if it.danger {
@@ -777,9 +807,7 @@ func setRow(gtx layout.Context, th *material.Theme, t Theme, it setItem) layout.
 			}),
 		)
 	})
-	// border-bottom 1px divider
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, dims.Size.Y-gtx.Dp(1)), Max: image.Pt(w, dims.Size.Y)}.Op())
-	return layout.Dimensions{Size: image.Pt(w, dims.Size.Y)}
+	return dims
 }
 
 // .switch { 38x22 radius12 accent } knob 18x18 white inset 2; off => text2 kiri

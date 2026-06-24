@@ -8889,9 +8889,16 @@ func mentionToken(text string) (string, int) {
 }
 
 // mentionMatches — anggota grup yg cocok token (nama/nomor, maks 6).
+// allMentionJID — sentinel utk @all (tag semua anggota grup).
+const allMentionJID = "__all__"
+
 func (u *UI) mentionMatches(token string) []app.GroupMemberDTO {
 	q := strings.ToLower(token)
-	out := make([]app.GroupMemberDTO, 0, 6)
+	out := make([]app.GroupMemberDTO, 0, 7)
+	// @all / @semua → tag semua anggota (ala WhatsApp). Tampil bila token cocok.
+	if len(u.groupMembers()) > 1 && (q == "" || strings.HasPrefix("all", q) || strings.HasPrefix("semua", q)) {
+		out = append(out, app.GroupMemberDTO{JID: allMentionJID, Name: "Semua"})
+	}
 	for _, m := range u.groupMembers() {
 		if u.selfJID != "" && jidUser(m.JID) == jidUser(u.selfJID) {
 			continue // jangan sarankan diri sendiri
@@ -8932,11 +8939,14 @@ func (u *UI) mentionSuggest(gtx layout.Context) layout.Dimensions {
 		}
 		if u.mentionClicks[i].Clicked(gtx) {
 			m := matches[i]
-			num := jidUser(m.JID)
+			tokn := jidUser(m.JID)
+			if m.JID == allMentionJID {
+				tokn = "all" // @all → di-expand ke semua jid saat kirim
+			}
 			text := u.editor.Text()
-			u.editor.SetText(text[:at] + "@" + num + " ")
+			u.editor.SetText(text[:at] + "@" + tokn + " ")
 			u.editor.SetCaret(len([]rune(u.editor.Text())), len([]rune(u.editor.Text())))
-			u.composeMentions[num] = m.JID // catat jid utk SendTextMentioned
+			u.composeMentions[tokn] = m.JID // catat (jid / sentinel @all)
 		}
 	}
 	return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(8), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -8950,14 +8960,33 @@ func (u *UI) mentionSuggest(gtx layout.Context) layout.Dimensions {
 					if nm == "" {
 						nm = jidUser(m.JID)
 					}
+					allRow := m.JID == allMentionJID
+					label := nm
+					if allRow {
+						label = "Semua — tag semua anggota"
+					}
 					return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						gtx.Constraints.Min.X = gtx.Constraints.Max.X
 						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions { return u.avatar(gtx, nm, m.JID, 32) }),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if allRow { // ikon grup bulat utk @all
+									d := gtx.Dp(32)
+									sz := image.Pt(d, d)
+									paint.FillShape(gtx.Ops, u.t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+									gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+									return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										return icon(gtx, "peoplegroup", 18, color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff})
+									})
+								}
+								return u.avatar(gtx, nm, m.JID, 32)
+							}),
 							layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								l := material.Label(u.th, 14.5, nm)
+								l := material.Label(u.th, 14.5, label)
 								l.Color, l.MaxLines = u.t.Text, 1
+								if allRow {
+									l.Font.Weight = font.Medium
+								}
 								return l.Layout(gtx)
 							}),
 						)
@@ -8981,9 +9010,18 @@ func (u *UI) collectMentions(text string) []string {
 	}
 	out := make([]string, 0, len(u.composeMentions))
 	for num, jid := range u.composeMentions {
-		if strings.Contains(text, "@"+num) {
-			out = append(out, jid)
+		if !strings.Contains(text, "@"+num) {
+			continue
 		}
+		if jid == allMentionJID { // @all → semua anggota grup (kecuali diri sendiri)
+			for _, m := range u.groupMembers() {
+				if u.selfJID == "" || jidUser(m.JID) != jidUser(u.selfJID) {
+					out = append(out, m.JID)
+				}
+			}
+			continue
+		}
+		out = append(out, jid)
 	}
 	return out
 }

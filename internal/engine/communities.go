@@ -4,8 +4,8 @@
 package engine
 
 // communities.go — WhatsApp Communities. Komunitas = grup dgn IsParent=true;
-// di dalamnya ada sub-grup tertaut. whatsmeow: GetJoinedGroups (filter IsParent)
-// + GetSubGroups untuk anggota grupnya.
+// di dalamnya ada sub-grup tertaut. Sub-grup yang kita ikuti dikenali dari
+// LinkedParentJID pada GetJoinedGroups → tak perlu GetSubGroups per komunitas.
 
 import (
 	"context"
@@ -29,30 +29,40 @@ type CommunityInfo struct {
 }
 
 // ListCommunities mengembalikan komunitas yang diikuti beserta sub-grupnya.
+//
+// SATU panggilan jaringan (GetJoinedGroups). Dulu juga memanggil GetSubGroups
+// PER komunitas (= N IQ jaringan tambahan tiap daftar dibangun) — berat. Karena
+// GetJoinedGroups sudah memuat SEMUA grup yang kita ikuti termasuk sub-grup,
+// kita kelompokkan sub-grup ke induknya via LinkedParentJID secara lokal.
+// Konsekuensi: hanya sub-grup yang DIIKUTI yang tampil (cukup untuk daftar; tap
+// sub-grup = buka chat-nya). Sub-grup yang belum diikuti tak ditampilkan.
 func (e *Engine) ListCommunities(ctx context.Context) ([]CommunityInfo, error) {
 	gs, err := e.Client.GetJoinedGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := []CommunityInfo{}
+	children := map[string][]CommunitySubGroup{}
+	parents := make([]*types.GroupInfo, 0, 4)
 	for _, g := range gs {
-		if !g.IsParent {
+		if g.IsParent {
+			parents = append(parents, g)
 			continue
 		}
-		ci := CommunityInfo{
+		if p := g.LinkedParentJID; !p.IsEmpty() {
+			pj := p.String()
+			children[pj] = append(children[pj], CommunitySubGroup{
+				JID: g.JID.String(), Name: g.Name, IsDefault: g.IsDefaultSubGroup,
+			})
+		}
+	}
+	out := make([]CommunityInfo, 0, len(parents))
+	for _, g := range parents {
+		out = append(out, CommunityInfo{
 			JID:         g.JID.String(),
 			Name:        g.Name,
 			Description: g.Topic,
-		}
-		subs, err := e.Client.GetSubGroups(ctx, g.JID)
-		if err == nil {
-			for _, s := range subs {
-				ci.Groups = append(ci.Groups, CommunitySubGroup{
-					JID: s.JID.String(), Name: s.Name, IsDefault: s.IsDefaultSubGroup,
-				})
-			}
-		}
-		out = append(out, ci)
+			Groups:      children[g.JID.String()],
+		})
 	}
 	return out, nil
 }

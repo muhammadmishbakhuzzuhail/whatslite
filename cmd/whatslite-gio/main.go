@@ -14,10 +14,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -38,6 +40,23 @@ import (
 )
 
 func main() {
+	// Profiling memori opt-in (mati secara default; hanya aktif bila env diset).
+	// WLGIO_PPROF=1 → server pprof di localhost:6060 (go tool pprof / /debug/pprof).
+	if os.Getenv("WLGIO_PPROF") != "" {
+		go func() { _ = http.ListenAndServe("localhost:6060", nil) }()
+	}
+	// WLGIO_MEMLOG=1 → log statistik memori runtime tiap 5 detik (heap/sys/GC/goroutine).
+	if os.Getenv("WLGIO_MEMLOG") != "" {
+		go func() {
+			var m runtime.MemStats
+			for range time.NewTicker(5 * time.Second).C {
+				runtime.ReadMemStats(&m)
+				log.Printf("[mem] heapAlloc=%.1fMB sys=%.1fMB numGC=%d goroutines=%d",
+					float64(m.HeapAlloc)/1e6, float64(m.Sys)/1e6, m.NumGC, runtime.NumGoroutine())
+			}
+		}()
+	}
+
 	var core *app.App
 	if os.Getenv("WLGIO_DEMO") == "" {
 		core = app.NewApp()

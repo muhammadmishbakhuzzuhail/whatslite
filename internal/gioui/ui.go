@@ -133,26 +133,30 @@ type UI struct {
 	crCache                       []spCall
 	chCache                       []chnChannel
 	comCache                      []comItem
+	comFetching                   bool // komunitas sedang di-fetch (async)
 	cgAt, srAt, crAt, chAt, comAt time.Time
 
-	chnTab       int                 // 0=Diikuti, 1=Jelajahi
-	chnTabClicks [2]widget.Clickable // tombol tab channels
-	chnRowClicks []widget.Clickable  // aksi per-baris channel (ikuti/unfollow)
-	chnRowOpens  []widget.Clickable  // buka channel per-baris → reader
-	openChannel  string              // jid channel terbuka (reader di section 3); "" = tak ada
-	openChanName string              // nama channel terbuka
-	openChanSubs string              // subscriber channel terbuka (header reader)
-	openChanVer  bool                // channel terverifikasi (header reader)
-	chMsgList    widget.List         // gulir post channel reader
-	chMsgsCache  []app.ChannelMsgDTO // cache post channel terbuka
-	chMsgsJID    string              // jid cache di atas
-	chMsgsAt     time.Time
-	chnExpCache  []chnChannel // cache saluran jelajah
-	chnExpAt     time.Time
-	chnExpQuery  string        // query terakhir direktori jelajah (invalidasi cache)
-	chnSearchEd  widget.Editor // kotak cari direktori channels (tab Jelajahi)
-	ctSearchEd   widget.Editor // kotak cari daftar Kontak (section 2)
-	cgQuery      string        // query terakhir daftar kontak (invalidasi cache)
+	chnTab         int                 // 0=Diikuti, 1=Jelajahi
+	chnTabClicks   [2]widget.Clickable // tombol tab channels
+	chnRowClicks   []widget.Clickable  // aksi per-baris channel (ikuti/unfollow)
+	chnRowOpens    []widget.Clickable  // buka channel per-baris → reader
+	openChannel    string              // jid channel terbuka (reader di section 3); "" = tak ada
+	openChanName   string              // nama channel terbuka
+	openChanSubs   string              // subscriber channel terbuka (header reader)
+	openChanVer    bool                // channel terverifikasi (header reader)
+	chMsgList      widget.List         // gulir post channel reader
+	chMsgsCache    []app.ChannelMsgDTO // cache post channel terbuka
+	chMsgsJID      string              // jid cache di atas
+	chMsgsAt       time.Time
+	chnExpCache    []chnChannel // cache saluran jelajah
+	chnExpAt       time.Time
+	chnExpQuery    string        // query terakhir direktori jelajah (invalidasi cache)
+	chMu           sync.Mutex    // lindungi cache saluran (fetch async)
+	chFetching     bool          // saluran diikuti sedang di-fetch
+	chnExpFetching bool          // direktori jelajah sedang di-fetch
+	chnSearchEd    widget.Editor // kotak cari direktori channels (tab Jelajahi)
+	ctSearchEd     widget.Editor // kotak cari daftar Kontak (section 2)
+	cgQuery        string        // query terakhir daftar kontak (invalidasi cache)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -5355,29 +5359,43 @@ func (u *UI) channelRows() []chnChannel {
 	if u.core == nil {
 		return nil
 	}
-	if u.chnTab == 1 { // Jelajahi → direktori cari (query) atau rekomendasi (TTL 5s)
+	if u.chnTab == 1 { // Jelajahi → direktori (ASYNC; jangan blok UI tiap frame)
 		q := strings.TrimSpace(u.chnSearchEd.Text())
-		if u.chnExpCache != nil && u.chnExpQuery == q && time.Since(u.chnExpAt) < 5*time.Second {
-			return u.chnExpCache
+		if u.chnExpQuery != q || (u.chnExpCache == nil && !u.chnExpFetching) || (time.Since(u.chnExpAt) > 15*time.Second && !u.chnExpFetching) {
+			u.chnExpFetching = true
+			u.chnExpQuery = q
+			go func() {
+				cs := u.core.GetRecommendedChannels(q)
+				out := make([]chnChannel, 0, len(cs))
+				for _, c := range cs {
+					out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true, verified: c.Verified})
+				}
+				u.chMu.Lock()
+				u.chnExpCache, u.chnExpAt, u.chnExpFetching = out, time.Now(), false
+				u.chMu.Unlock()
+			}()
 		}
-		cs := u.core.GetRecommendedChannels(q)
-		out := make([]chnChannel, 0, len(cs))
-		for _, c := range cs {
-			out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, follow: true, verified: c.Verified})
-		}
-		u.chnExpCache, u.chnExpAt, u.chnExpQuery = out, time.Now(), q
-		return out
+		u.chMu.Lock()
+		defer u.chMu.Unlock()
+		return u.chnExpCache
 	}
-	if u.chCache != nil && time.Since(u.chAt) < time.Second {
-		return u.chCache
+	// Saluran diikuti → ASYNC fetch (refresh tiap 10s di latar), kembalikan cache.
+	if (u.chCache == nil && !u.chFetching) || (time.Since(u.chAt) > 10*time.Second && !u.chFetching) {
+		u.chFetching = true
+		go func() {
+			cs := u.core.GetChannels()
+			out := make([]chnChannel, 0, len(cs))
+			for _, c := range cs {
+				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, verified: c.Verified})
+			}
+			u.chMu.Lock()
+			u.chCache, u.chAt, u.chFetching = out, time.Now(), false
+			u.chMu.Unlock()
+		}()
 	}
-	cs := u.core.GetChannels()
-	out := make([]chnChannel, 0, len(cs))
-	for _, c := range cs {
-		out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, verified: c.Verified})
-	}
-	u.chCache, u.chAt = out, time.Now()
-	return out
+	u.chMu.Lock()
+	defer u.chMu.Unlock()
+	return u.chCache
 }
 
 // channelMsgs — post channel terbuka (cache TTL 3s).
@@ -5547,7 +5565,9 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 		for u.chnTabClicks[i].Clicked(gtx) {
 			if u.chnTab != i {
 				u.chnTab = i
-				u.chCache, u.chnExpCache = nil, nil // muat ulang daftar tab baru
+				u.chMu.Lock()
+				u.chCache, u.chnExpCache = nil, nil
+				u.chMu.Unlock() // muat ulang daftar tab baru
 			}
 		}
 	}
@@ -5564,7 +5584,9 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 			} else {
 				u.core.UnfollowChannel(rows[i].jid)
 			}
+			u.chMu.Lock()
 			u.chCache, u.chnExpCache = nil, nil
+			u.chMu.Unlock()
 		}
 		if i < len(u.chnRowOpens) { // tap baris diikuti → buka reader channel
 			for u.chnRowOpens[i].Clicked(gtx) {
@@ -6058,28 +6080,35 @@ func (u *UI) communityRows() []comItem {
 	if u.core == nil {
 		return u.comCache // demo: di-inject via SetCommunityDemo
 	}
-	if u.comCache != nil && time.Since(u.comAt) < 2*time.Second {
-		return u.comCache
-	}
-	cs := u.core.GetCommunities()
-	out := make([]comItem, 0, len(cs))
-	for _, c := range cs {
-		sub := itoa(len(c.Groups)) + " grup"
-		names := make([]string, 0, 3)
-		groups := make([]comSub, 0, len(c.Groups))
-		for i, g := range c.Groups {
-			if i < 3 {
-				names = append(names, g.Name)
+	// ASYNC: GetCommunities = panggilan jaringan → jangan blok UI tiap frame.
+	if (u.comCache == nil && !u.comFetching) || (time.Since(u.comAt) > 15*time.Second && !u.comFetching) {
+		u.comFetching = true
+		go func() {
+			cs := u.core.GetCommunities()
+			out := make([]comItem, 0, len(cs))
+			for _, c := range cs {
+				sub := itoa(len(c.Groups)) + " grup"
+				names := make([]string, 0, 3)
+				groups := make([]comSub, 0, len(c.Groups))
+				for i, g := range c.Groups {
+					if i < 3 {
+						names = append(names, g.Name)
+					}
+					groups = append(groups, comSub{jid: g.JID, name: g.Name, isDefault: g.IsDefault})
+				}
+				if len(names) > 0 {
+					sub += " · " + strings.Join(names, ", ")
+				}
+				out = append(out, comItem{jid: c.JID, name: c.Name, sub: sub, groups: groups})
 			}
-			groups = append(groups, comSub{jid: g.JID, name: g.Name, isDefault: g.IsDefault})
-		}
-		if len(names) > 0 {
-			sub += " · " + strings.Join(names, ", ")
-		}
-		out = append(out, comItem{jid: c.JID, name: c.Name, sub: sub, groups: groups})
+			u.chMu.Lock()
+			u.comCache, u.comAt, u.comFetching = out, time.Now(), false
+			u.chMu.Unlock()
+		}()
 	}
-	u.comCache, u.comAt = out, time.Now()
-	return out
+	u.chMu.Lock()
+	defer u.chMu.Unlock()
+	return u.comCache
 }
 
 // comCtl membangun ComCtl dari komunitas nyata + state buka/detail. Tangani klik

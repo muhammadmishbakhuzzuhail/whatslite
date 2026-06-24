@@ -278,7 +278,7 @@ func main() {
 			ui.SetOverlay("picker")
 			ui.Layout(gtx)
 		case "app-msgctx":
-			ui.SetOverlay("msgctx")
+			ui.SetMsgCtxDemo() // dropdown aksi pesan teks (Terjemahkan dll)
 			ui.Layout(gtx)
 		case "app-reply":
 			ui.SetReply("Budi Santoso", "Halo! Jadi nanti malam ngumpul jam berapa?")

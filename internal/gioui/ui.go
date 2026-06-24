@@ -526,6 +526,12 @@ func (u *UI) SetMentionDemo() {
 	u.editor.SetText("Halo @")
 }
 
+// SetMsgCtxDemo: render-tool — dropdown aksi pesan teks (incl. Terjemahkan).
+func (u *UI) SetMsgCtxDemo() {
+	u.ctxMsg = app.MessageDTO{ID: "m1", Dir: "in", Type: "text", Text: "Hello everyone", Sender: "Budi"}
+	u.overlay = "msgctx"
+}
+
 // SetJoinLinkDemo: render-tool — modal gabung grup lewat tautan (pratinjau termuat).
 func (u *UI) SetJoinLinkDemo() {
 	u.joinLink, u.joinPreview, u.overlay = "https://chat.whatsapp.com/ABC123", "Grup Kerja", "joinlink"
@@ -2130,8 +2136,13 @@ func (u *UI) doCtxAction(gtx layout.Context, label string) {
 	case "Pilih":
 		u.selMode = true
 		u.selSet[m.ID] = true
-	case "Terjemah":
+	case "Terjemahkan":
 		u.ensureTranslate(m.ID, m.Text)
+	case "Sembunyikan terjemahan":
+		u.transMu.Lock()
+		delete(u.transText, m.ID)
+		delete(u.transTried, m.ID)
+		u.transMu.Unlock()
 	case "Salin":
 		gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(m.Text))})
 	}
@@ -2917,7 +2928,14 @@ func (u *UI) ctxMenuView(gtx layout.Context) layout.Dimensions {
 		items = append(items, ctxItem{"pin", pinLabel, ""})
 	}
 	if !m.Revoked && (m.Type == "" || m.Type == "text") && strings.TrimSpace(m.Text) != "" {
-		items = append(items, ctxItem{"globe", "Terjemah", ""}) // terjemah teks
+		u.transMu.Lock()
+		translated := u.transText[m.ID] != ""
+		u.transMu.Unlock()
+		lbl := "Terjemahkan"
+		if translated {
+			lbl = "Sembunyikan terjemahan"
+		}
+		items = append(items, ctxItem{"globe", lbl, ""}) // terjemah teks (toggle)
 	}
 	items = append(items, ctxItem{"message", "Pilih", ""}) // masuk mode pilih (multi)
 	children := make([]layout.FlexChild, 0, len(items))

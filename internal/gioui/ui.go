@@ -5828,9 +5828,10 @@ func (u *UI) avatar(gtx layout.Context, name, jid string, dp int) layout.Dimensi
 	return layout.Dimensions{Size: sz}
 }
 
-// channelAvatar — foto saluran bulat dari URL CDN (chnPic[jid]) lewat
-// ensureRemoteThumb (cache per-URL). TIDAK memanggil AvatarBytes/GetNewsletterInfo
-// (jalur lama: 1 IQ jaringan per saluran). URL kosong → inisial warna.
+// channelAvatar — foto saluran bulat. Utamakan URL CDN (chnPic[jid], murah). Bila
+// kosong (GetSubscribedNewsletters TAK isi Picture), fallback ke AvatarBytes →
+// newsletterPicRaw (GetNewsletterInfo per-saluran, lazy + cooldown 20s via
+// ensureAvatar). URL & foto sama-sama gagal → inisial warna.
 func (u *UI) channelAvatar(gtx layout.Context, name, jid string, dp int) layout.Dimensions {
 	d := gtx.Dp(unit.Dp(dp))
 	sz := image.Pt(d, d)
@@ -5841,6 +5842,17 @@ func (u *UI) channelAvatar(gtx layout.Context, name, jid string, dp int) layout.
 		u.ensureRemoteThumb(url)
 		u.photoMu.Lock()
 		ph, ok := u.remoteThumbs[url]
+		u.photoMu.Unlock()
+		if ok {
+			cl := clip.Ellipse{Max: sz}.Push(gtx.Ops)
+			drawImageFill(gtx.Ops, ph, d)
+			cl.Pop()
+			return layout.Dimensions{Size: sz}
+		}
+	} else { // URL kosong → coba foto via engine (GetNewsletterInfo), cache per-nama
+		u.ensureAvatar(name, jid)
+		u.photoMu.Lock()
+		ph, ok := u.photos[name]
 		u.photoMu.Unlock()
 		if ok {
 			cl := clip.Ellipse{Max: sz}.Push(gtx.Ops)

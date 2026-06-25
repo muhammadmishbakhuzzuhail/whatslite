@@ -138,6 +138,18 @@ func decodeImage(b []byte) image.Image {
 	return img
 }
 
+// encodeJPEG — image → JPEG byte (q80) utk cache thumbnail di disk. nil bila gagal.
+func encodeJPEG(img image.Image) []byte {
+	if img == nil {
+		return nil
+	}
+	var buf bytes.Buffer
+	if jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}) != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
 // decodeImageScaled — seperti decodeImage tapi DI-DOWNSCALE ke sisi-terpanjang
 // maxDim sebelum dipakai (kunci hemat RAM ala Telegram: thumbnail bubble ~640px,
 // avatar ~256px — bukan foto 12MP full-res yg jadi RGBA puluhan MB). Sudah kecil →

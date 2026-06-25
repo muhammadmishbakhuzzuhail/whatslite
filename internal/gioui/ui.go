@@ -5783,6 +5783,21 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 	u.mediaTried[id] = true
 	u.mediaMu.Unlock()
 	go func() {
+		// Disk-thumb dulu (kecil) → hindari unduh ulang penuh dari CDN saat gulir-balik.
+		// Lewati utk "gif" (butuh byte penuh agar bisa animasi, bukan 1 frame statis).
+		if kind != "gif" {
+			if tb := u.core.ThumbBytes(id); len(tb) > 0 {
+				if img := decodeImage(tb); img != nil {
+					op := paint.NewImageOp(img)
+					u.mediaMu.Lock()
+					u.media[id] = op
+					u.mediaOrder = append(u.mediaOrder, id)
+					u.capMediaLocked()
+					u.mediaMu.Unlock()
+					return
+				}
+			}
+		}
 		b := u.core.MediaBytes(chat, id)
 		// GIF .gif ASLI (magic "GIF8") → decode frame utuh utk auto-loop di bubble.
 		// (GIF WA biasanya mp4 / stiker webp-animasi → tak kena sini; tetap poster.)
@@ -5818,6 +5833,11 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 		u.mediaOrder = append(u.mediaOrder, id)
 		u.capMediaLocked()
 		u.mediaMu.Unlock()
+		if kind != "gif" { // simpan thumb kecil ke disk → repopulasi murah nanti
+			if tb := encodeJPEG(img); tb != nil {
+				u.core.PutThumb(id, tb)
+			}
+		}
 	}()
 }
 

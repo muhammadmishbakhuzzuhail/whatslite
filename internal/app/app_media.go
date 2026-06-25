@@ -35,6 +35,34 @@ func (a *App) MediaBytes(chatJID, msgID string) []byte {
 	return data
 }
 
+// thumbSafe — sanitasi key (msgID) jadi nama berkas aman.
+func thumbSafe(key string) string {
+	if key == "" || strings.ContainsAny(key, "/\\.") {
+		return ""
+	}
+	return key
+}
+
+// ThumbBytes: baca thumbnail media KECIL yg sudah di-cache di disk (thumbs/<id>.jpg)
+// → hindari unduh ulang penuh dari CDN saat gulir-balik. "" bila tak ada.
+func (a *App) ThumbBytes(key string) []byte {
+	k := thumbSafe(key)
+	if a.thumbDir == "" || k == "" {
+		return nil
+	}
+	b, _ := os.ReadFile(filepath.Join(a.thumbDir, k+".jpg"))
+	return b
+}
+
+// PutThumb: simpan thumbnail KECIL (JPEG ter-downscale) ke disk utk repopulasi murah.
+func (a *App) PutThumb(key string, data []byte) {
+	k := thumbSafe(key)
+	if a.thumbDir == "" || k == "" || len(data) == 0 {
+		return
+	}
+	writeFileAtomic(filepath.Join(a.thumbDir, k+".jpg"), data)
+}
+
 // AvatarBytes: foto profil byte in-process (ProfilePictureRaw) — Gio avatar.
 func (a *App) AvatarBytes(jid string) []byte {
 	if a.eng == nil {
@@ -321,6 +349,55 @@ func (a *App) startMediaEviction(capBytes int64) {
 			return
 		}
 		sort.Slice(files, func(i, j int) bool { return files[i].mod < files[j].mod }) // terlama dulu
+		for _, x := range files {
+			if total <= capBytes {
+				break
+			}
+			if os.Remove(x.path) == nil {
+				total -= x.size
+			}
+		}
+	}
+	go func() {
+		sweep()
+		t := time.NewTicker(30 * time.Minute)
+		defer t.Stop()
+		for range t.C {
+			sweep()
+		}
+	}()
+}
+
+// startDirEviction — LRU cap generik satu folder (mis. thumbs): hapus berkas
+// TERLAMA bila total > capBytes. Sapu awal + tiap 30 menit.
+func (a *App) startDirEviction(dir string, capBytes int64) {
+	if dir == "" {
+		return
+	}
+	sweep := func() {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		type f struct {
+			path string
+			size int64
+			mod  int64
+		}
+		var files []f
+		var total int64
+		for _, e := range entries {
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			files = append(files, f{filepath.Join(dir, e.Name()), info.Size(), info.ModTime().Unix()})
+			total += info.Size()
+		}
+		if total <= capBytes {
+			return
+		}
+		sort.Slice(files, func(i, j int) bool { return files[i].mod < files[j].mod })
 		for _, x := range files {
 			if total <= capBytes {
 				break

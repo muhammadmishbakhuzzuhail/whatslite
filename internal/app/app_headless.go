@@ -63,6 +63,9 @@ func (a *App) StartupHeadless(ctx context.Context) error {
 	_ = os.MkdirAll(a.stickerDir, 0o755)
 	a.gifDir = filepath.Join(dataDir, "gifs")
 	_ = os.MkdirAll(a.gifDir, 0o755)
+	a.thumbDir = filepath.Join(dataDir, "thumbs")
+	_ = os.MkdirAll(a.thumbDir, 0o755)
+	a.startDirEviction(a.thumbDir, 128<<20) // cap cache thumbnail 128MB (LRU)
 
 	if px := store.GetMeta(ctx, "proxy", ""); px != "" {
 		_ = eng.SetProxy(px)

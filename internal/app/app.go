@@ -35,6 +35,7 @@ type App struct {
 	mediaDir   string // cache file media (bukan di DB) → ringan
 	stickerDir string // koleksi stiker tersimpan (permanen, di luar LRU media)
 	gifDir     string // koleksi GIF tersimpan (permanen, di luar LRU media)
+	thumbDir   string // cache thumbnail media KECIL (repopulasi murah, hindari re-download)
 
 	labelsMu sync.RWMutex      // melindungi labels
 	labels   map[string]string // label kontak lokal (jid → nama), cache dari DB

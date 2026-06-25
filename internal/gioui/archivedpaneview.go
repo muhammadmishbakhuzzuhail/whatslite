@@ -64,38 +64,7 @@ func ArchivedPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.Di
 // avPaneHead — .pane-head { height: 56px; padding: 0 16px; background: head-bg;
 // gap: 14px } : icon-btn back (chevron ‹ text2) + h2 "Arsip" 17px.
 func avPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int) layout.Dimensions {
-	h := gtx.Dp(56)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			// .icon-btn 40x40 berisi chevron back (path M15 5l-7 7 7 7).
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return avBackBtn(gtx, t)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 17, "Arsip")
-				lbl.Color = t.Text
-				lbl.Font.Weight = font.SemiBold
-				return lbl.Layout(gtx)
-			}),
-		)
-	})
-	return layout.Dimensions{Size: sz}
-}
-
-// avBackBtn — .icon-btn 40x40 transparan berisi chevron ‹ (back), warna text2.
-// Glyph 24dp di tengah (SVG path M15 5l-7 7 7 7 → ikon "chevleft").
-func avBackBtn(gtx layout.Context, t Theme) layout.Dimensions {
-	box := gtx.Dp(40)
-	sz := image.Pt(box, box)
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return icon(gtx, "chevleft", 24, t.Text2)
-	})
-	return layout.Dimensions{Size: sz}
+	return subPaneHead(gtx, th, t, w, "Arsip", nil, nil)
 }
 
 // avChatRow — .chat-row { padding: 10px 12px; gap: 13px; border-radius: 14px } :

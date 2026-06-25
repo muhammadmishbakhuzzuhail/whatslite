@@ -10,7 +10,6 @@ package gioui
 
 import (
 	"image"
-	"image/color"
 
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -66,33 +65,7 @@ func ScheduledPaneView(gtx layout.Context, th *material.Theme, t Theme) layout.D
 // scPaneHead — .pane-head { height:56px; padding:0 16px; gap:22px; background:head-bg }
 // : chevron kembali (M15 5l-7 7 7 7) + h2 17/SemiBold.
 func scPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string) layout.Dimensions {
-	h := gtx.Dp(56)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.W.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return scChevron(gtx, t.Text2)
-				}),
-				layout.Rigid(layout.Spacer{Width: unit.Dp(22)}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, 17, title)
-					lbl.Color = t.Text
-					lbl.Font.Weight = font.SemiBold
-					return lbl.Layout(gtx)
-				}),
-			)
-		})
-	})
-	return layout.Dimensions{Size: sz}
-}
-
-// scChevron — ikon kembali .icon-btn svg (M15 5l-7 7 7 7): ikon "chevleft" 24x24,
-// warna text2.
-func scChevron(gtx layout.Context, col color.NRGBA) layout.Dimensions {
-	return icon(gtx, "chevleft", 24, col)
+	return subPaneHead(gtx, th, t, w, title, nil, nil)
 }
 
 // scSection — .sc-sec { font-size:12; font-weight:700; uppercase; letter-spacing:.4px;

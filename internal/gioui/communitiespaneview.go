@@ -230,32 +230,7 @@ func comDetailView(gtx layout.Context, th *material.Theme, t Theme, w int, ctl *
 
 // comDetailHead — header detail komunitas: tombol ← + nama komunitas.
 func comDetailHead(gtx layout.Context, th *material.Theme, t Theme, w int, name string, back *widget.Clickable) layout.Dimensions {
-	h := gtx.Dp(60)
-	sz := image.Pt(w, h)
-	paint.FillShape(gtx.Ops, t.HeadBg, clip.Rect{Max: sz}.Op())
-	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-1), Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				b := func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return icon(gtx, "back", 22, t.Text)
-					})
-				}
-				if back != nil {
-					return back.Layout(gtx, b)
-				}
-				return b(gtx)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				l := material.Label(th, 16.5, name)
-				l.Color, l.Font.Weight, l.MaxLines = t.Text, font.Medium, 1
-				return l.Layout(gtx)
-			}),
-		)
-	})
+	return subPaneHead(gtx, th, t, w, name, back, nil)
 }
 
 // comSubRow — baris sub-grup di detail komunitas: ikon + nama + (default → "Pengumuman").

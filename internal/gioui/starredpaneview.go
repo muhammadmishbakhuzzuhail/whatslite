@@ -10,7 +10,6 @@ package gioui
 import (
 	"image"
 
-	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -83,31 +82,11 @@ func StarredPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *Starr
 // stHeader — header panel: tombol kembali (←) + judul "Pesan berbintang" 17/Medium
 // + glyph bintang accent kanan.
 func stHeader(gtx layout.Context, th *material.Theme, t Theme, ctl *StarredCtl) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(6), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		gtx.Constraints.Min.X = gtx.Constraints.Max.X
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				b := func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return icon(gtx, "back", 22, t.Text2)
-					})
-				}
-				if ctl != nil && ctl.Back != nil {
-					return ctl.Back.Layout(gtx, b)
-				}
-				return b(gtx)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 17, "Pesan berbintang")
-				lbl.Color = t.Text
-				lbl.MaxLines = 1
-				lbl.Font.Weight = font.Medium
-				return lbl.Layout(gtx)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return icon(gtx, "star", 20, t.Accent)
-			}),
-		)
+	var back *widget.Clickable
+	if ctl != nil {
+		back = ctl.Back
+	}
+	return subPaneHead(gtx, th, t, gtx.Constraints.Max.X, "Pesan berbintang", back, func(gtx layout.Context) layout.Dimensions {
+		return icon(gtx, "star", 20, t.Accent)
 	})
 }

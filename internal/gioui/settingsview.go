@@ -395,33 +395,7 @@ func privValue(v string) string {
 
 // setSubHead — header sub-pane: ikon back + judul.
 func setSubHead(gtx layout.Context, th *material.Theme, t Theme, title string, back *widget.Clickable) layout.Dimensions {
-	h := gtx.Dp(56)
-	sz := image.Pt(gtx.Constraints.Max.X, h)
-	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(12), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				b := func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return icon(gtx, "back", 22, t.Text)
-					})
-				}
-				if back != nil {
-					return back.Layout(gtx, b)
-				}
-				return b(gtx)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, unit.Sp(19), title)
-				lbl.Color = t.Text
-				lbl.Font.Weight = font.SemiBold
-				return lbl.Layout(gtx)
-			}),
-		)
-	})
-	return layout.Dimensions{Size: sz}
+	return subPaneHead(gtx, th, t, gtx.Constraints.Max.X, title, back, nil)
 }
 
 // setProfilePane — avatar besar + nama + tentang + nomor (data GetProfile).

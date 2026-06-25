@@ -166,6 +166,47 @@ func cpPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title st
 	return paneHead(gtx, th, t, w, title)
 }
 
+// subPaneHead — header KANONIK utk layar-anak (back + judul). Frame sama dgn
+// paneHead (tinggi 60, SidebarBg, garis bawah) supaya transisi dari pane utama ke
+// sub-pane mulus. back nil → panah digambar saja (pemanggil membungkus klik).
+// trailing nil → tanpa aksi kanan. SEMUA judul anak (Setelan, Komunitas detail,
+// Arsip, Berbintang, Terjadwal) memakai ini agar seragam.
+func subPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title string, back *widget.Clickable, trailing func(gtx layout.Context) layout.Dimensions) layout.Dimensions {
+	h := gtx.Dp(60)
+	sz := image.Pt(w, h)
+	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
+	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-gtx.Dp(1)), Max: sz}.Op())
+	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+	layout.Inset{Left: unit.Dp(8), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				b := func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "back", 22, t.Text)
+					})
+				}
+				if back != nil {
+					return back.Layout(gtx, b)
+				}
+				return b(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, 20, title)
+				lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
+				return lbl.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if trailing == nil {
+					return layout.Dimensions{}
+				}
+				return trailing(gtx)
+			}),
+		)
+	})
+	return layout.Dimensions{Size: sz}
+}
+
 // cpTop — .ct-top { display:flex; gap:8px; padding:6px 12px 10px } : pil pencarian
 // (searchBg, r-pill, magnifier + placeholder) + tombol accent "Kontak baru".
 func cpTop(gtx layout.Context, th *material.Theme, t Theme, newGroup *widget.Clickable, search *widget.Editor, newContact *widget.Clickable) layout.Dimensions {

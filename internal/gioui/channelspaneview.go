@@ -40,13 +40,14 @@ type chnChannel struct {
 // ChnCtl = state interaktif pane channels (nil → statis/demo). Tab Diikuti/Jelajahi
 // + aksi per-baris (ikuti/batal-ikuti).
 type ChnCtl struct {
-	Tabs   []widget.Clickable // 0=Diikuti, 1=Jelajahi
-	Active int
-	Rows   []widget.Clickable                         // aksi per-channel (ikuti/unfollow)
-	Opens  []widget.Clickable                         // buka channel (tap baris diikuti → reader)
-	Pill   func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (Diikuti=filter lokal, Jelajahi=direktori)
-	Av     cpAvatarFn                                 // penggambar avatar (foto channel asli); nil = inisial
-	List   *widget.List                               // gulir daftar saluran (nil → Flex biasa)
+	Tabs      []widget.Clickable // 0=Diikuti, 1=Jelajahi
+	Active    int
+	Rows      []widget.Clickable                         // aksi per-channel (ikuti/unfollow)
+	Opens     []widget.Clickable                         // buka channel (tap baris diikuti → reader)
+	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (Diikuti=filter lokal, Jelajahi=direktori)
+	Av        cpAvatarFn                                 // penggambar avatar (foto channel asli); nil = inisial
+	List      *widget.List                               // gulir daftar saluran (nil → Flex biasa)
+	ActiveJID string                                     // jid saluran terbuka (sorot baris aktif ala chat)
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -132,10 +133,18 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 				macro := op.Record(gtx.Ops)
 				dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
 				call := macro.Stop()
-				if rc != nil && rc.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+				// kartu MEMBULAT ala baris chat: aktif (saluran terbuka) > hover.
+				// Hover SELURUH baris (area buka oc ATAU tombol aksi rc), bukan tombol saja.
+				bg := color.NRGBA{}
+				if ctl != nil && ctl.ActiveJID != "" && cc.jid == ctl.ActiveJID {
+					bg = t.Selected
+				} else if (oc != nil && oc.Hovered()) || (rc != nil && rc.Hovered()) {
+					bg = t.Hover
+				}
+				if bg.A > 0 {
 					m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
 					rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
-					paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+					paint.FillShape(gtx.Ops, bg, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
 				}
 				call.Add(gtx.Ops)
 				return dims

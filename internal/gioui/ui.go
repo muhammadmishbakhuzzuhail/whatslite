@@ -7005,7 +7005,7 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 		}
 		return u.searchPill(gtx, ed, hint)
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar, List: &u.chnPaneList}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar, List: &u.chnPaneList, ActiveJID: u.openChannel}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).

@@ -154,7 +154,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 				Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 				Timestamp: m.Timestamp, FromMe: m.FromMe,
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
-				ExpireAt: expireAt,
+				ExpireAt: expireAt, Forwarded: m.Forwarded,
 			})
 			// Naikkan badge belum-dibaca utk pesan masuk live ke chat yg TIDAK
 			// sedang dibuka (SaveMessage tak melakukannya; tanpa ini badge cuma
@@ -228,6 +228,7 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 						ID: m.ID, ChatJID: cj, Sender: m.Sender, PushName: m.PushName,
 						Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
 						Timestamp: m.Timestamp, FromMe: m.FromMe, Status: m.Status,
+						Forwarded: m.Forwarded,
 					})
 					if len(bmsgs) >= batch {
 						flush()

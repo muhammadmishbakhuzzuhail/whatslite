@@ -39,19 +39,20 @@ func (s *Store) SaveMessage(ctx context.Context, m Message) error {
 		st = "sent"
 	}
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, quoted_id, quoted_sender, quoted_text, status, expire_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO messages (id, chat_jid, sender, push_name, text, kind, thumb, media, ts, from_me, quoted_id, quoted_sender, quoted_text, status, expire_at, forwarded)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(chat_jid, id) DO UPDATE SET
 	text = excluded.text, kind = excluded.kind, thumb = excluded.thumb, media = excluded.media,
 	sender = excluded.sender, push_name = excluded.push_name,
 	quoted_id = excluded.quoted_id, quoted_sender = excluded.quoted_sender, quoted_text = excluded.quoted_text,
 	expire_at = CASE WHEN excluded.expire_at > 0 THEN excluded.expire_at ELSE messages.expire_at END,
+	forwarded = excluded.forwarded,
 	status = CASE
 		WHEN (CASE excluded.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
 		   > (CASE messages.status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 ELSE 1 END)
 		THEN excluded.status ELSE messages.status END`,
 		m.ID, m.ChatJID, m.Sender, m.PushName, m.Text, kindOr(m.Kind), m.Thumb, m.Media, m.Timestamp.Unix(), b2i(m.FromMe),
-		m.QuotedID, m.QuotedSender, m.QuotedText, st, m.ExpireAt)
+		m.QuotedID, m.QuotedSender, m.QuotedText, st, m.ExpireAt, b2i(m.Forwarded))
 	if err != nil {
 		return fmt.Errorf("save message: %w", err)
 	}
@@ -94,8 +95,8 @@ ON CONFLICT(jid) DO UPDATE SET
 func (s *Store) ListMessages(ctx context.Context, chatJID string, limit int) ([]Message, error) {
 	// Pilih kolom eksplisit (TANPA media/proto besar) → list ringan.
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked FROM (
-	SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked
+SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked, forwarded FROM (
+	SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked, forwarded
 	FROM messages WHERE chat_jid = ? ORDER BY ts DESC LIMIT ?
 ) ORDER BY ts ASC`, chatJID, limit)
 	if err != nil {
@@ -107,9 +108,9 @@ SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_i
 	for rows.Next() {
 		var m Message
 		var ts int64
-		var fromMe, pinned, edited, revoked int
+		var fromMe, pinned, edited, revoked, forwarded int
 		if err := rows.Scan(&m.ID, &m.ChatJID, &m.Sender, &m.PushName, &m.Text, &m.Kind, &m.Thumb, &ts, &fromMe,
-			&m.QuotedID, &m.QuotedSender, &m.QuotedText, &m.Status, &pinned, &edited, &revoked); err != nil {
+			&m.QuotedID, &m.QuotedSender, &m.QuotedText, &m.Status, &pinned, &edited, &revoked, &forwarded); err != nil {
 			return nil, err
 		}
 		m.Timestamp = time.Unix(ts, 0)
@@ -117,6 +118,7 @@ SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_i
 		m.Pinned = pinned != 0
 		m.Edited = edited != 0
 		m.Revoked = revoked != 0
+		m.Forwarded = forwarded != 0
 		out = append(out, m)
 	}
 	return out, rows.Err()
@@ -392,8 +394,8 @@ func (s *Store) GetMedia(ctx context.Context, chatJID, id string) (string, error
 // beforeTS (untuk pagination "scroll ke atas" muat riwayat lama), urut lama→baru.
 func (s *Store) ListMessagesBefore(ctx context.Context, chatJID string, beforeTS int64, limit int) ([]Message, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked FROM (
-	SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked
+SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked, forwarded FROM (
+	SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_id, quoted_sender, quoted_text, status, pinned_in_chat, edited, revoked, forwarded
 	FROM messages WHERE chat_jid = ? AND ts < ? ORDER BY ts DESC LIMIT ?
 ) ORDER BY ts ASC`, chatJID, beforeTS, limit)
 	if err != nil {
@@ -404,9 +406,9 @@ SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_i
 	for rows.Next() {
 		var m Message
 		var ts int64
-		var fromMe, pinned, edited, revoked int
+		var fromMe, pinned, edited, revoked, forwarded int
 		if err := rows.Scan(&m.ID, &m.ChatJID, &m.Sender, &m.PushName, &m.Text, &m.Kind, &m.Thumb, &ts, &fromMe,
-			&m.QuotedID, &m.QuotedSender, &m.QuotedText, &m.Status, &pinned, &edited, &revoked); err != nil {
+			&m.QuotedID, &m.QuotedSender, &m.QuotedText, &m.Status, &pinned, &edited, &revoked, &forwarded); err != nil {
 			return nil, err
 		}
 		m.Timestamp = time.Unix(ts, 0)
@@ -414,6 +416,7 @@ SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_i
 		m.Pinned = pinned != 0
 		m.Edited = edited != 0
 		m.Revoked = revoked != 0
+		m.Forwarded = forwarded != 0
 		out = append(out, m)
 	}
 	return out, rows.Err()

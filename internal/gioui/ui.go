@@ -9526,6 +9526,15 @@ func (u *UI) bubble(gtx layout.Context, idx int) layout.Dimensions {
 					return layout.Inset{Bottom: unit.Dp(3)}.Layout(gtx, lbl.Layout) // jarak nama→isi
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					// label "Diteruskan" (ala WhatsApp) — di atas isi, italic abu + panah.
+					if !m.Forwarded || m.Revoked {
+						return layout.Dimensions{}
+					}
+					lbl := material.Label(u.th, 12, "↪ Diteruskan")
+					lbl.Color, lbl.Font.Style = u.t.Text2, font.Italic
+					return layout.Inset{Bottom: unit.Dp(2)}.Layout(gtx, lbl.Layout)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// pesan ditarik → TANPA kutipan (cuma "Pesan ini telah dihapus").
 					if m.Revoked || (m.QuoteName == "" && m.QuoteText == "") {
 						return layout.Dimensions{}

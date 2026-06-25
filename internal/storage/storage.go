@@ -54,11 +54,12 @@ type Message struct {
 	QuotedSender string
 	QuotedText   string
 
-	Status   string // sent | delivered | read (pesan sendiri)
-	Pinned   bool   // disematkan di chat
-	Edited   bool   // pernah disunting
-	Revoked  bool   // ditarik pengirim (hapus-utk-semua) — konten tetap disimpan (anti-delete)
-	ExpireAt int64  // unix kedaluwarsa (disappearing); 0 = tak hilang
+	Status    string // sent | delivered | read (pesan sendiri)
+	Pinned    bool   // disematkan di chat
+	Edited    bool   // pernah disunting
+	Revoked   bool   // ditarik pengirim (hapus-utk-semua) — konten tetap disimpan (anti-delete)
+	ExpireAt  int64  // unix kedaluwarsa (disappearing); 0 = tak hilang
+	Forwarded bool   // pesan diteruskan → label "Diteruskan"
 }
 
 // Store membungkus koneksi SQLite ke app.db.
@@ -268,6 +269,10 @@ var schemaMigrations = []struct {
 			source TEXT NOT NULL DEFAULT '',
 			added  INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE INDEX IF NOT EXISTS idx_saved_gifs_added ON saved_gifs(added)`,
+	}},
+	// v10: flag pesan diteruskan (ContextInfo.IsForwarded) → label "Diteruskan".
+	{10, []string{
+		`ALTER TABLE messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0`,
 	}},
 }
 

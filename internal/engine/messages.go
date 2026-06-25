@@ -59,6 +59,9 @@ type IncomingMessage struct {
 
 	// ExpireSecs = TTL disappearing-message (detik) dari ContextInfo; 0 = tetap.
 	ExpireSecs uint32
+
+	// Forwarded = pesan diteruskan (ContextInfo.IsForwarded) → label "Diteruskan".
+	Forwarded bool
 }
 
 // OnMessage mendaftarkan callback untuk pesan masuk.
@@ -88,6 +91,7 @@ func (e *Engine) OnMessage(fn func(IncomingMessage)) {
 			QuotedSender: qsender,
 			QuotedText:   qtext,
 			ExpireSecs:   ephemeralTTL(m.Message),
+			Forwarded:    msgContext(m.Message).GetIsForwarded(),
 		})
 	})
 }
@@ -271,6 +275,7 @@ func (e *Engine) OnHistorySync(fn func([]HistoryConversation, map[string]string,
 					QuotedSender: qsender,
 					QuotedText:   qtext,
 					Status:       webStatus(wmi.GetStatus()),
+					Forwarded:    msgContext(wmi.GetMessage()).GetIsForwarded(),
 				})
 			}
 			out = append(out, hc)

@@ -137,7 +137,7 @@ func (a *App) Forward(srcChat, msgID, toJID string) string {
 	}
 	_ = a.store.SaveMessage(a.ctx, storage.Message{
 		ID: id, ChatJID: toJID, Text: m.Text, Kind: m.Kind, Thumb: m.Thumb,
-		Timestamp: time.Now(), FromMe: true,
+		Timestamp: time.Now(), FromMe: true, Forwarded: true,
 	})
 	a.emit("wa:message", toJID)
 	return id

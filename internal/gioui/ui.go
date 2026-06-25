@@ -8007,6 +8007,9 @@ func (u *UI) statusComposeLayer(gtx layout.Context) {
 	paint.FillShape(gtx.Ops, u.scBg, clip.Rect{Max: gtx.Constraints.Max}.Op()) // kanvas warna terpilih
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 	for i := range statusBgPalette { // swatch → ganti warna latar
+		if i >= len(u.scBgClicks) {
+			break
+		}
 		if u.scBgClicks[i].Clicked(gtx) {
 			u.scBg = statusBgPalette[i]
 		}
@@ -8095,6 +8098,9 @@ func (u *UI) statusComposeLayer(gtx layout.Context) {
 				gtx.Constraints.Min.X = gtx.Constraints.Max.X
 				children := make([]layout.FlexChild, 0, len(statusBgPalette))
 				for i := range statusBgPalette {
+					if i >= len(u.scBgClicks) {
+						break
+					}
 					col, idx := statusBgPalette[i], i
 					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Inset{Left: unit.Dp(6), Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -10976,17 +10982,25 @@ func (u *UI) sendCurrent() {
 		u.editor.SetText("")
 		return
 	}
+	sent := false // hanya bersihkan composer bila kirim BERHASIL (jangan hilangkan teks)
 	if txt != "" && u.core != nil && u.selected != "" {
 		mentions := u.collectMentions(txt)
+		var id string
 		switch {
 		case u.replyTo != "": // mode balas → kutip pesan
-			u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
+			id = u.core.Reply(u.selected, txt, u.replyTo, u.replyName, u.replyText)
 		case len(mentions) > 0: // ada @mention grup → kirim dgn daftar jid
-			u.core.SendTextMentioned(u.selected, txt, mentions)
+			id = u.core.SendTextMentioned(u.selected, txt, mentions)
 		default:
-			u.core.SendText(u.selected, txt)
+			id = u.core.SendText(u.selected, txt)
 		}
-		u.messages = u.core.GetMessages(u.selected)
+		sent = id != "" // "" = gagal (toast wa:error sudah diemit) → pertahankan teks
+		if sent {
+			u.messages = u.core.GetMessages(u.selected)
+		}
+	}
+	if !sent { // gagal kirim → biarkan teks di composer agar bisa dicoba lagi
+		return
 	}
 	for k := range u.composeMentions { // reset mention setelah kirim
 		delete(u.composeMentions, k)

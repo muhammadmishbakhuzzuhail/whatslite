@@ -123,7 +123,8 @@ sudo pacman -S --needed go mesa wayland libxkbcommon libx11 libxcursor libxfixes
 ```
 
 (Debian/Ubuntu: `golang-go pkg-config build-essential libopus-dev libmpv-dev libgl1-mesa-dev \
-libegl1-mesa-dev libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libxfixes-dev libvulkan-dev`.)
+libegl1-mesa-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-dev libx11-xcb-dev \
+libxcursor-dev libxfixes-dev libvulkan-dev`.)
 
 ## Build & run
 

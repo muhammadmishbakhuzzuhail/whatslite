@@ -8,7 +8,8 @@ This project stores your **WhatsApp session and end-to-end encryption keys** loc
 **In scope:**
 
 - Leakage of local sessions/keys/messages (e.g. wrong file permissions, path traversal when saving media).
-- Code execution from incoming message content (XSS in the WebView via messages/notifications/link previews).
+- Code execution or memory-safety issues from parsing incoming message content (media decode, link-preview
+  fetch/parse, SVG/sticker rendering). Note: there is **no WebView** — the UI is native pure-Go Gio.
 - Leakage of secrets to logs or the network (unexpected telemetry).
 
 **Out of scope:** the risk of Meta banning your account (that's a documented ToS consequence, not a bug),

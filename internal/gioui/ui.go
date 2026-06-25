@@ -2823,7 +2823,7 @@ func (u *UI) handleAttach(gtx layout.Context) {
 				continue
 			}
 			if u.OnAttach != nil && u.selected != "" {
-				u.OnAttach(u.selected, cat) // media/document via dialog berkas; contact/location TODO
+				u.OnAttach(u.selected, cat) // media/document via dialog berkas (kontak/lokasi/jajak ditangani di atas)
 			}
 			u.overlay = ""
 		}

@@ -15,6 +15,10 @@ work under the GPL).
 | [google.golang.org/protobuf](https://github.com/protocolbuffers/protobuf-go) | BSD-3-Clause | Protobuf runtime |
 | [github.com/mdp/qrterminal/v3](https://github.com/mdp/qrterminal) | MIT | Terminal QR rendering (CLI) |
 | [github.com/skip2/go-qrcode](https://github.com/skip2/go-qrcode) | MIT | QR code generation |
+| [github.com/ebitengine/oto/v3](https://github.com/ebitengine/oto) | Apache-2.0 | Audio playback (voice notes) |
+| [github.com/srwiley/oksvg](https://github.com/srwiley/oksvg) | BSD-3-Clause | SVG icon parsing/rendering |
+| [github.com/srwiley/rasterx](https://github.com/srwiley/rasterx) | BSD-3-Clause | Vector rasterizer (oksvg backend) |
+| [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | BSD-3-Clause | Image scaling/decoding (downscale, draw) |
 
 ## Fonts & assets
 

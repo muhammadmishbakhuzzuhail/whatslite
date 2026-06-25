@@ -71,9 +71,9 @@ Optimizations:
 - **WAL + busy_timeout** (exists). Consider a separate read connection (read pool)
   so reads aren't blocked by writes — modernc allows 1 writer; reads can run in parallel
   via a second read-only handle.
-- **Don't RecomputeSummaries on every GetChats** (currently O(chats) per refresh).
-  Move to: incremental updates on SaveMessage (last_* is already upserted), +
-  a one-time recompute at startup migration. Remove it from GetChats.
+- **Don't RecomputeSummaries on every GetChats** — **DONE**. Summaries now update
+  incrementally on SaveMessage (last_* upserted); the O(chats)-per-refresh call was
+  removed from GetChats (see `internal/app/app_chats.go`).
 
 ---
 
@@ -115,8 +115,10 @@ disk kept in check (eviction).
   windowing. A chat with thousands of messages stays light. (not yet)
 - **Unload**: keep only the active chat (plus a few recent ones) in memory;
   drop old ones from the in-process message cache. (not yet)
-- **Lazy media** keyed off the list's visible rows — DON'T auto-load everything
-  (heavy). Load it near the viewport. (currently auto-loads everything → change this)
+- **Lazy media** — **largely DONE**: media decodes are downscaled to display size
+  before upload to GPU, caches are byte-budgeted (not item-count), and thumbnails use
+  a disk-first tier with LRU eviction. Viewport-driven (visible-row) loading is the
+  remaining refinement.
 - **Polling cadence**: the UI repaints on `Invalidate()` driven by the ~600–700ms
   state poll; keep per-frame work cheap so the poll/repaint stays smooth.
 - **In-memory media**: decoded bytes → GPU texture (no `file://`, no asset-server).

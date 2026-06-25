@@ -2,8 +2,8 @@
 #
 # The frontend was rewritten to Gio (gioui.org): a single Go binary that runs the
 # whatsmeow + SQLite engine in-process (no IPC bridge, no separate engine binary,
-# no Qt/WebKit). One process, one window. The legacy Svelte/Wails UI stays in the
-# repo (frontend/) for reference but is not packaged.
+# no Qt/WebKit). One process, one window. The earlier Svelte/Wails and Qt6/QML
+# frontends have been fully removed from the repo (no frontend/ directory).
 #
 # Runtime: org.freedesktop.Platform (GL/Wayland/X11 + libopus). Video playback
 # needs libmpv at runtime — bundled below as an extra module.

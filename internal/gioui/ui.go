@@ -194,8 +194,13 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
-	setClicks  [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
-	langClicks [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
+	setClicks     [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
+	langClicks    [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
+	setSubList    widget.List          // gulir isi sub-pane setelan (profil/penyimpanan)
+	clearMediaBtn widget.Clickable     // Penyimpanan: hapus cache media
+	clearMsgsBtn  widget.Clickable     // Penyimpanan: hapus semua pesan (→ konfirmasi)
+	clearMsgsOK   widget.Clickable     // konfirmasi hapus semua pesan
+	clearMsgsNo   widget.Clickable     // batal hapus semua pesan
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -1566,6 +1571,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.muteDurLayer(gtx)
 	case "channelinfo":
 		u.channelInfoLayer(gtx)
+	case "clearmsgs":
+		u.clearMsgsLayer(gtx)
 	case "mediapreview":
 		u.mediaPreviewLayer(gtx)
 	case "groupedit":
@@ -2202,6 +2209,72 @@ func (u *UI) channelInfoLayer(gtx layout.Context) layout.Dimensions {
 			children = append(children, row(&u.chnInfoUnfollow, "Berhenti mengikuti", red))
 			children = append(children, row(&u.chnInfoClose, "Tutup", u.t.Text2))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// clearMsgsLayer — konfirmasi hapus SEMUA pesan lokal (destruktif). Hapus → wipe.
+func (u *UI) clearMsgsLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	for u.clearMsgsOK.Clicked(gtx) {
+		if u.core != nil {
+			u.core.ClearAllMessages()
+		}
+		u.overlay = ""
+	}
+	for u.clearMsgsNo.Clicked(gtx) {
+		u.overlay = ""
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(320)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, "Hapus semua pesan?")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 13.5, "Seluruh riwayat pesan lokal dihapus permanen. Sesi & kontak tetap; pesan baru tetap diterima.")
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{Size: gtx.Constraints.Min} }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.clearMsgsNo.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Batal")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.clearMsgsOK.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Hapus")
+									l.Color, l.Font.Weight = red, font.SemiBold
+									return l.Layout(gtx)
+								})
+							})
+						}),
+					)
+				}),
+			)
 		})
 		call := macro.Stop()
 		rr := gtx.Dp(12)
@@ -4456,7 +4529,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		}
 		ctl := &SettingsCtl{
 			Dark: u.dark, KeepDeleted: kd, Retention: ret, AppLock: lock, Clicks: u.setClicks[:],
-			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
+			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick, SubList: &u.setSubList,
 			Notifications: u.core == nil || u.core.NotificationsOn(),
 			Language:      "id", LangClicks: u.langClicks[:],
 		}
@@ -4489,6 +4562,13 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 			case "storage":
 				s := u.core.GetStorageUsage()
 				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
+				ctl.ClearMediaBtn, ctl.ClearMsgsBtn = &u.clearMediaBtn, &u.clearMsgsBtn
+				for u.clearMediaBtn.Clicked(gtx) { // aman (re-unduh) → langsung
+					u.core.ClearMediaCache()
+				}
+				for u.clearMsgsBtn.Clicked(gtx) { // destruktif → konfirmasi
+					u.overlay = "clearmsgs"
+				}
 			case "privacy":
 				pv := u.core.GetPrivacy()
 				ctl.Privacy = pv

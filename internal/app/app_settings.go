@@ -267,3 +267,40 @@ func (a *App) GetDrafts() map[string]string {
 	}
 	return out
 }
+
+// --- Kelola penyimpanan (Setelan → Penyimpanan) ---
+
+// ClearMediaCache menghapus seluruh berkas media + thumbnail di cache (akan
+// diunduh ulang on-demand bila dibuka lagi). DB/pesan tak tersentuh.
+func (a *App) ClearMediaCache() {
+	for _, dir := range []string{a.mediaDir, a.thumbDir} {
+		if dir == "" {
+			continue
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			_ = os.RemoveAll(filepath.Join(dir, e.Name()))
+		}
+	}
+	a.emit("wa:sync", "")
+}
+
+// ClearAllMessages menghapus seluruh riwayat pesan lokal (pesan/reaksi/receipt),
+// lalu VACUUM agar ruang kembali ke OS. Sesi & kontak tetap; chat tetap di sidebar.
+func (a *App) ClearAllMessages() {
+	if a.store == nil {
+		return
+	}
+	if err := a.store.ClearAllMessages(a.ctx); err != nil {
+		a.emit("wa:error", err.Error())
+		return
+	}
+	a.bg(func() {
+		_ = a.store.Vacuum(a.ctx)
+		a.emit("wa:sync", "")
+	})
+	a.emit("wa:sync", "")
+}

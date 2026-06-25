@@ -361,6 +361,22 @@ func (s *Store) ClearMessages(ctx context.Context, jid string) error {
 	return err
 }
 
+// ClearAllMessages menghapus SELURUH pesan semua chat (reactions/receipts ikut),
+// reset ringkasan chat → sidebar kosong isinya. Sesi/kunci/kontak TAK tersentuh.
+func (s *Store) ClearAllMessages(ctx context.Context) error {
+	for _, q := range []string{
+		`DELETE FROM messages`,
+		`DELETE FROM reactions`,
+		`DELETE FROM receipts`,
+		`UPDATE chats SET last_text='', last_sender='', last_from_me=0, unread=0`,
+	} {
+		if _, err := s.db.ExecContext(ctx, q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DeleteChat menghapus chat beserta pesannya dari penyimpanan lokal.
 func (s *Store) DeleteChat(ctx context.Context, jid string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_jid = ?`, jid); err != nil {

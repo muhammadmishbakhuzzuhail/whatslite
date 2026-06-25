@@ -57,6 +57,9 @@ type SettingsCtl struct {
 	Notifications                  bool               // toggle baris "Notifikasi" (persist)
 	Language                       string             // kode bahasa UI aktif ("id"/"en"/…)
 	LangClicks                     []widget.Clickable // baris pemilih bahasa (sub-pane)
+	SubList                        *widget.List       // gulir isi sub-pane (profil/penyimpanan dll)
+	ClearMediaBtn                  *widget.Clickable  // Penyimpanan: hapus cache media
+	ClearMsgsBtn                   *widget.Clickable  // Penyimpanan: hapus semua pesan
 }
 
 // blockedRow — satu kontak terblokir di sub-pane Diblokir.
@@ -128,21 +131,31 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 			return setSubHead(gtx, th, t, title, ctl.Back)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			switch ctl.Sub {
-			case "storage":
-				return setStoragePane(gtx, th, t, ctl)
-			case "privacy":
-				return setPrivacyPane(gtx, th, t, ctl)
-			case "account":
-				return setAccountPane(gtx, th, t, ctl)
-			case "help":
-				return setHelpPane(gtx, th, t, ctl)
-			case "language":
-				return setLanguagePane(gtx, th, t, ctl)
-			case "blocked":
-				return setBlockedPane(gtx, th, t, ctl)
+			content := func(gtx layout.Context) layout.Dimensions {
+				switch ctl.Sub {
+				case "storage":
+					return setStoragePane(gtx, th, t, ctl)
+				case "privacy":
+					return setPrivacyPane(gtx, th, t, ctl)
+				case "account":
+					return setAccountPane(gtx, th, t, ctl)
+				case "help":
+					return setHelpPane(gtx, th, t, ctl)
+				case "language":
+					return setLanguagePane(gtx, th, t, ctl)
+				case "blocked":
+					return setBlockedPane(gtx, th, t, ctl)
+				}
+				return setProfilePane(gtx, th, t, ctl)
 			}
-			return setProfilePane(gtx, th, t, ctl)
+			// gulir bila isi melebihi tinggi pane (jendela pendek → jangan terpotong).
+			if ctl.SubList != nil {
+				ctl.SubList.Axis = layout.Vertical
+				return material.List(th, ctl.SubList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					return content(gtx)
+				})
+			}
+			return content(gtx)
 		}),
 	)
 }
@@ -631,13 +644,38 @@ func setStoragePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 		{"Media", setBytes(ctl.StoreMedia)},
 		{"Total pesan", itoa(ctl.StoreMsgs)},
 	}
-	children := make([]layout.FlexChild, 0, len(rows))
+	children := make([]layout.FlexChild, 0, len(rows)+3)
 	for i := range rows {
 		r := rows[i]
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return setProfileField(gtx, th, t, r.label, r.val)
 		}))
 	}
+	// aksi kelola penyimpanan (paritas WhatsApp ▸ Storage and data).
+	clearRow := func(c *widget.Clickable, label string, danger bool) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if c == nil {
+				return layout.Dimensions{}
+			}
+			col := t.Accent
+			if danger {
+				col = color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+			}
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(14), Bottom: unit.Dp(14), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(th, 15, label)
+					l.Color, l.Font.Weight = col, font.Medium
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	children = append(children,
+		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		clearRow(ctl.ClearMediaBtn, "Hapus cache media", false),
+		clearRow(ctl.ClearMsgsBtn, "Hapus semua pesan", true),
+	)
 	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 	})

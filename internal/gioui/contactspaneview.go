@@ -177,32 +177,38 @@ func subPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title s
 	paint.FillShape(gtx.Ops, t.SidebarBg, clip.Rect{Max: sz}.Op())
 	paint.FillShape(gtx.Ops, t.Divider, clip.Rect{Min: image.Pt(0, h-gtx.Dp(1)), Max: sz}.Op())
 	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Inset{Left: unit.Dp(8), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				b := func(gtx layout.Context) layout.Dimensions {
-					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return icon(gtx, "back", 22, t.Text)
-					})
-				}
-				if back != nil {
-					return back.Layout(gtx, b)
-				}
-				return b(gtx)
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				lbl := material.Label(th, 20, title)
-				lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
-				return lbl.Layout(gtx)
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if trailing == nil {
-					return layout.Dimensions{}
-				}
-				return trailing(gtx)
-			}),
-		)
+	// layout.Center membungkus baris (back+judul) → tinggi-alami baris di-pusatkan
+	// vertikal dlm 60dp. JANGAN memaksa Min.Y ke anak (judul Flexed jadi 60dp tinggi
+	// & rata-atas → judul melayang di atas panah). Center menangani penengahan.
+	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X // lebar penuh (judul Flexed + trailing kanan)
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					b := func(gtx layout.Context) layout.Dimensions {
+						return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return icon(gtx, "back", 22, t.Text)
+						})
+					}
+					if back != nil {
+						return back.Layout(gtx, b)
+					}
+					return b(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, 20, title)
+					lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
+					return lbl.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if trailing == nil {
+						return layout.Dimensions{}
+					}
+					return trailing(gtx)
+				}),
+			)
+		})
 	})
 	return layout.Dimensions{Size: sz}
 }

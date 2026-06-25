@@ -422,6 +422,16 @@ SELECT id, chat_jid, sender, push_name, text, kind, thumb, ts, from_me, quoted_i
 	return out, rows.Err()
 }
 
+// IsOwnMessage = true bila pesan (chat,id) SUDAH ada di DB sebagai pesan kita
+// (from_me=1). Dipakai mendeteksi GEMA pesan sendiri yg datang lewat OnMessage
+// dgn IsFromMe salah (mismatch @lid↔nomor) → jangan dihitung belum-dibaca.
+func (s *Store) IsOwnMessage(ctx context.Context, chatJID, id string) bool {
+	var fromMe int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT from_me FROM messages WHERE chat_jid=? AND id=?`, chatJID, id).Scan(&fromMe)
+	return err == nil && fromMe == 1
+}
+
 // GetMessage mengambil satu pesan (utk teruskan/forward).
 func (s *Store) GetMessage(ctx context.Context, chatJID, id string) (Message, error) {
 	var m Message

@@ -149,17 +149,22 @@ func (a *App) wireEvents(eng *engine.Engine, store *storage.Store) {
 			expireAt = m.Timestamp.Add(time.Duration(m.ExpireSecs) * time.Second).Unix()
 		}
 		a.bg(func() {
+			// GEMA pesan sendiri: bila pesan ini SUDAH tersimpan sbg pesan kita
+			// (from_me=1) tapi datang lagi dgn IsFromMe salah (mismatch @lid↔nomor),
+			// perlakukan sbg FromMe → jangan flip ringkasan jadi "masuk" & jangan
+			// dihitung belum-dibaca. Itulah sebab "kirim pesan malah jadi unread".
+			fromMe := m.FromMe || store.IsOwnMessage(a.ctx, chat, m.ID)
 			_ = store.SaveMessage(a.ctx, storage.Message{
 				ID: m.ID, ChatJID: chat, Sender: m.Sender, PushName: m.PushName,
 				Text: m.Text, Kind: m.Kind, Thumb: m.Thumb, Media: m.Media,
-				Timestamp: m.Timestamp, FromMe: m.FromMe,
+				Timestamp: m.Timestamp, FromMe: fromMe,
 				QuotedID: m.QuotedID, QuotedSender: m.QuotedSender, QuotedText: m.QuotedText,
 				ExpireAt: expireAt, Forwarded: m.Forwarded,
 			})
 			// Naikkan badge belum-dibaca utk pesan masuk live ke chat yg TIDAK
 			// sedang dibuka (SaveMessage tak melakukannya; tanpa ini badge cuma
 			// muncul setelah resync). Lewati status & pesan sendiri.
-			if !m.FromMe && chat != "status@broadcast" && chat != a.currentOpen() {
+			if !fromMe && chat != "status@broadcast" && chat != a.currentOpen() {
 				_ = store.IncrementUnread(a.ctx, chat)
 			}
 			a.emit("wa:message", chat)

@@ -48,6 +48,8 @@ type ComCtl struct {
 	AddBtn    *widget.Clickable                          // detail: "Tambah anggota" → pemilih kontak
 	EditBtn   *widget.Clickable                          // detail: "Edit info" komunitas (nama/deskripsi)
 	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (filter komunitas); nil = tak ditampilkan
+	List      *widget.List                               // gulir daftar komunitas
+	SubList   *widget.List                               // gulir sub-grup di detail
 }
 
 // CommunitiesPaneView — sidebar 408px (t.SidebarBg) berisi pane KOMUNITAS:
@@ -91,7 +93,7 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 			}
 			return row(gtx)
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			if len(items) == 0 {
 				return layout.Inset{Top: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -102,27 +104,33 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 					})
 				})
 			}
+			renderRow := func(gtx layout.Context, idx int) layout.Dimensions {
+				it := items[idx]
+				if ctl.RowClicks != nil && idx < len(ctl.RowClicks) {
+					c := &ctl.RowClicks[idx]
+					return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						dims := comRow(gtx, th, t, it)
+						call := macro.Stop()
+						if c.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+							m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
+							rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+							paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						}
+						call.Add(gtx.Ops)
+						return dims
+					})
+				}
+				return comRow(gtx, th, t, it)
+			}
+			if ctl.List != nil {
+				ctl.List.Axis = layout.Vertical
+				return material.List(th, ctl.List).Layout(gtx, len(items), renderRow)
+			}
 			children := make([]layout.FlexChild, 0, len(items))
 			for i := range items {
-				it, idx := items[i], i
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if ctl.RowClicks != nil && idx < len(ctl.RowClicks) {
-						c := &ctl.RowClicks[idx]
-						return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							macro := op.Record(gtx.Ops)
-							dims := comRow(gtx, th, t, it)
-							call := macro.Stop()
-							if c.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
-								m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
-								rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
-								paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-							}
-							call.Add(gtx.Ops)
-							return dims
-						})
-					}
-					return comRow(gtx, th, t, it)
-				}))
+				idx := i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return renderRow(gtx, idx) }))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
@@ -185,17 +193,35 @@ func comDetailView(gtx layout.Context, th *material.Theme, t Theme, w int, ctl *
 				return l.Layout(gtx)
 			})
 		}),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			renderRow := func(gtx layout.Context, idx int) layout.Dimensions {
+				g := c.groups[idx]
+				row := func(gtx layout.Context) layout.Dimensions { return comSubRow(gtx, th, t, g) }
+				if ctl.SubClicks != nil && idx < len(ctl.SubClicks) {
+					sc := &ctl.SubClicks[idx]
+					return sc.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						macro := op.Record(gtx.Ops)
+						dims := row(gtx)
+						call := macro.Stop()
+						if sc.Hovered() { // hover membulat (selaras baris chat)
+							m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
+							rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+							paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+						}
+						call.Add(gtx.Ops)
+						return dims
+					})
+				}
+				return row(gtx)
+			}
+			if ctl.SubList != nil {
+				ctl.SubList.Axis = layout.Vertical
+				return material.List(th, ctl.SubList).Layout(gtx, len(c.groups), renderRow)
+			}
 			children := make([]layout.FlexChild, 0, len(c.groups))
 			for i := range c.groups {
-				g, idx := c.groups[i], i
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					row := func(gtx layout.Context) layout.Dimensions { return comSubRow(gtx, th, t, g) }
-					if ctl.SubClicks != nil && idx < len(ctl.SubClicks) {
-						return ctl.SubClicks[idx].Layout(gtx, row)
-					}
-					return row(gtx)
-				}))
+				idx := i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return renderRow(gtx, idx) }))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),

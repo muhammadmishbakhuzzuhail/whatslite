@@ -39,7 +39,7 @@ type spCallTag struct{ i int }
 
 // SidePanesView menggambar sidebar 380px (t.SidebarBg) berisi pane CALLS:
 // header .pane-head + 4 baris panggilan demo. Fungsi murni, mandiri (standalone).
-func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, clicks []widget.Clickable, onCtx func(idx int), top func(gtx layout.Context) layout.Dimensions) layout.Dimensions {
+func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCall, clicks []widget.Clickable, onCtx func(idx int), top func(gtx layout.Context) layout.Dimensions, list *widget.List) layout.Dimensions {
 	w := gtx.Dp(468)
 	gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
 	sz := image.Pt(w, gtx.Constraints.Max.Y)
@@ -72,51 +72,63 @@ func SidePanesView(gtx layout.Context, th *material.Theme, t Theme, calls []spCa
 				return spEmptyState(gtx, th, t, "calls", "Belum ada panggilan", "Riwayat panggilan masuk muncul di sini.")
 			}
 			// daftar baris: padding lega, hover membulat lembut (gaya kartu modern).
-			return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				children := make([]layout.FlexChild, 0, len(calls))
-				for i := range calls {
-					c, idx := calls[i], i
-					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						var rc *widget.Clickable
-						if idx < len(clicks) {
-							rc = &clicks[idx]
-						}
-						body := func(gtx layout.Context) layout.Dimensions {
-							macro := op.Record(gtx.Ops)
-							dims := spCallRow(gtx, th, t, c)
-							call := macro.Stop()
-							if rc != nil && rc.Hovered() { // hover membulat (modern)
-								rr := gtx.Dp(10)
-								paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-							}
-							// klik-kanan baris → menu konteks (Hapus / Bersihkan). Demo → non-interaktif.
-							if onCtx != nil && c.id != "" {
-								tag := spCallTag{idx}
-								for {
-									ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
-									if !ok {
-										break
-									}
-									if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
-										onCtx(idx)
-									}
-								}
-								area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
-								event.Op(gtx.Ops, tag)
-								call.Add(gtx.Ops)
-								area.Pop()
-							} else {
-								call.Add(gtx.Ops)
-							}
-							return dims
-						}
-						if rc != nil {
-							return rc.Layout(gtx, body)
-						}
-						return body(gtx)
-					}))
+			// material.List → gulir bila banyak baris.
+			if list != nil {
+				list.Axis = layout.Vertical
+			}
+			row := func(gtx layout.Context, idx int) layout.Dimensions {
+				c := calls[idx]
+				var rc *widget.Clickable
+				if idx < len(clicks) {
+					rc = &clicks[idx]
 				}
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+				body := func(gtx layout.Context) layout.Dimensions {
+					macro := op.Record(gtx.Ops)
+					dims := spCallRow(gtx, th, t, c)
+					call := macro.Stop()
+					if rc != nil && rc.Hovered() { // hover membulat (modern)
+						rr := gtx.Dp(10)
+						paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+					}
+					// klik-kanan baris → menu konteks (Hapus / Bersihkan). Demo → non-interaktif.
+					if onCtx != nil && c.id != "" {
+						tag := spCallTag{idx}
+						for {
+							ev, ok := gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+							if !ok {
+								break
+							}
+							if pe, ok := ev.(pointer.Event); ok && pe.Buttons.Contain(pointer.ButtonSecondary) {
+								onCtx(idx)
+							}
+						}
+						area := clip.Rect{Max: dims.Size}.Push(gtx.Ops)
+						event.Op(gtx.Ops, tag)
+						call.Add(gtx.Ops)
+						area.Pop()
+					} else {
+						call.Add(gtx.Ops)
+					}
+					return dims
+				}
+				if rc != nil {
+					return rc.Layout(gtx, body)
+				}
+				return body(gtx)
+			}
+			ins := layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(8), Right: unit.Dp(8)}
+			if list == nil { // demo/headless → tanpa list state, render Flex biasa
+				return ins.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					children := make([]layout.FlexChild, 0, len(calls))
+					for i := range calls {
+						idx := i
+						children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return row(gtx, idx) }))
+					}
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+				})
+			}
+			return ins.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return material.List(th, list).Layout(gtx, len(calls), row)
 			})
 		}),
 	)

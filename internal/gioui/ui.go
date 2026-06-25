@@ -464,6 +464,10 @@ type UI struct {
 	chatList         widget.List
 	msgList          widget.List
 	contactList      widget.List
+	callsPaneList    widget.List // gulir daftar panggilan
+	chnPaneList      widget.List // gulir daftar saluran
+	comPaneList      widget.List // gulir daftar komunitas
+	comSubList       widget.List // gulir sub-grup di detail komunitas
 	clicks           []widget.Clickable
 	railClicks       []widget.Clickable
 	railProfileClick widget.Clickable     // avatar profil di dasar rail → setelan profil
@@ -4533,7 +4537,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				u.overlay = "callctx"
 			}
 		}
-		return SidePanesView(gtx, u.th, u.t, rows, u.callRowClicks, onCtx, u.callsTop)
+		return SidePanesView(gtx, u.th, u.t, rows, u.callRowClicks, onCtx, u.callsTop, &u.callsPaneList)
 	case "contacts":
 		groups := u.contactGroups()
 		u.handleContactsPane(gtx)
@@ -6885,7 +6889,7 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 		}
 		return u.searchPill(gtx, ed, hint)
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar, List: &u.chnPaneList}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).
@@ -7493,7 +7497,7 @@ func (u *UI) communityRows() []comItem {
 // comCtl membangun ComCtl dari komunitas nyata + state buka/detail. Tangani klik
 // di handleCommunities (DI LUAR layout, sebelum ini dipanggil).
 func (u *UI) comCtl(rows []comItem) *ComCtl {
-	ctl := &ComCtl{Items: rows, NewBtn: &u.comNewBtn, Back: &u.comBack}
+	ctl := &ComCtl{Items: rows, NewBtn: &u.comNewBtn, Back: &u.comBack, List: &u.comPaneList, SubList: &u.comSubList}
 	ctl.Pill = func(gtx layout.Context) layout.Dimensions {
 		return u.searchPill(gtx, &u.comSearchEd, "Cari komunitas")
 	}

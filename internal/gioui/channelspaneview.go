@@ -46,6 +46,7 @@ type ChnCtl struct {
 	Opens  []widget.Clickable                         // buka channel (tap baris diikuti → reader)
 	Pill   func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (Diikuti=filter lokal, Jelajahi=direktori)
 	Av     cpAvatarFn                                 // penggambar avatar (foto channel asli); nil = inisial
+	List   *widget.List                               // gulir daftar saluran (nil → Flex biasa)
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -97,8 +98,8 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 			}
 			return ctl.Pill(gtx)
 		}),
-		// daftar .ch-row.
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// daftar .ch-row (Flexed → isi sisa tinggi; material.List → gulir).
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			if len(channels) == 0 { // kosong → ajak jelajah
 				return layout.Inset{Top: unit.Dp(40)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					gtx.Constraints.Min.X = gtx.Constraints.Max.X
@@ -114,31 +115,39 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 				})
 			}
 			var avFn cpAvatarFn
+			var list *widget.List
 			if ctl != nil {
 				avFn = ctl.Av
+				list = ctl.List
+			}
+			renderRow := func(gtx layout.Context, idx int) layout.Dimensions {
+				cc := channels[idx]
+				var rc, oc *widget.Clickable
+				if ctl != nil && idx < len(ctl.Rows) {
+					rc = &ctl.Rows[idx]
+				}
+				if ctl != nil && idx < len(ctl.Opens) {
+					oc = &ctl.Opens[idx]
+				}
+				macro := op.Record(gtx.Ops)
+				dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
+				call := macro.Stop()
+				if rc != nil && rc.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+					m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
+					rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
+					paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+				}
+				call.Add(gtx.Ops)
+				return dims
+			}
+			if list != nil {
+				list.Axis = layout.Vertical
+				return material.List(th, list).Layout(gtx, len(channels), renderRow)
 			}
 			children := make([]layout.FlexChild, 0, len(channels))
-			for i, c := range channels {
-				cc, idx := c, i
-				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					var rc, oc *widget.Clickable
-					if ctl != nil && idx < len(ctl.Rows) {
-						rc = &ctl.Rows[idx]
-					}
-					if ctl != nil && idx < len(ctl.Opens) {
-						oc = &ctl.Opens[idx]
-					}
-					macro := op.Record(gtx.Ops)
-					dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
-					call := macro.Stop()
-					if rc != nil && rc.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
-						m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
-						rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
-						paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
-					}
-					call.Add(gtx.Ops)
-					return dims
-				}))
+			for i := range channels {
+				idx := i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions { return renderRow(gtx, idx) }))
 			}
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		}),
@@ -225,7 +234,7 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+										layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // nama menyusut+ellipsis (jangan tumpang-tindih tombol Ikuti)
 											lbl := material.Label(th, 15, c.name)
 											lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
 											return lbl.Layout(gtx)

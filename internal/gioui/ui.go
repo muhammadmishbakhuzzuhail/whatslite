@@ -108,12 +108,15 @@ type UI struct {
 	stVid             StatusVideo         // sesi video status inline (frame+audio); nil = tak ada
 	stVidID           string              // id item video yg sedang dimuat
 	stFwd             widget.Clickable    // tombol forward status → chat
+	stSave            widget.Clickable    // tombol simpan media status ke disk
 	fwdSrc            string              // chat sumber forward ("" = u.selected; status → status@broadcast)
 	stMyClick         widget.Clickable    // baris "Status saya" → composer post status
 	scEd              widget.Editor       // editor teks status (composer post)
 	scPost            widget.Clickable
 	scCancel          widget.Clickable
-	scMedia           widget.Clickable // composer: pilih foto/video → status media
+	scMedia           widget.Clickable    // composer: pilih foto/video → status media
+	scBg              color.NRGBA         // composer: warna latar status teks terpilih
+	scBgClicks        [7]widget.Clickable // swatch warna latar status
 
 	contactFlat       []app.ContactRowDTO // kontak datar (pane Kontak → buka chat)
 	contactPaneClicks []widget.Clickable
@@ -7538,6 +7541,16 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 		u.overlay = "forward"
 		u.closeStatusVid()
 	}
+	for u.stSave.Clicked(gtx) { // simpan media status ke disk
+		if u.OnSaveMedia != nil && item.Type != "text" {
+			ext := ".jpg"
+			if item.Type == "video" {
+				ext = ".mp4"
+			}
+			u.OnSaveMedia("status@broadcast", item.ID, "whatslite-status-"+item.ID+ext)
+		}
+		u.stPaused = true
+	}
 	if gtx.Focused(&u.stReplyEd) { // sedang mengetik balasan → jeda (jangan loncat)
 		u.stPaused = true
 	}
@@ -7660,6 +7673,17 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 							}),
 						)
 					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if item.Type == "text" { // teks → tak ada media utk disimpan
+							return layout.Dimensions{}
+						}
+						return u.stSave.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "download", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+						})
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return u.stFwd.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -7820,12 +7844,20 @@ func (u *UI) statusViewLayer(gtx layout.Context) {
 // statusComposeLayer — composer status teks sendiri (latar accent ala WhatsApp):
 // ketik → tombol kirim → PostTextStatus. (Status media via lampiran = TODO.)
 func (u *UI) statusComposeLayer(gtx layout.Context) {
-	paint.FillShape(gtx.Ops, u.t.Accent, clip.Rect{Max: gtx.Constraints.Max}.Op()) // kanvas warna
+	if u.scBg == (color.NRGBA{}) {
+		u.scBg = u.t.Accent
+	}
+	paint.FillShape(gtx.Ops, u.scBg, clip.Rect{Max: gtx.Constraints.Max}.Op()) // kanvas warna terpilih
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	for i := range statusBgPalette { // swatch → ganti warna latar
+		if u.scBgClicks[i].Clicked(gtx) {
+			u.scBg = statusBgPalette[i]
+		}
+	}
 	post := func() {
 		t := strings.TrimSpace(u.scEd.Text())
 		if t != "" && u.core != nil {
-			u.core.PostTextStatus(t, int64(argbOf(u.t.Accent)), 0)
+			u.core.PostTextStatus(t, int64(argbOf(u.scBg)), 0)
 		}
 		u.scEd.SetText("")
 		u.overlay = "status" // kembali ke pane status
@@ -7900,7 +7932,46 @@ func (u *UI) statusComposeLayer(gtx layout.Context) {
 				})
 			})
 		}),
+		// bar bawah: pemilih warna latar (swatch bulat; aktif → cincin putih).
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				children := make([]layout.FlexChild, 0, len(statusBgPalette))
+				for i := range statusBgPalette {
+					col, idx := statusBgPalette[i], i
+					children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Left: unit.Dp(6), Right: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return u.scBgClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								d := gtx.Dp(30)
+								if u.scBg == col { // cincin putih penanda aktif
+									paint.FillShape(gtx.Ops, white, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+									in := gtx.Dp(3)
+									off := op.Offset(image.Pt(in, in)).Push(gtx.Ops)
+									paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(d-2*in, d-2*in)}.Op(gtx.Ops))
+									off.Pop()
+								} else {
+									paint.FillShape(gtx.Ops, col, clip.Ellipse{Max: image.Pt(d, d)}.Op(gtx.Ops))
+								}
+								return layout.Dimensions{Size: image.Pt(d, d)}
+							})
+						})
+					}))
+				}
+				return layout.Flex{Axis: layout.Horizontal, Spacing: layout.SpaceAround}.Layout(gtx, children...)
+			})
+		}),
 	)
+}
+
+// statusBgPalette — warna latar status teks (ala WhatsApp: aksen + warna cerah).
+var statusBgPalette = []color.NRGBA{
+	{R: 0x00, G: 0xa8, B: 0x84, A: 0xff}, // teal (aksen WA)
+	{R: 0x2b, G: 0x6c, B: 0xb0, A: 0xff}, // biru
+	{R: 0x6a, G: 0x4b, B: 0xc4, A: 0xff}, // ungu
+	{R: 0xc0, G: 0x39, B: 0x5a, A: 0xff}, // merah muda
+	{R: 0xe0, G: 0x6c, B: 0x2e, A: 0xff}, // oranye
+	{R: 0x3a, G: 0x3a, B: 0x3a, A: 0xff}, // gelap
+	{R: 0x1f, G: 0x8a, B: 0x4c, A: 0xff}, // hijau
 }
 
 // argbOf — warna → ARGB uint32 (utk bg status teks).
@@ -7987,6 +8058,9 @@ func decodeDataURI(s string) []byte {
 func (u *UI) handleStatus(gtx layout.Context) {
 	for u.stMyClick.Clicked(gtx) { // "Status saya" → composer post status sendiri
 		u.scEd.SetText("")
+		if u.scBg == (color.NRGBA{}) { // default sekali = warna aksen
+			u.scBg = u.t.Accent
+		}
 		u.overlay = "statuscompose"
 	}
 	for i := range u.statusGroupsCache {

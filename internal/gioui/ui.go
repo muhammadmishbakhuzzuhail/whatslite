@@ -171,6 +171,15 @@ type UI struct {
 	chnInfoMute     widget.Clickable    // panel info: toggle bisu
 	chnInfoCopy     widget.Clickable    // panel info: salin tautan
 	chnInfoUnfollow widget.Clickable    // panel info: berhenti ikuti
+	chnRowMenu      []widget.Clickable  // chevron menu per-baris saluran (hover)
+	chnCtxRow       chnChannel          // saluran sasaran menu konteks baris
+	chnCtxOpen      widget.Clickable    // menu baris: buka saluran
+	chnCtxMute      widget.Clickable    // menu baris: bisukan/bunyikan
+	chnCtxUnfollow  widget.Clickable    // menu baris: berhenti ikuti
+	comRowMenu      []widget.Clickable  // chevron menu per-baris komunitas (hover)
+	comCtxItem      comItem             // komunitas sasaran menu konteks baris
+	comCtxOpen      widget.Clickable    // menu baris: buka komunitas
+	comCtxLeave     widget.Clickable    // menu baris: keluar komunitas
 	chMsgList       widget.List         // gulir post channel reader
 	chMsgsCache     []app.ChannelMsgDTO // cache post channel terbuka
 	chMsgsJID       string              // jid cache di atas
@@ -1575,6 +1584,10 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.muteDurLayer(gtx)
 	case "channelinfo":
 		u.channelInfoLayer(gtx)
+	case "chnrowctx":
+		u.chnRowCtxLayer(gtx)
+	case "comrowctx":
+		u.comRowCtxLayer(gtx)
 	case "clearmsgs":
 		u.clearMsgsLayer(gtx)
 	case "mediapreview":
@@ -2106,6 +2119,131 @@ func (u *UI) muteDurLayer(gtx layout.Context) layout.Dimensions {
 			}
 			children = append(children, row(&u.muteClose, "Batal"))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// comRowCtxLayer — menu konteks baris komunitas (chevron hover): buka, keluar.
+func (u *UI) comRowCtxLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	it := u.comCtxItem
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	for u.comCtxOpen.Clicked(gtx) {
+		u.comOpen = it.jid
+		u.overlay = ""
+	}
+	for u.comCtxLeave.Clicked(gtx) {
+		if u.core != nil {
+			u.core.LeaveCommunity(it.jid)
+			u.chMu.Lock()
+			u.comCache = nil
+			u.chMu.Unlock()
+		}
+		u.overlay = ""
+	}
+	row := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(280)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, orDash(it.name))
+					l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 1
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+				row(&u.comCtxOpen, "Buka komunitas", u.t.Text),
+				row(&u.comCtxLeave, "Keluar komunitas", red),
+			)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// chnRowCtxLayer — menu konteks baris saluran (chevron hover): buka, bisukan/
+// bunyikan, berhenti ikuti. Paritas menu konteks baris chat.
+func (u *UI) chnRowCtxLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	r := u.chnCtxRow
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	for u.chnCtxOpen.Clicked(gtx) {
+		u.openChannelRow(r)
+		u.overlay = ""
+	}
+	for u.chnCtxMute.Clicked(gtx) {
+		if u.core != nil {
+			u.core.MuteChannel(r.jid, !r.muted)
+			u.chMu.Lock()
+			u.chCache = nil
+			u.chMu.Unlock()
+		}
+		u.overlay = ""
+	}
+	for u.chnCtxUnfollow.Clicked(gtx) {
+		if u.core != nil {
+			u.core.UnfollowChannel(r.jid)
+			u.chMu.Lock()
+			u.chCache = nil
+			u.chMu.Unlock()
+		}
+		u.overlay = ""
+	}
+	muteLabel := "Bisukan"
+	if r.muted {
+		muteLabel = "Bunyikan"
+	}
+	row := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(280)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, orDash(r.name))
+					l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 1
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+				row(&u.chnCtxOpen, "Buka saluran", u.t.Text),
+				row(&u.chnCtxMute, muteLabel, u.t.Text),
+				row(&u.chnCtxUnfollow, "Berhenti mengikuti", red),
+			)
 		})
 		call := macro.Stop()
 		rr := gtx.Dp(12)
@@ -6998,6 +7136,9 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 	if len(u.chnRowOpens) < len(rows) {
 		u.chnRowOpens = make([]widget.Clickable, len(rows))
 	}
+	if len(u.chnRowMenu) < len(rows) {
+		u.chnRowMenu = make([]widget.Clickable, len(rows))
+	}
 	pill := func(gtx layout.Context) layout.Dimensions {
 		ed, hint := &u.chFollowEd, "Cari saluran diikuti"
 		if u.chnTab == 1 { // Jelajahi → editor direktori (query jaringan)
@@ -7005,7 +7146,7 @@ func (u *UI) chnCtl(rows []chnChannel) *ChnCtl {
 		}
 		return u.searchPill(gtx, ed, hint)
 	}
-	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar, List: &u.chnPaneList, ActiveJID: u.openChannel}
+	return &ChnCtl{Tabs: u.chnTabClicks[:], Active: u.chnTab, Rows: u.chnRowClicks, Opens: u.chnRowOpens, Pill: pill, Av: u.channelAvatar, List: &u.chnPaneList, ActiveJID: u.openChannel, Menu: u.chnRowMenu}
 }
 
 // handleChannels — proses klik tab (Diikuti/Jelajahi) + aksi baris (ikuti/unfollow).
@@ -7039,16 +7180,28 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 		}
 		if i < len(u.chnRowOpens) { // tap baris diikuti → buka reader channel
 			for u.chnRowOpens[i].Clicked(gtx) {
-				if rows[i].jid != "" {
-					u.openChannel, u.openChanName = rows[i].jid, rows[i].name
-					u.openChanSubs, u.openChanVer = rows[i].subs, rows[i].verified
-					u.openChanRole = rows[i].role // owner/admin → boleh posting
-					u.openChanDesc, u.openChanInvite, u.openChanMuted = rows[i].desc, rows[i].invite, rows[i].muted
-					u.chMsgsJID = "" // paksa muat post
-				}
+				u.openChannelRow(rows[i])
+			}
+		}
+		if i < len(u.chnRowMenu) { // chevron hover → menu konteks saluran
+			for u.chnRowMenu[i].Clicked(gtx) {
+				u.chnCtxRow = rows[i]
+				u.overlay = "chnrowctx"
 			}
 		}
 	}
+}
+
+// openChannelRow membuka reader saluran dari satu baris daftar.
+func (u *UI) openChannelRow(r chnChannel) {
+	if r.jid == "" {
+		return
+	}
+	u.openChannel, u.openChanName = r.jid, r.name
+	u.openChanSubs, u.openChanVer = r.subs, r.verified
+	u.openChanRole = r.role
+	u.openChanDesc, u.openChanInvite, u.openChanMuted = r.desc, r.invite, r.muted
+	u.chMsgsJID = "" // paksa muat post
 }
 
 // searchCtl menjalankan pencarian pesan global (FTS5 core.SearchMessages) dari
@@ -7620,7 +7773,11 @@ func (u *UI) comCtl(rows []comItem) *ComCtl {
 	if len(u.comRowClicks) < len(rows) {
 		u.comRowClicks = make([]widget.Clickable, len(rows))
 	}
+	if len(u.comRowMenu) < len(rows) {
+		u.comRowMenu = make([]widget.Clickable, len(rows))
+	}
 	ctl.RowClicks = u.comRowClicks[:len(rows)]
+	ctl.Menu = u.comRowMenu[:len(rows)]
 	if u.comOpen != "" { // cari komunitas terbuka → detail
 		for i := range rows {
 			if rows[i].jid == u.comOpen {
@@ -7677,6 +7834,12 @@ func (u *UI) handleCommunities(gtx layout.Context, rows []comItem) {
 		}
 		if u.comRowClicks[i].Clicked(gtx) {
 			u.comOpen = rows[i].jid
+		}
+		if i < len(u.comRowMenu) { // chevron hover → menu konteks komunitas
+			for u.comRowMenu[i].Clicked(gtx) {
+				u.comCtxItem = rows[i]
+				u.overlay = "comrowctx"
+			}
 		}
 	}
 	if u.comOpen == "" {

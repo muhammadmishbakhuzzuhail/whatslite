@@ -50,6 +50,7 @@ type ComCtl struct {
 	Pill      func(gtx layout.Context) layout.Dimensions // kotak cari ala chat (filter komunitas); nil = tak ditampilkan
 	List      *widget.List                               // gulir daftar komunitas
 	SubList   *widget.List                               // gulir sub-grup di detail
+	Menu      []widget.Clickable                         // chevron menu per-baris (hover)
 }
 
 // CommunitiesPaneView — sidebar 408px (t.SidebarBg) berisi pane KOMUNITAS:
@@ -106,13 +107,18 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 			}
 			renderRow := func(gtx layout.Context, idx int) layout.Dimensions {
 				it := items[idx]
+				var mc *widget.Clickable
+				if idx < len(ctl.Menu) {
+					mc = &ctl.Menu[idx]
+				}
 				if ctl.RowClicks != nil && idx < len(ctl.RowClicks) {
 					c := &ctl.RowClicks[idx]
+					hov := c.Hovered() || (mc != nil && mc.Hovered())
 					return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						macro := op.Record(gtx.Ops)
-						dims := comRow(gtx, th, t, it)
+						dims := comRow(gtx, th, t, it, hov, mc)
 						call := macro.Stop()
-						if c.Hovered() { // hover kartu MEMBULAT (selaras baris chat)
+						if hov { // hover kartu MEMBULAT (selaras baris chat)
 							m, vy, rr := gtx.Dp(7), gtx.Dp(3), gtx.Dp(12)
 							rect := image.Rectangle{Min: image.Pt(m, vy), Max: image.Pt(dims.Size.X-m, dims.Size.Y-vy)}
 							paint.FillShape(gtx.Ops, t.Hover, clip.RRect{Rect: rect, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
@@ -121,7 +127,7 @@ func CommunitiesPaneView(gtx layout.Context, th *material.Theme, t Theme, ctl *C
 						return dims
 					})
 				}
-				return comRow(gtx, th, t, it)
+				return comRow(gtx, th, t, it, false, nil)
 			}
 			if ctl.List != nil {
 				ctl.List.Axis = layout.Vertical
@@ -253,7 +259,7 @@ func comSubRow(gtx layout.Context, th *material.Theme, t Theme, g comSub) layout
 				})
 				return layout.Dimensions{Size: bsz}
 			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -290,7 +296,7 @@ func comNewRow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimension
 				})
 				return layout.Dimensions{Size: bsz}
 			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				l := material.Label(th, 16, "Komunitas baru")
 				l.Color, l.Font.Weight = t.Text, font.Medium
@@ -304,15 +310,16 @@ func comPaneHead(gtx layout.Context, th *material.Theme, t Theme, w int, title s
 	return paneHead(gtx, th, t, w, title)
 }
 
-// comRow — kartu komunitas: ikon communities (kotak membulat) + nama + sub.
-func comRow(gtx layout.Context, th *material.Theme, t Theme, it comItem) layout.Dimensions {
-	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(16), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+// comRow — kartu komunitas: ikon communities (kotak membulat) + nama + sub +
+// chevron menu saat hover (ala baris chat).
+func comRow(gtx layout.Context, th *material.Theme, t Theme, it comItem, hov bool, menuC *widget.Clickable) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(20), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				d := gtx.Dp(46)
+				d := gtx.Dp(54)
 				bsz := image.Pt(d, d)
-				r := gtx.Dp(12)
+				r := gtx.Dp(14)
 				paint.FillShape(gtx.Ops, t.Bg2, clip.RRect{Rect: image.Rectangle{Max: bsz}, NW: r, NE: r, SE: r, SW: r}.Op(gtx.Ops))
 				gtx.Constraints.Min, gtx.Constraints.Max = bsz, bsz
 				layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -320,15 +327,15 @@ func comRow(gtx layout.Context, th *material.Theme, t Theme, it comItem) layout.
 				})
 				return layout.Dimensions{Size: bsz}
 			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						l := material.Label(th, 16, it.name)
+						l := material.Label(th, 16.5, it.name)
 						l.Color, l.MaxLines, l.Font.Weight = t.Text, 1, font.Medium
 						return l.Layout(gtx)
 					}),
-					layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						l := material.Label(th, 13, it.sub)
 						l.Color, l.MaxLines = t.Text2, 1
@@ -350,6 +357,17 @@ func comRow(gtx layout.Context, th *material.Theme, t Theme, it comItem) layout.
 						)
 					}),
 				)
+			}),
+			// chevron menu (muncul saat hover) — paritas baris chat.
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if !hov || menuC == nil {
+					return layout.Dimensions{}
+				}
+				return menuC.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return icon(gtx, "chevrondown", 18, t.Text2)
+					})
+				})
 			}),
 		)
 	})

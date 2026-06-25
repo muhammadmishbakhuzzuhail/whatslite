@@ -48,6 +48,7 @@ type ChnCtl struct {
 	Av        cpAvatarFn                                 // penggambar avatar (foto channel asli); nil = inisial
 	List      *widget.List                               // gulir daftar saluran (nil → Flex biasa)
 	ActiveJID string                                     // jid saluran terbuka (sorot baris aktif ala chat)
+	Menu      []widget.Clickable                         // chevron menu per-baris diikuti (muncul saat hover)
 }
 
 // chnTab = satu tombol tab (.ch-tabs button).
@@ -123,22 +124,26 @@ func ChannelsPaneView(gtx layout.Context, th *material.Theme, t Theme, channels 
 			}
 			renderRow := func(gtx layout.Context, idx int) layout.Dimensions {
 				cc := channels[idx]
-				var rc, oc *widget.Clickable
+				var rc, oc, mc *widget.Clickable
 				if ctl != nil && idx < len(ctl.Rows) {
 					rc = &ctl.Rows[idx]
 				}
 				if ctl != nil && idx < len(ctl.Opens) {
 					oc = &ctl.Opens[idx]
 				}
+				if ctl != nil && idx < len(ctl.Menu) {
+					mc = &ctl.Menu[idx]
+				}
+				// Hover SELURUH baris (area buka oc / tombol aksi rc / chevron mc).
+				hov := (oc != nil && oc.Hovered()) || (rc != nil && rc.Hovered()) || (mc != nil && mc.Hovered())
 				macro := op.Record(gtx.Ops)
-				dims := chnChannelRow(gtx, th, t, cc, rc, oc, avFn)
+				dims := chnChannelRow(gtx, th, t, cc, rc, oc, mc, hov, avFn)
 				call := macro.Stop()
 				// kartu MEMBULAT ala baris chat: aktif (saluran terbuka) > hover.
-				// Hover SELURUH baris (area buka oc ATAU tombol aksi rc), bukan tombol saja.
 				bg := color.NRGBA{}
 				if ctl != nil && ctl.ActiveJID != "" && cc.jid == ctl.ActiveJID {
 					bg = t.Selected
-				} else if (oc != nil && oc.Hovered()) || (rc != nil && rc.Hovered()) {
+				} else if hov {
 					bg = t.Hover
 				}
 				if bg.A > 0 {
@@ -222,9 +227,9 @@ func chnTabBtn(gtx layout.Context, th *material.Theme, t Theme, white color.NRGB
 
 // chnChannelRow — .ch-row { padding 14; gap 13; align center } : avatar 48 +
 // kolom (nama 15/SemiBold + sub 13.5 text2) + ikon lonceng + "✕" batal-ikuti.
-func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel, rc, oc *widget.Clickable, avFn cpAvatarFn) layout.Dimensions {
+func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel, rc, oc, menuC *widget.Clickable, hov bool, avFn cpAvatarFn) layout.Dimensions {
 	white := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-	return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(14), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{Top: unit.Dp(12), Bottom: unit.Dp(12), Left: unit.Dp(20), Right: unit.Dp(14)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			// area buka channel (avatar + meta), flexed; tap → reader (oc). Tombol aksi terpisah.
@@ -234,18 +239,18 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							if avFn != nil { // foto channel asli (fallback inisial di dalam)
-								return avFn(gtx, c.name, c.jid, 48)
+								return avFn(gtx, c.name, c.jid, 54)
 							}
-							return chnAvatar(gtx, th, c.name, 48)
+							return chnAvatar(gtx, th, c.name, 54)
 						}),
-						layout.Rigid(layout.Spacer{Width: unit.Dp(13)}.Layout), // gap: 13px
+						layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout), // gap: 14px (selaras chat)
 						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 										layout.Flexed(1, func(gtx layout.Context) layout.Dimensions { // nama menyusut+ellipsis (jangan tumpang-tindih tombol Ikuti)
-											lbl := material.Label(th, 15, c.name)
-											lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.SemiBold
+											lbl := material.Label(th, 16.5, c.name)
+											lbl.Color, lbl.MaxLines, lbl.Font.Weight = t.Text, 1, font.Medium
 											return lbl.Layout(gtx)
 										}),
 										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -258,9 +263,9 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 										}),
 									)
 								}),
-								layout.Rigid(layout.Spacer{Height: unit.Dp(2)}.Layout),
+								layout.Rigid(layout.Spacer{Height: unit.Dp(3)}.Layout),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									lbl := material.Label(th, unit.Sp(12.5), c.subs)
+									lbl := material.Label(th, unit.Sp(13.5), c.subs)
 									lbl.Color, lbl.MaxLines = t.Text2, 1
 									return lbl.Layout(gtx)
 								}),
@@ -295,16 +300,26 @@ func chnChannelRow(gtx layout.Context, th *material.Theme, t Theme, c chnChannel
 					}
 					return btn(gtx)
 				}
-				// diikuti → lonceng + ✕ (✕ batal-ikuti via rc).
+				// diikuti → indikator bisu (bila dibisukan) + chevron menu saat hover
+				// (ala baris chat: aksi disembunyikan sampai hover, bukan tombol permanen).
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions { return chnBell(gtx, t) }),
-					layout.Rigid(layout.Spacer{Width: unit.Dp(4)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						x := func(gtx layout.Context) layout.Dimensions { return chnUnfollow(gtx, th, t) }
-						if rc != nil {
-							return rc.Layout(gtx, x)
+						if !c.muted {
+							return layout.Dimensions{}
 						}
-						return x(gtx)
+						return layout.Inset{Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return icon(gtx, "mute", 16, t.Text2)
+						})
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if !hov || menuC == nil {
+							return layout.Dimensions{}
+						}
+						return menuC.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "chevrondown", 18, t.Text2)
+							})
+						})
 					}),
 				)
 			}),
@@ -324,29 +339,6 @@ func chnAvatar(gtx layout.Context, th *material.Theme, name string, dp int) layo
 		lbl.Color = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 		lbl.Font.Weight = font.SemiBold
 		return lbl.Layout(gtx)
-	})
-	return layout.Dimensions{Size: sz}
-}
-
-// chnBell — .ch-act lonceng (text2, opacity .6): ikon "bell" native WhatsApp
-// (area glyph 18 di tengah box 34).
-func chnBell(gtx layout.Context, t Theme) layout.Dimensions {
-	box := gtx.Dp(34) // .ch-act ~ ikon kecil + padding 4
-	sz := image.Pt(box, box)
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return icon(gtx, "bell", 18, t.Text2)
-	})
-	return layout.Dimensions{Size: sz}
-}
-
-// chnUnfollow — .ch-act "✕" (text2, opacity .6): ikon "close" native WhatsApp.
-func chnUnfollow(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions {
-	box := gtx.Dp(34)
-	sz := image.Pt(box, box)
-	gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
-	layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return icon(gtx, "close", 18, t.Text2)
 	})
 	return layout.Dimensions{Size: sz}
 }

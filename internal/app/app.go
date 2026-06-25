@@ -595,6 +595,16 @@ func (a *App) OpenChat(jid string) {
 	a.openMu.Unlock()
 	if a.store != nil { // buka chat → bersihkan badge belum-dibaca lokal
 		_ = a.store.SetUnread(a.ctx, jid, 0)
+		// + kirim laporan-dibaca ke server bila pesan terakhir MASUK (centang biru
+		// utk lawan bicara + sinkron status-dibaca ke HP/perangkat lain). Tanpa ini
+		// membuka chat hanya menghapus badge lokal, tak pernah menandai dibaca.
+		if id, ts, fromMe, _, _ := a.store.LastMessage(a.ctx, jid); id != "" && !fromMe {
+			go func() {
+				if err := a.eng.MarkChatRead(a.ctx, jid, true, ts, id, fromMe); err != nil {
+					a.emit("wa:error", err.Error())
+				}
+			}()
+		}
 	}
 	a.eng.SendAvailable()
 	a.eng.SubscribePresence(jid)

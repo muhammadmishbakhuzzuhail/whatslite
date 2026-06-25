@@ -27,6 +27,30 @@ func (s *Store) SetMeta(ctx context.Context, key, value string) error {
 	return err
 }
 
+// DelMeta menghapus satu kunci setelan (no-op bila tak ada).
+func (s *Store) DelMeta(ctx context.Context, key string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM app_meta WHERE key=?`, key)
+	return err
+}
+
+// ListMeta mengembalikan semua kunci berawalan prefix → nilai (kunci utuh).
+func (s *Store) ListMeta(ctx context.Context, prefix string) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT key, value FROM app_meta WHERE key LIKE ?`, prefix+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, err
+		}
+		out[k] = v
+	}
+	return out, rows.Err()
+}
+
 // PruneMessages menghapus pesan lebih lama dari cutoff (unix), KECUALI yang
 // berbintang/disematkan. Membersihkan reaksi/receipt yatim. cutoff<=0 → no-op.
 // FTS dibersihkan otomatis oleh trigger messages_fts_ad.

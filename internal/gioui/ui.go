@@ -838,6 +838,9 @@ func NewUI(th *material.Theme, core *app.App) *UI {
 	u.mediaTried = map[string]bool{}
 	u.dispTimer = map[string]int{}
 	u.drafts = map[string]string{}
+	if core != nil { // pulihkan draft tersimpan antar-restart
+		u.drafts = core.GetDrafts()
+	}
 	u.selSet = map[string]bool{}
 	u.commonGroups = map[string][]InfoMember{}
 	u.commonTried = map[string]time.Time{}
@@ -8378,6 +8381,15 @@ func (u *UI) scrollFab(gtx layout.Context) layout.Dimensions {
 }
 
 // ---- percakapan (header + bubble + composer) ----
+// FlushDraft — persist draft chat yang sedang terbuka (dipanggil saat app keluar;
+// syncDraft hanya jalan saat ganti chat, jadi tanpa ini draft aktif hilang).
+func (u *UI) FlushDraft() {
+	if u.core == nil || u.draftChat == "" {
+		return
+	}
+	u.core.SetDraft(u.draftChat, u.editor.Text())
+}
+
 // syncDraft — saat chat aktif berganti: simpan teks composer chat lama ke drafts,
 // lalu muat draft chat baru ke editor (ala WhatsApp draft per-chat). Batalkan
 // mode edit/balas yg melekat ke chat lama.
@@ -8385,12 +8397,15 @@ func (u *UI) syncDraft() {
 	if u.selected == u.draftChat {
 		return
 	}
-	if u.draftChat != "" { // simpan draft chat sebelumnya
+	if u.draftChat != "" { // simpan draft chat sebelumnya (+ persist antar-restart)
 		t := u.editor.Text()
 		if strings.TrimSpace(t) == "" {
 			delete(u.drafts, u.draftChat)
 		} else {
 			u.drafts[u.draftChat] = t
+		}
+		if u.core != nil {
+			u.core.SetDraft(u.draftChat, t)
 		}
 	}
 	u.clearReply()
@@ -9010,6 +9025,9 @@ func (u *UI) scheduleLayer(gtx layout.Context) layout.Dimensions {
 			}
 			u.editor.SetText("")
 			delete(u.drafts, u.selected)
+			if u.core != nil {
+				u.core.SetDraft(u.selected, "")
+			}
 			u.overlay = ""
 		}
 	}
@@ -10748,6 +10766,9 @@ func (u *UI) sendCurrent() {
 	}
 	u.editor.SetText("")
 	delete(u.drafts, u.selected) // terkirim → buang draft chat ini
+	if u.core != nil {
+		u.core.SetDraft(u.selected, "")
+	}
 	u.clearReply()
 	u.msgList.ScrollTo(len(u.messages)) // setelah kirim → gulir ke bawah
 }

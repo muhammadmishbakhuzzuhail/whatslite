@@ -236,3 +236,34 @@ func (a *App) SetRetention(days int) {
 		a.emit("wa:sync", "")
 	})
 }
+
+// --- Draft composer persisten (app_meta key "draft:<jid>") ---
+
+// SetDraft menyimpan / menghapus draft teks composer per-chat (kosong = hapus).
+func (a *App) SetDraft(jid, text string) {
+	if a.store == nil {
+		return
+	}
+	key := "draft:" + jid
+	if strings.TrimSpace(text) == "" {
+		_ = a.store.DelMeta(a.ctx, key)
+	} else {
+		_ = a.store.SetMeta(a.ctx, key, text)
+	}
+}
+
+// GetDrafts mengembalikan semua draft tersimpan (jid → teks) untuk dimuat saat start.
+func (a *App) GetDrafts() map[string]string {
+	out := map[string]string{}
+	if a.store == nil {
+		return out
+	}
+	m, err := a.store.ListMeta(a.ctx, "draft:")
+	if err != nil {
+		return out
+	}
+	for k, v := range m {
+		out[strings.TrimPrefix(k, "draft:")] = v
+	}
+	return out
+}

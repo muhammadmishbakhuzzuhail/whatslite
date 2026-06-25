@@ -207,6 +207,7 @@ func run(w *gioapp.Window, core *app.App) error {
 		expl.ListenEvents(evt) // x/explorer perlu lihat tiap event window
 		switch e := evt.(type) {
 		case gioapp.DestroyEvent:
+			ui.FlushDraft() // simpan draft chat aktif sebelum keluar
 			return e.Err
 		case gioapp.FrameEvent:
 			gtx := gioapp.NewContext(&ops, e)

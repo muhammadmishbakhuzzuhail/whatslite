@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Export chat transcript to a `.txt` file.
 - Mute-duration picker (8 hours / 1 day / 1 week / always).
 - Read receipts are now sent when a chat is opened (blue ticks + cross-device read sync).
+- Composer drafts persist across restarts (stored in app_meta, flushed on exit).
+- Text-status composer background-color picker; save someone's status photo/video to disk.
+- Channel info panel (description, subscribers, mute, share link, unfollow) and forward of text
+  channel posts to chats.
 - Build version stamped into the binary via `-ldflags -X main.version` (logged at startup, shown in
   Settings, exposed to the UI via `App.Version()`); defaults to `dev` for un-stamped local builds.
 - Versioned AUR package `whatslite` (tracks tagged releases) alongside `whatslite-git`.

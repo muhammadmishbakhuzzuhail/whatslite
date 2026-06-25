@@ -60,6 +60,17 @@ type SettingsCtl struct {
 	SubList                        *widget.List       // gulir isi sub-pane (profil/penyimpanan dll)
 	ClearMediaBtn                  *widget.Clickable  // Penyimpanan: hapus cache media
 	ClearMsgsBtn                   *widget.Clickable  // Penyimpanan: hapus semua pesan
+	StoreKinds                     []storeKindRow     // Penyimpanan: rincian per-jenis
+	StoreChats                     []storeChatRow     // Penyimpanan: rincian per-chat (terbesar dulu)
+	StoreChatClicks                []widget.Clickable // paralel StoreChats (kosongkan media chat)
+}
+
+// storeKindRow — satu baris rincian penyimpanan per-jenis pesan.
+type storeKindRow struct{ label, val string }
+
+// storeChatRow — satu baris penyimpanan per-chat (nama + ukuran + jumlah).
+type storeChatRow struct {
+	jid, name, val string
 }
 
 // blockedRow — satu kontak terblokir di sub-pane Diblokir.
@@ -671,6 +682,30 @@ func setStoragePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 			})
 		})
 	}
+	// rincian per-jenis (ala WhatsApp "Manage storage": foto/video/dll + ukuran).
+	if len(ctl.StoreKinds) > 0 {
+		children = append(children, sectionHeader(th, t, "MENURUT JENIS"))
+		for i := range ctl.StoreKinds {
+			k := ctl.StoreKinds[i]
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return setProfileField(gtx, th, t, k.label, k.val)
+			}))
+		}
+	}
+	// rincian per-chat (terbesar dulu) + ketuk → kosongkan media chat tsb.
+	if len(ctl.StoreChats) > 0 {
+		children = append(children, sectionHeader(th, t, "CHAT TERBESAR"))
+		for i := range ctl.StoreChats {
+			c, idx := ctl.StoreChats[i], i
+			children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				row := func(gtx layout.Context) layout.Dimensions { return setProfileField(gtx, th, t, c.name, c.val) }
+				if idx < len(ctl.StoreChatClicks) {
+					return ctl.StoreChatClicks[idx].Layout(gtx, row)
+				}
+				return row(gtx)
+			}))
+		}
+	}
 	children = append(children,
 		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 		clearRow(ctl.ClearMediaBtn, "Hapus cache media", false),
@@ -678,6 +713,44 @@ func setStoragePane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 	)
 	return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
+}
+
+// kindStoreLabel — label Indonesia utk jenis pesan di rincian penyimpanan.
+func kindStoreLabel(kind string) string {
+	switch kind {
+	case "image":
+		return "Foto"
+	case "video":
+		return "Video"
+	case "voice", "ptt":
+		return "Pesan suara"
+	case "audio":
+		return "Audio"
+	case "document":
+		return "Dokumen"
+	case "sticker":
+		return "Stiker"
+	case "gif":
+		return "GIF"
+	case "text":
+		return "Teks"
+	case "location":
+		return "Lokasi"
+	case "contact":
+		return "Kontak"
+	}
+	return kind
+}
+
+// sectionHeader — label seksi kecil (uppercase, text2) utk memisah grup baris.
+func sectionHeader(th *material.Theme, t Theme, s string) layout.FlexChild {
+	return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: unit.Dp(16), Bottom: unit.Dp(4), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			l := material.Label(th, 12, s)
+			l.Color, l.Font.Weight = t.Accent, font.SemiBold
+			return l.Layout(gtx)
+		})
 	})
 }
 

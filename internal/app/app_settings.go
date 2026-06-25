@@ -304,3 +304,35 @@ func (a *App) ClearAllMessages() {
 	})
 	a.emit("wa:sync", "")
 }
+
+// ChatStorageDTO — pemakaian penyimpanan satu chat (nama ter-resolve + ukuran).
+type ChatStorageDTO struct {
+	JID   string `json:"jid"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+	Bytes int64  `json:"bytes"`
+}
+
+// GetChatStorage mengembalikan `limit` chat dgn pemakaian penyimpanan terbesar
+// (nama ter-resolve) untuk panel "Kelola penyimpanan".
+func (a *App) GetChatStorage(limit int) []ChatStorageDTO {
+	out := []ChatStorageDTO{}
+	if a.store == nil {
+		return out
+	}
+	stats, err := a.store.StorageByChat(a.ctx, limit)
+	if err != nil {
+		return out
+	}
+	for _, s := range stats {
+		name := ""
+		if a.eng != nil {
+			name = a.eng.ChatName(s.JID)
+		}
+		if name == "" {
+			name = shortJID(s.JID)
+		}
+		out = append(out, ChatStorageDTO{JID: s.JID, Name: name, Count: s.Count, Bytes: s.Bytes})
+	}
+	return out
+}

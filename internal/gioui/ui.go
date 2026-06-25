@@ -194,13 +194,14 @@ type UI struct {
 	loginSubmit widget.Clickable
 	pairCode    string
 
-	setClicks     [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
-	langClicks    [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
-	setSubList    widget.List          // gulir isi sub-pane setelan (profil/penyimpanan)
-	clearMediaBtn widget.Clickable     // Penyimpanan: hapus cache media
-	clearMsgsBtn  widget.Clickable     // Penyimpanan: hapus semua pesan (→ konfirmasi)
-	clearMsgsOK   widget.Clickable     // konfirmasi hapus semua pesan
-	clearMsgsNo   widget.Clickable     // batal hapus semua pesan
+	setClicks       [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
+	langClicks      [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
+	setSubList      widget.List          // gulir isi sub-pane setelan (profil/penyimpanan)
+	clearMediaBtn   widget.Clickable     // Penyimpanan: hapus cache media
+	clearMsgsBtn    widget.Clickable     // Penyimpanan: hapus semua pesan (→ konfirmasi)
+	clearMsgsOK     widget.Clickable     // konfirmasi hapus semua pesan
+	clearMsgsNo     widget.Clickable     // batal hapus semua pesan
+	storeChatClicks []widget.Clickable   // paralel daftar chat-terbesar (kosongkan isi)
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -4563,6 +4564,25 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				s := u.core.GetStorageUsage()
 				ctl.StoreDB, ctl.StoreMedia, ctl.StoreMsgs = s.DBBytes, s.MediaBytes, s.MsgCount
 				ctl.ClearMediaBtn, ctl.ClearMsgsBtn = &u.clearMediaBtn, &u.clearMsgsBtn
+				for _, k := range s.Kinds { // rincian per-jenis (lewati yg 0)
+					if k.Count == 0 {
+						continue
+					}
+					ctl.StoreKinds = append(ctl.StoreKinds, storeKindRow{label: kindStoreLabel(k.Kind), val: itoa(k.Count) + " pesan \u00b7 " + setBytes(k.Bytes)})
+				}
+				cs := u.core.GetChatStorage(8) // 8 chat terbesar
+				if len(u.storeChatClicks) < len(cs) {
+					u.storeChatClicks = make([]widget.Clickable, len(cs))
+				}
+				for i := range cs {
+					ctl.StoreChats = append(ctl.StoreChats, storeChatRow{jid: cs[i].JID, name: cs[i].Name, val: setBytes(cs[i].Bytes)})
+					if i < len(u.storeChatClicks) {
+						for u.storeChatClicks[i].Clicked(gtx) {
+							u.core.ClearChat(cs[i].JID)
+						}
+					}
+				}
+				ctl.StoreChatClicks = u.storeChatClicks
 				for u.clearMediaBtn.Clicked(gtx) { // aman (re-unduh) → langsung
 					u.core.ClearMediaCache()
 				}

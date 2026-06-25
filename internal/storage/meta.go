@@ -114,6 +114,34 @@ func (s *Store) StorageStats(ctx context.Context) (msgCount int, dbBytes int64, 
 	return msgCount, dbBytes, kinds, rows.Err()
 }
 
+// ChatStorageStat — pemakaian penyimpanan satu chat (utk "Kelola penyimpanan").
+type ChatStorageStat struct {
+	JID   string
+	Count int
+	Bytes int64
+}
+
+// StorageByChat mengembalikan pemakaian byte per chat (media+thumb+teks di DB),
+// terbesar dulu, dibatasi `limit` baris. Utk daftar "Chat terbesar".
+func (s *Store) StorageByChat(ctx context.Context, limit int) ([]ChatStorageStat, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT chat_jid, count(*), COALESCE(SUM(length(media)+length(thumb)+length(text)),0) AS b
+FROM messages GROUP BY chat_jid ORDER BY b DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ChatStorageStat
+	for rows.Next() {
+		var c ChatStorageStat
+		if err := rows.Scan(&c.JID, &c.Count, &c.Bytes); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 // Vacuum mengembalikan ruang ke OS (pasca-prune) + memangkas WAL.
 func (s *Store) Vacuum(ctx context.Context) error {
 	_, _ = s.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE)`)

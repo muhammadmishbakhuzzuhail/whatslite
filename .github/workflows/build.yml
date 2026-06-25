@@ -25,8 +25,8 @@ jobs:
           # Gio (X11/Wayland/GL) + voice (libopus) + video (libmpv) cgo deps.
           sudo apt-get install -y \
             libgl1-mesa-dev libegl1-mesa-dev libwayland-dev libxkbcommon-dev \
-            libx11-dev libxcursor-dev libxfixes-dev libvulkan-dev \
-            libopus-dev libmpv-dev pkg-config
+            libxkbcommon-x11-dev libx11-dev libx11-xcb-dev libxcursor-dev libxfixes-dev \
+            libvulkan-dev libopus-dev libmpv-dev pkg-config
 
       - name: Go vet
         run: go vet ./...

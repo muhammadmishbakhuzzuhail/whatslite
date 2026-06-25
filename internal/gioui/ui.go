@@ -9591,7 +9591,7 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 	btnW := gtx.Dp(40)
 	rpad := gtx.Dp(8)
 	hpad := gtx.Dp(18)
-	btnsX := sz.X - rpad - 4*btnW // 4 ikon: video, telepon, cari, overflow
+	btnsX := sz.X - rpad - 2*btnW // 2 ikon: cari, overflow (tanpa panggilan)
 	if btnsX < hpad {
 		btnsX = hpad
 	}
@@ -9631,12 +9631,13 @@ func (u *UI) convHeader(gtx layout.Context) layout.Dimensions {
 	)
 	lo.Pop()
 
-	// kanan: 3 ikon aksi dipatok mutlak, terpusat vertikal.
+	// kanan: ikon aksi dipatok mutlak, terpusat vertikal. Tanpa tombol panggilan
+	// suara/video — whatsmeow tak punya WebRTC, jadi takkan pernah berfungsi.
 	by := (h - btnW) / 2
 	acts := []struct {
 		c  *widget.Clickable
 		ic string
-	}{{nil, "video"}, {nil, "calls"}, {&u.headSearchClick, "search"}, {&u.headMenuClick, "overflow"}}
+	}{{&u.headSearchClick, "search"}, {&u.headMenuClick, "overflow"}}
 	for i, a := range acts {
 		o := op.Offset(image.Pt(btnsX+i*btnW, by)).Push(gtx.Ops)
 		u.glyphBtn(gtx, a.c, a.ic)

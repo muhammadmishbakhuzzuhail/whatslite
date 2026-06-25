@@ -16,6 +16,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -50,10 +51,16 @@ type SettingsCtl struct {
 	StoreMsgs                      int
 	Privacy                        map[string]string // nama setelan → nilai
 	PrivacyClicks                  []widget.Clickable
+	BlockedBtn                     *widget.Clickable  // entri privasi → buka daftar diblokir
+	Blocked                        []blockedRow       // sub-pane "blocked": kontak terblokir
+	UnblockClicks                  []widget.Clickable // paralel Blocked (buka blokir)
 	Notifications                  bool               // toggle baris "Notifikasi" (persist)
 	Language                       string             // kode bahasa UI aktif ("id"/"en"/…)
 	LangClicks                     []widget.Clickable // baris pemilih bahasa (sub-pane)
 }
+
+// blockedRow — satu kontak terblokir di sub-pane Diblokir.
+type blockedRow struct{ name, phone, jid string }
 
 // langOrder — pilihan bahasa UI (kode + label). Indeks = indeks LangClicks.
 var langOrder = []struct{ code, label string }{
@@ -113,6 +120,8 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 		title = "Bantuan"
 	case "language":
 		title = "Bahasa"
+	case "blocked":
+		title = "Kontak diblokir"
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -130,10 +139,67 @@ func setSubPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCt
 				return setHelpPane(gtx, th, t, ctl)
 			case "language":
 				return setLanguagePane(gtx, th, t, ctl)
+			case "blocked":
+				return setBlockedPane(gtx, th, t, ctl)
 			}
 			return setProfilePane(gtx, th, t, ctl)
 		}),
 	)
+}
+
+// setBlockedPane — daftar kontak terblokir + tombol "Buka blokir" per baris.
+func setBlockedPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
+	if len(ctl.Blocked) == 0 {
+		return layout.Inset{Top: unit.Dp(24), Left: unit.Dp(20), Right: unit.Dp(20)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			l := material.Label(th, 14, "Tak ada kontak diblokir.")
+			l.Color, l.Alignment = t.Text2, text.Middle
+			return l.Layout(gtx)
+		})
+	}
+	children := make([]layout.FlexChild, 0, len(ctl.Blocked))
+	for i := range ctl.Blocked {
+		b, idx := ctl.Blocked[i], i
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Inset{Top: unit.Dp(10), Bottom: unit.Dp(10), Left: unit.Dp(20), Right: unit.Dp(16)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(th, 15, orDash(b.name))
+								l.Color, l.MaxLines = t.Text, 1
+								return l.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if b.phone == "" {
+									return layout.Dimensions{}
+								}
+								l := material.Label(th, 12.5, b.phone)
+								l.Color, l.MaxLines = t.Text2, 1
+								return l.Layout(gtx)
+							}),
+						)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if idx >= len(ctl.UnblockClicks) {
+							return layout.Dimensions{}
+						}
+						return ctl.UnblockClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(10)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(th, 13, "Buka blokir")
+								l.Color, l.Font.Weight = t.Accent, font.SemiBold
+								return l.Layout(gtx)
+							})
+						})
+					}),
+				)
+			})
+		}))
+	}
+	return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+	})
 }
 
 // privacyOrder — urutan + label baris privasi (indeks = indeks clickable).
@@ -145,7 +211,15 @@ var privacyOrder = []struct{ key, label string }{
 
 // setPrivacyPane — daftar setelan privasi (label + nilai). Ketuk baris → siklus nilai.
 func setPrivacyPane(gtx layout.Context, th *material.Theme, t Theme, ctl *SettingsCtl) layout.Dimensions {
-	children := make([]layout.FlexChild, 0, len(privacyOrder))
+	children := make([]layout.FlexChild, 0, len(privacyOrder)+1)
+	// entri "Kontak diblokir" (buka sub-pane daftar).
+	if ctl.BlockedBtn != nil {
+		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return ctl.BlockedBtn.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return setProfileField(gtx, th, t, "Kontak diblokir", itoa(len(ctl.Blocked))+" kontak")
+			})
+		}))
+	}
 	for i := range privacyOrder {
 		o := privacyOrder[i]
 		val, ok := ctl.Privacy[o.key]

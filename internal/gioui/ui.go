@@ -427,6 +427,8 @@ type UI struct {
 	metaPromptClicks [4]widget.Clickable // chip prompt saran di chat Meta AI kosong
 	profFetched      bool                // profil sudah diambil sekali
 	privacyClicks    [8]widget.Clickable // baris privasi (siklus nilai → SetPrivacy)
+	blockedBtn       widget.Clickable    // entri privasi → daftar diblokir
+	unblockClicks    []widget.Clickable  // paralel daftar diblokir (buka blokir)
 
 	chats     []app.ChatDTO
 	selected  string
@@ -4163,6 +4165,27 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 						u.core.SetPrivacy(k, nextPrivacy(k, pv[k]))
 					}
 				}
+				ctl.BlockedBtn = &u.blockedBtn // entri → daftar diblokir
+				for _, b := range u.core.GetBlockedContacts() {
+					ctl.Blocked = append(ctl.Blocked, blockedRow{name: b.Name, phone: b.Phone, jid: b.JID})
+				}
+				for u.blockedBtn.Clicked(gtx) {
+					u.setSub = "blocked"
+				}
+			case "blocked": // daftar kontak terblokir + buka-blokir
+				bl := u.core.GetBlockedContacts()
+				if len(u.unblockClicks) < len(bl) {
+					u.unblockClicks = make([]widget.Clickable, len(bl))
+				}
+				for i := range bl {
+					ctl.Blocked = append(ctl.Blocked, blockedRow{name: bl[i].Name, phone: bl[i].Phone, jid: bl[i].JID})
+					if i < len(u.unblockClicks) {
+						for u.unblockClicks[i].Clicked(gtx) {
+							u.core.Block(bl[i].JID, false) // buka blokir
+						}
+					}
+				}
+				ctl.UnblockClicks = u.unblockClicks
 			}
 		}
 		return SettingsView(gtx, u.th, u.t, ctl)

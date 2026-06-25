@@ -5824,13 +5824,15 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 // Batas cache gambar di RAM (FIFO evict) — jaga pemakaian RAM tetap rendah meski
 // sesi panjang. capGif kecil (frame RGBA penuh = paling berat per item).
 const (
-	capMedia  = 80  // media bubble ter-decode (foto/poster/stiker)
-	capGif    = 4   // GIF .gif aktif (semua frame di RAM)
-	capRemote = 200 // thumb stiker/GIF online (preview kecil)
-	capPhotos = 150 // avatar ter-decode (banyak anggota grup → bisa numpuk)
-	capTrans  = 100 // teks terjemahan tersimpan
+	capGif   = 4   // GIF .gif aktif (semua frame di RAM, sudah downscale)
+	capTrans = 100 // teks terjemahan tersimpan
+	capLink  = 50  // thumbnail pratinjau tautan (dulu unbounded)
 
-	capLink = 50 // thumbnail pratinjau tautan (dulu unbounded)
+	// Budget BYTE cache gambar (RAM) — pasca-downscale tiap gambar kecil & terprediksi,
+	// jadi batasi pakai total byte (bukan jumlah item) → RAM mentok rata.
+	capMediaBytes  = 48 << 20 // 48MB media bubble ter-decode
+	capRemoteBytes = 24 << 20 // 24MB thumb stiker/GIF online
+	capPhotoBytes  = 16 << 20 // 16MB avatar
 
 	scrimA = 120 // alpha scrim backdrop SEMUA overlay/dropdown (konsistensi)
 
@@ -5848,14 +5850,27 @@ const (
 // Disimpan berpasangan agar eviction bisa membersihkan keduanya.
 type avatarKey struct{ name, jid string }
 
-// capMediaLocked/capGifLocked/capRemoteLocked — batasi cache gambar di RAM (FIFO)
-// agar pemakaian tak naik terus selama sesi. Pemanggil HARUS pegang mutex terkait
-// (mediaMu utk media/gif, photoMu utk remote). Saat entri di-evict, hapus juga
-// penanda "tried" → akses berikutnya memuat ulang (decode async).
+// opBytes — perkiraan byte RGBA satu ImageOp (W·H·4).
+func opBytes(op paint.ImageOp) int {
+	s := op.Size()
+	return s.X * s.Y * 4
+}
+
+// capMediaLocked/capGifLocked/capRemoteLocked — batasi cache gambar di RAM (budget
+// BYTE, FIFO evict). Pemanggil HARUS pegang mutex terkait (mediaMu utk media/gif,
+// photoMu utk remote). Saat entri di-evict, hapus juga penanda "tried" → akses
+// berikutnya memuat ulang. Selalu sisakan ≥1 (item terbaru).
 func (u *UI) capMediaLocked() {
-	for len(u.mediaOrder) > capMedia {
+	total := 0
+	for _, op := range u.media {
+		total += opBytes(op)
+	}
+	for total > capMediaBytes && len(u.mediaOrder) > 1 {
 		k := u.mediaOrder[0]
 		u.mediaOrder = u.mediaOrder[1:]
+		if op, ok := u.media[k]; ok {
+			total -= opBytes(op)
+		}
 		delete(u.media, k)
 		delete(u.mediaGif, k)
 		delete(u.mediaTried, k)
@@ -5871,9 +5886,16 @@ func (u *UI) capGifLocked() {
 }
 
 func (u *UI) capRemoteLocked() {
-	for len(u.remoteOrder) > capRemote {
+	total := 0
+	for _, op := range u.remoteThumbs {
+		total += opBytes(op)
+	}
+	for total > capRemoteBytes && len(u.remoteOrder) > 1 {
 		k := u.remoteOrder[0]
 		u.remoteOrder = u.remoteOrder[1:]
+		if op, ok := u.remoteThumbs[k]; ok {
+			total -= opBytes(op)
+		}
 		delete(u.remoteThumbs, k)
 		delete(u.remoteTried, k)
 	}
@@ -6687,9 +6709,16 @@ func (u *UI) ensureTranslate(id, text string) {
 // RAM (FIFO). Pemanggil pegang mutex terkait (photoMu / transMu). Saat evict, hapus
 // juga penanda → bisa dimuat ulang.
 func (u *UI) capPhotosLocked() {
-	for len(u.photoOrder) > capPhotos {
+	total := 0
+	for _, op := range u.photos {
+		total += opBytes(op)
+	}
+	for total > capPhotoBytes && len(u.photoOrder) > 1 {
 		k := u.photoOrder[0]
 		u.photoOrder = u.photoOrder[1:]
+		if op, ok := u.photos[k.name]; ok {
+			total -= opBytes(op)
+		}
 		delete(u.photos, k.name)
 		delete(u.photoTried, k.jid)
 	}

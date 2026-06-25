@@ -336,6 +336,7 @@ type UI struct {
 	inviteCopy       widget.Clickable
 	inviteClose      widget.Clickable
 	infoEditC        widget.Clickable // info-drawer: edit info grup
+	infoPhotoC       widget.Clickable // info-drawer: ganti foto grup (admin)
 	infoRenameC      widget.Clickable // info-drawer: edit nama kontak (DM)
 	renameEd         widget.Editor    // editor nama kontak (modal renamecontact)
 	renameSave       widget.Clickable
@@ -522,7 +523,9 @@ type UI struct {
 	// OnOpenURL: buka URL di browser (di-set cmd/whatslite-gio → xdg-open). nil → tak diklik.
 	OnOpenURL func(url string)
 	// OnSetPhoto: pilih berkas gambar → SetMyPhoto (di-set cmd/whatslite-gio → x/explorer).
-	OnSetPhoto func()
+	OnSetPhoto      func()
+	OnSetGroupPhoto func(jid string)       // ganti foto grup (info drawer → file picker)
+	OnExportChat    func(jid, name string) // ekspor transkrip chat ke berkas
 	// OnMediaPoster: dekode frame still (poster) dari byte yg tak bisa image.Decode —
 	// GIF WhatsApp (mp4), stiker webp animasi, video — via ffmpeg. ext mis. ".mp4"/
 	// ".webp". di-set cmd/whatslite-gio → internal/video.FirstFrame. nil → fallback ikon.
@@ -3688,6 +3691,7 @@ func chatCtxActions(c app.ChatDTO) []chatCtxAction {
 		{"star", "Pesan berbintang", "starred", false},
 		{"archive", "Arsipkan", "archive", false},
 		{"message", "Tandai belum dibaca", "unread", false},
+		{"download", "Ekspor chat", "export", false},
 		{"eraser", "Bersihkan chat", "clear", false},
 		{"trash", "Hapus chat", "delete", true},
 	}
@@ -3718,6 +3722,10 @@ func (u *UI) doChatAction(action string, c app.ChatDTO) {
 		u.core.ClearChat(c.ID) // kosongkan pesan, pertahankan chat (Meta AI: "mulai baru")
 		if c.ID == u.selected {
 			u.messages = u.core.GetMessagesN(u.selected, u.msgLimit)
+		}
+	case "export":
+		if u.OnExportChat != nil {
+			u.OnExportChat(c.ID, c.Name)
 		}
 	}
 	u.chats = u.core.GetChats()
@@ -7822,6 +7830,9 @@ func (u *UI) infoData() *InfoDrawerData {
 			u.curGroupDesc = gi.Topic
 			u.curGroupAmAdmin = gi.AmAdmin
 			d.AmAdmin = gi.AmAdmin
+			if gi.AmAdmin { // admin → hero bisa diketuk utk ganti foto grup
+				d.PhotoClick = &u.infoPhotoC
+			}
 			d.Announce, d.Locked, d.Approval = gi.Announce, gi.Locked, gi.JoinApproval
 			d.AnnounceC, d.LockedC, d.ApprovalC = &u.infoAnnounceC, &u.infoLockedC, &u.infoApprovalC
 			d.Members = make([]InfoMember, 0, len(gi.Participants))
@@ -7886,6 +7897,11 @@ func (u *UI) handleInfo(gtx layout.Context) {
 		u.gedName.SetText(u.selName)
 		u.gedDesc.SetText(u.curGroupDesc)
 		u.overlay = "groupedit"
+	}
+	for u.infoPhotoC.Clicked(gtx) { // ganti foto grup → file picker (cmd)
+		if u.OnSetGroupPhoto != nil && u.selGroup && u.selected != "" {
+			u.OnSetGroupPhoto(u.selected)
+		}
 	}
 	for u.infoMuteC.Clicked(gtx) { // bisukan / aktifkan notifikasi
 		if u.core != nil {

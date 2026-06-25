@@ -146,6 +146,8 @@ func run(w *gioapp.Window, core *app.App) error {
 			}
 		}
 		ui.OnSetPhoto = func() { go pickAndSetPhoto(expl, core) } // ganti foto profil
+		ui.OnSetGroupPhoto = func(jid string) { go pickAndSetGroupPhoto(expl, core, jid) }
+		ui.OnExportChat = func(jid, name string) { go exportChat(expl, core, jid, name) }
 		// poster still utk byte yg tak bisa image.Decode: GIF WA (mp4), stiker
 		// webp animasi, video → frame pertama via ffmpeg.
 		ui.OnMediaPoster = func(data []byte, ext string) image.Image {
@@ -291,6 +293,39 @@ func pickAndSetPhoto(expl *explorer.Explorer, core *app.App) {
 	}
 	uri := "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
 	core.SetMyPhoto(uri, uri) // full + preview (engine resize bila perlu)
+}
+
+// pickAndSetGroupPhoto — dialog gambar → data-URI → SetGroupPhoto(jid).
+func pickAndSetGroupPhoto(expl *explorer.Explorer, core *app.App, jid string) {
+	rc, err := expl.ChooseFile("jpg", "jpeg", "png", "webp")
+	if err != nil || rc == nil {
+		return
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil || len(data) == 0 {
+		return
+	}
+	mime := http.DetectContentType(data)
+	if !strings.HasPrefix(mime, "image/") {
+		return
+	}
+	core.SetGroupPhoto(jid, "data:"+mime+";base64,"+base64.StdEncoding.EncodeToString(data))
+}
+
+// exportChat — transkrip teks chat → dialog simpan berkas (.txt).
+func exportChat(expl *explorer.Explorer, core *app.App, jid, name string) {
+	txt := core.ExportChat(jid)
+	if txt == "" {
+		return
+	}
+	fname := "whatslite-" + name + ".txt"
+	wc, err := expl.CreateFile(fname)
+	if err != nil || wc == nil {
+		return
+	}
+	defer wc.Close()
+	_, _ = wc.Write([]byte(txt))
 }
 
 // statusVideoSession — adapter gioui.StatusVideo: frame (ffmpeg) + audio (libmpv

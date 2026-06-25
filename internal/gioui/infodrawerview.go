@@ -24,14 +24,15 @@ import (
 // InfoDrawerView menggambar laci info grup 400px di sisi kanan (sidebarBg).
 // InfoDrawerData = data nyata drawer info (nil → demo grup statis).
 type InfoDrawerData struct {
-	Name    string
-	JID     string     // utk foto profil asli di hero (via Av)
-	Av      cpAvatarFn // penggambar avatar foto-asli; nil = inisial
-	Sub     string     // "N anggota" (grup) / presence (DM)
-	Desc    string     // topik grup / about kontak
-	Group   bool
-	Muted   bool // status bisu chat (label baris Bisukan)
-	Blocked bool // status blokir kontak (label baris Blokir / Buka blokir)
+	Name       string
+	JID        string            // utk foto profil asli di hero (via Av)
+	Av         cpAvatarFn        // penggambar avatar foto-asli; nil = inisial
+	PhotoClick *widget.Clickable // ketuk hero → ganti foto (grup admin); nil = tak bisa
+	Sub        string            // "N anggota" (grup) / presence (DM)
+	Desc       string            // topik grup / about kontak
+	Group      bool
+	Muted      bool // status bisu chat (label baris Bisukan)
+	Blocked    bool // status blokir kontak (label baris Blokir / Buka blokir)
 	// aksi (nil = baris statis/demo): Block (DM), Leave (grup), Invite (link grup),
 	// Edit (info grup: nama+deskripsi), Mute (toggle bisu), Media (galeri), Enc (info enkripsi).
 	Block        *widget.Clickable
@@ -98,7 +99,7 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 		}),
 		// .info-hero — pad 28/24, avatar 200, nama 24/500, sub 15.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return infoDrawerHero(gtx, th, t, d.Name, d.Sub, d.Av, d.JID)
+			return infoDrawerHero(gtx, th, t, d.Name, d.Sub, d.Av, d.JID, d.PhotoClick)
 		}),
 		// pemisah 6px var(--wallpaper) (border-bottom .info-hero).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -295,17 +296,38 @@ func infoDrawerHead(gtx layout.Context, th *material.Theme, t Theme, w int, titl
 }
 
 // infoDrawerHero: .info-hero — pad 28/24, avatar 200 di tengah + nama + sub.
-func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name, sub string, av cpAvatarFn, jid string) layout.Dimensions {
+func infoDrawerHero(gtx layout.Context, th *material.Theme, t Theme, name, sub string, av cpAvatarFn, jid string, photoClick *widget.Clickable) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := layout.Inset{Top: unit.Dp(28), Bottom: unit.Dp(28), Left: unit.Dp(24), Right: unit.Dp(24)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		gtx.Constraints.Min.X = gtx.Constraints.Max.X
 		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
 			// .avatar.big — 200x200: foto profil asli (Av) bila ada, else inisial.
+			// photoClick != nil (grup admin) → ketuk = ganti foto (+ lencana kamera).
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if av != nil {
-					return av(gtx, name, jid, 200)
+				avw := func(gtx layout.Context) layout.Dimensions {
+					if av != nil {
+						return av(gtx, name, jid, 200)
+					}
+					return infoDrawerAvatar(gtx, th, name, 200)
 				}
-				return infoDrawerAvatar(gtx, th, name, 200)
+				if photoClick == nil {
+					return avw(gtx)
+				}
+				return photoClick.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Stack{Alignment: layout.SE}.Layout(gtx,
+						layout.Stacked(avw),
+						layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+							d := gtx.Dp(40)
+							sz := image.Pt(d, d)
+							paint.FillShape(gtx.Ops, t.Accent, clip.Ellipse{Max: sz}.Op(gtx.Ops))
+							gtx.Constraints.Min, gtx.Constraints.Max = sz, sz
+							layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "camera", 20, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+							})
+							return layout.Dimensions{Size: sz}
+						}),
+					)
+				})
 			}),
 			// margin: 0 auto 16px.
 			layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),

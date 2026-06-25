@@ -605,6 +605,10 @@ func (a *App) OpenChat(jid string) {
 				}
 			}()
 		}
+		// Refresh sidebar SEGERA agar badge belum-dibaca yg baru dihapus hilang
+		// detik itu juga (tanpa ini badge basi bertahan sampai poll ~600ms → tampak
+		// seakan pesan yg baru kita kirim "masuk & belum dibaca").
+		a.emit("wa:sync", "")
 	}
 	a.eng.SendAvailable()
 	a.eng.SubscribePresence(jid)

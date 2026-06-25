@@ -228,5 +228,6 @@ func (a *App) SendText(jid, text string) string {
 		ID: id, ChatJID: jid, Text: text, Timestamp: time.Now(), FromMe: true,
 	})
 	_ = a.store.SetUnread(a.ctx, jid, 0) // kirim = aktif di chat → tandai terbaca
+	a.emit("wa:message", jid)            // refresh sidebar SEGERA (centang terkirim, bukan badge basi)
 	return id
 }

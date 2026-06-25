@@ -229,6 +229,7 @@ type UI struct {
 	linkPrev  map[string]*app.LinkPreviewDTO // pratinjau tautan per-URL (async)
 	linkImg   map[string]paint.ImageOp       // thumbnail pratinjau (decode async)
 	linkTried map[string]bool                // URL sudah dicoba ambil
+	linkOrder []string                       // FIFO evict linkImg → cap RAM
 
 	transMu    sync.Mutex
 	transText  map[string]string // msgID → teks terjemahan (async)
@@ -5786,7 +5787,7 @@ func (u *UI) ensureMedia(chat, id, kind string) {
 		// GIF .gif ASLI (magic "GIF8") → decode frame utuh utk auto-loop di bubble.
 		// (GIF WA biasanya mp4 / stiker webp-animasi → tak kena sini; tetap poster.)
 		if len(b) >= 6 && (string(b[:6]) == "GIF89a" || string(b[:6]) == "GIF87a") {
-			if frames, delays, _, _ := gifFrames(b); len(frames) >= 1 {
+			if frames, delays, _, _ := gifFrames(b, 320); len(frames) >= 1 {
 				u.mediaMu.Lock()
 				if len(frames) > 1 {
 					u.mediaGif[id] = gifAnim{frames: frames, delays: delays}
@@ -5828,6 +5829,8 @@ const (
 	capRemote = 200 // thumb stiker/GIF online (preview kecil)
 	capPhotos = 150 // avatar ter-decode (banyak anggota grup → bisa numpuk)
 	capTrans  = 100 // teks terjemahan tersimpan
+
+	capLink = 50 // thumbnail pratinjau tautan (dulu unbounded)
 
 	scrimA = 120 // alpha scrim backdrop SEMUA overlay/dropdown (konsistensi)
 
@@ -6769,6 +6772,13 @@ func (u *UI) ensureLinkPreview(url string) {
 				op := paint.NewImageOp(img)
 				u.linkMu.Lock()
 				u.linkImg[url] = op
+				u.linkOrder = append(u.linkOrder, url)
+				for len(u.linkOrder) > capLink { // FIFO evict (+ penanda → bisa muat ulang)
+					k := u.linkOrder[0]
+					u.linkOrder = u.linkOrder[1:]
+					delete(u.linkImg, k)
+					delete(u.linkTried, k)
+				}
 				u.linkMu.Unlock()
 			}
 		}

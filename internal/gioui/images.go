@@ -33,7 +33,7 @@ type gifAnim struct {
 // gifFrames: byte GIF → frame-frame ter-komposit (paint.ImageOp) + delay(ms) +
 // ukuran. Pure-Go (stdlib image/gif). Disposal disederhanakan (akumulasi Over —
 // benar utk "keep" yg paling umum). Animasi: pilih frame per waktu.
-func gifFrames(b []byte) (frames []paint.ImageOp, delaysMs []int, w, h int) {
+func gifFrames(b []byte, maxDim int) (frames []paint.ImageOp, delaysMs []int, w, h int) {
 	g, err := gif.DecodeAll(bytes.NewReader(b))
 	if err != nil || len(g.Image) == 0 {
 		return nil, nil, 0, 0
@@ -43,11 +43,33 @@ func gifFrames(b []byte) (frames []paint.ImageOp, delaysMs []int, w, h int) {
 		b0 := g.Image[0].Bounds()
 		w, h = b0.Dx(), b0.Dy()
 	}
-	canvas := image.NewRGBA(image.Rect(0, 0, w, h))
+	// target downscale: tiap frame disimpan ≤ maxDim (hemat RAM — GIF tampil kecil
+	// di bubble; jangan tahan N frame full-res RGBA).
+	tw, th := w, h
+	if maxDim > 0 && (w > maxDim || h > maxDim) {
+		if w >= h {
+			th, tw = h*maxDim/w, maxDim
+		} else {
+			tw, th = w*maxDim/h, maxDim
+		}
+		if tw < 1 {
+			tw = 1
+		}
+		if th < 1 {
+			th = 1
+		}
+	}
+	canvas := image.NewRGBA(image.Rect(0, 0, w, h)) // komposit di ukuran asli (disposal benar)
 	for i, fr := range g.Image {
 		draw.Draw(canvas, fr.Bounds(), fr, fr.Bounds().Min, draw.Over)
-		snap := image.NewRGBA(canvas.Bounds())
-		copy(snap.Pix, canvas.Pix)
+		var snap *image.RGBA
+		if tw != w || th != h {
+			snap = image.NewRGBA(image.Rect(0, 0, tw, th))
+			xdraw.ApproxBiLinear.Scale(snap, snap.Bounds(), canvas, canvas.Bounds(), xdraw.Src, nil)
+		} else {
+			snap = image.NewRGBA(canvas.Bounds())
+			copy(snap.Pix, canvas.Pix)
+		}
 		frames = append(frames, paint.NewImageOp(snap))
 		d := 100 // default 100ms
 		if i < len(g.Delay) && g.Delay[i] > 0 {
@@ -55,7 +77,7 @@ func gifFrames(b []byte) (frames []paint.ImageOp, delaysMs []int, w, h int) {
 		}
 		delaysMs = append(delaysMs, d)
 	}
-	return frames, delaysMs, w, h
+	return frames, delaysMs, tw, th
 }
 
 // frameAt: index frame utk total durasi `t` ms (loop).

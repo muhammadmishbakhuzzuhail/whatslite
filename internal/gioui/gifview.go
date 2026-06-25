@@ -29,7 +29,7 @@ func GifView(gtx layout.Context, th *material.Theme, t Theme) layout.Dimensions 
 		rr := gtx.Dp(14)
 		cl := clip.RRect{Rect: image.Rectangle{Max: sz}, NW: rr, NE: rr, SE: rr, SW: rr}.Push(gtx.Ops)
 		paint.FillShape(gtx.Ops, t.Bg2, clip.Rect{Max: sz}.Op())
-		frames, delays, _, _ := gifFrames(synthGif())
+		frames, delays, _, _ := gifFrames(synthGif(), 320)
 		if len(frames) > 0 {
 			idx := frameAt(delays, 600) // ~frame ke-2/3 (titik di tengah)
 			if idx >= len(frames) {

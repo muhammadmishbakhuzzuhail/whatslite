@@ -196,6 +196,7 @@ type UI struct {
 
 	setClicks       [11]widget.Clickable // baris pane setelan (lihat setList: 0=Akun … 9=Bantuan, 10=Keluar)
 	langClicks      [8]widget.Clickable  // baris pemilih bahasa (sub-pane Bahasa)
+	setMainList     widget.List          // gulir daftar setelan utama
 	setSubList      widget.List          // gulir isi sub-pane setelan (profil/penyimpanan)
 	clearMediaBtn   widget.Clickable     // Penyimpanan: hapus cache media
 	clearMsgsBtn    widget.Clickable     // Penyimpanan: hapus semua pesan (→ konfirmasi)
@@ -4542,7 +4543,8 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 		}
 		ctl := &SettingsCtl{
 			Dark: u.dark, KeepDeleted: kd, Retention: ret, AppLock: lock, Clicks: u.setClicks[:],
-			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick, SubList: &u.setSubList,
+			Sub: u.setSub, Back: &u.setBack, ProfileClick: &u.setProfileClick,
+			MainList: &u.setMainList, SubList: &u.setSubList,
 			Notifications: u.core == nil || u.core.NotificationsOn(),
 			Language:      "id", LangClicks: u.langClicks[:],
 		}

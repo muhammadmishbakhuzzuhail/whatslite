@@ -57,6 +57,7 @@ type SettingsCtl struct {
 	Notifications                  bool               // toggle baris "Notifikasi" (persist)
 	Language                       string             // kode bahasa UI aktif ("id"/"en"/…)
 	LangClicks                     []widget.Clickable // baris pemilih bahasa (sub-pane)
+	MainList                       *widget.List       // gulir daftar setelan utama
 	SubList                        *widget.List       // gulir isi sub-pane (profil/penyimpanan dll)
 	ClearMediaBtn                  *widget.Clickable  // Penyimpanan: hapus cache media
 	ClearMsgsBtn                   *widget.Clickable  // Penyimpanan: hapus semua pesan
@@ -115,6 +116,14 @@ func SettingsView(gtx layout.Context, th *material.Theme, t Theme, ctl *Settings
 			return card(gtx)
 		}),
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			// gulir daftar setelan bila melebihi tinggi (jendela pendek → "Keluar"
+			// di dasar tetap terjangkau).
+			if ctl != nil && ctl.MainList != nil {
+				ctl.MainList.Axis = layout.Vertical
+				return material.List(th, ctl.MainList).Layout(gtx, 1, func(gtx layout.Context, _ int) layout.Dimensions {
+					return setList(gtx, th, t, ctl)
+				})
+			}
 			return setList(gtx, th, t, ctl)
 		}),
 	)

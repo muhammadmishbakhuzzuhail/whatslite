@@ -110,6 +110,7 @@ type UI struct {
 	stFwd             widget.Clickable    // tombol forward status → chat
 	stSave            widget.Clickable    // tombol simpan media status ke disk
 	fwdSrc            string              // chat sumber forward ("" = u.selected; status → status@broadcast)
+	fwdChanText       string              // teruskan post saluran: teks dikirim langsung (post tak tersimpan)
 	stMyClick         widget.Clickable    // baris "Status saya" → composer post status
 	scEd              widget.Editor       // editor teks status (composer post)
 	scPost            widget.Clickable
@@ -151,32 +152,40 @@ type UI struct {
 	comFetching                   bool // komunitas sedang di-fetch (async)
 	cgAt, srAt, crAt, chAt, comAt time.Time
 
-	chnTab         int                 // 0=Diikuti, 1=Jelajahi
-	chnTabClicks   [2]widget.Clickable // tombol tab channels
-	chnRowClicks   []widget.Clickable  // aksi per-baris channel (ikuti/unfollow)
-	chnRowOpens    []widget.Clickable  // buka channel per-baris → reader
-	openChannel    string              // jid channel terbuka (reader di section 3); "" = tak ada
-	openChanName   string              // nama channel terbuka
-	openChanSubs   string              // subscriber channel terbuka (header reader)
-	openChanRole   string              // peran kita di channel terbuka (owner/admin → composer)
-	chnPostEd      widget.Editor       // composer post saluran (owner/admin)
-	chnPostBtn     widget.Clickable    // tombol kirim post saluran
-	openChanVer    bool                // channel terverifikasi (header reader)
-	chMsgList      widget.List         // gulir post channel reader
-	chMsgsCache    []app.ChannelMsgDTO // cache post channel terbuka
-	chMsgsJID      string              // jid cache di atas
-	chMsgsAt       time.Time
-	chnExpCache    []chnChannel // cache saluran jelajah
-	chnExpAt       time.Time
-	chnExpQuery    string        // query terakhir direktori jelajah (invalidasi cache)
-	chMu           sync.Mutex    // lindungi cache saluran (fetch async)
-	chFetching     bool          // saluran diikuti sedang di-fetch
-	chnExpFetching bool          // direktori jelajah sedang di-fetch
-	chnSearchEd    widget.Editor // kotak cari direktori channels (tab Jelajahi)
-	chFollowEd     widget.Editor // kotak cari saluran DIIKUTI (filter lokal, section 2 ala chat)
-	comSearchEd    widget.Editor // kotak cari Komunitas (filter lokal, section 2 ala chat)
-	ctSearchEd     widget.Editor // kotak cari daftar Kontak (section 2)
-	cgQuery        string        // query terakhir daftar kontak (invalidasi cache)
+	chnTab          int                 // 0=Diikuti, 1=Jelajahi
+	chnTabClicks    [2]widget.Clickable // tombol tab channels
+	chnRowClicks    []widget.Clickable  // aksi per-baris channel (ikuti/unfollow)
+	chnRowOpens     []widget.Clickable  // buka channel per-baris → reader
+	openChannel     string              // jid channel terbuka (reader di section 3); "" = tak ada
+	openChanName    string              // nama channel terbuka
+	openChanSubs    string              // subscriber channel terbuka (header reader)
+	openChanRole    string              // peran kita di channel terbuka (owner/admin → composer)
+	chnPostEd       widget.Editor       // composer post saluran (owner/admin)
+	chnPostBtn      widget.Clickable    // tombol kirim post saluran
+	openChanVer     bool                // channel terverifikasi (header reader)
+	openChanDesc    string              // deskripsi channel terbuka (panel info)
+	openChanInvite  string              // kode undangan channel terbuka (bagikan)
+	openChanMuted   bool                // channel terbuka dibisukan
+	chnInfoBtn      widget.Clickable    // header reader: buka panel info channel
+	chnInfoClose    widget.Clickable    // tutup panel info channel
+	chnInfoMute     widget.Clickable    // panel info: toggle bisu
+	chnInfoCopy     widget.Clickable    // panel info: salin tautan
+	chnInfoUnfollow widget.Clickable    // panel info: berhenti ikuti
+	chMsgList       widget.List         // gulir post channel reader
+	chMsgsCache     []app.ChannelMsgDTO // cache post channel terbuka
+	chMsgsJID       string              // jid cache di atas
+	chMsgsAt        time.Time
+	chnExpCache     []chnChannel // cache saluran jelajah
+	chnExpAt        time.Time
+	chnExpQuery     string        // query terakhir direktori jelajah (invalidasi cache)
+	chMu            sync.Mutex    // lindungi cache saluran (fetch async)
+	chFetching      bool          // saluran diikuti sedang di-fetch
+	chnExpFetching  bool          // direktori jelajah sedang di-fetch
+	chnSearchEd     widget.Editor // kotak cari direktori channels (tab Jelajahi)
+	chFollowEd      widget.Editor // kotak cari saluran DIIKUTI (filter lokal, section 2 ala chat)
+	comSearchEd     widget.Editor // kotak cari Komunitas (filter lokal, section 2 ala chat)
+	ctSearchEd      widget.Editor // kotak cari daftar Kontak (section 2)
+	cgQuery         string        // query terakhir daftar kontak (invalidasi cache)
 
 	// alur login via nomor telepon (alternatif QR): toggle, input, kode 8-karakter.
 	loginPhone  bool
@@ -279,6 +288,7 @@ type UI struct {
 	reactChnMsgID  string             // target reaksi post saluran (ReactChannel)
 	reactChnSrv    int64              // server-id post saluran (utk ReactChannel)
 	chnReactClicks []widget.Clickable // tombol reaksi per-post saluran
+	chnFwdClicks   []widget.Clickable // tombol teruskan per-post saluran (teks)
 	reactSender    string
 	reactFromMe    bool
 
@@ -1550,6 +1560,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.groupRequestsLayer(gtx)
 	case "mutedur":
 		u.muteDurLayer(gtx)
+	case "channelinfo":
+		u.channelInfoLayer(gtx)
 	case "mediapreview":
 		u.mediaPreviewLayer(gtx)
 	case "groupedit":
@@ -2078,6 +2090,113 @@ func (u *UI) muteDurLayer(gtx layout.Context) layout.Dimensions {
 				children = append(children, row(&u.muteClicks[i], opts[i].label))
 			}
 			children = append(children, row(&u.muteClose, "Batal"))
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// channelInfoLayer — panel info saluran: nama + verif + subscriber + deskripsi +
+// aksi (bisukan, salin tautan, berhenti ikuti). Data dari state openChan*.
+func (u *UI) channelInfoLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	link := "https://whatsapp.com/channel/" + u.openChanInvite
+	for u.chnInfoClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	for u.chnInfoMute.Clicked(gtx) {
+		if u.core != nil && u.openChannel != "" {
+			u.openChanMuted = !u.openChanMuted
+			u.core.MuteChannel(u.openChannel, u.openChanMuted)
+		}
+	}
+	for u.chnInfoCopy.Clicked(gtx) {
+		if u.openChanInvite != "" {
+			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(link))})
+		}
+	}
+	for u.chnInfoUnfollow.Clicked(gtx) {
+		if u.core != nil && u.openChannel != "" {
+			u.core.UnfollowChannel(u.openChannel)
+			u.openChannel, u.overlay = "", ""
+			u.chMu.Lock()
+			u.chCache = nil // paksa refresh daftar
+			u.chMu.Unlock()
+		}
+	}
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	row := func(c *widget.Clickable, label string, col color.NRGBA) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = col, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	muteLabel := "Bisukan saluran"
+	if u.openChanMuted {
+		muteLabel = "Bunyikan saluran"
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(360)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.channelAvatar(gtx, u.openChanName, u.openChannel, 48)
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+						layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 17, u.openChanName)
+							l.Color, l.Font.Weight, l.MaxLines = u.t.Text, font.Medium, 2
+							return l.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if !u.openChanVer {
+								return layout.Dimensions{}
+							}
+							return icon(gtx, "verif", 16, u.t.Accent)
+						}),
+					)
+				}),
+			}
+			if u.openChanSubs != "" {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 13, u.openChanSubs)
+						l.Color = u.t.Text2
+						return l.Layout(gtx)
+					})
+				}))
+			}
+			if strings.TrimSpace(u.openChanDesc) != "" {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						l := material.Label(u.th, 14, u.openChanDesc)
+						l.Color = u.t.Text
+						return l.Layout(gtx)
+					})
+				}))
+			}
+			children = append(children, layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout))
+			children = append(children, row(&u.chnInfoMute, muteLabel, u.t.Text))
+			if u.openChanInvite != "" {
+				children = append(children, row(&u.chnInfoCopy, "Salin tautan saluran", u.t.Accent))
+			}
+			children = append(children, row(&u.chnInfoUnfollow, "Berhenti mengikuti", red))
+			children = append(children, row(&u.chnInfoClose, "Tutup", u.t.Text2))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
 		call := macro.Stop()
@@ -2777,13 +2896,19 @@ func (u *UI) handleForward(gtx layout.Context) {
 			src = u.fwdSrc
 		}
 		if u.core != nil {
-			ids := u.fwdMsgIDs
-			if len(ids) == 0 && u.fwdMsgID != "" {
-				ids = []string{u.fwdMsgID}
-			}
-			for dst := range u.fwdSel {
-				for _, id := range ids {
-					u.core.Forward(src, id, dst)
+			if u.fwdChanText != "" { // post saluran tak tersimpan → kirim teksnya
+				for dst := range u.fwdSel {
+					u.core.SendTextMentioned(dst, u.fwdChanText, nil)
+				}
+			} else {
+				ids := u.fwdMsgIDs
+				if len(ids) == 0 && u.fwdMsgID != "" {
+					ids = []string{u.fwdMsgID}
+				}
+				for dst := range u.fwdSel {
+					for _, id := range ids {
+						u.core.Forward(src, id, dst)
+					}
 				}
 			}
 		}
@@ -2793,7 +2918,7 @@ func (u *UI) handleForward(gtx layout.Context) {
 
 // closeForward — tutup modal teruskan + bersihkan state pilihan/sumber.
 func (u *UI) closeForward() {
-	u.fwdMsgID, u.fwdMsgIDs, u.fwdSrc = "", nil, ""
+	u.fwdMsgID, u.fwdMsgIDs, u.fwdSrc, u.fwdChanText = "", nil, "", ""
 	for k := range u.fwdSel {
 		delete(u.fwdSel, k)
 	}
@@ -6448,7 +6573,7 @@ func (u *UI) channelRows() []chnChannel {
 			cs := u.core.GetChannels()
 			out := make([]chnChannel, 0, len(cs))
 			for _, c := range cs {
-				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, role: c.Role, verified: c.Verified})
+				out = append(out, chnChannel{name: c.Name, subs: fmtSubs(c.Subscribers), jid: c.JID, pic: c.Picture, role: c.Role, verified: c.Verified, desc: c.Description, invite: c.Invite, muted: c.Muted})
 			}
 			u.chMu.Lock()
 			for _, c := range cs {
@@ -6491,6 +6616,9 @@ func (u *UI) channelMsgs() []app.ChannelMsgDTO {
 // (avatar + nama) + daftar post (teks/thumb + waktu + views).
 func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 	msgs := u.channelMsgs()
+	for u.chnInfoBtn.Clicked(gtx) { // ikon header → panel info saluran
+		u.overlay = "channelinfo"
+	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		// header: avatar + nama channel.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -6532,6 +6660,13 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 							}),
 						)
 					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return u.chnInfoBtn.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return icon(gtx, "overflow", 20, u.t.Text2)
+							})
+						})
+					}),
 				)
 			})
 		}),
@@ -6547,6 +6682,9 @@ func (u *UI) channelReader(gtx layout.Context) layout.Dimensions {
 			u.chMsgList.Axis = layout.Vertical
 			if len(u.chnReactClicks) < len(msgs) {
 				u.chnReactClicks = make([]widget.Clickable, len(msgs))
+			}
+			if len(u.chnFwdClicks) < len(msgs) {
+				u.chnFwdClicks = make([]widget.Clickable, len(msgs))
 			}
 			return material.List(u.th, &u.chMsgList).Layout(gtx, len(msgs), func(gtx layout.Context, i int) layout.Dimensions {
 				return u.channelPost(gtx, msgs[i], i)
@@ -6627,6 +6765,14 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO, idx int) layou
 			u.overlay = "reaction"
 		}
 	}
+	if idx < len(u.chnFwdClicks) { // teruskan post (teks) → pilih chat tujuan
+		for u.chnFwdClicks[idx].Clicked(gtx) {
+			if strings.TrimSpace(m.Text) != "" {
+				u.fwdChanText, u.fwdMsgID, u.fwdSrc = m.Text, "", ""
+				u.overlay = "forward"
+			}
+		}
+	}
 	return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6), Left: unit.Dp(14), Right: unit.Dp(60)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		macro := op.Record(gtx.Ops)
 		dims := layout.Inset{Top: unit.Dp(9), Bottom: unit.Dp(9), Left: unit.Dp(12), Right: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -6691,6 +6837,16 @@ func (u *UI) channelPost(gtx layout.Context, m app.ChannelMsgDTO, idx int) layou
 							return u.chnReactClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return layout.Inset{Right: unit.Dp(6), Top: unit.Dp(1), Bottom: unit.Dp(1)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 									return icon(gtx, "emoji", 17, u.t.Text2)
+								})
+							})
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { // teruskan (teks saja)
+							if idx >= len(u.chnFwdClicks) || strings.TrimSpace(m.Text) == "" {
+								return layout.Dimensions{}
+							}
+							return u.chnFwdClicks[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.Inset{Right: unit.Dp(6), Top: unit.Dp(1), Bottom: unit.Dp(1)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return icon(gtx, "forward", 17, u.t.Text2)
 								})
 							})
 						}),
@@ -6767,7 +6923,8 @@ func (u *UI) handleChannels(gtx layout.Context, rows []chnChannel) {
 					u.openChannel, u.openChanName = rows[i].jid, rows[i].name
 					u.openChanSubs, u.openChanVer = rows[i].subs, rows[i].verified
 					u.openChanRole = rows[i].role // owner/admin → boleh posting
-					u.chMsgsJID = ""              // paksa muat post
+					u.openChanDesc, u.openChanInvite, u.openChanMuted = rows[i].desc, rows[i].invite, rows[i].muted
+					u.chMsgsJID = "" // paksa muat post
 				}
 			}
 		}

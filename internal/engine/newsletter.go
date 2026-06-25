@@ -27,6 +27,7 @@ type ChannelInfo struct {
 	Verified    bool
 	Muted       bool
 	Role        string // subscriber | admin | owner | guest
+	Invite      string // kode undangan (utk tautan bagikan …/channel/<kode>)
 }
 
 // ChannelMsg = satu pesan saluran (read-only).
@@ -250,6 +251,7 @@ func channelInfoFrom(m *types.NewsletterMetadata) ChannelInfo {
 		Description: tm.Description.Text,
 		Subscribers: tm.SubscriberCount,
 		Verified:    tm.VerificationState == types.NewsletterVerificationStateVerified,
+		Invite:      tm.InviteCode,
 	}
 	if tm.Picture != nil && tm.Picture.URL != "" {
 		ci.Picture = tm.Picture.URL

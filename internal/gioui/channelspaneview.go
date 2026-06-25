@@ -31,7 +31,10 @@ type chnChannel struct {
 	pic      string // URL CDN foto saluran (dari ChannelDTO.Picture); "" = inisial
 	role     string // peran kita: owner/admin (boleh posting) | subscriber
 	follow   bool
-	verified bool // lencana centang (channel terverifikasi)
+	verified bool   // lencana centang (channel terverifikasi)
+	desc     string // deskripsi saluran (utk panel info)
+	invite   string // kode undangan (tautan bagikan …/channel/<kode>)
+	muted    bool   // notifikasi saluran dibisukan
 }
 
 // ChnCtl = state interaktif pane channels (nil → statis/demo). Tab Diikuti/Jelajahi

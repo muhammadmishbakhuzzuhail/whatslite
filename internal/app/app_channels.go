@@ -20,6 +20,7 @@ type ChannelDTO struct {
 	Verified    bool   `json:"verified"`
 	Muted       bool   `json:"muted"`
 	Role        string `json:"role"`
+	Invite      string `json:"invite"` // kode undangan (tautan bagikan)
 }
 
 // ChannelMsgDTO = satu pesan saluran (read-only feed).
@@ -187,6 +188,6 @@ func channelDTO(c engine.ChannelInfo) ChannelDTO {
 	return ChannelDTO{
 		JID: c.JID, Name: c.Name, Description: c.Description,
 		Subscribers: c.Subscribers, Picture: c.Picture, Verified: c.Verified,
-		Muted: c.Muted, Role: c.Role,
+		Muted: c.Muted, Role: c.Role, Invite: c.Invite,
 	}
 }

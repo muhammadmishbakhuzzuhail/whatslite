@@ -205,7 +205,7 @@ func setBlockedPane(gtx layout.Context, th *material.Theme, t Theme, ctl *Settin
 // privacyOrder — urutan + label baris privasi (indeks = indeks clickable).
 var privacyOrder = []struct{ key, label string }{
 	{"lastseen", "Terakhir dilihat"}, {"online", "Online"}, {"profile", "Foto profil"},
-	{"about", "Tentang"}, {"status", "Status"}, {"readreceipts", "Laporan dibaca"},
+	{"status", "Status"}, {"readreceipts", "Laporan dibaca"},
 	{"groupadd", "Grup"}, {"calladd", "Panggilan"},
 }
 
@@ -332,6 +332,8 @@ func privacyOptions(key string) []string {
 		return []string{"all", "match_last_seen"}
 	case "readreceipts":
 		return []string{"all", "none"}
+	case "calladd": // siapa boleh menelepon (valid WA: all | known)
+		return []string{"all", "known"}
 	default:
 		return []string{"all", "contacts", "none"}
 	}
@@ -357,6 +359,8 @@ func privValue(v string) string {
 		return "Kontak saya"
 	case "contact_blacklist":
 		return "Kontak saya kecuali…"
+	case "known":
+		return "Kontak dikenal"
 	case "none":
 		return "Tidak ada"
 	case "match_last_seen":

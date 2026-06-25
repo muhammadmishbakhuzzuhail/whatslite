@@ -159,6 +159,7 @@ func (e *Engine) PrivacyMap(ctx context.Context) map[string]string {
 		"readreceipts": string(ps.ReadReceipts),
 		"groupadd":     string(ps.GroupAdd),
 		"online":       string(ps.Online),
+		"calladd":      string(ps.CallAdd),
 	}
 }
 

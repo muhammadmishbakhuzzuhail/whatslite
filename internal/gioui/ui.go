@@ -363,6 +363,9 @@ type UI struct {
 	cctBlock         widget.Clickable        // menu konteks kontak: blokir/buka blokir
 	cctDelete        widget.Clickable        // menu konteks kontak: hapus kontak
 	infoMuteC        widget.Clickable        // info-drawer: bisukan/aktifkan notifikasi
+	muteJID          string                  // chat sasaran picker durasi bisu
+	muteClicks       [4]widget.Clickable     // opsi durasi bisu (8j/1h/1mgg/selamanya)
+	muteClose        widget.Clickable        // batal picker durasi bisu
 	infoMediaC       widget.Clickable        // info-drawer: buka galeri media
 	infoEncC         widget.Clickable        // info-drawer: info enkripsi
 	infoMemberClicks []widget.Clickable      // info-drawer: anggota grup
@@ -1539,6 +1542,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.inviteLinkLayer(gtx)
 	case "grouprequests":
 		u.groupRequestsLayer(gtx)
+	case "mutedur":
+		u.muteDurLayer(gtx)
 	case "mediapreview":
 		u.mediaPreviewLayer(gtx)
 	case "groupedit":
@@ -2003,6 +2008,70 @@ func (u *UI) groupRequestsLayer(gtx layout.Context) layout.Dimensions {
 					})
 				}),
 			)
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// muteDurLayer — picker durasi bisu (paritas WhatsApp: 8 jam / 1 minggu / Selalu).
+// Pilih → core.Mute(jid,true,dur); WhatsApp lepas-bisu otomatis saat kedaluwarsa.
+func (u *UI) muteDurLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	opts := []struct {
+		label string
+		dur   time.Duration
+	}{
+		{"8 jam", 8 * time.Hour},
+		{"1 hari", 24 * time.Hour},
+		{"1 minggu", 7 * 24 * time.Hour},
+		{"Selalu", 0},
+	}
+	for i := range opts {
+		if u.muteClicks[i].Clicked(gtx) {
+			if u.core != nil && u.muteJID != "" {
+				u.core.Mute(u.muteJID, true, opts[i].dur)
+			}
+			u.overlay, u.muteJID = "", ""
+		}
+	}
+	for u.muteClose.Clicked(gtx) {
+		u.overlay, u.muteJID = "", ""
+	}
+	row := func(c *widget.Clickable, label string) layout.FlexChild {
+		return layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return c.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min.X = gtx.Constraints.Max.X
+				return layout.Inset{Top: unit.Dp(11), Bottom: unit.Dp(11), Left: unit.Dp(8), Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 15, label)
+					l.Color, l.Alignment = u.t.Text, text.Start
+					return l.Layout(gtx)
+				})
+			})
+		})
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(280)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, "Bisukan notifikasi")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+			}
+			for i := range opts {
+				children = append(children, row(&u.muteClicks[i], opts[i].label))
+			}
+			children = append(children, row(&u.muteClose, "Batal"))
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
 		call := macro.Stop()
@@ -3839,7 +3908,11 @@ func (u *UI) doChatAction(action string, c app.ChatDTO) {
 	case "pin":
 		u.core.Pin(c.ID, !c.Pinned)
 	case "mute":
-		u.core.Mute(c.ID, !c.Muted)
+		if c.Muted {
+			u.core.Mute(c.ID, false, 0)
+		} else { // bisukan → pilih durasi dulu
+			u.muteJID, u.overlay = c.ID, "mutedur"
+		}
 	case "archive":
 		u.core.Archive(c.ID, true)
 	case "unread":
@@ -8058,7 +8131,11 @@ func (u *UI) handleInfo(gtx layout.Context) {
 	}
 	for u.infoMuteC.Clicked(gtx) { // bisukan / aktifkan notifikasi
 		if u.core != nil {
-			u.core.Mute(jid, !u.isChatMuted(jid))
+			if u.isChatMuted(jid) {
+				u.core.Mute(jid, false, 0)
+			} else { // bisukan → pilih durasi dulu
+				u.muteJID, u.overlay = jid, "mutedur"
+			}
 		}
 	}
 	for u.infoMediaC.Clicked(gtx) { // galeri media chat

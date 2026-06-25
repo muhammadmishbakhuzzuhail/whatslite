@@ -23,15 +23,19 @@ func (a *App) Pin(jid string, pin bool) {
 	a.emit("wa:sync", "")
 }
 
-// Mute membisukan / mengaktifkan notifikasi chat (mute = sampai dimatikan).
-func (a *App) Mute(jid string, mute bool) {
+// Mute membisukan / mengaktifkan notifikasi chat. dur = lama bisu (0 + mute=true
+// → tak terbatas/selamanya). WhatsApp menyimpan waktu-kedaluwarsa server-side &
+// otomatis melepas bisu saat sinkron berikutnya.
+func (a *App) Mute(jid string, mute bool, dur time.Duration) {
 	if a.eng == nil || a.store == nil {
 		return
 	}
 	_ = a.store.SetMuted(a.ctx, jid, mute)
-	dur := time.Duration(0)
-	if mute {
-		dur = 365 * 24 * time.Hour
+	if mute && dur == 0 {
+		dur = 365 * 24 * time.Hour // "selamanya" praktis
+	}
+	if !mute {
+		dur = 0
 	}
 	if err := a.eng.Mute(a.ctx, jid, mute, dur); err != nil {
 		a.emit("wa:error", err.Error())

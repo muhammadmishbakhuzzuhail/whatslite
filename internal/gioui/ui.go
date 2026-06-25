@@ -334,6 +334,7 @@ type UI struct {
 	infoInviteC      widget.Clickable // info-drawer: link undangan grup
 	inviteLink       string           // link undangan termuat (modal "invitelink")
 	inviteCopy       widget.Clickable
+	inviteReset      widget.Clickable // setel ulang link undangan (admin)
 	inviteClose      widget.Clickable
 	infoEditC        widget.Clickable // info-drawer: edit info grup
 	infoPhotoC       widget.Clickable // info-drawer: ganti foto grup (admin)
@@ -371,34 +372,41 @@ type UI struct {
 	commonMu         sync.Mutex
 	commonClicks     []widget.Clickable // paralel grup-bersama DM terbuka (tap → buka grup)
 	// gabung grup lewat tautan undangan:
-	joinLink        string              // tautan/kode yg sedang dipratinjau
-	joinPreview     string              // nama grup hasil PreviewGroupLink (async)
-	joinClick       widget.Clickable    // baris "Gabung grup lewat tautan" di daftar chat
-	joinConfirm     widget.Clickable    // tombol Gabung di modal
-	joinCancel      widget.Clickable    // tombol Batal di modal
-	infoMemberNames []string            // nama anggota (paralel)
-	infoMemberAdmin []bool              // status admin anggota (paralel)
-	infoAddC        widget.Clickable    // info-drawer: "Tambah anggota" (grup)
-	infoAnnounceC   widget.Clickable    // toggle: hanya admin boleh kirim
-	infoLockedC     widget.Clickable    // toggle: hanya admin boleh ubah info
-	infoApprovalC   widget.Clickable    // toggle: setujui anggota baru
-	curGroupAmAdmin bool                // saya admin grup terbuka? (gate aksi admin)
-	mctJID          string              // menu konteks anggota: jid sasaran
-	mctName         string              // nama sasaran
-	mctAdmin        bool                // sasaran sudah admin?
-	mctMsg          widget.Clickable    // "Kirim pesan"
-	mctPromote      widget.Clickable    // "Jadikan admin" / "Hapus admin"
-	mctRemove       widget.Clickable    // "Keluarkan dari grup"
-	mctClose        widget.Clickable    // "Tutup"
-	encClose        widget.Clickable    // overlay enkripsi/galeri: tutup
-	mediaCellClicks []widget.Clickable  // sel grid galeri media
-	mediaGalList    widget.List         // scroll galeri media
-	infoTimerC      widget.Clickable    // info-drawer: pesan sementara (buka picker)
-	dispClicks      [4]widget.Clickable // picker pesan sementara: Mati/24j/7h/90h
-	dispClose       widget.Clickable    // picker pesan sementara: tutup
-	dispTimer       map[string]int      // jid → timer detik terpilih (label drawer)
-	gedName         widget.Editor       // editor nama grup (modal groupedit)
-	gedDesc         widget.Editor       // editor deskripsi grup
+	joinLink        string                // tautan/kode yg sedang dipratinjau
+	joinPreview     string                // nama grup hasil PreviewGroupLink (async)
+	joinClick       widget.Clickable      // baris "Gabung grup lewat tautan" di daftar chat
+	joinConfirm     widget.Clickable      // tombol Gabung di modal
+	joinCancel      widget.Clickable      // tombol Batal di modal
+	infoMemberNames []string              // nama anggota (paralel)
+	infoMemberAdmin []bool                // status admin anggota (paralel)
+	infoAddC        widget.Clickable      // info-drawer: "Tambah anggota" (grup)
+	infoAnnounceC   widget.Clickable      // toggle: hanya admin boleh kirim
+	infoLockedC     widget.Clickable      // toggle: hanya admin boleh ubah info
+	infoApprovalC   widget.Clickable      // toggle: setujui anggota baru
+	infoAddModeC    widget.Clickable      // toggle: hanya admin boleh tambah anggota
+	infoReqC        widget.Clickable      // baris: permintaan bergabung → daftar
+	grpReqs         []app.GroupRequestDTO // overlay grouprequests: permintaan menunggu
+	grpReqApprove   []widget.Clickable    // paralel grpReqs (setujui)
+	grpReqReject    []widget.Clickable    // paralel grpReqs (tolak)
+	grpReqClose     widget.Clickable      // tutup overlay permintaan
+	grpReqJID       string                // grup yg permintaannya ditampilkan
+	curGroupAmAdmin bool                  // saya admin grup terbuka? (gate aksi admin)
+	mctJID          string                // menu konteks anggota: jid sasaran
+	mctName         string                // nama sasaran
+	mctAdmin        bool                  // sasaran sudah admin?
+	mctMsg          widget.Clickable      // "Kirim pesan"
+	mctPromote      widget.Clickable      // "Jadikan admin" / "Hapus admin"
+	mctRemove       widget.Clickable      // "Keluarkan dari grup"
+	mctClose        widget.Clickable      // "Tutup"
+	encClose        widget.Clickable      // overlay enkripsi/galeri: tutup
+	mediaCellClicks []widget.Clickable    // sel grid galeri media
+	mediaGalList    widget.List           // scroll galeri media
+	infoTimerC      widget.Clickable      // info-drawer: pesan sementara (buka picker)
+	dispClicks      [4]widget.Clickable   // picker pesan sementara: Mati/24j/7h/90h
+	dispClose       widget.Clickable      // picker pesan sementara: tutup
+	dispTimer       map[string]int        // jid → timer detik terpilih (label drawer)
+	gedName         widget.Editor         // editor nama grup (modal groupedit)
+	gedDesc         widget.Editor         // editor deskripsi grup
 	gedSave         widget.Clickable
 	gedCancel       widget.Clickable
 	curGroupDesc    string // deskripsi grup aktif (utk prefill editor)
@@ -1529,6 +1537,8 @@ func (u *UI) overlayLayer(gtx layout.Context) {
 		u.scheduleLayer(gtx)
 	case "invitelink":
 		u.inviteLinkLayer(gtx)
+	case "grouprequests":
+		u.groupRequestsLayer(gtx)
 	case "mediapreview":
 		u.mediaPreviewLayer(gtx)
 	case "groupedit":
@@ -1877,6 +1887,122 @@ func (u *UI) memberCtxLayer(gtx layout.Context) layout.Dimensions {
 				)
 			}
 			children = append(children, row(&u.mctClose, "Tutup", u.t.Text2))
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
+		})
+		call := macro.Stop()
+		rr := gtx.Dp(12)
+		paint.FillShape(gtx.Ops, u.t.Bg, clip.RRect{Rect: image.Rectangle{Max: dims.Size}, NW: rr, NE: rr, SE: rr, SW: rr}.Op(gtx.Ops))
+		call.Add(gtx.Ops)
+		return dims
+	})
+}
+
+// groupRequestsLayer — daftar permintaan bergabung grup (admin): tiap baris nama +
+// tombol Setujui / Tolak (UpdateGroupRequest). Kosong → label "Tak ada permintaan".
+func (u *UI) groupRequestsLayer(gtx layout.Context) layout.Dimensions {
+	paint.FillShape(gtx.Ops, color.NRGBA{A: scrimA}, clip.Rect{Max: gtx.Constraints.Max}.Op())
+	green := color.NRGBA{R: 0x25, G: 0xa0, B: 0x65, A: 0xff}
+	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
+	// aksi: setujui/tolak → UpdateGroupRequest, lalu buang baris dari daftar lokal.
+	drop := func(i int) {
+		u.grpReqs = append(u.grpReqs[:i], u.grpReqs[i+1:]...)
+		u.grpReqApprove = append(u.grpReqApprove[:i], u.grpReqApprove[i+1:]...)
+		u.grpReqReject = append(u.grpReqReject[:i], u.grpReqReject[i+1:]...)
+	}
+	for i := range u.grpReqs {
+		if i >= len(u.grpReqApprove) {
+			break
+		}
+		if u.grpReqApprove[i].Clicked(gtx) {
+			if u.core != nil {
+				u.core.UpdateGroupRequest(u.grpReqJID, []string{u.grpReqs[i].JID}, true)
+			}
+			drop(i)
+			break
+		}
+		if u.grpReqReject[i].Clicked(gtx) {
+			if u.core != nil {
+				u.core.UpdateGroupRequest(u.grpReqJID, []string{u.grpReqs[i].JID}, false)
+			}
+			drop(i)
+			break
+		}
+	}
+	for u.grpReqClose.Clicked(gtx) {
+		u.overlay = ""
+	}
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Dp(360)
+		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
+		macro := op.Record(gtx.Ops)
+		dims := layout.UniformInset(unit.Dp(18)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.X = gtx.Constraints.Max.X
+			children := []layout.FlexChild{
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 16.5, "Permintaan bergabung")
+					l.Color, l.Font.Weight = u.t.Text, font.Medium
+					return l.Layout(gtx)
+				}),
+				layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+			}
+			if len(u.grpReqs) == 0 {
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					l := material.Label(u.th, 14, "Tak ada permintaan menunggu.")
+					l.Color = u.t.Text2
+					return l.Layout(gtx)
+				}))
+			}
+			for i := range u.grpReqs {
+				r, idx := u.grpReqs[i], i
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Top: unit.Dp(6), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								l := material.Label(u.th, 14.5, orDash(r.Name))
+								l.Color, l.MaxLines = u.t.Text, 1
+								return l.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if idx >= len(u.grpReqApprove) {
+									return layout.Dimensions{}
+								}
+								return u.grpReqApprove[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(8), Top: unit.Dp(4), Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										l := material.Label(u.th, 14, "Setujui")
+										l.Color, l.Font.Weight = green, font.SemiBold
+										return l.Layout(gtx)
+									})
+								})
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if idx >= len(u.grpReqReject) {
+									return layout.Dimensions{}
+								}
+								return u.grpReqReject[idx].Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									return layout.Inset{Left: unit.Dp(8), Right: unit.Dp(4), Top: unit.Dp(4), Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+										l := material.Label(u.th, 14, "Tolak")
+										l.Color = red
+										return l.Layout(gtx)
+									})
+								})
+							}),
+						)
+					})
+				}))
+			}
+			children = append(children,
+				layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return u.grpReqClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						gtx.Constraints.Min.X = gtx.Constraints.Max.X
+						return layout.Inset{Top: unit.Dp(8), Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							l := material.Label(u.th, 14.5, "Tutup")
+							l.Color, l.Alignment = u.t.Text2, text.Middle
+							return l.Layout(gtx)
+						})
+					})
+				}),
+			)
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
 		})
 		call := macro.Stop()
@@ -7858,6 +7984,10 @@ func (u *UI) infoData() *InfoDrawerData {
 			}
 			d.Announce, d.Locked, d.Approval = gi.Announce, gi.Locked, gi.JoinApproval
 			d.AnnounceC, d.LockedC, d.ApprovalC = &u.infoAnnounceC, &u.infoLockedC, &u.infoApprovalC
+			d.AddMode, d.AddModeC = gi.AdminAddOnly, &u.infoAddModeC
+			if gi.AmAdmin { // hanya admin lihat & kelola permintaan bergabung
+				d.Requests = &u.infoReqC
+			}
 			d.Members = make([]InfoMember, 0, len(gi.Participants))
 			u.infoMemberJIDs = u.infoMemberJIDs[:0]
 			u.infoMemberNames = u.infoMemberNames[:0]
@@ -7959,6 +8089,22 @@ func (u *UI) handleInfo(gtx layout.Context) {
 			if gi := u.core.GetGroupInfo(u.selected); gi != nil {
 				u.core.SetGroupJoinApproval(u.selected, !gi.JoinApproval)
 			}
+		}
+	}
+	for u.infoAddModeC.Clicked(gtx) { // toggle hanya-admin-boleh-tambah-anggota
+		if u.core != nil {
+			if gi := u.core.GetGroupInfo(u.selected); gi != nil {
+				u.core.SetGroupAddMode(u.selected, !gi.AdminAddOnly)
+			}
+		}
+	}
+	for u.infoReqC.Clicked(gtx) { // buka daftar permintaan bergabung (admin)
+		if u.core != nil && u.selected != "" {
+			u.grpReqJID = u.selected
+			u.grpReqs = u.core.GetGroupRequests(u.selected)
+			u.grpReqApprove = make([]widget.Clickable, len(u.grpReqs))
+			u.grpReqReject = make([]widget.Clickable, len(u.grpReqs))
+			u.overlay = "grouprequests"
 		}
 	}
 	for u.infoAddC.Clicked(gtx) { // "Tambah anggota" → pemilih kontak (mode addmember)
@@ -8690,6 +8836,13 @@ func (u *UI) inviteLinkLayer(gtx layout.Context) layout.Dimensions {
 			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(link))})
 		}
 	}
+	for u.inviteReset.Clicked(gtx) { // setel ulang → link lama mati, ambil yang baru
+		if u.core != nil && u.selected != "" {
+			jid := u.selected
+			u.inviteLink = ""
+			go func() { u.inviteLink = u.core.GroupInviteLink(jid, true) }()
+		}
+	}
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Dp(340)
 		gtx.Constraints.Min.X, gtx.Constraints.Max.X = w, w
@@ -8716,6 +8869,16 @@ func (u *UI) inviteLinkLayer(gtx layout.Context) layout.Dimensions {
 							return u.inviteClose.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 									l := material.Label(u.th, 14.5, "Tutup")
+									l.Color = u.t.Text2
+									return l.Layout(gtx)
+								})
+							})
+						}),
+						layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return u.inviteReset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									l := material.Label(u.th, 14.5, "Setel ulang")
 									l.Color = u.t.Text2
 									return l.Layout(gtx)
 								})

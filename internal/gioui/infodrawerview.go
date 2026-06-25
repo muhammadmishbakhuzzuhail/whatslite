@@ -53,9 +53,12 @@ type InfoDrawerData struct {
 	Announce  bool // hanya admin boleh kirim pesan
 	Locked    bool // hanya admin boleh ubah info grup
 	Approval  bool // anggota baru butuh persetujuan
+	AddMode   bool // hanya admin boleh tambah anggota
 	AnnounceC *widget.Clickable
 	LockedC   *widget.Clickable
 	ApprovalC *widget.Clickable
+	AddModeC  *widget.Clickable
+	Requests  *widget.Clickable // baris "Permintaan bergabung" (admin) → daftar
 	// grup bersama (DM): daftar + clickable paralel (tap → buka grup).
 	CommonGroups []InfoMember
 	CommonClicks []widget.Clickable
@@ -184,6 +187,15 @@ func InfoDrawerView(gtx layout.Context, th *material.Theme, t Theme, d *InfoDraw
 				}),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return infoDrawerToggleRow(gtx, th, t, "verif", "Setujui anggota baru", "Admin menyetujui yang bergabung", d.Approval, d.ApprovalC)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return infoDrawerToggleRow(gtx, th, t, "addmember", "Tambah anggota", "Hanya admin yang boleh menambah", d.AddMode, d.AddModeC)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if d.Requests == nil {
+						return layout.Dimensions{}
+					}
+					return infoDrawerRow(gtx, th, t, infoDrawerAddIcon, "Permintaan bergabung", t.Text2, t.Text, d.Requests)
 				}),
 			)
 		}),

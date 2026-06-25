@@ -38,7 +38,7 @@ delivered/read ticks + per-recipient read list), **translate** (auto-detect, 25 
 link**), create group, leave.
 
 **Other**: **Status** (text + photo/video, tap-through viewer), **Channels** (follow/feed/mute),
-**Communities** (sub-groups), **profile** (name/about), **privacy** (last-seen/photo/status/groups, read
+**Communities** (sub-groups), **profile** (name/about/photo), **privacy** (last-seen/photo/status/groups, read
 receipts, **block list**), **sound alerts** (no desktop notifications — intentional, see below), media
 lightbox, app lock (PIN), light/dark theme, **i18n (73 languages — ID/EN/ES hand-curated, the rest
 machine-translated)**.
@@ -180,8 +180,7 @@ binary shipped yet).
   the feature was active (receipts are collected live). whatsmeow does not expose the companion↔primary
   protocol to pull historical logs. Aggregate ticks (✓✓) for old messages *are* recovered via
   `WebMessageInfo.Status` from history sync.
-- **Voice/video calls** — whatsmeow has no WebRTC.
-- **Changing your own profile photo** — no whatsmeow API (*group* photos work).
+- **Voice/video calls** — whatsmeow has no WebRTC (call *history* is shown; placing/answering calls is not possible, so no call buttons are drawn).
 - **Meta-curated sticker packs & AI stickers** — endpoints not exposed / require a generative model.
 
 > Note: **"Who viewed my status"** is populated from `status@broadcast` receipts live (since the app

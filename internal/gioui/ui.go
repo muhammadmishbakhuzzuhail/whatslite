@@ -202,6 +202,8 @@ type UI struct {
 	clearMsgsOK     widget.Clickable     // konfirmasi hapus semua pesan
 	clearMsgsNo     widget.Clickable     // batal hapus semua pesan
 	storeChatClicks []widget.Clickable   // paralel daftar chat-terbesar (kosongkan isi)
+	clearChatJID    string               // sasaran konfirmasi hapus ("" = semua pesan)
+	clearChatName   string               // nama chat sasaran (judul dialog)
 
 	// pencarian + filter daftar chat (paritas SearchBar.svelte + Filters.svelte).
 	searchEd     widget.Editor
@@ -2225,12 +2227,22 @@ func (u *UI) clearMsgsLayer(gtx layout.Context) layout.Dimensions {
 	red := color.NRGBA{R: 0xe3, G: 0x5d, B: 0x6a, A: 0xff}
 	for u.clearMsgsOK.Clicked(gtx) {
 		if u.core != nil {
-			u.core.ClearAllMessages()
+			if u.clearChatJID != "" {
+				u.core.ClearChat(u.clearChatJID)
+			} else {
+				u.core.ClearAllMessages()
+			}
 		}
-		u.overlay = ""
+		u.clearChatJID, u.clearChatName, u.overlay = "", "", ""
 	}
 	for u.clearMsgsNo.Clicked(gtx) {
-		u.overlay = ""
+		u.clearChatJID, u.clearChatName, u.overlay = "", "", ""
+	}
+	title := "Hapus semua pesan?"
+	body := "Seluruh riwayat pesan lokal dihapus permanen. Sesi & kontak tetap; pesan baru tetap diterima."
+	if u.clearChatJID != "" {
+		title = "Kosongkan chat?"
+		body = "Semua pesan di chat \"" + u.clearChatName + "\" dihapus dari perangkat ini. Sesi & kontak tetap."
 	}
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		w := gtx.Dp(320)
@@ -2240,13 +2252,13 @@ func (u *UI) clearMsgsLayer(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.X = gtx.Constraints.Max.X
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					l := material.Label(u.th, 16.5, "Hapus semua pesan?")
+					l := material.Label(u.th, 16.5, title)
 					l.Color, l.Font.Weight = u.t.Text, font.Medium
 					return l.Layout(gtx)
 				}),
 				layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					l := material.Label(u.th, 13.5, "Seluruh riwayat pesan lokal dihapus permanen. Sesi & kontak tetap; pesan baru tetap diterima.")
+					l := material.Label(u.th, 13.5, body)
 					l.Color = u.t.Text2
 					return l.Layout(gtx)
 				}),
@@ -4577,8 +4589,9 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 				for i := range cs {
 					ctl.StoreChats = append(ctl.StoreChats, storeChatRow{jid: cs[i].JID, name: cs[i].Name, val: setBytes(cs[i].Bytes)})
 					if i < len(u.storeChatClicks) {
-						for u.storeChatClicks[i].Clicked(gtx) {
-							u.core.ClearChat(cs[i].JID)
+						for u.storeChatClicks[i].Clicked(gtx) { // konfirmasi kosongkan chat
+							u.clearChatJID, u.clearChatName = cs[i].JID, cs[i].Name
+							u.overlay = "clearmsgs"
 						}
 					}
 				}
@@ -4587,6 +4600,7 @@ func (u *UI) sidebar(gtx layout.Context) layout.Dimensions {
 					u.core.ClearMediaCache()
 				}
 				for u.clearMsgsBtn.Clicked(gtx) { // destruktif → konfirmasi
+					u.clearChatJID, u.clearChatName = "", ""
 					u.overlay = "clearmsgs"
 				}
 			case "privacy":

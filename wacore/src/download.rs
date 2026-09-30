@@ -5,7 +5,7 @@ use base64::prelude::*;
 use hkdf::Hkdf;
 use hmac::Hmac;
 use hmac::Mac;
-use sha2::Sha256;
+use sha2::{Digest as _, Sha256};
 use wa_rs_proto::whatsapp as wa;
 use wa_rs_proto::whatsapp::ExternalBlobReference;
 use wa_rs_proto::whatsapp::message::HistorySyncNotification;
@@ -60,10 +60,16 @@ impl MediaType {
 #[derive(Debug, Clone)]
 pub enum MediaDecryption {
     /// E2E encrypted media: decrypt with AES-256-CBC using HKDF-expanded
-    /// keys from the media key, then verify HMAC-SHA256 integrity.
+    /// keys from the media key, then verify HMAC-SHA256 integrity and, when
+    /// the sender declared them, the ciphertext and plaintext SHA-256
+    /// (oxidezap #1541).
     Encrypted {
         media_key: Vec<u8>,
         media_type: MediaType,
+        /// Declared SHA-256 of the encrypted bytes (ciphertext + trailing MAC).
+        file_enc_sha256: Option<Vec<u8>>,
+        /// Declared SHA-256 of the decrypted content (padding excluded).
+        file_sha256: Option<Vec<u8>>,
     },
     /// Unencrypted media (newsletter/channel): verify SHA-256 hash of
     /// the raw downloaded bytes. No decryption needed.
@@ -190,6 +196,8 @@ impl DownloadUtils {
             MediaDecryption::Encrypted {
                 media_key,
                 media_type,
+                file_enc_sha256: downloadable.file_enc_sha256().map(<[u8]>::to_vec),
+                file_sha256: downloadable.file_sha256().map(<[u8]>::to_vec),
             }
         } else {
             let file_sha256 = downloadable
@@ -300,9 +308,25 @@ impl DownloadUtils {
     /// covers the last 10 bytes of the stream). Callers should discard the writer
     /// contents on error.
     pub fn decrypt_stream_to_writer<R: std::io::Read, W: std::io::Write>(
+        reader: R,
+        media_key: &[u8],
+        app_info: MediaType,
+        writer: &mut W,
+    ) -> Result<u64> {
+        Self::decrypt_stream_to_writer_with_hashes(reader, media_key, app_info, None, None, writer)
+    }
+
+    /// Authenticate and decrypt, checking each declared hash when present.
+    /// The encrypted hash covers ciphertext plus its trailing MAC; the
+    /// plaintext hash excludes padding. Uses constant memory. As with the
+    /// MAC-only helper, callers must discard writer contents on any error
+    /// (oxidezap #1541).
+    pub fn decrypt_stream_to_writer_with_hashes<R: std::io::Read, W: std::io::Write>(
         mut reader: R,
         media_key: &[u8],
         app_info: MediaType,
+        expected_enc_sha256: Option<&[u8]>,
+        expected_sha256: Option<&[u8]>,
         writer: &mut W,
     ) -> Result<u64> {
         use aes::Aes256;
@@ -319,6 +343,9 @@ impl DownloadUtils {
         let mut hmac = <Hmac<Sha256> as hmac::Mac>::new_from_slice(&mac_key)
             .map_err(|_| anyhow!("Failed to init HMAC"))?;
         hmac.update(&iv);
+
+        let mut encrypted_hasher = expected_enc_sha256.map(|_| Sha256::new());
+        let mut plaintext_hasher = expected_sha256.map(|_| Sha256::new());
 
         let cipher =
             Aes256::new_from_slice(&cipher_key).map_err(|_| anyhow!("Bad AES key length"))?;
@@ -342,12 +369,18 @@ impl DownloadUtils {
                 if processable_len >= BLOCK {
                     let (to_process, rest) = tail.split_at(processable_len);
                     hmac.update(to_process);
+                    if let Some(hasher) = &mut encrypted_hasher {
+                        hasher.update(to_process);
+                    }
                     for cblock in to_process.chunks_exact(BLOCK) {
                         #[allow(deprecated)]
                         let mut block = GenericArray::clone_from_slice(cblock);
                         cipher.decrypt_block(&mut block);
                         for (b, p) in block.iter_mut().zip(prev_block.iter()) {
                             *b ^= *p;
+                        }
+                        if let Some(hasher) = &mut plaintext_hasher {
+                            hasher.update(block);
                         }
                         writer.write_all(&block)?;
                         bytes_written += BLOCK as u64;
@@ -367,10 +400,19 @@ impl DownloadUtils {
         let mac_index = tail.len() - MAC_SIZE;
         let (final_ciphertext, mac_bytes) = tail.split_at(mac_index);
         hmac.update(final_ciphertext);
+        if let Some(hasher) = &mut encrypted_hasher {
+            hasher.update(final_ciphertext);
+            hasher.update(mac_bytes);
+        }
         let expected_mac_full = hmac.finalize().into_bytes();
         let expected_mac = &expected_mac_full[..MAC_SIZE];
         if mac_bytes != expected_mac {
             return Err(anyhow!("MAC mismatch"));
+        }
+        if let Some((hasher, expected)) = encrypted_hasher.zip(expected_enc_sha256)
+            && hasher.finalize().as_slice() != expected
+        {
+            return Err(anyhow!("SHA-256 mismatch for encrypted media bytes"));
         }
 
         let mut final_plain = Vec::with_capacity(final_ciphertext.len());
@@ -400,10 +442,40 @@ impl DownloadUtils {
             return Err(anyhow!("Bad PKCS7 padding bytes"));
         }
         final_plain.truncate(final_plain.len() - pad_len);
+        if let Some(hasher) = &mut plaintext_hasher {
+            hasher.update(&final_plain);
+        }
         writer.write_all(&final_plain)?;
         bytes_written += final_plain.len() as u64;
 
+        if let Some((hasher, expected)) = plaintext_hasher.zip(expected_sha256)
+            && hasher.finalize().as_slice() != expected
+        {
+            return Err(anyhow!("SHA-256 mismatch for decrypted media bytes"));
+        }
+
         Ok(bytes_written)
+    }
+
+    /// Decrypt a media stream, returning the plaintext as a `Vec<u8>`,
+    /// verifying the declared hashes when present.
+    pub fn decrypt_stream_with_hashes<R: std::io::Read>(
+        reader: R,
+        media_key: &[u8],
+        app_info: MediaType,
+        expected_enc_sha256: Option<&[u8]>,
+        expected_sha256: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        Self::decrypt_stream_to_writer_with_hashes(
+            reader,
+            media_key,
+            app_info,
+            expected_enc_sha256,
+            expected_sha256,
+            &mut buf,
+        )?;
+        Ok(buf)
     }
 
     /// Decrypt a media stream, returning the plaintext as a `Vec<u8>`.
@@ -653,5 +725,67 @@ mod tests {
             DownloadUtils::copy_and_validate_plaintext_to_writer(reader, &wrong_hash, &mut writer)
                 .unwrap_err();
         assert!(err.to_string().contains("SHA-256 mismatch"));
+    }
+
+    /// Declared-hash verification on encrypted downloads (oxidezap #1541):
+    /// encrypt_media produces ciphertext+MAC plus both declared hashes — the
+    /// decrypt path must accept the correct pair and reject each tampered one.
+    #[test]
+    fn decrypt_with_hashes_accepts_declared_hashes() {
+        let media = crate::upload::encrypt_media(b"declared hash round trip", MediaType::Image)
+            .expect("encrypt");
+        let mut writer = Vec::new();
+        DownloadUtils::decrypt_stream_to_writer_with_hashes(
+            &media.data_to_upload[..],
+            &media.media_key,
+            MediaType::Image,
+            Some(&media.file_enc_sha256),
+            Some(&media.file_sha256),
+            &mut writer,
+        )
+        .expect("correct declared hashes must verify");
+        assert_eq!(writer, b"declared hash round trip");
+    }
+
+    #[test]
+    fn decrypt_with_hashes_rejects_tampered_encrypted_hash() {
+        let mut media =
+            crate::upload::encrypt_media(b"enc hash mismatch case", MediaType::Image).unwrap();
+        media.file_enc_sha256[0] ^= 1;
+        let mut writer = Vec::new();
+        let err = DownloadUtils::decrypt_stream_to_writer_with_hashes(
+            &media.data_to_upload[..],
+            &media.media_key,
+            MediaType::Image,
+            Some(&media.file_enc_sha256),
+            None,
+            &mut writer,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("encrypted media bytes"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn decrypt_with_hashes_rejects_tampered_plaintext_hash() {
+        let mut media =
+            crate::upload::encrypt_media(b"plain hash mismatch case", MediaType::Image).unwrap();
+        media.file_sha256[0] ^= 1;
+        let mut writer = Vec::new();
+        let err = DownloadUtils::decrypt_stream_to_writer_with_hashes(
+            &media.data_to_upload[..],
+            &media.media_key,
+            MediaType::Image,
+            None,
+            Some(&media.file_sha256),
+            &mut writer,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("decrypted media bytes"),
+            "got: {err}"
+        );
     }
 }

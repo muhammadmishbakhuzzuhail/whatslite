@@ -18,7 +18,6 @@ use wa_rs_proto::whatsapp::AdvEncryptionType;
 const ADV_PREFIX_ACCOUNT_SIGNATURE: &[u8] = &[6, 0];
 const ADV_PREFIX_DEVICE_SIGNATURE_GENERATE: &[u8] = &[6, 1];
 const ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE: &[u8] = &[6, 5];
-const ADV_HOSTED_PREFIX_DEVICE_SIGNATURE_VERIFICATION: &[u8] = &[6, 6];
 
 // Aliases for HMAC-SHA256
 type HmacSha256 = Hmac<Sha256>;
@@ -166,7 +165,18 @@ impl PairUtils {
         let account_sig_bytes = signed_identity.account_signature();
         let inner_details_bytes = signed_identity.details().to_vec();
 
-        let account_sig_prefix = if is_hosted_account {
+        // The signed inner ADVDeviceIdentity drives the account-signature
+        // prefix: WA Web keys it off the signed deviceType, independently of
+        // the outer (HMAC container) accountType. Mixed hosted-account /
+        // regular-device chains exist and must verify with the prefixes of
+        // their own fields (oxidezap #1440).
+        let identity_details =
+            wa::AdvDeviceIdentity::decode(&*inner_details_bytes).map_err(|e| PairCryptoError {
+                code: 500,
+                text: "internal-error",
+                source: e.into(),
+            })?;
+        let account_sig_prefix = if identity_details.device_type() == AdvEncryptionType::Hosted {
             ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE
         } else {
             ADV_PREFIX_ACCOUNT_SIGNATURE
@@ -193,15 +203,11 @@ impl PairUtils {
             });
         }
 
-        // 3. Generate our device signature
-        let device_sig_prefix = if is_hosted_account {
-            ADV_HOSTED_PREFIX_DEVICE_SIGNATURE_VERIFICATION
-        } else {
-            ADV_PREFIX_DEVICE_SIGNATURE_GENERATE
-        };
-
+        // 3. Generate our device signature.
+        // WAWebAdvSignatureApi.generateDeviceSignature always signs a regular
+        // companion ([6,1]), never a hosted variant (oxidezap #1440).
         let msg_to_sign = Self::concat_bytes(&[
-            device_sig_prefix,
+            ADV_PREFIX_DEVICE_SIGNATURE_GENERATE,
             &inner_details_bytes,
             device_state.identity_key.public_key.public_key_bytes(),
             account_sig_key_bytes,
@@ -217,13 +223,6 @@ impl PairUtils {
             })?;
         signed_identity.device_signature = Some(device_signature.to_vec());
 
-        // 4. Unmarshal final details to get key_index
-        let identity_details =
-            wa::AdvDeviceIdentity::decode(&*inner_details_bytes).map_err(|e| PairCryptoError {
-                code: 500,
-                text: "internal-error",
-                source: e.into(),
-            })?;
         let key_index = identity_details.key_index();
 
         // 5. Marshal the modified signed_identity to send back
@@ -376,26 +375,39 @@ mod tests {
     }
 
     /// Synthesize a signed pair-success payload whose HMAC is keyed by
-    /// `adv_secret_for_hmac`, mirroring the verifier's hosted/E2EE branching
-    /// for both the account signature and the outer HMAC (oxidezap #594).
+    /// `adv_secret_for_hmac`. The outer HMAC follows `account_type` (hosted
+    /// or not), the account signature follows the SIGNED `device_type` —
+    /// independently, mirroring WA Web (oxidezap #594 + #1440).
     fn build_pair_success_payload(
         state: &DeviceState,
         adv_secret_for_hmac: &[u8; 32],
         is_hosted: bool,
     ) -> Vec<u8> {
+        build_pair_success_payload_mixed(state, adv_secret_for_hmac, is_hosted, is_hosted)
+    }
+
+    /// Like [`build_pair_success_payload`] but with `account_type` (outer,
+    /// HMAC prefix) and `device_type` (signed, account-signature prefix)
+    /// chosen independently.
+    fn build_pair_success_payload_mixed(
+        state: &DeviceState,
+        adv_secret_for_hmac: &[u8; 32],
+        hosted_account: bool,
+        hosted_device: bool,
+    ) -> Vec<u8> {
         use rand::TryRngCore;
         let mut rng = rand::rngs::OsRng.unwrap_err();
         let account_kp = KeyPair::generate(&mut rng);
-        let account_type_value: i32 = if is_hosted { 1 } else { 0 };
+        let outer_account_type: i32 = if hosted_account { 1 } else { 0 };
         let inner = wa::AdvDeviceIdentity {
             raw_id: Some(1),
             timestamp: Some(0),
             key_index: Some(0),
-            account_type: Some(account_type_value),
-            device_type: Some(account_type_value),
+            account_type: Some(if hosted_account { 1 } else { 0 }),
+            device_type: Some(if hosted_device { 1 } else { 0 }),
         }
         .encode_to_vec();
-        let account_sig_prefix: &[u8] = if is_hosted {
+        let account_sig_prefix: &[u8] = if hosted_device {
             ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE
         } else {
             ADV_PREFIX_ACCOUNT_SIGNATURE
@@ -417,7 +429,7 @@ mod tests {
         .encode_to_vec();
         let mut mac = <HmacSha256 as Mac>::new_from_slice(adv_secret_for_hmac)
             .expect("HMAC accepts any key length");
-        if is_hosted {
+        if hosted_account {
             mac.update(ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE);
         }
         mac.update(&signed);
@@ -425,7 +437,7 @@ mod tests {
         wa::AdvSignedDeviceIdentityHmac {
             details: Some(signed),
             hmac: Some(hmac_bytes),
-            account_type: Some(account_type_value),
+            account_type: Some(outer_account_type),
         }
         .encode_to_vec()
     }
@@ -466,5 +478,24 @@ mod tests {
             .expect_err("hosted-account HMAC with wrong secret must abort pairing");
         assert_eq!(err.code, 401, "expected 401 unauthorized, got {}", err.code);
         assert_eq!(err.text, "hmac-mismatch");
+    }
+
+    /// Mixed chains must verify: the HMAC prefix follows the outer
+    /// account_type, the account-signature prefix follows the signed
+    /// device_type, and both fields can disagree (oxidezap #1440).
+    #[test]
+    fn do_pair_crypto_verifies_hosted_account_with_regular_device_type() {
+        let state = dummy_device_state();
+        let payload = build_pair_success_payload_mixed(&state, &state.adv_secret_key, true, false);
+        PairUtils::do_pair_crypto(&state, &payload)
+            .expect("hosted account / regular device chain must verify");
+    }
+
+    #[test]
+    fn do_pair_crypto_verifies_regular_account_with_hosted_device_type() {
+        let state = dummy_device_state();
+        let payload = build_pair_success_payload_mixed(&state, &state.adv_secret_key, false, true);
+        PairUtils::do_pair_crypto(&state, &payload)
+            .expect("regular account / hosted device chain must verify");
     }
 }

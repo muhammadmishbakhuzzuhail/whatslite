@@ -133,9 +133,17 @@ impl Client {
             MediaDecryption::Encrypted {
                 media_key,
                 media_type,
+                file_enc_sha256,
+                file_sha256,
             } => {
                 tokio::task::spawn_blocking(move || {
-                    DownloadUtils::decrypt_stream(&response.body[..], &media_key, media_type)
+                    DownloadUtils::decrypt_stream_with_hashes(
+                        &response.body[..],
+                        &media_key,
+                        media_type,
+                        file_enc_sha256.as_deref(),
+                        file_sha256.as_deref(),
+                    )
                 })
                 .await?
             }
@@ -245,11 +253,15 @@ impl Client {
                     MediaDecryption::Encrypted {
                         media_key,
                         media_type,
+                        file_enc_sha256,
+                        file_sha256,
                     } => {
-                        DownloadUtils::decrypt_stream_to_writer(
+                        DownloadUtils::decrypt_stream_to_writer_with_hashes(
                             resp.body,
                             media_key,
                             *media_type,
+                            file_enc_sha256.as_deref(),
+                            file_sha256.as_deref(),
                             &mut writer,
                         )?;
                     }

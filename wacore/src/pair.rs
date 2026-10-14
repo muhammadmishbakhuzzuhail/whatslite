@@ -1,3 +1,4 @@
+use crate::companion_reg::CompanionWebClientType;
 use crate::libsignal::protocol::{KeyPair, PublicKey};
 use aes_gcm::Aes256Gcm;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
@@ -53,14 +54,22 @@ pub struct PairUtils;
 
 impl PairUtils {
     /// Constructs the full QR code string from the ref and device keys.
-    pub fn make_qr_data(device_state: &DeviceState, ref_str: String) -> String {
+    ///
+    /// `<ref>,<noise>,<identity>,<adv>,<client_type>` per WA Web
+    /// (`WAWebLinkDeviceQrcode.react`); the 4-field form is rejected since
+    /// tulir/whatsmeow#1110.
+    pub fn make_qr_data(
+        device_state: &DeviceState,
+        ref_str: String,
+        client_type: CompanionWebClientType,
+    ) -> String {
         let noise_b64 =
             BASE64_STANDARD.encode(device_state.noise_key.public_key.public_key_bytes());
         let identity_b64 =
             BASE64_STANDARD.encode(device_state.identity_key.public_key.public_key_bytes());
         let adv_b64 = BASE64_STANDARD.encode(device_state.adv_secret_key);
 
-        [ref_str, noise_b64, identity_b64, adv_b64].join(",")
+        format!("{ref_str},{noise_b64},{identity_b64},{adv_b64},{client_type}")
     }
 
     /// Builds acknowledgment node for a pairing request
@@ -371,6 +380,42 @@ mod tests {
             identity_key: KeyPair::generate(&mut rng),
             noise_key: KeyPair::generate(&mut rng),
             adv_secret_key: [0x42u8; 32],
+        }
+    }
+
+    #[test]
+    fn make_qr_data_has_five_fields_with_client_type_suffix() {
+        let state = dummy_device_state();
+        let qr = PairUtils::make_qr_data(
+            &state,
+            "the-ref".to_string(),
+            CompanionWebClientType::Chrome,
+        );
+        let parts: Vec<&str> = qr.split(',').collect();
+        assert_eq!(parts.len(), 5, "expected 5 fields, got {qr:?}");
+        assert_eq!(parts[0], "the-ref");
+        assert_eq!(parts[4], "1", "Chrome wire value must be \"1\"");
+    }
+
+    #[test]
+    fn make_qr_data_renders_each_client_type_wire_byte() {
+        let state = dummy_device_state();
+        for (ct, wire) in [
+            (CompanionWebClientType::Chrome, "1"),
+            (CompanionWebClientType::Edge, "2"),
+            (CompanionWebClientType::Firefox, "3"),
+            (CompanionWebClientType::Ie, "4"),
+            (CompanionWebClientType::Opera, "5"),
+            (CompanionWebClientType::Safari, "6"),
+            (CompanionWebClientType::Electron, "7"),
+            (CompanionWebClientType::Uwp, "8"),
+            (CompanionWebClientType::OtherWebClient, "9"),
+            (CompanionWebClientType::AndroidTablet, "d"),
+            (CompanionWebClientType::AndroidPhone, "e"),
+            (CompanionWebClientType::AndroidAmbiguous, "f"),
+        ] {
+            let qr = PairUtils::make_qr_data(&state, "r".to_string(), ct);
+            assert_eq!(qr.rsplit(',').next(), Some(wire), "{ct:?}");
         }
     }
 

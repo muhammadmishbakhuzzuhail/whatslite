@@ -19,7 +19,10 @@
 //! - Ephemeral encryption: AES-256-CTR
 //! - Bundle encryption: AES-256-GCM after HKDF key derivation
 
-use crate::StringEnum;
+use crate::companion_reg::{
+    CompanionWebClientType, companion_platform_display, companion_platform_display_raw,
+    companion_web_client_type_for_props,
+};
 use crate::libsignal::protocol::{KeyPair, PublicKey};
 use aes::cipher::{KeyIvInit, StreamCipher};
 use aes_gcm::Aes256Gcm;
@@ -31,6 +34,7 @@ use sha2::Sha256;
 use wa_rs_binary::builder::NodeBuilder;
 use wa_rs_binary::jid::SERVER_JID;
 use wa_rs_binary::node::{Node, NodeContent};
+use wa_rs_proto::whatsapp as wa;
 
 // Type aliases
 type Aes256Ctr = Ctr128BE<aes::Aes256>;
@@ -52,32 +56,34 @@ const CROCKFORD_ALPHABET: &[u8; 32] = b"123456789ABCDEFGHJKLMNPQRSTVWXYZ";
 /// Validity duration for pair codes (approximately).
 const PAIR_CODE_VALIDITY_SECS: u64 = 180;
 
-/// Platform identifiers for companion devices.
-/// These match the DeviceProps.PlatformType protobuf enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, StringEnum)]
-#[repr(u8)]
-pub enum PlatformId {
-    #[str = "0"]
-    Unknown = 0,
-    #[string_default]
-    #[str = "1"]
-    Chrome = 1,
-    #[str = "2"]
-    Firefox = 2,
-    #[str = "3"]
-    InternetExplorer = 3,
-    #[str = "4"]
-    Opera = 4,
-    #[str = "5"]
-    Safari = 5,
-    #[str = "6"]
-    Edge = 6,
-    #[str = "7"]
-    Electron = 7,
-    #[str = "8"]
-    Uwp = 8,
-    #[str = "9"]
-    OtherWebClient = 9,
+/// `(companion_platform_id, companion_platform_display)` per WA Web's
+/// `Alt/DeviceLinkingIq.js`, derived from `DeviceProps`. Display always
+/// Browser-valid (see `companion_platform_display`).
+pub fn derive_companion_platform(props: &wa::DeviceProps) -> (CompanionWebClientType, String) {
+    let id = companion_web_client_type_for_props(props);
+    let os = props.os.as_deref().unwrap_or("");
+    (id, companion_platform_display(id, os))
+}
+
+/// Honours `PairCodeOptions::platform_id` (browser) and `display_os` (OS)
+/// overrides. By default the OS is canonicalized from `DeviceProps::os`; a
+/// non-empty `display_os` is sent verbatim instead (advanced — see the field).
+pub fn resolve_companion_platform(
+    options: &PairCodeOptions,
+    props: &wa::DeviceProps,
+) -> (CompanionWebClientType, String) {
+    let id = options
+        .platform_id
+        .unwrap_or_else(|| companion_web_client_type_for_props(props));
+    let display = match options.display_os.as_deref().map(str::trim) {
+        Some(raw) if !raw.is_empty() => companion_platform_display_raw(id, raw),
+        // None, or an all-whitespace override, falls back to the safe coercion.
+        _ => {
+            let os = props.os.as_deref().unwrap_or("");
+            companion_platform_display(id, os)
+        }
+    };
+    (id, display)
 }
 
 /// Options for pair code authentication.
@@ -89,10 +95,19 @@ pub struct PairCodeOptions {
     pub show_push_notification: bool,
     /// Custom pairing code (8 chars from Crockford alphabet, or None for random).
     pub custom_code: Option<String>,
-    /// Platform identifier for companion device.
-    pub platform_id: PlatformId,
-    /// Platform display name (e.g., "Chrome (Linux)").
-    pub platform_display: String,
+    /// `companion_platform_id` override. `None` (default) auto-derives from
+    /// `Device.device_props.platform_type` — see
+    /// [`crate::companion_reg::companion_web_client_type_for_props`]. The
+    /// Android variants are the attestation-gated escape hatch (`'d'`/`'e'`/`'f'`).
+    pub platform_id: Option<CompanionWebClientType>,
+    /// Advanced OS override for `companion_platform_display`. `None` (default)
+    /// canonicalizes `DeviceProps::os` to a small server-safe set (branding →
+    /// `Linux`). `Some(os)` sends `os` **verbatim**, bypassing that coercion —
+    /// use it to keep a real OS name the server accepts but our canonical set
+    /// drops (e.g. `"Ubuntu"`, `"Fedora"`). At your own risk: the server
+    /// rejects a non-OS string with `bad-request`. An all-whitespace value is
+    /// ignored.
+    pub display_os: Option<String>,
 }
 
 impl Default for PairCodeOptions {
@@ -101,8 +116,8 @@ impl Default for PairCodeOptions {
             phone_number: String::new(),
             show_push_notification: true,
             custom_code: None,
-            platform_id: PlatformId::Chrome,
-            platform_display: "Chrome (Linux)".to_string(),
+            platform_id: None,
+            display_os: None,
         }
     }
 }
@@ -264,11 +279,15 @@ impl PairCodeUtils {
     }
 
     /// Builds the stage 1 (companion_hello) IQ node.
+    ///
+    /// `platform_id`/`platform_display` come from
+    /// [`resolve_companion_platform`].
+    #[allow(clippy::too_many_arguments)]
     pub fn build_companion_hello_iq(
         phone_number: &str,
         noise_static_pub: &[u8; 32],
         wrapped_ephemeral: &[u8; 80],
-        platform_id: PlatformId,
+        platform_id: &str,
         platform_display: &str,
         show_push_notification: bool,
         req_id: String,
@@ -290,14 +309,15 @@ impl PairCodeUtils {
                     .bytes(noise_static_pub.to_vec())
                     .build(),
                 NodeBuilder::new("companion_platform_id")
-                    .bytes(platform_id.as_str().as_bytes().to_vec())
+                    .bytes(platform_id.as_bytes().to_vec())
                     .build(),
                 NodeBuilder::new("companion_platform_display")
                     .bytes(platform_display.as_bytes().to_vec())
                     .build(),
-                // Nonce is sent as string "0" (matching whatsmeow/baileys)
+                // 0x00, not ASCII '0' (0x30): matches WA Web `new Uint8Array(1)`
+                // (`Alt/DeviceLinkingIq.js`) / whatsmeow `[]byte{0}` (oxidezap #976).
                 NodeBuilder::new("link_code_pairing_nonce")
-                    .bytes(b"0".to_vec())
+                    .bytes(vec![0u8])
                     .build(),
             ])
             .build();
@@ -597,13 +617,112 @@ mod tests {
     }
 
     #[test]
-    fn test_platform_id_string_enum() {
-        // StringEnum derive works correctly
-        assert_eq!(PlatformId::Chrome.as_str(), "1");
-        assert_eq!(PlatformId::Firefox.to_string(), "2");
-        assert_eq!(PlatformId::default(), PlatformId::Chrome);
-        // repr(u8) values match DeviceProps.PlatformType protobuf enum
-        assert_eq!(PlatformId::Chrome as u8, 1);
+    fn test_derive_companion_platform_from_props() {
+        let p = wa::DeviceProps {
+            platform_type: Some(wa::device_props::PlatformType::Chrome as i32),
+            os: Some("rust".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            derive_companion_platform(&p),
+            (CompanionWebClientType::Chrome, "Chrome (Linux)".to_string())
+        );
+
+        // Wire ids follow WAWebCompanionRegClientUtils.DEVICE_PLATFORM, NOT
+        // the PlatformType proto numbering (oxidezap #592/#593).
+        let p = wa::DeviceProps {
+            platform_type: Some(wa::device_props::PlatformType::Firefox as i32),
+            os: Some("Ubuntu".to_string()),
+            ..Default::default()
+        };
+        let (id, display) = derive_companion_platform(&p);
+        assert_eq!(id, CompanionWebClientType::Firefox);
+        assert_eq!(id.wire_byte(), b'3');
+        assert_eq!(display, "Firefox (Linux)");
+
+        let p = wa::DeviceProps {
+            platform_type: Some(wa::device_props::PlatformType::Edge as i32),
+            os: Some("Windows 11".to_string()),
+            ..Default::default()
+        };
+        let (id, display) = derive_companion_platform(&p);
+        assert_eq!(id.wire_byte(), b'2');
+        assert_eq!(display, "Edge (Windows)");
+    }
+
+    #[test]
+    fn test_resolve_companion_platform_overrides() {
+        let props = wa::DeviceProps {
+            platform_type: Some(wa::device_props::PlatformType::Chrome as i32),
+            os: Some("rust".to_string()),
+            ..Default::default()
+        };
+        // Default: derive both from props.
+        assert_eq!(
+            resolve_companion_platform(&PairCodeOptions::default(), &props),
+            (CompanionWebClientType::Chrome, "Chrome (Linux)".to_string())
+        );
+        // platform_id override wins for the id.
+        let options = PairCodeOptions {
+            platform_id: Some(CompanionWebClientType::AndroidPhone),
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_companion_platform(&options, &props),
+            (
+                CompanionWebClientType::AndroidPhone,
+                "Android (Linux)".to_string()
+            )
+        );
+        // display_os override is verbatim (advanced escape hatch).
+        let options = PairCodeOptions {
+            display_os: Some("Ubuntu".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_companion_platform(&options, &props).1,
+            "Chrome (Ubuntu)"
+        );
+        // All-whitespace display_os is ignored.
+        let options = PairCodeOptions {
+            display_os: Some("   ".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_companion_platform(&options, &props).1,
+            "Chrome (Linux)"
+        );
+    }
+
+    #[test]
+    fn test_companion_hello_iq_carries_resolved_platform_and_nul_nonce() {
+        let iq = PairCodeUtils::build_companion_hello_iq(
+            "15551234567",
+            &[0u8; 32],
+            &[1u8; 80],
+            "1",
+            "Chrome (Linux)",
+            true,
+            "req-1".to_string(),
+        );
+        let reg = iq
+            .get_optional_child_by_tag(&["link_code_companion_reg"])
+            .unwrap();
+        let platform_id = reg
+            .get_optional_child_by_tag(&["companion_platform_id"])
+            .unwrap();
+        match &platform_id.content {
+            Some(NodeContent::Bytes(b)) => assert_eq!(b, b"1"),
+            other => panic!("expected bytes content, got {other:?}"),
+        }
+        let nonce = reg
+            .get_optional_child_by_tag(&["link_code_pairing_nonce"])
+            .unwrap();
+        match &nonce.content {
+            // 0x00, not ASCII '0' (oxidezap #976).
+            Some(NodeContent::Bytes(b)) => assert_eq!(b, &[0u8]),
+            other => panic!("expected bytes content, got {other:?}"),
+        }
     }
 
     #[test]
@@ -687,8 +806,8 @@ mod tests {
         assert!(options.phone_number.is_empty());
         assert!(options.show_push_notification);
         assert!(options.custom_code.is_none());
-        assert_eq!(options.platform_id, PlatformId::Chrome);
-        assert_eq!(options.platform_display, "Chrome (Linux)");
+        assert_eq!(options.platform_id, None);
+        assert_eq!(options.display_os, None);
     }
 
     #[test]

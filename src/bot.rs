@@ -441,7 +441,7 @@ impl BotBuilder {
     ///
     /// # Example
     /// ```rust,ignore
-    /// use wa_rs::pair_code::{PairCodeOptions, PlatformId};
+    /// use wa_rs::pair_code::PairCodeOptions;
     ///
     /// let bot = Bot::builder()
     ///     .with_backend(backend)
@@ -451,8 +451,9 @@ impl BotBuilder {
     ///         phone_number: "15551234567".to_string(),
     ///         show_push_notification: true,
     ///         custom_code: Some("ABCD1234".to_string()),
-    ///         platform_id: PlatformId::Chrome,
-    ///         platform_display: "Chrome (Linux)".to_string(),
+    ///         // platform_id / display_os default to deriving from the
+    ///         // device props; override only for advanced use cases.
+    ///         ..Default::default()
     ///     })
     ///     .on_event(|event, client| async move {
     ///         match event {

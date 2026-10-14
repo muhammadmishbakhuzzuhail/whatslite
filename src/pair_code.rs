@@ -54,10 +54,13 @@ use std::sync::Arc;
 use wa_rs_binary::jid::{Jid, SERVER_JID};
 use wa_rs_binary::node::{Node, NodeContent};
 use wa_rs_core::libsignal::protocol::KeyPair;
-use wa_rs_core::pair_code::{PairCodeError, PairCodeState, PairCodeUtils};
+use wa_rs_core::pair_code::{
+    PairCodeError, PairCodeState, PairCodeUtils, resolve_companion_platform,
+};
 
 // Re-export types for user convenience
-pub use wa_rs_core::pair_code::{PairCodeOptions, PlatformId};
+pub use wa_rs_core::companion_reg::CompanionWebClientType;
+pub use wa_rs_core::pair_code::PairCodeOptions;
 
 impl Client {
     /// Initiates pair code authentication as an alternative to QR code pairing.
@@ -163,12 +166,15 @@ impl Client {
 
         // Build the stage 1 IQ node
         let req_id = self.generate_request_id();
+        let (platform_id, platform_display) =
+            resolve_companion_platform(&options, &device_snapshot.device_props);
+        let platform_id = platform_id.to_string();
         let iq_content = PairCodeUtils::build_companion_hello_iq(
             &phone_number,
             &noise_static_pub,
             &wrapped_ephemeral,
-            options.platform_id,
-            &options.platform_display,
+            &platform_id,
+            &platform_display,
             options.show_push_notification,
             req_id.clone(),
         );

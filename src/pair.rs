@@ -6,20 +6,24 @@ use prost::Message;
 use rand::TryRngCore;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use wa_rs_core::libsignal::protocol::KeyPair;
 use wa_rs_binary::jid::{Jid, SERVER_JID};
 use wa_rs_binary::node::{Node, NodeContent};
+use wa_rs_core::companion_reg::companion_web_client_type_for_props;
+use wa_rs_core::libsignal::protocol::KeyPair;
 use wa_rs_proto::whatsapp as wa;
 
 pub use wa_rs_core::pair::{DeviceState, PairCryptoError, PairUtils};
 
+/// Auto-derives the QR `client_type` from `device_props` (WA Web emits its
+/// real browser there; our default props yield `OtherWebClient`).
 pub fn make_qr_data(store: &crate::store::Device, ref_str: String) -> String {
+    let client_type = companion_web_client_type_for_props(&store.device_props);
     let device_state = DeviceState {
         identity_key: store.identity_key.clone(),
         noise_key: store.noise_key.clone(),
         adv_secret_key: store.adv_secret_key,
     };
-    PairUtils::make_qr_data(&device_state, ref_str)
+    PairUtils::make_qr_data(&device_state, ref_str, client_type)
 }
 
 pub async fn handle_iq(client: &Arc<Client>, node: &Node) -> bool {
@@ -46,6 +50,8 @@ pub async fn handle_iq(client: &Arc<Client>, node: &Node) -> bool {
                     let mut codes = Vec::new();
 
                     let device_snapshot = client.persistence_manager.get_device_snapshot().await;
+                    let client_type =
+                        companion_web_client_type_for_props(&device_snapshot.device_props);
                     let device_state = DeviceState {
                         identity_key: device_snapshot.identity_key.clone(),
                         noise_key: device_snapshot.noise_key.clone(),
@@ -56,7 +62,7 @@ pub async fn handle_iq(client: &Arc<Client>, node: &Node) -> bool {
                         if let Some(NodeContent::Bytes(bytes)) = &grandchild.content
                             && let Ok(r) = String::from_utf8(bytes.clone())
                         {
-                            codes.push(PairUtils::make_qr_data(&device_state, r));
+                            codes.push(PairUtils::make_qr_data(&device_state, r, client_type));
                         }
                     }
 

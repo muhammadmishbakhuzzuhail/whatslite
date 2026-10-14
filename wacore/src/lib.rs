@@ -8,6 +8,7 @@ pub use wa_rs_noise as noise;
 pub use wa_rs_derive::{EmptyNode, ProtocolNode, StringEnum};
 
 pub mod client;
+pub mod companion_reg;
 pub mod download;
 pub mod iq;
 pub mod protocol;

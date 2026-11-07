@@ -1,0 +1,12 @@
+[package]
+name = "whatslite-mock-backend"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+async-channel = { workspace = true }
+async-trait = { workspace = true }
+whatslite-services = { path = "../whatslite-services" }
+serde_json = { workspace = true, features = ["std"] }

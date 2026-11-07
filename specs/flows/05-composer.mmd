@@ -1,0 +1,29 @@
+flowchart TD
+  HUB["Message Composer · state catalog"]
+  COMP_01["COMP-01 · empty composer"]
+  HUB -.-> COMP_01
+  COMP_02["COMP-02 · multiline input"]
+  HUB -.-> COMP_02
+  COMP_03["COMP-03 · emoji picker"]
+  HUB -.-> COMP_03
+  COMP_04["COMP-04 · GIF picker"]
+  HUB -.-> COMP_04
+  COMP_05["COMP-05 · sticker picker"]
+  HUB -.-> COMP_05
+  COMP_06["COMP-06 · mention menu"]
+  HUB -.-> COMP_06
+  COMP_07["COMP-07 · voice record idle"]
+  HUB -.-> COMP_07
+  COMP_08["COMP-08 · voice recording"]
+  HUB -.-> COMP_08
+  COMP_09["COMP-09 · voice preview"]
+  HUB -.-> COMP_09
+  COMP_10["COMP-10 · send error"]
+  HUB -.-> COMP_10
+  COMP_01 -->|"Record"| COMP_07
+  COMP_07 -->|"Start"| COMP_08
+  COMP_08 -->|"Stop"| COMP_09
+  COMP_01 -->|"Emoji"| COMP_03
+
+%% Dashed lines represent catalog membership only. Solid labeled lines model action transitions.
+%% See specifications/screen-map.json for cross-module action transitions.

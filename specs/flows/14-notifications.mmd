@@ -1,0 +1,10 @@
+flowchart TD
+  HUB["Notifications · state catalog"]
+  NOTIF_01["NOTIF-01 · in-app notification"]
+  HUB -.-> NOTIF_01
+  NOTIF_02["NOTIF-02 · macOS notification example"]
+  HUB -.-> NOTIF_02
+  NOTIF_02 -->|"Open app"| NOTIF_01
+
+%% Dashed lines represent catalog membership only. Solid labeled lines model action transitions.
+%% See specifications/screen-map.json for cross-module action transitions.

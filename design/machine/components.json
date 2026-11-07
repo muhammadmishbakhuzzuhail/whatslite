@@ -1,0 +1,783 @@
+[
+  {
+    "id": "U63q7U",
+    "name": "Logo / App Icon",
+    "type": "frame",
+    "size": [
+      114,
+      114
+    ],
+    "children": [
+      "Mark Glyph"
+    ]
+  },
+  {
+    "id": "gpWry",
+    "name": "Logo / Primary Lockup",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Mark",
+      "Wordmark"
+    ]
+  },
+  {
+    "id": "TqgGj",
+    "name": "Logo / Monochrome",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Mark",
+      "Wordmark"
+    ]
+  },
+  {
+    "id": "IqUX9",
+    "name": "Wallpaper / Doodle Tile",
+    "type": "frame",
+    "size": [
+      800,
+      800
+    ],
+    "children": [],
+    "image": "./wallpaper-doodle.png",
+    "note": "Seamless edge-wrapped 400pt pattern, shown as an 800pt 2×2 proof. Source: desktop/assets/wallpaper/doodle.svg. Rasterised at 1x/2x/3x (400/800/1200)."
+  },
+  {
+    "id": "CHTaP",
+    "name": "App / Titlebar / Windows",
+    "type": "frame",
+    "size": [
+      "fill_container",
+      32
+    ],
+    "children": [
+      "Title Group",
+      "Window Controls"
+    ]
+  },
+  {
+    "id": "Bp0Xe",
+    "name": "App / Sidebar / Nav Item",
+    "type": "frame",
+    "size": [
+      184,
+      40
+    ],
+    "children": [
+      "Left",
+      "Badge"
+    ]
+  },
+  {
+    "id": "lo3JF",
+    "name": "App / Sidebar / Profile Row",
+    "type": "frame",
+    "size": [
+      184,
+      40
+    ],
+    "children": [
+      "Left",
+      "Edit"
+    ]
+  },
+  {
+    "id": "dr2al",
+    "name": "App / Sidebar / Windows",
+    "type": "frame",
+    "size": [
+      200,
+      796
+    ],
+    "children": [
+      "App / Sidebar / Nav Item / Chats / Selected",
+      "App / Sidebar / Nav Item / Updates",
+      "App / Sidebar / Nav Item / Calls",
+      "App / Sidebar / Nav Item / Communities",
+      "App / Sidebar / Nav Item / Media",
+      "App / Sidebar / Nav Item / AI",
+      "More / Section Label",
+      "App / Sidebar / Nav Item / Locked",
+      "App / Sidebar / Nav Item / Archived",
+      "App / Sidebar / Nav Item / Starred",
+      "Spacer",
+      "App / Sidebar / Profile Row"
+    ]
+  },
+  {
+    "id": "WfUq4",
+    "name": "App / Chat List / Header Master",
+    "type": "frame",
+    "size": [
+      "fill_container",
+      64
+    ],
+    "children": [
+      "More Menu",
+      "List Title",
+      "New Chat"
+    ]
+  },
+  {
+    "id": "dYttn",
+    "name": "App / Conversation / Header",
+    "type": "frame",
+    "size": [
+      "fill_container",
+      58
+    ],
+    "children": [
+      "Identity",
+      "Actions"
+    ]
+  },
+  {
+    "id": "E0mU8A",
+    "name": "App / Conversation / Bubble / Out",
+    "type": "frame",
+    "size": [
+      360,
+      null
+    ],
+    "children": [
+      "Message",
+      "Meta"
+    ]
+  },
+  {
+    "id": "eqLOz",
+    "name": "App / Conversation / Bubble / In",
+    "type": "frame",
+    "size": [
+      360,
+      null
+    ],
+    "children": [
+      "Message",
+      "Meta"
+    ]
+  },
+  {
+    "id": "HUg4h",
+    "name": "App / Conversation / Bubble / Media Out",
+    "type": "frame",
+    "size": [
+      288,
+      null
+    ],
+    "children": [
+      "Media"
+    ]
+  },
+  {
+    "id": "lU0QK",
+    "name": "App / Conversation / Bubble / Voice Out",
+    "type": "frame",
+    "size": [
+      300,
+      null
+    ],
+    "children": [
+      "Play",
+      "Wave"
+    ]
+  },
+  {
+    "id": "A5rP2q",
+    "name": "App / Conversation / Bubble / Document Out",
+    "type": "frame",
+    "size": [
+      300,
+      null
+    ],
+    "children": [
+      "File Row",
+      "Meta"
+    ]
+  },
+  {
+    "id": "nIOIv",
+    "name": "App / Conversation / Bubble / Link In",
+    "type": "frame",
+    "size": [
+      320,
+      null
+    ],
+    "children": [
+      "Message",
+      "Link Card",
+      "Meta"
+    ]
+  },
+  {
+    "id": "X5vk7",
+    "name": "App / Conversation / Bubble / Video Out",
+    "type": "frame",
+    "size": [
+      268,
+      null
+    ],
+    "children": [
+      "Inner",
+      "Meta Wrap"
+    ]
+  },
+  {
+    "id": "x7WjhV",
+    "name": "App / Conversation / Bubble / Reply In",
+    "type": "frame",
+    "size": [
+      340,
+      null
+    ],
+    "children": [
+      "Quote",
+      "Message",
+      "Meta"
+    ]
+  },
+  {
+    "id": "T4324",
+    "name": "App / Conversation / Bubble / Deleted In",
+    "type": "frame",
+    "size": [
+      300,
+      null
+    ],
+    "children": [
+      "Message",
+      "Meta"
+    ]
+  },
+  {
+    "id": "vL3CB",
+    "name": "App / Conversation / Composer",
+    "type": "frame",
+    "size": [
+      "fill_container",
+      56
+    ],
+    "children": [
+      "Plus Button",
+      "Input Pill",
+      "Emoji Button",
+      "Send Button"
+    ]
+  },
+  {
+    "id": "KVYP9",
+    "name": "App / Composer / Attachment Menu",
+    "type": "frame",
+    "size": [
+      380,
+      null
+    ],
+    "children": [
+      "Grid"
+    ]
+  },
+  {
+    "id": "E2uqDj",
+    "name": "App / Conversation / Date Pill",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Label"
+    ]
+  },
+  {
+    "id": "TKX0g",
+    "name": "App / Conversation / Notice / Encrypted",
+    "type": "frame",
+    "size": [
+      600,
+      null
+    ],
+    "children": [
+      "Lock",
+      "Body"
+    ]
+  },
+  {
+    "id": "ePwD5",
+    "name": "App / Conversation / Notice / System",
+    "type": "frame",
+    "size": [
+      600,
+      null
+    ],
+    "children": [
+      "Timer",
+      "Body"
+    ]
+  },
+  {
+    "id": "hPxqm",
+    "name": "App / Overlay / Toast / Coming Soon",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Icon",
+      "Text"
+    ]
+  },
+  {
+    "id": "MUX37",
+    "name": "App / Overlay / Context Menu",
+    "type": "frame",
+    "size": [
+      200,
+      null
+    ],
+    "children": [
+      "Item / Reply",
+      "Item / Forward",
+      "Item / Copy",
+      "Item / Star message",
+      "Item / Delete"
+    ]
+  },
+  {
+    "id": "KWCNV",
+    "name": "App / Overlay / Modal / Coming Soon",
+    "type": "frame",
+    "size": [
+      300,
+      null
+    ],
+    "children": [
+      "Title",
+      "Body",
+      "Actions"
+    ]
+  },
+  {
+    "id": "ZZjvL",
+    "name": "App / Drawer / Contact Info",
+    "type": "frame",
+    "size": [
+      360,
+      640
+    ],
+    "children": [
+      "Head",
+      "Hero",
+      "Actions",
+      "Divider",
+      "Media Block",
+      "Divider",
+      "Row / Mute notifications",
+      "Row / Disappearing messages",
+      "Row / Starred messages",
+      "Divider",
+      "Row / Block contact"
+    ]
+  },
+  {
+    "id": "JiPwP",
+    "name": "App / Sidebar / macOS",
+    "type": "frame",
+    "size": [
+      192,
+      688
+    ],
+    "children": [
+      "Traffic Lights",
+      "App / Sidebar / Nav Item / Chats / Selected",
+      "App / Sidebar / Nav Item / Updates",
+      "App / Sidebar / Nav Item / Calls",
+      "App / Sidebar / Nav Item / Media",
+      "App / Sidebar / Nav Item / AI",
+      "More / Section Label",
+      "App / Sidebar / Nav Item / Locked",
+      "App / Sidebar / Nav Item / Archived",
+      "App / Sidebar / Nav Item / Starred",
+      "Spacer",
+      "App / Sidebar / Profile Row"
+    ]
+  },
+  {
+    "id": "yj0mv",
+    "name": "App / Sidebar / Icon Rail",
+    "type": "frame",
+    "size": [
+      64,
+      668
+    ],
+    "children": [
+      "Rail Item / chat",
+      "Rail Item / donut_large",
+      "Rail Item / call",
+      "Rail Item / image",
+      "Rail Item / auto_awesome",
+      "Rail Item / lock",
+      "Rail Item / archive",
+      "Rail Item / star",
+      "Spacer",
+      "Profile"
+    ]
+  },
+  {
+    "id": "s1t1fK",
+    "name": "App / Skeleton / Chat Row",
+    "type": "frame",
+    "size": [
+      300,
+      80
+    ],
+    "children": [
+      "Avatar",
+      "Body",
+      "Right"
+    ]
+  },
+  {
+    "id": "PhudQ",
+    "name": "App / Skeleton / Bubble",
+    "type": "frame",
+    "size": [
+      300,
+      null
+    ],
+    "children": [
+      "Line 1",
+      "Line 2",
+      "Line 3"
+    ]
+  },
+  {
+    "id": "W949i",
+    "name": "App / Skeleton / Conversation",
+    "type": "frame",
+    "size": [
+      520,
+      340
+    ],
+    "children": [
+      "Bubble Skeleton 1",
+      "Row End",
+      "Bubble Skeleton 3",
+      "Row End 2"
+    ]
+  },
+  {
+    "id": "G27Ru",
+    "name": "App / Skeleton / Media Tile",
+    "type": "frame",
+    "size": [
+      189,
+      140
+    ],
+    "children": [
+      "Scrim",
+      "Duration Bar",
+      "Placeholder Icon"
+    ]
+  },
+  {
+    "id": "GffHb",
+    "name": "App / Conversation / Empty State",
+    "type": "frame",
+    "size": [
+      640,
+      420
+    ],
+    "children": [
+      "Logo Mark",
+      "Title",
+      "Body",
+      "Divider",
+      "Encrypted"
+    ]
+  },
+  {
+    "id": "sq6Su",
+    "name": "App / Coming Soon / Section",
+    "type": "frame",
+    "size": [
+      640,
+      420
+    ],
+    "children": [
+      "Disc",
+      "Title",
+      "Body",
+      "CTA",
+      "Note"
+    ]
+  },
+  {
+    "id": "XWYpg",
+    "name": "App / Info Panel / Contact",
+    "type": "frame",
+    "size": [
+      380,
+      868
+    ],
+    "children": [
+      "Head",
+      "Hero",
+      "Actions",
+      "Media Block",
+      "Row Mute notifications",
+      "Row Disappearing messages",
+      "Row Chat lock",
+      "Row Starred messages",
+      "Row Encryption",
+      "Row Block contact",
+      "Report"
+    ]
+  },
+  {
+    "id": "QGC3p",
+    "name": "App / Info Panel / Group",
+    "type": "frame",
+    "size": [
+      380,
+      868
+    ],
+    "children": [
+      "Head",
+      "Hero",
+      "Actions",
+      "Members",
+      "Media Block",
+      "Settings Rows",
+      "Exit Row"
+    ]
+  },
+  {
+    "id": "lXxJ5",
+    "name": "App / Status / Filmstrip",
+    "type": "frame",
+    "size": [
+      null,
+      84
+    ],
+    "children": [
+      "Item Frame 1",
+      "Item Frame 2",
+      "Item Frame 3",
+      "Item Frame 4",
+      "Item Frame 5"
+    ]
+  },
+  {
+    "id": "V57voT",
+    "name": "App / Info Panel / Community",
+    "type": "frame",
+    "size": [
+      380,
+      868
+    ],
+    "children": [
+      "Head",
+      "Hero",
+      "Actions",
+      "Description",
+      "Announcements Row",
+      "Groups Label",
+      "Group Produksi",
+      "Group Desain Motif",
+      "Group Penjualan",
+      "Group Arsip Foto",
+      "Members Row",
+      "Exit Row"
+    ]
+  },
+  {
+    "id": "A3KQiP",
+    "name": "App / Tooltip",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Label"
+    ]
+  },
+  {
+    "id": "J3jAy",
+    "name": "App / Select",
+    "type": "frame",
+    "size": [
+      180,
+      null
+    ],
+    "children": [
+      "Field",
+      "Menu"
+    ]
+  },
+  {
+    "id": "Sw594",
+    "name": "App / Checkbox",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Box",
+      "Label"
+    ]
+  },
+  {
+    "id": "DCWjH",
+    "name": "App / Radio",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Dot",
+      "Label"
+    ]
+  },
+  {
+    "id": "yhWiq",
+    "name": "App / Progress",
+    "type": "frame",
+    "size": [
+      120,
+      6
+    ],
+    "children": [
+      "Fill"
+    ]
+  },
+  {
+    "id": "hMKX4",
+    "name": "App / Avatar Group",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Avatar RP",
+      "Avatar MA",
+      "Avatar +9"
+    ]
+  },
+  {
+    "id": "xkzUX",
+    "name": "App / Badge",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Count"
+    ]
+  },
+  {
+    "id": "Cxj6S",
+    "name": "App / Keycap",
+    "type": "frame",
+    "size": [
+      null,
+      null
+    ],
+    "children": [
+      "Keys"
+    ]
+  },
+  {
+    "id": "T7wBxq",
+    "name": "App / Call Bar",
+    "type": "frame",
+    "size": [
+      420,
+      null
+    ],
+    "children": [
+      "Avatar",
+      "Body",
+      "Action mic",
+      "Action call"
+    ]
+  },
+  {
+    "id": "C54bYv",
+    "name": "App / Toast Stack",
+    "type": "frame",
+    "size": [
+      360,
+      null
+    ],
+    "children": [
+      "Toast info",
+      "Toast check_circle",
+      "Toast error"
+    ]
+  },
+  {
+    "id": "tPz6O",
+    "name": "App / Accounts Switcher",
+    "type": "frame",
+    "size": [
+      200,
+      null
+    ],
+    "children": [
+      "Stack",
+      "Body"
+    ]
+  },
+  {
+    "id": "ZakE5",
+    "name": "App / Chat List / Chat Row",
+    "type": "frame",
+    "size": [
+      300,
+      80
+    ],
+    "children": [
+      "Avatar",
+      "Body",
+      "Right"
+    ]
+  },
+  {
+    "id": "jONny",
+    "name": "App / Chat List / Search Field",
+    "type": "frame",
+    "size": [
+      276,
+      32
+    ],
+    "children": [
+      "Search Icon",
+      "Placeholder"
+    ]
+  },
+  {
+    "id": "a5v7Bk",
+    "name": "App / Chat List / Filter Chip",
+    "type": "frame",
+    "size": [
+      72,
+      34
+    ],
+    "children": [
+      "Label"
+    ]
+  }
+]

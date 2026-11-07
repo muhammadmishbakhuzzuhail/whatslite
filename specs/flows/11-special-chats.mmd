@@ -1,0 +1,17 @@
+flowchart TD
+  HUB["Special Chats · state catalog"]
+  SPECIAL_01["SPECIAL-01 · archived chats"]
+  HUB -.-> SPECIAL_01
+  SPECIAL_02["SPECIAL-02 · starred messages"]
+  HUB -.-> SPECIAL_02
+  SPECIAL_03["SPECIAL-03 · locked chat authentication"]
+  HUB -.-> SPECIAL_03
+  SPECIAL_04["SPECIAL-04 · locked chats list"]
+  HUB -.-> SPECIAL_04
+  SPECIAL_05["SPECIAL-05 · favorites management"]
+  HUB -.-> SPECIAL_05
+  SPECIAL_03 -->|"Unlocked"| SPECIAL_04
+  SPECIAL_01 -->|"Starred"| SPECIAL_02
+
+%% Dashed lines represent catalog membership only. Solid labeled lines model action transitions.
+%% See specifications/screen-map.json for cross-module action transitions.

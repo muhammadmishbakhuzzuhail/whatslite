@@ -1,0 +1,4 @@
+[submodule "reference/whatsapp-rust"]
+	path = reference/whatsapp-rust
+	url = https://github.com/oxidezap/whatsapp-rust.git
+	branch = main

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1512" height="982" viewBox="0 0 1512 982" role="img" aria-label="Message Composer">
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#25303b}.muted{fill:#66717b}.tiny{font-size:13px}.label{font-size:17px;font-weight:600}.heading{font-size:24px;font-weight:700}.meta{font-size:12px;letter-spacing:.7px} .line{stroke:#91a0ad;stroke-width:1.5;stroke-dasharray:7 5}</style>
+<rect x="0" y="0" width="1512" height="982" rx="0" fill="#eef1f4" stroke="#eef1f4" stroke-width="1.4"/>
+<rect x="0" y="0" width="1512" height="25" rx="0" fill="#dce1e6" stroke="#dce1e6" stroke-width="1.4"/>
+<text x="18" y="18" class="tiny">●  ●  ●     Messenger    File    Edit    View    Window    Help</text>
+<text x="1342" y="18" class="tiny">Wi-Fi   19:18</text>
+<rect x="0" y="25" width="1512" height="45" rx="0" fill="#fafbfc" stroke="#bcc6d0" stroke-width="1.4"/>
+<text x="18" y="54" class="label">●  ●  ●</text>
+<text x="180" y="54" class="label">MESSAGE COMPOSER</text>
+<text x="1285" y="54" class="meta">SCREEN WIREFRAME</text>
+<rect x="0" y="70" width="208" height="912" rx="9" fill="#e1e6eb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="20" y="104" class="label">NAVIGATION</text>
+<rect x="12" y="128" width="184" height="48" rx="9" fill="#f9fafb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="40" y="158" class="tiny">Chats</text>
+<rect x="12" y="192" width="184" height="48" rx="9" fill="#f9fafb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="40" y="222" class="tiny">Calls</text>
+<rect x="12" y="256" width="184" height="48" rx="9" fill="#f9fafb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="40" y="286" class="tiny">Updates</text>
+<rect x="12" y="320" width="184" height="48" rx="9" fill="#f9fafb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="40" y="350" class="tiny">Communities</text>
+<rect x="12" y="384" width="184" height="48" rx="9" fill="#f9fafb" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="40" y="414" class="tiny">Settings</text>
+<rect x="13" y="888" width="183" height="74" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="27" y="913" class="label">Profile / Account</text>
+<rect x="208" y="70" width="360" height="912" rx="9" fill="#f5f7f9" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="228" y="112" class="heading">CHATS</text>
+<rect x="225" y="128" width="326" height="42" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="239" y="153" class="label">Search</text>
+<rect x="225" y="181" width="326" height="37" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="239" y="206" class="label">Filters: All / Unread / Favorites</text>
+<rect x="221" y="230" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="242" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="262" class="label">Maya Putri</text>
+<text x="294" y="286" class="tiny">Last message preview</text>
+<rect x="221" y="316" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="328" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="348" class="label">Product Team</text>
+<text x="294" y="372" class="tiny">Last message preview</text>
+<rect x="221" y="402" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="414" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="434" class="label">Rizky</text>
+<text x="294" y="458" class="tiny">Last message preview</text>
+<rect x="221" y="488" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="500" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="520" class="label">Family</text>
+<text x="294" y="544" class="tiny">Last message preview</text>
+<rect x="221" y="574" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="586" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="606" class="label">Project</text>
+<text x="294" y="630" class="tiny">Last message preview</text>
+<rect x="221" y="660" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="672" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="692" class="label">Nadia</text>
+<text x="294" y="716" class="tiny">Last message preview</text>
+<rect x="221" y="746" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="758" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="778" class="label">Budi</text>
+<text x="294" y="802" class="tiny">Last message preview</text>
+<rect x="221" y="832" width="336" height="74" rx="9" fill="#ffffff" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="234" y="844" width="44" height="44" rx="22" fill="#d9e1e7" stroke="#bac6d0" stroke-width="1.4"/>
+<text x="294" y="864" class="label">College</text>
+<text x="294" y="888" class="tiny">Last message preview</text>
+<rect x="568" y="70" width="944" height="912" rx="9" fill="#f0f3f6" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="582" y="84" width="916" height="66" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="596" y="109" class="label">HEADER / ACTIONS</text>
+<rect x="582" y="165" width="916" height="702" rx="10" fill="#fafbfc" stroke="#9eacb9" stroke-width="1.4"/>
+<rect x="618" y="220" width="300" height="92" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="632" y="245" class="label">Incoming message</text>
+<text x="632" y="268" class="tiny">timestamp / action</text>
+<rect x="1122" y="358" width="300" height="92" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="1136" y="383" class="label">Outgoing message</text>
+<text x="1136" y="406" class="tiny">timestamp / action</text>
+<rect x="648" y="496" width="300" height="92" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="662" y="521" class="label">Shared media / message</text>
+<text x="662" y="544" class="tiny">timestamp / action</text>
+<rect x="1152" y="634" width="300" height="92" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="1166" y="659" class="label">Reply message</text>
+<text x="1166" y="682" class="tiny">timestamp / action</text>
+<rect x="584" y="889" width="912" height="70" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="598" y="914" class="label">COMPOSER: attach · emoji · input · send</text>
+<rect x="590" y="750" width="900" height="210" rx="9" fill="#eef2f8" stroke="#9eacb9" stroke-width="1.4" stroke-dasharray="7 5"/>
+<rect x="615" y="780" width="480" height="130" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="629" y="805" class="label">COMPOSER EXTENDED</text>
+<text x="629" y="828" class="tiny">mentions · recording · stickers · emoji</text>
+<rect x="1115" y="780" width="335" height="130" rx="9" fill="#fff" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="1129" y="805" class="label">PICKER / PREVIEW</text>
+<text x="1129" y="828" class="tiny">overlay / send state</text>
+<rect x="224" y="941" width="1280" height="29" rx="4" fill="#e3e9ee" stroke="#9eacb9" stroke-width="1.4"/>
+<text x="235" y="960" class="meta">05 · Message Composer · 10 states · IDs: COMP-01, COMP-02, COMP-03, COMP-04, COMP-05, COMP-06, COMP-07, COMP-08, COMP-09, COMP-10</text>
+</svg>

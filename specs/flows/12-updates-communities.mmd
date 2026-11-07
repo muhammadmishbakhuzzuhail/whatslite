@@ -1,0 +1,17 @@
+flowchart TD
+  HUB["Updates & Communities · state catalog"]
+  UPDATES_01["UPDATES-01 · status list"]
+  HUB -.-> UPDATES_01
+  UPDATES_02["UPDATES-02 · status viewer"]
+  HUB -.-> UPDATES_02
+  UPDATES_03["UPDATES-03 · channels view"]
+  HUB -.-> UPDATES_03
+  UPDATES_04["UPDATES-04 · communities view"]
+  HUB -.-> UPDATES_04
+  UPDATES_05["UPDATES-05 · community detail"]
+  HUB -.-> UPDATES_05
+  UPDATES_01 -->|"View status"| UPDATES_02
+  UPDATES_04 -->|"Open community"| UPDATES_05
+
+%% Dashed lines represent catalog membership only. Solid labeled lines model action transitions.
+%% See specifications/screen-map.json for cross-module action transitions.

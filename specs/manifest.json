@@ -1,0 +1,46 @@
+{
+  "project": "WhatsApp-inspired macOS GPUI Kit UI reference",
+  "version": "1.0.0",
+  "number_of_modules": 15,
+  "number_of_states": 120,
+  "wireframes": [
+    "wireframes/01-onboarding.svg",
+    "wireframes/02-main-window.svg",
+    "wireframes/03-chat-list.svg",
+    "wireframes/04-conversation.svg",
+    "wireframes/05-composer.svg",
+    "wireframes/06-attachments.svg",
+    "wireframes/07-group-chat.svg",
+    "wireframes/08-contacts-profile.svg",
+    "wireframes/09-calls.svg",
+    "wireframes/10-media-detail.svg",
+    "wireframes/11-special-chats.svg",
+    "wireframes/12-updates-communities.svg",
+    "wireframes/13-settings.svg",
+    "wireframes/14-notifications.svg",
+    "wireframes/15-system-errors.svg"
+  ],
+  "flows": [
+    "flows/01-onboarding.mmd",
+    "flows/02-main-window.mmd",
+    "flows/03-chat-list.mmd",
+    "flows/04-conversation.mmd",
+    "flows/05-composer.mmd",
+    "flows/06-attachments.mmd",
+    "flows/07-group-chat.mmd",
+    "flows/08-contacts-profile.mmd",
+    "flows/09-calls.mmd",
+    "flows/10-media-detail.mmd",
+    "flows/11-special-chats.mmd",
+    "flows/12-updates-communities.mmd",
+    "flows/13-settings.mmd",
+    "flows/14-notifications.mmd",
+    "flows/15-system-errors.mmd"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "hifi_assets": 0,
+  "implementation": "frontend mock-only"
+}

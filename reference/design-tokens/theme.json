@@ -1,0 +1,61 @@
+{
+  "$comment": "WhatsLite theme for GPUI. Source of truth: whatslite.pen · 01 Foundations. No CSS is read at runtime; load this into a Palette struct.",
+  "theme": {
+    "name": "whatslite",
+    "modes": ["light", "dark"],
+    "colors": {
+      "bg_sidebar":       { "light": "#F9F9F9", "dark": "#161A1C" },
+      "bg_list":          { "light": "#FFFFFF", "dark": "#1B1F21" },
+      "bg_conversation":  { "light": "#F4F1EB", "dark": "#0B141A" },
+      "bg_header":        { "light": "#F3EFEA", "dark": "#20272B" },
+      "bg_search":        { "light": "#E6E8EA", "dark": "#2A3338" },
+      "bg_selected":      { "light": "#EEEEEE", "dark": "#2A3338" },
+      "bg_row_selected":  { "light": "#F5F5F5", "dark": "#222D33" },
+      "bg_composer":      { "light": "#FCF9F3", "dark": "#20272B" },
+      "bg_notice_encrypt":{ "light": "#FCF1D5", "dark": "#182B22" },
+      "bg_notice_system": { "light": "#FFFFFF", "dark": "#1B2429" },
+      "bubble_in":        { "light": "#FFFFFF", "dark": "#202C33" },
+      "bubble_out":       { "light": "#D9FDD3", "dark": "#005C4B" },
+      "text_primary":     { "light": "#0A0A0A", "dark": "#E9EDEF" },
+      "text_secondary":   { "light": "#6B6B6B", "dark": "#8696A0" },
+      "text_inverse":     { "light": "#FFFFFF", "dark": "#FFFFFF" },
+      "accent":           { "light": "#00AD5A", "dark": "#21C063" },
+      "accent_soft":      { "light": "#DAFCD3", "dark": "#0D3325" },
+      "unread_text":      { "light": "#1B5E3C", "dark": "#8FD9B6" },
+      "tick_read":        { "light": "#53BDEB", "dark": "#53BDEB" },
+      "border":           { "light": "#E9E9E9", "dark": "#2A353B" },
+      "divider":          { "light": "#ECECEC", "dark": "#222D33" },
+      "attach_blue":      { "light": "#2D7FF9", "dark": "#53BDEB" },
+      "attach_orange":    { "light": "#F5A623", "dark": "#F5A623" },
+      "attach_red":       { "light": "#F24E4E", "dark": "#F24E4E" },
+      "attach_green":     { "light": "#00A884", "dark": "#00A884" },
+      "traffic_red":      { "light": "#FF5F57", "dark": "#FF5F57" },
+      "traffic_yellow":   { "light": "#FEBC2E", "dark": "#FEBC2E" },
+      "traffic_green":    { "light": "#28C840", "dark": "#28C840" }
+    },
+    "radius": { "sm": 4, "md": 8, "lg": 10, "xl": 12, "bubble": 18, "pill": 999 },
+    "spacing": [2, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48],
+    "motion": {
+      "easing": "cubic-bezier(0.2, 0, 0, 1)",
+      "hover_ms": 120,
+      "micro_ms": 160,
+      "panel_ms": 200,
+      "overlay_ms": 240
+    }
+  },
+  "window": {
+    "titlebar_height": 32,
+    "traffic_light_position": { "x": 16, "y": 14, "gap": 8, "size": 12 },
+    "sidebar_width": 200,
+    "rail_width": 64,
+    "rail_breakpoint": 1100,
+    "list_width": 300,
+    "chat_row_height": 80,
+    "composer_height": 56
+  },
+  "fonts": {
+    "macos": "SF Pro Text",
+    "windows": "Inter",
+    "fallback": "Inter"
+  }
+}

@@ -1,0 +1,1337 @@
+{
+  "version": "1.0.0",
+  "size_logical_pt": [
+    1512,
+    982
+  ],
+  "screens": [
+    {
+      "id": "AUTH-01",
+      "module": "Onboarding & Login",
+      "state": "welcome",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Phone linking",
+          "target": "AUTH-05"
+        }
+      ]
+    },
+    {
+      "id": "AUTH-02",
+      "module": "Onboarding & Login",
+      "state": "QR pairing",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "QR expired",
+          "target": "AUTH-04"
+        }
+      ]
+    },
+    {
+      "id": "AUTH-03",
+      "module": "Onboarding & Login",
+      "state": "QR instructions",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "AUTH-04",
+      "module": "Onboarding & Login",
+      "state": "QR expired",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Regenerate",
+          "target": "AUTH-02"
+        }
+      ]
+    },
+    {
+      "id": "AUTH-05",
+      "module": "Onboarding & Login",
+      "state": "phone linking entry",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "AUTH-06",
+      "module": "Onboarding & Login",
+      "state": "phone linking code",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "AUTH-07",
+      "module": "Onboarding & Login",
+      "state": "linking pending",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Link failed",
+          "target": "AUTH-08"
+        }
+      ]
+    },
+    {
+      "id": "AUTH-08",
+      "module": "Onboarding & Login",
+      "state": "linking error",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Retry",
+          "target": "AUTH-02"
+        }
+      ]
+    },
+    {
+      "id": "AUTH-09",
+      "module": "Onboarding & Login",
+      "state": "sync in progress",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "AUTH-10",
+      "module": "Onboarding & Login",
+      "state": "sync success",
+      "wireframe": "wireframes/01-onboarding.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Open app",
+          "target": "SHELL-02"
+        }
+      ]
+    },
+    {
+      "id": "SHELL-01",
+      "module": "Main Window",
+      "state": "empty main window",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SHELL-02",
+      "module": "Main Window",
+      "state": "three-pane main layout",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Narrow",
+          "target": "SHELL-05"
+        },
+        {
+          "action": "App menu",
+          "target": "SHELL-07"
+        },
+        {
+          "action": "Chats",
+          "target": "LIST-01"
+        },
+        {
+          "action": "Calls",
+          "target": "CALL-01"
+        },
+        {
+          "action": "Settings",
+          "target": "SET-01"
+        }
+      ]
+    },
+    {
+      "id": "SHELL-03",
+      "module": "Main Window",
+      "state": "sidebar collapsed",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SHELL-04",
+      "module": "Main Window",
+      "state": "sidebar expanded",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SHELL-05",
+      "module": "Main Window",
+      "state": "window narrow",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Restore",
+          "target": "SHELL-02"
+        }
+      ]
+    },
+    {
+      "id": "SHELL-06",
+      "module": "Main Window",
+      "state": "window resized",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SHELL-07",
+      "module": "Main Window",
+      "state": "macOS app menu",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SHELL-08",
+      "module": "Main Window",
+      "state": "global shortcut overlay",
+      "wireframe": "wireframes/02-main-window.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-01",
+      "module": "Chat List",
+      "state": "all chats",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Search",
+          "target": "LIST-05"
+        },
+        {
+          "action": "Context menu",
+          "target": "LIST-10"
+        },
+        {
+          "action": "Open conversation",
+          "target": "CHAT-01"
+        }
+      ]
+    },
+    {
+      "id": "LIST-02",
+      "module": "Chat List",
+      "state": "unread filter",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-03",
+      "module": "Chat List",
+      "state": "favorites filter",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-04",
+      "module": "Chat List",
+      "state": "groups filter",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-05",
+      "module": "Chat List",
+      "state": "search query",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "No results",
+          "target": "LIST-07"
+        }
+      ]
+    },
+    {
+      "id": "LIST-06",
+      "module": "Chat List",
+      "state": "search results",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-07",
+      "module": "Chat List",
+      "state": "search empty",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-08",
+      "module": "Chat List",
+      "state": "pinned chat",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-09",
+      "module": "Chat List",
+      "state": "archived chat entry",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-10",
+      "module": "Chat List",
+      "state": "chat context menu",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-11",
+      "module": "Chat List",
+      "state": "new chat entry",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "LIST-12",
+      "module": "Chat List",
+      "state": "chat selection",
+      "wireframe": "wireframes/03-chat-list.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-01",
+      "module": "Conversation",
+      "state": "default DM",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Open menu",
+          "target": "CHAT-03"
+        },
+        {
+          "action": "Focus composer",
+          "target": "COMP-01"
+        },
+        {
+          "action": "Attach",
+          "target": "ATT-01"
+        },
+        {
+          "action": "Contact info",
+          "target": "CONTACT-03"
+        },
+        {
+          "action": "View shared media",
+          "target": "MEDIA-01"
+        }
+      ]
+    },
+    {
+      "id": "CHAT-02",
+      "module": "Conversation",
+      "state": "hover bubble",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-03",
+      "module": "Conversation",
+      "state": "message context menu",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Reply",
+          "target": "CHAT-04"
+        },
+        {
+          "action": "Delete",
+          "target": "CHAT-06"
+        },
+        {
+          "action": "Forward",
+          "target": "CHAT-08"
+        }
+      ]
+    },
+    {
+      "id": "CHAT-04",
+      "module": "Conversation",
+      "state": "reply preview",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-05",
+      "module": "Conversation",
+      "state": "edit message",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-06",
+      "module": "Conversation",
+      "state": "delete confirm",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-07",
+      "module": "Conversation",
+      "state": "reaction picker",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-08",
+      "module": "Conversation",
+      "state": "forward chooser",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-09",
+      "module": "Conversation",
+      "state": "multi select",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-10",
+      "module": "Conversation",
+      "state": "in-chat search",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-11",
+      "module": "Conversation",
+      "state": "message info",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-12",
+      "module": "Conversation",
+      "state": "disappearing messages",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-13",
+      "module": "Conversation",
+      "state": "voice playback",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-14",
+      "module": "Conversation",
+      "state": "image bubble",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-15",
+      "module": "Conversation",
+      "state": "document bubble",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CHAT-16",
+      "module": "Conversation",
+      "state": "empty chat",
+      "wireframe": "wireframes/04-conversation.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-01",
+      "module": "Message Composer",
+      "state": "empty composer",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Record",
+          "target": "COMP-07"
+        },
+        {
+          "action": "Emoji",
+          "target": "COMP-03"
+        }
+      ]
+    },
+    {
+      "id": "COMP-02",
+      "module": "Message Composer",
+      "state": "multiline input",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-03",
+      "module": "Message Composer",
+      "state": "emoji picker",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-04",
+      "module": "Message Composer",
+      "state": "GIF picker",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-05",
+      "module": "Message Composer",
+      "state": "sticker picker",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-06",
+      "module": "Message Composer",
+      "state": "mention menu",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-07",
+      "module": "Message Composer",
+      "state": "voice record idle",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Start",
+          "target": "COMP-08"
+        }
+      ]
+    },
+    {
+      "id": "COMP-08",
+      "module": "Message Composer",
+      "state": "voice recording",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Stop",
+          "target": "COMP-09"
+        }
+      ]
+    },
+    {
+      "id": "COMP-09",
+      "module": "Message Composer",
+      "state": "voice preview",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "COMP-10",
+      "module": "Message Composer",
+      "state": "send error",
+      "wireframe": "wireframes/05-composer.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-01",
+      "module": "Attachments",
+      "state": "attachment menu",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Photo",
+          "target": "ATT-02"
+        },
+        {
+          "action": "Document",
+          "target": "ATT-04"
+        }
+      ]
+    },
+    {
+      "id": "ATT-02",
+      "module": "Attachments",
+      "state": "image picker",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-03",
+      "module": "Attachments",
+      "state": "video picker",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-04",
+      "module": "Attachments",
+      "state": "document picker",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-05",
+      "module": "Attachments",
+      "state": "file drag hover",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-06",
+      "module": "Attachments",
+      "state": "image caption",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-07",
+      "module": "Attachments",
+      "state": "video caption",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-08",
+      "module": "Attachments",
+      "state": "multi-image preview",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "ATT-09",
+      "module": "Attachments",
+      "state": "upload progress",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Failure",
+          "target": "ATT-10"
+        }
+      ]
+    },
+    {
+      "id": "ATT-10",
+      "module": "Attachments",
+      "state": "upload failure",
+      "wireframe": "wireframes/06-attachments.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Retry",
+          "target": "ATT-09"
+        }
+      ]
+    },
+    {
+      "id": "GROUP-01",
+      "module": "Group Chat",
+      "state": "create group",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Select people",
+          "target": "GROUP-02"
+        }
+      ]
+    },
+    {
+      "id": "GROUP-02",
+      "module": "Group Chat",
+      "state": "new group contacts",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-03",
+      "module": "Group Chat",
+      "state": "group title and photo",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-04",
+      "module": "Group Chat",
+      "state": "group conversation",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-05",
+      "module": "Group Chat",
+      "state": "group info",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Permissions",
+          "target": "GROUP-07"
+        },
+        {
+          "action": "Exit",
+          "target": "GROUP-10"
+        }
+      ]
+    },
+    {
+      "id": "GROUP-06",
+      "module": "Group Chat",
+      "state": "members list",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-07",
+      "module": "Group Chat",
+      "state": "admin permissions",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-08",
+      "module": "Group Chat",
+      "state": "invite link",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-09",
+      "module": "Group Chat",
+      "state": "remove member",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "GROUP-10",
+      "module": "Group Chat",
+      "state": "exit confirm",
+      "wireframe": "wireframes/07-group-chat.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CONTACT-01",
+      "module": "Contacts & Profile",
+      "state": "new chat contacts",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Find contact",
+          "target": "CONTACT-02"
+        }
+      ]
+    },
+    {
+      "id": "CONTACT-02",
+      "module": "Contacts & Profile",
+      "state": "contact search",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CONTACT-03",
+      "module": "Contacts & Profile",
+      "state": "contact info",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Block",
+          "target": "CONTACT-06"
+        }
+      ]
+    },
+    {
+      "id": "CONTACT-04",
+      "module": "Contacts & Profile",
+      "state": "profile photo viewer",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CONTACT-05",
+      "module": "Contacts & Profile",
+      "state": "contact actions",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CONTACT-06",
+      "module": "Contacts & Profile",
+      "state": "blocked contact",
+      "wireframe": "wireframes/08-contacts-profile.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-01",
+      "module": "Voice & Video Calls",
+      "state": "call history",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "New call",
+          "target": "CALL-02"
+        }
+      ]
+    },
+    {
+      "id": "CALL-02",
+      "module": "Voice & Video Calls",
+      "state": "new call picker",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-03",
+      "module": "Voice & Video Calls",
+      "state": "outgoing voice",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Remote ring",
+          "target": "CALL-04"
+        }
+      ]
+    },
+    {
+      "id": "CALL-04",
+      "module": "Voice & Video Calls",
+      "state": "incoming voice",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-05",
+      "module": "Voice & Video Calls",
+      "state": "active voice",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-06",
+      "module": "Voice & Video Calls",
+      "state": "outgoing video",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Connected",
+          "target": "CALL-08"
+        }
+      ]
+    },
+    {
+      "id": "CALL-07",
+      "module": "Voice & Video Calls",
+      "state": "incoming video",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-08",
+      "module": "Voice & Video Calls",
+      "state": "active video",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Share",
+          "target": "CALL-09"
+        }
+      ]
+    },
+    {
+      "id": "CALL-09",
+      "module": "Voice & Video Calls",
+      "state": "screen share picker",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-10",
+      "module": "Voice & Video Calls",
+      "state": "screen sharing",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-11",
+      "module": "Voice & Video Calls",
+      "state": "group call",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "CALL-12",
+      "module": "Voice & Video Calls",
+      "state": "call link",
+      "wireframe": "wireframes/09-calls.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "MEDIA-01",
+      "module": "Media & Detail",
+      "state": "media gallery",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Open image",
+          "target": "MEDIA-02"
+        },
+        {
+          "action": "Open video",
+          "target": "MEDIA-03"
+        }
+      ]
+    },
+    {
+      "id": "MEDIA-02",
+      "module": "Media & Detail",
+      "state": "image viewer",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "MEDIA-03",
+      "module": "Media & Detail",
+      "state": "video viewer",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "MEDIA-04",
+      "module": "Media & Detail",
+      "state": "document preview",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "MEDIA-05",
+      "module": "Media & Detail",
+      "state": "shared links",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "MEDIA-06",
+      "module": "Media & Detail",
+      "state": "media navigation",
+      "wireframe": "wireframes/10-media-detail.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SPECIAL-01",
+      "module": "Special Chats",
+      "state": "archived chats",
+      "wireframe": "wireframes/11-special-chats.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Starred",
+          "target": "SPECIAL-02"
+        }
+      ]
+    },
+    {
+      "id": "SPECIAL-02",
+      "module": "Special Chats",
+      "state": "starred messages",
+      "wireframe": "wireframes/11-special-chats.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SPECIAL-03",
+      "module": "Special Chats",
+      "state": "locked chat authentication",
+      "wireframe": "wireframes/11-special-chats.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Unlocked",
+          "target": "SPECIAL-04"
+        }
+      ]
+    },
+    {
+      "id": "SPECIAL-04",
+      "module": "Special Chats",
+      "state": "locked chats list",
+      "wireframe": "wireframes/11-special-chats.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SPECIAL-05",
+      "module": "Special Chats",
+      "state": "favorites management",
+      "wireframe": "wireframes/11-special-chats.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "UPDATES-01",
+      "module": "Updates & Communities",
+      "state": "status list",
+      "wireframe": "wireframes/12-updates-communities.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "View status",
+          "target": "UPDATES-02"
+        }
+      ]
+    },
+    {
+      "id": "UPDATES-02",
+      "module": "Updates & Communities",
+      "state": "status viewer",
+      "wireframe": "wireframes/12-updates-communities.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "UPDATES-03",
+      "module": "Updates & Communities",
+      "state": "channels view",
+      "wireframe": "wireframes/12-updates-communities.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "UPDATES-04",
+      "module": "Updates & Communities",
+      "state": "communities view",
+      "wireframe": "wireframes/12-updates-communities.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Open community",
+          "target": "UPDATES-05"
+        }
+      ]
+    },
+    {
+      "id": "UPDATES-05",
+      "module": "Updates & Communities",
+      "state": "community detail",
+      "wireframe": "wireframes/12-updates-communities.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SET-01",
+      "module": "Settings",
+      "state": "settings home",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Privacy",
+          "target": "SET-03"
+        },
+        {
+          "action": "Theme",
+          "target": "SET-04"
+        }
+      ]
+    },
+    {
+      "id": "SET-02",
+      "module": "Settings",
+      "state": "account and profile",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SET-03",
+      "module": "Settings",
+      "state": "privacy",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SET-04",
+      "module": "Settings",
+      "state": "chats and theme",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Apply theme",
+          "target": "SHELL-02"
+        }
+      ]
+    },
+    {
+      "id": "SET-05",
+      "module": "Settings",
+      "state": "notifications",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "SET-06",
+      "module": "Settings",
+      "state": "storage and help",
+      "wireframe": "wireframes/13-settings.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "NOTIF-01",
+      "module": "Notifications",
+      "state": "in-app notification",
+      "wireframe": "wireframes/14-notifications.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": []
+    },
+    {
+      "id": "NOTIF-02",
+      "module": "Notifications",
+      "state": "macOS notification example",
+      "wireframe": "wireframes/14-notifications.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Open app",
+          "target": "NOTIF-01"
+        }
+      ]
+    },
+    {
+      "id": "SYSTEM-01",
+      "module": "System & Errors",
+      "state": "offline and reconnecting",
+      "wireframe": "wireframes/15-system-errors.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Session invalid",
+          "target": "SYSTEM-02"
+        }
+      ]
+    },
+    {
+      "id": "SYSTEM-02",
+      "module": "System & Errors",
+      "state": "session expired and relink",
+      "wireframe": "wireframes/15-system-errors.svg",
+      "theme": "light|dark",
+      "status": "mock-only",
+      "transitions": [
+        {
+          "action": "Relink",
+          "target": "AUTH-01"
+        }
+      ]
+    }
+  ]
+}

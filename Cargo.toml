@@ -17,6 +17,10 @@ categories = ["network-programming", "asynchronous"]
 members = [
     ".",
     "bridge",
+    "crates/whatslite-mock-backend",
+    "crates/whatslite-services",
+    "crates/whatslite-wa-adapter",
+    "desktop",
     "http_clients/ureq-client",
     "storages/sqlite-storage",
     "transports/tokio-transport",

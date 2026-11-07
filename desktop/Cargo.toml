@@ -1,0 +1,16 @@
+[package]
+name = "whatslite-desktop"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+gpui-kit = "=0.8.1"
+serde_json = { workspace = true, features = ["std"] }
+smol = "2"
+whatslite-mock-backend = { path = "../crates/whatslite-mock-backend" }
+whatslite-services = { path = "../crates/whatslite-services" }
+
+[build-dependencies]
+resvg = "0.46"

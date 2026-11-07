@@ -116,32 +116,49 @@ UI icons. The old tile was a repeated Material Symbols grid; it read as
 
 Spec:
 
-- 400 × 400 logical pattern, irregular scatter — not a 5 × 5 grid;
-- the canvas component is an 800 × 800 2×2 proof of the same pattern;
+- 800 × 800 logical pattern, dense irregular scatter — not a grid;
 - edge objects are wrapped to the opposite edge, so the repeat is seamless;
-- thin uniform strokes (~2.5px in the 800 source; 1.25 logical at 400),
-  rounded caps/joins;
-- objects: camera, coffee, plant, headphones, paper plane, bicycle, lightbulb,
-  book, gift, umbrella, music note, alarm clock, scissors, sunflower, cloud,
-  moon, envelope, pin, pizza, shopping bag, tape, paperclip, compass, globe;
-- no fill, no shading, no text, no emoji;
-- one stroke `#D8CCBC` on `$wl-bg-conversation`; dark mode keeps the same
-  tile at 12% opacity;
-- the app is clipped and repeated by the conversation stage at a 400pt
-  logical step;
-- the canvas tiles at 800pt; each 800 tile contains a 2×2 proof, so the visible
-  density matches the 400pt app repeat;
+- ~100 small objects, symbols, stars, hearts and dots per source tile; most
+  objects are 10–50px, packed tightly with no large empty gaps;
+- one stroke `#D8CCBC` at 50% alpha on `$wl-bg-conversation`;
+- dark mode keeps the same pattern at a 12% layer opacity;
+- the app repeats the source at a **550pt logical step**. This was selected in
+  the doodle preview app after comparing 800/700/600/550/400: 800 was too
+  sparse, 400 too repetitive, 550 closest to the reference density;
+- the canvas component is an 800pt proof; the app density is documented here
+  and shown by the preview app;
 - `desktop/build.rs` rasterises the original SVG at 1×, 2× and 3×
-  (400/800/1200); the runtime picks the matching texture, so 1440 and 1920
-  stay sharp at 3× scale;
-- opacity is 100% in light mode and 12% in dark mode.
+  (800/1600/2400); the runtime scales the texture to the 550pt repeat and
+  picks the matching texture, so 1440 and 1920 stay sharp at 3× scale;
+- light line `#C9B9A3` at 50% alpha; dark line `#D8CCBC` at 12% layer opacity.
 
 Do not re-generate the artwork per screen. It is one reusable `Wallpaper / Doodle
 Tile` (`IqUX9`) instance in the canvas and one texture cache in the app. The
 vector source is `desktop/assets/wallpaper/doodle.svg`; the canvas uses the
 matching `machine/wallpaper-doodle.png` (referenced as
-`./wallpaper-doodle-400.png` next to the `.pen`) because the `.pen` stores textures
+`./wallpaper-doodle-dense.png` next to the `.pen`) because the `.pen` stores textures
 as image fills. This is original artwork, not a WhatsApp asset.
+
+### Raster wallpaper or SVG?
+
+**Decision: SVG is the master; the app uses a build-time raster tile with a
+runtime tint.** A full raster wallpaper is only for custom user-uploaded images.
+
+Why:
+
+- A full wallpaper locks the colour into pixels. A theme change would need a new
+  asset, and the reference wallpaper cannot be recoloured per theme.
+- At 1920 @3× a full-bleed wallpaper needs a 5760×3240 source; a tile does not.
+- A wallpaper is not intrinsically seamless; the doodle tile is edge-wrapped.
+- The pre-rendered tile is a monochrome alpha mask. `theme::wallpaper_style`
+  supplies the line colour and layer opacity, so light, dark and future
+  wallpaper themes share one artwork.
+- Runtime SVG rasterisation was measured at ~8s for 3×; build-time
+  rasterisation plus tint is fast and cached.
+
+If a future design wants a fixed, non-themeable photographic or illustrated
+wallpaper, use a raster asset for that option and keep the doodle as the
+default SVG-based theme.
 
 ---
 
@@ -251,7 +268,41 @@ opening a chat.
 
 ---
 
-## 9. Acceptance checklist
+## 9. Loading, empty and error states
+
+Every data list uses the same contract:
+
+| State | Behaviour |
+|---|---|
+| Loading | Skeleton rows that mirror the real row. No blank panel, no spinner-only screen. |
+| Failed | Red alert icon, one-line cause, `Retry`. Never reuse the empty copy. |
+| Empty | Specific copy for that list + one action where one exists. |
+| Ready | Real rows. |
+
+Covered lists: chat list, calls, updates, communities, media, AI, contacts,
+archived, starred, locked, broadcasts. The media grid has skeleton tiles.
+The conversation has its own bubble skeleton.
+
+Conversation states:
+
+- **Loading** — date-pill + incoming/outgoing bubble skeletons; composer is
+  hidden until the thread is ready.
+- **Failed** — white error card with red alert, `Could not load messages`,
+  `Check your connection and try again.`, and `Retry`; composer hidden.
+- **Ready** — messages, pinned bar, search bar and composer.
+
+Rules:
+
+- `Retry` returns the surface to `Ready`; it never opens a toast and stops.
+- The skeleton appears only while the state is `Loading`. The backend should set
+  that state after a short delay (the design target is 200ms) so fast responses
+  do not flash a skeleton.
+- An error is never presented as an empty state. Use the red alert + Retry.
+- Read-only form value rows do **not** show a chevron. Only rows that open a
+  surface or run an action have one.
+- The app exposes `WHATSLITE_LIST_STATE=loading|failed` for QA captures.
+
+## 10. Acceptance checklist
 
 - [ ] Avatar is top-aligned with the sender title and never clipped.
 - [ ] Hover shows the chevron; click opens the dropdown next to the title.
@@ -261,5 +312,8 @@ opening a chat.
 - [ ] Usernames are secondary and never overwrite a saved name.
 - [ ] Doodle is hand-drawn line art, subtle, tiled and readable in dark mode.
 - [ ] Demo sheet lists 12 scenarios; every visible button reaches a surface.
+- [ ] Every list shows skeleton, error + Retry, and a specific empty state.
+- [ ] Conversation shows bubble skeleton and error card; composer hidden until ready.
+- [ ] Errors use the red alert icon, never the empty-state Zap icon.
 - [ ] No mock database was added; the service boundary is the only data path.
 - [ ] `cargo check -p whatslite-desktop` passes.

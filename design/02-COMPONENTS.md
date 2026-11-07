@@ -4,7 +4,7 @@
 
 | Component | Size | Instances | Key children |
 |---|---|---|---|
-| `Wallpaper / Doodle Tile` | 800×800 | 68 | 2×2 proof of a seamless 400pt pattern; image fill `wallpaper-doodle.png`; vector source `desktop/assets/wallpaper/doodle.svg` |
+| `Wallpaper / Doodle Tile` | 800×800 | 68 | dense seamless source, 800pt canvas proof (app repeats at 800pt); image fill `wallpaper-doodle.png`; vector source `machine/wallpaper-doodle-source.svg` |
 | `App / Conversation / Bubble / In` | 360×None | 39 | Message, Meta |
 | `App / Titlebar / Windows` | fill_container×32 | 27 | Title Group, Window Controls |
 | `App / Sidebar / Windows` | 200×796 | 24 | App / Sidebar / Nav Item / Chats / Selected, App / Sidebar / Nav Item / Updates, App / Sidebar / Nav Item / Calls, App / Sidebar / Nav Item / Communities, App / Sidebar / Nav Item / Media, App / Sidebar / Nav Item / AI |

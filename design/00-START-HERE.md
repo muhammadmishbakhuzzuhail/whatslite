@@ -22,7 +22,7 @@ A complete UI/UX design for **WhatsLite**, an independent WhatsApp-Desktop-style
 10. `urutan-judul.md` — title order, hover menu, profile access, avatar/doodle fixes, clickable demo, backend and number/username rules
 11. `brand/` — logo SVG/PNG/ICO + usage rules
 
-The `.pen` references `./wallpaper-doodle-400.png`; keep that PNG next to the `.pen` file. The handoff copy is `machine/wallpaper-doodle.png`. The vector source is `desktop/assets/wallpaper/doodle.svg`. The canvas shows an 800pt 2×2 proof; the app repeats the 400pt pattern.
+The `.pen` references `./wallpaper-doodle-550.png`; keep that PNG next to the `.pen` file. The handoff copy is `machine/wallpaper-doodle.png`. The vector source is `machine/wallpaper-doodle-source.svg`. The canvas uses an 800pt proof; the app rasterises the source at build time and repeats it at 800pt.
 
 ## Hard rules
 1. **Tokens only.** Every colour comes from `machine/tokens.json` (28 tokens, light+dark). No hex literal in view code. Dark mode is a value swap, never a second UI.
@@ -43,7 +43,7 @@ machine/theme.json          same, as a palette for GPUI/other
 machine/components.json     54 masters with ids, sizes, children
 machine/screens.json        38 pages with ids and sections
 machine/strings.json        every visible string, grouped by page
-machine/wallpaper-doodle.png  seamless 400 pattern · 800 2×2 proof used by the .pen image fill
+machine/wallpaper-doodle.png  dense seamless 800 pattern used by the .pen image fill
 brand/                      logo: 3 SVG + 3 PNG + ico + README + export.sh
 docs/                       deep specs (state matrix, audits, plans)
 qa/                         native app QA captures + reproduce flags

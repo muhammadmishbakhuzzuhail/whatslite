@@ -30,28 +30,28 @@ fn main() {
     }
 }
 
-/// Rasterise the original doodle tile at 1x, 2x and 3x at build time.
+/// Rasterise the editable doodle master at 1x, 2x and 3x.
 ///
-/// `usvg` is too slow to run on the first paint (seconds at 3x), so the
-/// runtime only decodes these PNGs and repeats the resulting texture.
+/// The SVG is the source of truth in `design/machine/wallpaper-doodle-source.svg`.
+/// Its strokes are opaque, so each PNG is an alpha mask; the runtime tints it
+/// with `theme::wallpaper_style` and repeats it at 800pt.
 fn render_doodle() {
     let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
-    let source = Path::new("assets/wallpaper/doodle.svg");
+    let source = Path::new("../design/machine/wallpaper-doodle-source.svg");
     println!("cargo:rerun-if-changed={}", source.display());
-    let bytes = std::fs::read(source).expect("doodle.svg must exist");
+    let bytes = std::fs::read(source).expect("wallpaper-doodle-source.svg must exist");
     let tree = resvg::usvg::Tree::from_data(&bytes, &resvg::usvg::Options::default())
-        .expect("doodle.svg must parse");
+        .expect("wallpaper-doodle-source.svg must parse");
     let size = tree.size();
 
-    const TILE: f32 = 400.0;
+    const TILE: u32 = 800;
     for scale in [1u32, 2, 3] {
-        let width = (TILE * scale as f32).round() as u32;
-        let height = width;
-        let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height)
+        let edge = TILE * scale;
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(edge, edge)
             .expect("doodle tile dimensions must be valid");
         let transform = resvg::tiny_skia::Transform::from_scale(
-            width as f32 / size.width(),
-            height as f32 / size.height(),
+            edge as f32 / size.width(),
+            edge as f32 / size.height(),
         );
         resvg::render(&tree, transform, &mut pixmap.as_mut());
         pixmap

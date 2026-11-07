@@ -16,10 +16,12 @@ cargo run -p whatslite-desktop
 Use-case demo: hover the conversation title, open the chevron menu and choose
 `Use case demo` — or run with `WHATSLITE_OVERLAY=demo`.
 
-The doodle wallpaper is an original seamless SVG tile. `build.rs` rasterises it
-at 1x/2x/3x; the runtime repeats the matching texture at a 400pt logical step,
-so 1440 and 1920 stay sharp at 3x. The source is
-`assets/wallpaper/doodle.svg`.
+The doodle wallpaper source is the editable seamless SVG at
+`../design/machine/wallpaper-doodle-source.svg`. `build.rs` rasterises it to
+1x/2x/3x (800/1600/2400) alpha masks; `src/wallpaper.rs` tints the alpha with
+`theme::wallpaper_style` and repeats it at an **800pt** logical step. Light ink
+is `#C9B9A3` at 60%, dark ink is `#D8CCBC` at 20%; larger windows add more
+tiles, the tile itself is never stretched.
 
 On Linux, GPUI runs natively on Wayland. To use the X11 backend for screenshot
 capture:
@@ -62,6 +64,7 @@ palette. Dark mode is a value swap, not a second UI.
 
 - Group identity: top-aligned sender avatars, clickable sender names and member
   rows → contact profile, hover chevron → header dropdown beside the title
+- List states: skeleton rows, specific empty copy, failed state with red alert + Retry; conversation bubble skeleton/error
 - Use-case demo sheet: every key flow reachable; add/delete/edit stay local
 - WhatsApp-style hand-drawn doodle wallpaper (tiled, dark-mode aware)
 - Windows and macOS shell variants
@@ -123,6 +126,7 @@ These are only for local screenshots and state review:
 ```bash
 WHATSLITE_ROUTE=calls|updates|communities|media|ai|contacts|settings|archived|starred|locked|broadcast|onboarding
 WHATSLITE_CHAT=0..6
+WHATSLITE_HEADER_HOVER=1
 WHATSLITE_INFO=contact|group|community
 WHATSLITE_MEDIA_SELECT=1
 WHATSLITE_THEME=dark

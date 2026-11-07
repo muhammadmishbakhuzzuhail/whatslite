@@ -664,6 +664,7 @@ impl App {
         } else {
             ShellStyle::Windows
         };
+        crate::wallpaper::prewarm(window.scale_factor(), theme == ThemeMode::Dark);
         let selected_chat = std::env::var("WHATSLITE_CHAT")
             .ok()
             .and_then(|value| value.parse::<usize>().ok())
@@ -929,7 +930,7 @@ impl App {
             },
             selected_contact,
             selected_community,
-            header_hovered: false,
+            header_hovered: std::env::var("WHATSLITE_HEADER_HOVER").as_deref() == Ok("1"),
             compact: false,
             reply_to: None,
             editing: None,
@@ -2633,9 +2634,9 @@ impl App {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(ui::empty_state_compact(
-                    empty_title,
-                    empty_body,
+                .child(ui::error_state_compact(
+                    "Could not load this list",
+                    "Check your connection and try again.",
                     Some(self.clickable(
                         cx,
                         ui::primary_button("retry-list", "Retry", p),
@@ -2673,7 +2674,7 @@ impl App {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(ui::empty_state_compact(
+                .child(ui::error_state_compact(
                     "Could not load chats",
                     "Check your connection and try again.",
                     Some(self.clickable(
@@ -2996,45 +2997,81 @@ impl App {
             .relative()
             .overflow_hidden()
             .bg(p.bg_conversation)
-            .child(ui::wallpaper(self.theme == ThemeMode::Dark))
-            .child(
-                div()
-                    .id("conversation-scroll")
-                    .size_full()
-                    .overflow_y_scroll()
-                    .track_scroll(&self.conversation_scroll)
-                    .flex()
-                    .flex_col()
-                    .justify_end()
-                    .px(px(16.))
-                    .py(px(12.))
-                    .children(message_views),
-            );
+            .child(ui::wallpaper(self.theme == ThemeMode::Dark));
 
-        stage = stage.child(
-            self.clickable(
-                cx,
-                div()
-                    .id("scroll-bottom")
-                    .absolute()
-                    .bottom(px(12.))
-                    .right(px(16.))
-                    .size(px(34.))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_full()
-                    .bg(p.bg_list)
-                    .border_1()
-                    .border_color(p.border)
-                    .shadow_sm()
-                    .child(ui::icon(IconName::ChevronDown, 18.0, p.text_secondary)),
-                Action::ScrollToBottom,
-            ),
-        );
+        match self.list_state {
+            ListState::Loading => {
+                stage = stage.child(ui::skeleton_conversation(p));
+            }
+            ListState::Failed => {
+                stage = stage.child(
+                    div()
+                        .size_full()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .rounded(px(RADIUS_LG))
+                                .bg(p.bg_list)
+                                .border_1()
+                                .border_color(p.border)
+                                .shadow_sm()
+                                .child(ui::error_state_compact(
+                                    "Could not load messages",
+                                    "Check your connection and try again.",
+                                    Some(self.clickable(
+                                        cx,
+                                        ui::primary_button("retry-conversation", "Retry", p),
+                                        Action::SetListState(ListState::Ready),
+                                    )),
+                                    p,
+                                )),
+                        ),
+                );
+            }
+            ListState::Ready => {
+                stage = stage.child(
+                    div()
+                        .id("conversation-scroll")
+                        .size_full()
+                        .overflow_y_scroll()
+                        .track_scroll(&self.conversation_scroll)
+                        .flex()
+                        .flex_col()
+                        .justify_end()
+                        .px(px(16.))
+                        .py(px(12.))
+                        .children(message_views),
+                );
+                stage = stage.child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("scroll-bottom")
+                            .absolute()
+                            .bottom(px(12.))
+                            .right(px(16.))
+                            .size(px(34.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .bg(p.bg_list)
+                            .border_1()
+                            .border_color(p.border)
+                            .shadow_sm()
+                            .child(ui::icon(IconName::ChevronDown, 18.0, p.text_secondary)),
+                        Action::ScrollToBottom,
+                    ),
+                );
+            }
+        }
 
 
-        let search_filters = if self.searching {
+        let ready = self.list_state == ListState::Ready;
+        let composer = ready.then(|| self.render_composer(cx, p));
+        let search_filters = if ready && self.searching {
             Some(
                 div()
                     .h(px(36.))
@@ -3121,11 +3158,11 @@ impl App {
             .bg(p.bg_conversation)
             .child(header)
             .when_some(search_filters, |el, filters| el.child(filters))
-            .when(!self.pinned.is_empty(), |el| el.child(self.render_pinned_bar(cx, p)))
+            .when(ready && !self.pinned.is_empty(), |el| el.child(self.render_pinned_bar(cx, p)))
             .child(stage)
             .when_some(network_banner, |el, banner| el.child(banner))
-            .when(self.message_select_mode, |el| el.child(self.render_selection_bar(cx, p)))
-            .child(self.render_composer(cx, p))
+            .when(ready && self.message_select_mode, |el| el.child(self.render_selection_bar(cx, p)))
+            .when_some(composer, |el, composer| el.child(composer))
     }
 
     fn render_conversation_header(
@@ -5262,7 +5299,13 @@ impl App {
                     .child("Your calls are end-to-end encrypted"),
             )
             .when_some(banner, |el, banner| el.child(banner))
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No calls yet",
+                "Start a voice or video call from any chat.",
+            ))
     }
 
     fn render_calls_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -5951,7 +5994,13 @@ impl App {
                     .child("Communities let admins reach everyone, while members talk in smaller groups."),
             )
             .child(ui::section_label("YOUR COMMUNITIES", p))
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No communities yet",
+                "Create a community to bring related groups together.",
+            ))
     }
 
     fn render_communities_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -6284,7 +6333,13 @@ impl App {
                             .child("Chats"),
                     ),
             )
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No media chats yet",
+                "Photos, videos and documents from your chats appear here.",
+            ))
     }
 
     fn render_media_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -6397,10 +6452,14 @@ impl App {
                                 div()
                                     .text_size(px(TEXT_SMALL))
                                     .text_color(p.text_secondary)
-                                    .child(match self.media_tab {
-                                        MediaTab::Media => "128 photos and videos across 6 chats",
-                                        MediaTab::Links => "Links shared in the chat, newest first",
-                                        MediaTab::Docs => "Documents shared in the chat, newest first",
+                                    .child(match self.list_state {
+                                        ListState::Loading => "Loading media…".to_owned(),
+                                        ListState::Failed => "Could not load media".to_owned(),
+                                        ListState::Ready => match self.media_tab {
+                                            MediaTab::Media => "128 photos and videos across 6 chats".to_owned(),
+                                            MediaTab::Links => "Links shared in the chat, newest first".to_owned(),
+                                            MediaTab::Docs => "Documents shared in the chat, newest first".to_owned(),
+                                        },
                                     }),
                             ),
                     )
@@ -6514,7 +6573,7 @@ impl App {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .child(ui::empty_state_compact(
+                    .child(ui::error_state_compact(
                         "Could not load media",
                         "Check your connection and try again.",
                         Some(self.clickable(
@@ -6649,7 +6708,13 @@ impl App {
                     .text_color(p.text_secondary)
                     .child("Answers use only the chat you have open. Nothing is sent anywhere else."),
             )
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No AI drafts yet",
+                "Open a chat and ask AI to draft a reply.",
+            ))
     }
 
     fn render_ai_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -6966,7 +7031,13 @@ impl App {
             .border_color(p.divider)
             .child(section_header(cx, p, "Contacts", Some(IconName::Plus), Action::Toast("Add contact sheet opened · local mock".into())))
             .child(ui::section_label("ALL CONTACTS", p))
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No contacts yet",
+                "Add a contact to start a conversation.",
+            ))
     }
 
     fn render_contacts_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -7175,7 +7246,13 @@ impl App {
                     .text_color(p.text_secondary)
                     .child("Archived chats stay here and stay muted. New messages keep them archived unless you switch that off."),
             )
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No archived chats",
+                "Archived chats stay here, out of the way.",
+            ))
             .child(
                 div().p(px(16.)).child(self.clickable(
                     cx,
@@ -7263,7 +7340,13 @@ impl App {
                     .text_color(p.text_secondary)
                     .child("Messages you star stay on this device and stay searchable when the original chat is archived."),
             )
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No starred messages",
+                "Star a message to keep it close.",
+            ))
     }
 
     fn render_locked_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -7277,7 +7360,7 @@ impl App {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(ui::empty_state_compact(
+                .child(ui::error_state_compact(
                     "Could not load locked chats",
                     "Check your connection and try again.",
                     Some(self.clickable(
@@ -7432,7 +7515,13 @@ impl App {
                         Action::NewBroadcast,
                     )),
             )
-            .child(self.list_body(cx, p, rows, "Nothing here yet", "Try again or create the first one."))
+            .child(self.list_body(
+                cx,
+                p,
+                rows,
+                "No broadcast lists",
+                "Create a list to message many contacts at once.",
+            ))
     }
 
     fn render_broadcast_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
@@ -8327,8 +8416,8 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("2 devices are using this account. Logging out removes the device's access to WhatsLite."),
                 )
-                .child(ui::settings_row("WhatsLite for Windows", "This device · Active now", None, p))
-                .child(ui::settings_row("iPhone 15", "Last active 2 minutes ago", None, p))
+                .child(ui::settings_row_field("WhatsLite for Windows", "This device · Active now", None, p))
+                .child(ui::settings_row_field("iPhone 15", "Last active 2 minutes ago", None, p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8354,8 +8443,8 @@ impl App {
             SettingsSubpage::ChangeNumber => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("Current number", "Used for sign-in and pairing", Some("+62 812 3456 7890".into()), p))
-                .child(ui::settings_row("New number", "We will send a 6-digit code", Some("Not set".into()), p))
+                .child(ui::settings_row_field("Current number", "Used for sign-in and pairing", Some("+62 812 3456 7890".into()), p))
+                .child(ui::settings_row_field("New number", "We will send a 6-digit code", Some("Not set".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8366,7 +8455,7 @@ impl App {
             SettingsSubpage::RecoveryEmail => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("Recovery email", "Optional address for account recovery", Some("Not set".into()), p))
+                .child(ui::settings_row_field("Recovery email", "Optional address for account recovery", Some("Not set".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8662,9 +8751,9 @@ impl App {
             SettingsSubpage::BlockedContacts => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("Promo Grosir", "Blocked", None, p))
-                .child(ui::settings_row("Unknown +62 811 0000 111", "Blocked", None, p))
-                .child(ui::settings_row("Unknown +62 812 9999 0000", "Blocked", None, p))
+                .child(ui::settings_row_field("Promo Grosir", "Blocked", None, p))
+                .child(ui::settings_row_field("Unknown +62 811 0000 111", "Blocked", None, p))
+                .child(ui::settings_row_field("Unknown +62 812 9999 0000", "Blocked", None, p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8710,7 +8799,7 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Choose a six-digit PIN. You will enter it when registering WhatsLite on a new device."),
                 )
-                .child(ui::settings_row("PIN", "6-digit PIN + recovery email", Some("Not set".into()), p))
+                .child(ui::settings_row_field("PIN", "6-digit PIN + recovery email", Some("Not set".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8762,7 +8851,7 @@ impl App {
                 ))
                 .child(ui::settings_row("How do I link a device?", "Pairing, QR codes and phone numbers", None, p))
                 .child(ui::settings_row("How do I restore a backup?", "Local backups and media", None, p))
-                .child(ui::settings_row("How do I change my theme?", "Appearance and dark mode", None, p))
+                .child(ui::settings_row_field("How do I change my theme?", "Appearance and dark mode", None, p))
                 .child(
                     div().p(px(20.)).text_size(px(TEXT_SMALL)).text_color(p.text_secondary)
                         .child("These answers are local placeholders in this build."),
@@ -8794,7 +8883,7 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Attach a screenshot from the last session and describe what went wrong."),
                 )
-                .child(ui::settings_row("Screenshot", "Optional attachment", Some("Not attached".into()), p))
+                .child(ui::settings_row_field("Screenshot", "Optional attachment", Some("Not attached".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8812,7 +8901,7 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("iPhone 15 will lose access to WhatsLite. You can link it again at any time."),
                 )
-                .child(ui::settings_row("iPhone 15", "Last active 2 minutes ago", None, p))
+                .child(ui::settings_row_field("iPhone 15", "Last active 2 minutes ago", None, p))
                 .child(
                     div()
                         .flex()
@@ -8874,8 +8963,8 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("We sent a 6-digit code to your recovery email. Enter it to finish setting up recovery."),
                 )
-                .child(ui::settings_row("Email", "Recovery address", Some("Not set".into()), p))
-                .child(ui::settings_row("Code", "6-digit code", Some("••••••".into()), p))
+                .child(ui::settings_row_field("Email", "Recovery address", Some("Not set".into()), p))
+                .child(ui::settings_row_field("Code", "6-digit code", Some("••••••".into()), p))
                 .child(self.clickable(
                     cx,
                     ui::primary_button("verify-email", "Verify email", p),
@@ -8913,10 +9002,10 @@ impl App {
             SettingsSubpage::QuietHours => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("From", "Quiet hours start", Some("22:00".into()), p))
-                .child(ui::settings_row("To", "Quiet hours end", Some("07:00".into()), p))
-                .child(ui::settings_row("Days", "Applies every day", Some("Every day".into()), p))
-                .child(ui::settings_row("Allow calls", "Calls can still ring during quiet hours", Some("Off".into()), p))
+                .child(ui::settings_row_field("From", "Quiet hours start", Some("22:00".into()), p))
+                .child(ui::settings_row_field("To", "Quiet hours end", Some("07:00".into()), p))
+                .child(ui::settings_row_field("Days", "Applies every day", Some("Every day".into()), p))
+                .child(ui::settings_row_field("Allow calls", "Calls can still ring during quiet hours", Some("Off".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8934,9 +9023,9 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Blocked people cannot call you or send messages. They are never told."),
                 )
-                .child(ui::settings_row("Promo Grosir", "Blocked", None, p))
-                .child(ui::settings_row("Unknown +62 811 0000 111", "Blocked", None, p))
-                .child(ui::settings_row("Unknown +62 812 9999 0000", "Blocked", None, p))
+                .child(ui::settings_row_field("Promo Grosir", "Blocked", None, p))
+                .child(ui::settings_row_field("Unknown +62 811 0000 111", "Blocked", None, p))
+                .child(ui::settings_row_field("Unknown +62 812 9999 0000", "Blocked", None, p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8947,10 +9036,10 @@ impl App {
             SettingsSubpage::StoragePerChat => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("Tim Produk", "612 MB", None, p))
-                .child(ui::settings_row("Maya", "295 MB", None, p))
-                .child(ui::settings_row("Jakarta Crew", "488 MB", None, p))
-                .child(ui::settings_row("Dewi Lestari", "142 MB", None, p))
+                .child(ui::settings_row_field("Tim Produk", "612 MB", None, p))
+                .child(ui::settings_row_field("Maya", "295 MB", None, p))
+                .child(ui::settings_row_field("Jakarta Crew", "488 MB", None, p))
+                .child(ui::settings_row_field("Dewi Lestari", "142 MB", None, p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -8977,9 +9066,9 @@ impl App {
             SettingsSubpage::Proxy => div()
                 .flex()
                 .flex_col()
-                .child(ui::settings_row("Use proxy", "Connect through a proxy server", Some("Off".into()), p))
-                .child(ui::settings_row("Host", "Proxy hostname", Some("Not set".into()), p))
-                .child(ui::settings_row("Port", "Proxy port", Some("Not set".into()), p))
+                .child(ui::settings_row_field("Use proxy", "Connect through a proxy server", Some("Off".into()), p))
+                .child(ui::settings_row_field("Host", "Proxy hostname", Some("Not set".into()), p))
+                .child(ui::settings_row_field("Port", "Proxy port", Some("Not set".into()), p))
                 .child(
                     div().p(px(20.)).child(self.clickable(
                         cx,
@@ -9475,11 +9564,11 @@ impl App {
                             .child(Badge::new().count(8)),
                     )
                     .child(ui::section_label("HANDOFF", p))
-                    .child(ui::settings_row("State matrix", "175 rows across 31 pages · pages 31–37 are tables", Some("175".into()), p))
-                    .child(ui::settings_row("List rule", "Every list ships empty, loading, failed and ready", Some("5 rows".into()), p))
-                    .child(ui::settings_row("Focus ring", "2px accent, 2px offset, keyboard only", Some("D5.5".into()), p))
-                    .child(ui::settings_row("Text scaling", "125% and 150% without clipping", Some("D5.12".into()), p))
-                    .child(ui::settings_row("RTL", "Mirror layout, keep numbers LTR inside RTL text", Some("D5.1".into()), p))
+                    .child(ui::settings_row_field("State matrix", "175 rows across 31 pages · pages 31–37 are tables", Some("175".into()), p))
+                    .child(ui::settings_row_field("List rule", "Every list ships empty, loading, failed and ready", Some("5 rows".into()), p))
+                    .child(ui::settings_row_field("Focus ring", "2px accent, 2px offset, keyboard only", Some("D5.5".into()), p))
+                    .child(ui::settings_row_field("Text scaling", "125% and 150% without clipping", Some("D5.12".into()), p))
+                    .child(ui::settings_row_field("RTL", "Mirror layout, keep numbers LTR inside RTL text", Some("D5.1".into()), p))
                     .child(ui::section_label("AUDIT", p))
                     .child(
                         div()
@@ -10469,8 +10558,8 @@ impl App {
                                     ),
                                     Action::OpenStatusPrivacy,
                                 ))
-                                .child(ui::settings_row("Expires", "How long the status stays", Some("24 hours".into()), p))
-                                .child(ui::settings_row("Also share to", "Extra destinations", Some("My status".into()), p))
+                                .child(ui::settings_row_field("Expires", "How long the status stays", Some("24 hours".into()), p))
+                                .child(ui::settings_row_field("Also share to", "Extra destinations", Some("My status".into()), p))
                                 .child(
                                     div()
                                         .p(px(10.))
@@ -10551,7 +10640,7 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("4 members · 2 admins. Search, promote, demote or remove people."),
                 )
-                .child(ui::settings_row("Search", "Name or phone number", Some("Search members".into()), p))
+                .child(ui::settings_row_field("Search", "Name or phone number", Some("Search members".into()), p))
                 .children(members.into_iter().map(|(name, role)| {
                     div()
                         .flex()
@@ -10967,9 +11056,9 @@ impl App {
                         .text_color(p.text_primary)
                         .child("Community members"),
                 )
-                .child(ui::settings_row("Search", "Name or phone number", Some("Search members".into()), p))
+                .child(ui::settings_row_field("Search", "Name or phone number", Some("Search members".into()), p))
                 .children(members.into_iter().map(|(name, role)| {
-                    ui::settings_row(name, role, Some(if role == "Admin" { "Admin".into() } else { String::new() }), p)
+                    ui::settings_row_field(name, role, Some(if role == "Admin" { "Admin".into() } else { String::new() }), p)
                 }))
                 .child(
                     div()
@@ -11702,9 +11791,9 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Ask one question with 2–12 options. Choose single or multiple answers."),
                 )
-                .child(ui::settings_row("Question", "What do you want to ask?", Some("Warna mana yang paling cocok?".into()), p))
+                .child(ui::settings_row_field("Question", "What do you want to ask?", Some("Warna mana yang paling cocok?".into()), p))
                 .children(options.into_iter().enumerate().map(|(index, option)| {
-                    ui::settings_row(format!("Option {}", index + 1), "Poll option", Some(option.into()), p)
+                    ui::settings_row_field(format!("Option {}", index + 1), "Poll option", Some(option.into()), p)
                 }))
                 .child(
                     div()
@@ -11752,10 +11841,10 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Add a title, date, time and place. Guests can accept or decline."),
                 )
-                .child(ui::settings_row("Title", "Event name", Some("Review koleksi September".into()), p))
-                .child(ui::settings_row("Date", "Calendar date", Some("Fri, 26 Sep".into()), p))
-                .child(ui::settings_row("Time", "Start time", Some("15:00".into()), p))
-                .child(ui::settings_row("Location", "Where it happens", Some("Studio Kemang".into()), p))
+                .child(ui::settings_row_field("Title", "Event name", Some("Review koleksi September".into()), p))
+                .child(ui::settings_row_field("Date", "Calendar date", Some("Fri, 26 Sep".into()), p))
+                .child(ui::settings_row_field("Time", "Start time", Some("15:00".into()), p))
+                .child(ui::settings_row_field("Location", "Where it happens", Some("Studio Kemang".into()), p))
                 .child(
                     div()
                         .flex()
@@ -13115,8 +13204,8 @@ impl App {
                             .text_color(p.text_secondary)
                             .child("Recipients get a normal message; replies land in normal chats."),
                     )
-                    .child(ui::settings_row("List name", "Up to 25 characters", Some("Resellers".into()), p))
-                    .child(ui::settings_row(
+                    .child(ui::settings_row_field("List name", "Up to 25 characters", Some("Resellers".into()), p))
+                    .child(ui::settings_row_field(
                         "Recipients",
                         "Selected in the previous step",
                         Some(format!("{} recipients", self.broadcast_recipients.len())),
@@ -13223,9 +13312,9 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("A community is a container: one announcement group plus any number of sub-groups."),
                 )
-                .child(ui::settings_row("Community name", "Shown to members", Some("Kain Nusantara".into()), p))
-                .child(ui::settings_row("Description", "What is this community about?", Some("Textiles and studios".into()), p))
-                .child(ui::settings_row("Announcement group", "Created automatically, admin-only", Some("Announcements".into()), p))
+                .child(ui::settings_row_field("Community name", "Shown to members", Some("Kain Nusantara".into()), p))
+                .child(ui::settings_row_field("Description", "What is this community about?", Some("Textiles and studios".into()), p))
+                .child(ui::settings_row_field("Announcement group", "Created automatically, admin-only", Some("Announcements".into()), p))
                 .child(
                     div()
                         .flex()
@@ -13273,10 +13362,10 @@ impl App {
                                 .child("Edit contact"),
                         ),
                 )
-                .child(ui::settings_row("Name", "Shown to your contacts", Some(contact.name.clone()), p))
-                .child(ui::settings_row("Phone", "Used for calls and messages", Some(contact.phone.clone()), p))
-                .child(ui::settings_row("Label", "Optional label", Some("Studio".into()), p))
-                .child(ui::settings_row("Favourite", "Keep this contact close", Some(if contact.favorite { "On" } else { "Off" }.into()), p))
+                .child(ui::settings_row_field("Name", "Shown to your contacts", Some(contact.name.clone()), p))
+                .child(ui::settings_row_field("Phone", "Used for calls and messages", Some(contact.phone.clone()), p))
+                .child(ui::settings_row_field("Label", "Optional label", Some("Studio".into()), p))
+                .child(ui::settings_row_field("Favourite", "Keep this contact close", Some(if contact.favorite { "On" } else { "Off" }.into()), p))
                 .child(
                     div()
                         .flex()

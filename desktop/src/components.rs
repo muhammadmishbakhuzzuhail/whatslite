@@ -340,6 +340,101 @@ pub fn empty_state_compact(
         .when_some(action, |el, action| el.child(action))
 }
 
+pub fn error_state_compact(
+    title: impl Into<String>,
+    body: impl Into<String>,
+    action: Option<Stateful<Div>>,
+    p: Palette,
+) -> Div {
+    let title = title.into();
+    let body = body.into();
+    div()
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap(px(8.))
+        .p(px(16.))
+        .child(
+            div()
+                .size(px(64.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_full()
+                .bg(p.attach_red)
+                .child(icon(IconName::CircleAlert, 26.0, p.text_inverse)),
+        )
+        .child(
+            div()
+                .text_size(px(16.))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(p.text_primary)
+                .text_center()
+                .child(title),
+        )
+        .child(
+            div()
+                .w(px(240.))
+                .text_center()
+                .text_size(px(TEXT_SMALL))
+                .text_color(p.text_secondary)
+                .child(body),
+        )
+        .when_some(action, |el, action| el.child(action))
+}
+
+pub fn skeleton_bubble(p: Palette, width: f32, outgoing: bool) -> Div {
+    div()
+        .w_full()
+        .flex()
+        .items_end()
+        .gap(px(6.))
+        .when(outgoing, |el| el.justify_end())
+        .when(!outgoing, |el| {
+            el.child(div().size(px(28.)).flex_shrink_0().rounded_full().bg(p.bg_search))
+        })
+        .child(
+            div()
+                .w(px(width))
+                .h(px(56.))
+                .rounded(px(14.))
+                .bg(p.bg_search)
+                .p(px(10.))
+                .flex()
+                .flex_col()
+                .gap(px(6.))
+                .child(div().h(px(7.)).w(px(width * 0.62)).rounded(px(3.5)).bg(p.bg_list))
+                .child(div().h(px(7.)).w(px(width * 0.38)).rounded(px(3.5)).bg(p.bg_list)),
+        )
+}
+
+pub fn skeleton_conversation(p: Palette) -> Div {
+    div()
+        .size_full()
+        .flex()
+        .flex_col()
+        .justify_end()
+        .gap(px(10.))
+        .px(px(16.))
+        .py(px(12.))
+        .child(
+            div().w_full().flex().justify_center().child(
+                div()
+                    .h(px(22.))
+                    .w(px(72.))
+                    .rounded_full()
+                    .bg(p.bg_search),
+            ),
+        )
+        .child(skeleton_bubble(p, 280., false))
+        .child(skeleton_bubble(p, 340., false))
+        .child(skeleton_bubble(p, 240., true))
+        .child(skeleton_bubble(p, 310., false))
+        .child(skeleton_bubble(p, 190., true))
+        .child(skeleton_bubble(p, 250., false))
+}
+
 pub fn skeleton_row(p: Palette) -> Div {
     div()
         .h(px(80.))
@@ -370,6 +465,27 @@ pub fn settings_row(
     description: impl Into<String>,
     value: Option<String>,
     p: Palette,
+) -> Stateful<Div> {
+    settings_row_impl(title, description, value, p, true)
+}
+
+/// A read-only settings row: same layout as [`settings_row`], but without the
+/// chevron affordance because the value is not an action.
+pub fn settings_row_field(
+    title: impl Into<String>,
+    description: impl Into<String>,
+    value: Option<String>,
+    p: Palette,
+) -> Stateful<Div> {
+    settings_row_impl(title, description, value, p, false)
+}
+
+fn settings_row_impl(
+    title: impl Into<String>,
+    description: impl Into<String>,
+    value: Option<String>,
+    p: Palette,
+    chevron: bool,
 ) -> Stateful<Div> {
     let title = title.into();
     let description = description.into();
@@ -415,7 +531,7 @@ pub fn settings_row(
                             .child(value),
                     )
                 })
-                .child(icon(IconName::ChevronRight, 16.0, p.text_secondary)),
+                .when(chevron, |el| el.child(icon(IconName::ChevronRight, 16.0, p.text_secondary))),
         )
 }
 

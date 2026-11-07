@@ -21,7 +21,7 @@ qa/                     native app screenshots + reproduction flags
 
 Verify: `machine/tokens.json` has 28 tokens, `machine/screens.json` has 38 pages, `machine/components.json` has 54 masters.
 
-The `.pen` references `./wallpaper-doodle-400.png` for the tiled wallpaper. Keep that PNG next to the `.pen` file; `machine/wallpaper-doodle.png` is the handoff copy. The vector source is `desktop/assets/wallpaper/doodle.svg`. The canvas uses an 800pt 2×2 proof; the app repeats the 400pt pattern.
+The app's wallpaper source is `machine/wallpaper-doodle-source.svg`, an editable 1024 x 1024 seamless tile. `desktop/build.rs` rasterises it with resvg to 800/1600/2400 alpha masks; the runtime tints the mask with the theme and repeats it at an 800pt logical step (light 60%, dark 20%). `machine/wallpaper-doodle.png` is a generated handoff proof, not the build source. Page 38 shows the seamless light/dark crops; the conversation stage repeats the same tile only when the viewport is larger than 800pt.
 
 Licences: Lucide (ISC) · Material Symbols Rounded (Apache 2.0) · Inter (OFL 1.1).
 WhatsLite is an independent project. Not affiliated with WhatsApp or Meta.

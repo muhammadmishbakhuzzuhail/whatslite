@@ -1,0 +1,13 @@
+[package]
+name = "doodle-preview"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+gpui-kit = "=0.8.1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+[build-dependencies]
+resvg = "0.46"

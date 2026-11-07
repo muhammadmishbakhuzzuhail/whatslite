@@ -20,6 +20,7 @@ members = [
     "crates/whatslite-mock-backend",
     "crates/whatslite-services",
     "crates/whatslite-wa-adapter",
+    "crates/doodle-preview",
     "desktop",
     "http_clients/ureq-client",
     "storages/sqlite-storage",

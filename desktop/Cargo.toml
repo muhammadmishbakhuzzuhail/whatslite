@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 gpui-kit = "=0.8.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
 serde_json = { workspace = true, features = ["std"] }
 smol = "2"
 whatslite-mock-backend = { path = "../crates/whatslite-mock-backend" }

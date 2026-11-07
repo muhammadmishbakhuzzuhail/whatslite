@@ -84,6 +84,22 @@ fn color(mode: ThemeMode, name: &str) -> Rgba {
     rgb(value)
 }
 
+/// Theme values for the doodle wallpaper. The tile is a monochrome alpha
+/// mask at build time; these are the only values that decide its colour and
+/// strength, so a future wallpaper theme only needs to change this function.
+#[derive(Clone, Copy, Debug)]
+pub struct WallpaperStyle {
+    pub line: Rgba,
+    pub opacity: f32,
+}
+
+pub fn wallpaper_style(dark: bool) -> WallpaperStyle {
+    WallpaperStyle {
+        line: if dark { rgb(0xD8CCBC) } else { rgb(0xC9B9A3) },
+        opacity: if dark { 0.20 } else { 0.60 },
+    }
+}
+
 pub fn palette(mode: ThemeMode) -> Palette {
     Palette {
         bg_sidebar: color(mode, "bg_sidebar"),

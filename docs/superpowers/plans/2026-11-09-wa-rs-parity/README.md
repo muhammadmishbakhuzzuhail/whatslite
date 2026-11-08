@@ -51,19 +51,23 @@ These are the failure modes most likely to bite a user even when the module test
 
 ## Prerequisites
 
-- [ ] Install the Rust components:
+- [ ] Install the Rust components. If `rustup` is absent, install it user-local (no sudo) first:
 
 ```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/opencode/rustup-init.sh
+sh /tmp/opencode/rustup-init.sh -y --profile minimal --default-toolchain 1.99.1
+source "$HOME/.cargo/env"
 rustup component add rustfmt clippy
 cargo fmt --version
 cargo clippy --version
 ```
 
-- [ ] Provide the SQLite linker used by the workspace tests until Task 5.3 switches the default to bundled SQLite:
+- [ ] Provide the SQLite linker and runtime path. `LIBRARY_PATH` is required for `-lsqlite3`; `LD_LIBRARY_PATH` alone fails at link time:
 
 ```bash
 mkdir -p /tmp/opencode/sqlite
 ln -sf /lib64/libsqlite3.so.0 /tmp/opencode/sqlite/libsqlite3.so
+export LIBRARY_PATH="/tmp/opencode/sqlite:${LIBRARY_PATH:-}"
 export LD_LIBRARY_PATH="/tmp/opencode/sqlite:${LD_LIBRARY_PATH:-}"
 ```
 
@@ -293,7 +297,7 @@ cargo test --workspace -- --list | wc -l
 cargo test -p whatslite-desktop -- --list | wc -l
 ```
 
-Current baseline from the last green run: 780 passed, 27 ignored in the workspace; 21 desktop tests. The target is the baseline plus every ported upstream runtime test. The final count is recorded in the parity report.
+Verified 2026-11-09: 780 passed, 0 failed, 27 ignored in the workspace; 21 desktop tests. The target is the baseline plus every ported upstream runtime test. The final count is recorded in the parity report.
 
 ### Test commands
 

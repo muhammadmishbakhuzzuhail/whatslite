@@ -28,11 +28,11 @@ use tokio::sync::RwLock;
 use wa_rs::bot::{Bot, MessageContext};
 use wa_rs::client::Client;
 use wa_rs::pair_code::PairCodeOptions;
-use wa_rs_core::proto_helpers::MessageExt;
-use wa_rs_core::types::events::Event;
-use wa_rs_proto::whatsapp as wa;
 use wa_rs_tokio_transport::TokioWebSocketTransportFactory;
 use wa_rs_ureq_http::UreqHttpClient;
+use wacore::proto_helpers::MessageExt;
+use wacore::types::events::Event;
+use waproto::whatsapp as wa;
 
 use wa_rs::store::SqliteStore;
 

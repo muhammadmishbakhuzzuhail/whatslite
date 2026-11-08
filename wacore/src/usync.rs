@@ -4,7 +4,7 @@
 //! (`DeviceListSpec`); the free functions that used to live here were
 //! near-duplicates of it with no callers and have been removed.
 
-use wa_rs_binary::jid::Jid;
+use wacore_binary::jid::Jid;
 
 /// A LID mapping learned from usync response
 #[derive(Debug, Clone)]

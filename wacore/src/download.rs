@@ -6,9 +6,9 @@ use hkdf::Hkdf;
 use hmac::Hmac;
 use hmac::Mac;
 use sha2::{Digest as _, Sha256};
-use wa_rs_proto::whatsapp as wa;
-use wa_rs_proto::whatsapp::ExternalBlobReference;
-use wa_rs_proto::whatsapp::message::HistorySyncNotification;
+use waproto::whatsapp as wa;
+use waproto::whatsapp::ExternalBlobReference;
+use waproto::whatsapp::message::HistorySyncNotification;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaType {

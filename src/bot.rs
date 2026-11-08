@@ -14,7 +14,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task;
-use wa_rs_proto::whatsapp as wa;
+use waproto::whatsapp as wa;
 
 pub struct MessageContext {
     pub message: Box<wa::Message>,
@@ -38,9 +38,9 @@ impl MessageContext {
     ///
     /// Use this when you need manual control but want correct quoting behavior.
     pub fn build_quote_context(&self) -> wa::ContextInfo {
-        // Use the standalone function from wa_rs_core with full message info
+        // Use the standalone function from wacore with full message info
         // This handles newsletter/group status participant resolution
-        wa_rs_core::proto_helpers::build_quote_context_with_info(
+        wacore::proto_helpers::build_quote_context_with_info(
             &self.info.id,
             &self.info.source.sender,
             &self.info.source.chat,
@@ -168,8 +168,8 @@ impl Bot {
                 {
                     warn!(target: "Bot/PairCode", "Timeout waiting for socket: {}", e);
                     let pair_error = crate::types::events::PairError {
-                        id: wa_rs_binary::jid::Jid::default(),
-                        lid: wa_rs_binary::jid::Jid::default(),
+                        id: wacore_binary::jid::Jid::default(),
+                        lid: wacore_binary::jid::Jid::default(),
                         business_name: String::new(),
                         platform: String::new(),
                         error: format!("Socket timeout: {e}"),
@@ -196,8 +196,8 @@ impl Bot {
                         warn!(target: "Bot/PairCode", "Failed to request pair code: {}", e);
                         // Dispatch PairError event so the application can handle it
                         let pair_error = crate::types::events::PairError {
-                            id: wa_rs_binary::jid::Jid::default(),
-                            lid: wa_rs_binary::jid::Jid::default(),
+                            id: wacore_binary::jid::Jid::default(),
+                            lid: wacore_binary::jid::Jid::default(),
                             business_name: String::new(),
                             platform: String::new(),
                             error: format!("{e}"),
@@ -228,7 +228,7 @@ pub struct BotBuilder {
     transport_factory: Option<Arc<dyn crate::transport::TransportFactory>>,
     http_client: Option<Arc<dyn crate::http::HttpClient>>,
     override_version: Option<(u32, u32, u32)>,
-    device_props_override: Option<wa_rs_core::store::device::DevicePropsOverride>,
+    device_props_override: Option<wacore::store::device::DevicePropsOverride>,
     pair_code_options: Option<PairCodeOptions>,
     skip_history_sync: bool,
 }
@@ -380,7 +380,7 @@ impl BotBuilder {
     ///
     /// # Example
     /// ```rust,ignore
-    /// use wa_rs_proto::whatsapp::device_props::{self, PlatformType};
+    /// use waproto::whatsapp::device_props::{self, PlatformType};
     ///
     /// // Show as "Chrome" on linked devices
     /// let bot = Bot::builder()
@@ -411,7 +411,7 @@ impl BotBuilder {
         version: Option<wa::device_props::AppVersion>,
         platform_type: Option<wa::device_props::PlatformType>,
     ) -> Self {
-        let mut r#override = wa_rs_core::store::device::DevicePropsOverride::new();
+        let mut r#override = wacore::store::device::DevicePropsOverride::new();
         r#override.os = os_name;
         r#override.version = version;
         r#override.platform_type = platform_type;
@@ -420,11 +420,11 @@ impl BotBuilder {
     }
 
     /// Configure device props with full control, including the
-    /// `HistorySyncConfig` (see `wa_rs_core::store::device::DevicePropsOverride`
+    /// `HistorySyncConfig` (see `wacore::store::device::DevicePropsOverride`
     /// and `default_history_sync_config`).
     pub fn with_device_props_override(
         mut self,
-        r#override: wa_rs_core::store::device::DevicePropsOverride,
+        r#override: wacore::store::device::DevicePropsOverride,
     ) -> Self {
         self.device_props_override = Some(r#override);
         self
@@ -823,7 +823,7 @@ mod tests {
         // Version should be the default since we didn't override it
         assert_eq!(
             device.device_props.version,
-            Some(wa_rs_core::store::Device::default_device_props_version())
+            Some(wacore::store::Device::default_device_props_version())
         );
     }
 
@@ -858,7 +858,7 @@ mod tests {
         // OS should be the default since we didn't override it
         assert_eq!(
             device.device_props.os,
-            Some(wa_rs_core::store::Device::default_os().to_string())
+            Some(wacore::store::Device::default_os().to_string())
         );
     }
 
@@ -889,11 +889,11 @@ mod tests {
         // OS and version should remain default
         assert_eq!(
             device.device_props.os,
-            Some(wa_rs_core::store::Device::default_os().to_string())
+            Some(wacore::store::Device::default_os().to_string())
         );
         assert_eq!(
             device.device_props.version,
-            Some(wa_rs_core::store::Device::default_device_props_version())
+            Some(wacore::store::Device::default_device_props_version())
         );
     }
 

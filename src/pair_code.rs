@@ -51,16 +51,14 @@ use crate::types::events::Event;
 use log::{error, info, warn};
 use rand::TryRngCore;
 use std::sync::Arc;
-use wa_rs_binary::jid::{Jid, SERVER_JID};
-use wa_rs_binary::node::{Node, NodeContent};
-use wa_rs_core::libsignal::protocol::KeyPair;
-use wa_rs_core::pair_code::{
-    PairCodeError, PairCodeState, PairCodeUtils, resolve_companion_platform,
-};
+use wacore::libsignal::protocol::KeyPair;
+use wacore::pair_code::{PairCodeError, PairCodeState, PairCodeUtils, resolve_companion_platform};
+use wacore_binary::jid::{Jid, SERVER_JID};
+use wacore_binary::node::{Node, NodeContent};
 
 // Re-export types for user convenience
-pub use wa_rs_core::companion_reg::CompanionWebClientType;
-pub use wa_rs_core::pair_code::PairCodeOptions;
+pub use wacore::companion_reg::CompanionWebClientType;
+pub use wacore::pair_code::PairCodeOptions;
 
 impl Client {
     /// Initiates pair code authentication as an alternative to QR code pairing.

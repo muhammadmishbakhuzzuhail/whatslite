@@ -3,15 +3,15 @@ use crate::mediaconn::MediaConn;
 use anyhow::{Result, anyhow};
 use std::io::{Seek, SeekFrom, Write};
 
-pub use wa_rs_core::download::{DownloadUtils, Downloadable, MediaDecryption, MediaType};
+pub use wacore::download::{DownloadUtils, Downloadable, MediaDecryption, MediaType};
 
-impl From<&MediaConn> for wa_rs_core::download::MediaConnection {
+impl From<&MediaConn> for wacore::download::MediaConnection {
     fn from(conn: &MediaConn) -> Self {
-        wa_rs_core::download::MediaConnection {
+        wacore::download::MediaConnection {
             hosts: conn
                 .hosts
                 .iter()
-                .map(|h| wa_rs_core::download::MediaHost {
+                .map(|h| wacore::download::MediaHost {
                     hostname: h.hostname.clone(),
                 })
                 .collect(),
@@ -107,15 +107,15 @@ impl Client {
     async fn prepare_requests(
         &self,
         downloadable: &dyn Downloadable,
-    ) -> Result<Vec<wa_rs_core::download::DownloadRequest>> {
+    ) -> Result<Vec<wacore::download::DownloadRequest>> {
         let media_conn = self.refresh_media_conn(false).await?;
-        let core_media_conn = wa_rs_core::download::MediaConnection::from(&media_conn);
+        let core_media_conn = wacore::download::MediaConnection::from(&media_conn);
         DownloadUtils::prepare_download_requests(downloadable, &core_media_conn)
     }
 
     async fn download_with_request(
         &self,
-        request: &wa_rs_core::download::DownloadRequest,
+        request: &wacore::download::DownloadRequest,
     ) -> Result<Vec<u8>> {
         let url = request.url.clone();
         let decryption = request.decryption.clone();
@@ -226,7 +226,7 @@ impl Client {
     /// Always returns the writer (even on failure) so the caller can retry.
     async fn streaming_download_and_decrypt<W: Write + Seek + Send + 'static>(
         &self,
-        request: &wa_rs_core::download::DownloadRequest,
+        request: &wacore::download::DownloadRequest,
         writer: W,
     ) -> Result<(W, Result<()>)> {
         let http_client = self.http_client.clone();
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn process_downloaded_media_ok() {
         let data = b"Hello media test";
-        let enc = wa_rs_core::upload::encrypt_media(data, MediaType::Image)
+        let enc = wacore::upload::encrypt_media(data, MediaType::Image)
             .expect("encryption should succeed");
         let mut cursor = Cursor::new(Vec::<u8>::new());
         let plaintext = DownloadUtils::verify_and_decrypt(
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn process_downloaded_media_bad_mac() {
         let data = b"Tamper";
-        let mut enc = wa_rs_core::upload::encrypt_media(data, MediaType::Image)
+        let mut enc = wacore::upload::encrypt_media(data, MediaType::Image)
             .expect("encryption should succeed");
         let last = enc.data_to_upload.len() - 1;
         enc.data_to_upload[last] ^= 0x01;

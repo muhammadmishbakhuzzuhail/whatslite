@@ -1,3 +1,5 @@
+extern crate self as wacore_appstate;
+
 pub mod decode;
 pub mod errors;
 pub mod hash;

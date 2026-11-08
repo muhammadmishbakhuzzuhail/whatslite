@@ -39,5 +39,5 @@ tokio-websockets = { version = "0.13.0", features = [
     "rand",
     "ring",
 ] }
-wa-rs-core = { workspace = true }
+wacore = { workspace = true }
 webpki-roots = "1.0.4"

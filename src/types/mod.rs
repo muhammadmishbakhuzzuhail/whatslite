@@ -1,5 +1,5 @@
-// Re-export from wa_rs_core for compatibility
-pub use wa_rs_core::types::*;
+// Re-export from wacore for compatibility
+pub use wacore::types::*;
 
 // Local type definitions
 pub mod enc_handler;

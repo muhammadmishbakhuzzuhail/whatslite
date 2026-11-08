@@ -26,10 +26,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use wa_rs::bot::Bot;
 use wa_rs::store::SqliteStore;
-use wa_rs_core::proto_helpers::MessageExt;
-use wa_rs_core::types::events::Event;
 use wa_rs_tokio_transport::TokioWebSocketTransportFactory;
 use wa_rs_ureq_http::UreqHttpClient;
+use wacore::proto_helpers::MessageExt;
+use wacore::types::events::Event;
 
 static QR_COUNT: AtomicU32 = AtomicU32::new(0);
 static INBOUND_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -62,7 +62,7 @@ fn print_qr(code: &str, timeout_secs: u64) {
     println!();
 }
 
-fn print_inbound(msg: &wa_rs_proto::whatsapp::Message, info: &wa_rs::types::message::MessageInfo) {
+fn print_inbound(msg: &waproto::whatsapp::Message, info: &wa_rs::types::message::MessageInfo) {
     let n = INBOUND_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
     let text = msg.text_content().unwrap_or("[non-text message]");
     println!();

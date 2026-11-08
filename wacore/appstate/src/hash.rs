@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use std::collections::HashMap;
-use wa_rs_libsignal::crypto::CryptographicMac;
-use wa_rs_proto::whatsapp as wa;
+use wacore_libsignal::crypto::CryptographicMac;
+use waproto::whatsapp as wa;
 
 use crate::{AppStateError, WAPATCH_INTEGRITY};
 

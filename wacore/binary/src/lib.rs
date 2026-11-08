@@ -1,3 +1,5 @@
+extern crate self as wacore_binary;
+
 pub mod attrs;
 pub mod builder;
 pub mod consts;

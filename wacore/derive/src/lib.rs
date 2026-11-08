@@ -1,4 +1,4 @@
-//! Derive macros for wa_rs_core protocol types.
+//! Derive macros for wacore protocol types.
 //!
 //! This crate provides derive macros for implementing the `ProtocolNode` trait
 //! on structs that represent WhatsApp protocol nodes.
@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use wa_rs_derive::{ProtocolNode, StringEnum};
+//! use wacore_derive::{ProtocolNode, StringEnum};
 //!
 //! /// A query request node.
 //! /// Wire format: `<query request="interactive"/>`
@@ -26,6 +26,8 @@
 //!     AllMemberAdd,
 //! }
 //! ```
+
+extern crate self as wacore_derive;
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -238,18 +240,18 @@ pub fn derive_protocol_node(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl ::wa_rs_core::protocol::ProtocolNode for #name {
+        impl ::wacore::protocol::ProtocolNode for #name {
             fn tag(&self) -> &'static str {
                 #tag
             }
 
-            fn into_node(self) -> ::wa_rs_binary::node::Node {
-                let mut builder = ::wa_rs_binary::builder::NodeBuilder::new(#tag);
+            fn into_node(self) -> ::wacore_binary::node::Node {
+                let mut builder = ::wacore_binary::builder::NodeBuilder::new(#tag);
                 #(#attr_setters)*
                 builder.build()
             }
 
-            fn try_from_node(node: &::wa_rs_binary::node::Node) -> ::anyhow::Result<Self> {
+            fn try_from_node(node: &::wacore_binary::node::Node) -> ::anyhow::Result<Self> {
                 if node.tag != #tag {
                     return Err(::anyhow::anyhow!("expected <{}>, got <{}>", #tag, node.tag));
                 }
@@ -302,16 +304,16 @@ pub fn derive_empty_node(input: TokenStream) -> TokenStream {
 
 fn generate_empty_impl(name: &syn::Ident, tag: &str) -> proc_macro2::TokenStream {
     quote! {
-        impl ::wa_rs_core::protocol::ProtocolNode for #name {
+        impl ::wacore::protocol::ProtocolNode for #name {
             fn tag(&self) -> &'static str {
                 #tag
             }
 
-            fn into_node(self) -> ::wa_rs_binary::node::Node {
-                ::wa_rs_binary::builder::NodeBuilder::new(#tag).build()
+            fn into_node(self) -> ::wacore_binary::node::Node {
+                ::wacore_binary::builder::NodeBuilder::new(#tag).build()
             }
 
-            fn try_from_node(node: &::wa_rs_binary::node::Node) -> ::anyhow::Result<Self> {
+            fn try_from_node(node: &::wacore_binary::node::Node) -> ::anyhow::Result<Self> {
                 if node.tag != #tag {
                     return Err(::anyhow::anyhow!("expected <{}>, got <{}>", #tag, node.tag));
                 }

@@ -1,1 +1,1 @@
-pub use wa_rs_core::net::{HttpClient, HttpRequest, HttpResponse};
+pub use wacore::net::{HttpClient, HttpRequest, HttpResponse};

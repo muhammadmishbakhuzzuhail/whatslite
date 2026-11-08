@@ -3,8 +3,8 @@ use once_cell::sync::Lazy;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-use wa_rs_binary::jid::Jid;
-use wa_rs_proto::whatsapp as wa;
+use wacore_binary::jid::Jid;
+use waproto::whatsapp as wa;
 
 pub mod key_pair_serde {
     use super::KeyPair;
@@ -212,8 +212,8 @@ pub struct CachedServerCertChain {
     pub leaf: CachedNoiseCert,
 }
 
-impl From<wa_rs_noise::VerifiedServerCertChain> for CachedServerCertChain {
-    fn from(v: wa_rs_noise::VerifiedServerCertChain) -> Self {
+impl From<wacore_noise::VerifiedServerCertChain> for CachedServerCertChain {
+    fn from(v: wacore_noise::VerifiedServerCertChain) -> Self {
         Self {
             intermediate: CachedNoiseCert {
                 key: v.intermediate_key,

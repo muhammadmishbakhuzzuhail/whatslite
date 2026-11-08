@@ -4,7 +4,7 @@ use crate::types::events::{Event, OfflineSyncCompleted, OfflineSyncPreview};
 use async_trait::async_trait;
 use log::{debug, warn};
 use std::sync::Arc;
-use wa_rs_binary::node::{Node, NodeContent};
+use wacore_binary::node::{Node, NodeContent};
 
 /// Handler for `<ib>` (information broadcast) stanzas.
 ///

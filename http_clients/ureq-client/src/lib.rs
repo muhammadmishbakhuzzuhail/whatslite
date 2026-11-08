@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::time::Duration;
-use wa_rs_core::net::{HttpClient, HttpRequest, HttpResponse, StreamingHttpResponse};
+use wacore::net::{HttpClient, HttpRequest, HttpResponse, StreamingHttpResponse};
 
 /// Connection establishment timeout (DNS + TCP + TLS handshake).
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);

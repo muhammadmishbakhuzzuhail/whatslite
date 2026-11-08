@@ -3,7 +3,7 @@
 //! when the `test-util` feature is enabled.
 
 use prost::Message;
-use wa_rs_proto::whatsapp::{self as wa, cert_chain::noise_certificate};
+use waproto::whatsapp::{self as wa, cert_chain::noise_certificate};
 
 /// Builds a minimal `CertChain` blob whose leaf.key matches `server_static_pub`.
 ///

@@ -1,5 +1,5 @@
-// Re-export everything from wa_rs_core-noise
-pub use wa_rs_noise::{
+// Re-export everything from wacore-noise
+pub use wacore_noise::{
     EdgeRoutingError, HandshakeError, HandshakeResult as Result, HandshakeUtils, IkFallbackInputs,
     IkHandshakeOutcome, IkHandshakeState, IkServerHelloOutcome, MAX_EDGE_ROUTING_LEN, NoiseCipher,
     NoiseError, NoiseHandshake, VerifiedServerCertChain, WA_CERT_PUB_KEY, XxFallbackHandshakeState,

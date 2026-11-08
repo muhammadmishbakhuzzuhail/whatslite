@@ -7,8 +7,8 @@ description = "Local HTTP sidecar bridging wa-rs to the Homun engine channel gat
 
 [dependencies]
 wa-rs = { path = ".." }
-wa-rs-core = { path = "../wacore" }
-wa-rs-proto = { path = "../waproto" }
+wacore = { package = "wa-rs-core", path = "../wacore" }
+waproto = { package = "wa-rs-proto", path = "../waproto" }
 wa-rs-sqlite-storage = { path = "../storages/sqlite-storage" }
 wa-rs-tokio-transport = { path = "../transports/tokio-transport" }
 wa-rs-ureq-http = { path = "../http_clients/ureq-client" }

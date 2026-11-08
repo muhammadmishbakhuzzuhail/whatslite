@@ -5,14 +5,14 @@ use crate::types::events::Event;
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use std::sync::Arc;
-use wa_rs_binary::jid::{Jid, JidExt};
-use wa_rs_binary::{jid::SERVER_JID, node::Node};
-use wa_rs_core::stanza::business::BusinessNotification;
-use wa_rs_core::stanza::devices::DeviceNotification;
-use wa_rs_core::store::traits::{DeviceInfo, DeviceListRecord};
-use wa_rs_core::types::events::{
+use wacore::stanza::business::BusinessNotification;
+use wacore::stanza::devices::DeviceNotification;
+use wacore::store::traits::{DeviceInfo, DeviceListRecord};
+use wacore::types::events::{
     BusinessStatusUpdate, BusinessUpdateType, DeviceListUpdate, DeviceNotificationInfo,
 };
+use wacore_binary::jid::{Jid, JidExt};
+use wacore_binary::{jid::SERVER_JID, node::Node};
 
 /// Handler for `<notification>` stanzas.
 ///
@@ -326,8 +326,8 @@ async fn handle_account_sync_devices(client: &Arc<Client>, node: &Node, devices_
 /// </notification>
 /// ```
 async fn handle_privacy_token_notification(client: &Arc<Client>, node: &Node) {
-    use wa_rs_core::iq::tctoken::parse_privacy_token_notification;
-    use wa_rs_core::store::traits::TcTokenEntry;
+    use wacore::iq::tctoken::parse_privacy_token_notification;
+    use wacore::store::traits::TcTokenEntry;
 
     // Resolve the sender to a LID JID for storage.
     // WA Web uses `sender_lid` attr if present, otherwise resolves from `from`.
@@ -467,16 +467,16 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
     });
 
     match notification.notification_type {
-        wa_rs_core::stanza::business::BusinessNotificationType::RemoveJid
-        | wa_rs_core::stanza::business::BusinessNotificationType::RemoveHash => {
+        wacore::stanza::business::BusinessNotificationType::RemoveJid
+        | wacore::stanza::business::BusinessNotificationType::RemoveHash => {
             info!(
                 target: "Client/Business",
                 "Contact {} is no longer a business account",
                 notification.from
             );
         }
-        wa_rs_core::stanza::business::BusinessNotificationType::VerifiedNameJid
-        | wa_rs_core::stanza::business::BusinessNotificationType::VerifiedNameHash => {
+        wacore::stanza::business::BusinessNotificationType::VerifiedNameJid
+        | wacore::stanza::business::BusinessNotificationType::VerifiedNameHash => {
             if let Some(name) = &notification
                 .verified_name
                 .as_ref()
@@ -490,8 +490,8 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
                 );
             }
         }
-        wa_rs_core::stanza::business::BusinessNotificationType::Profile
-        | wa_rs_core::stanza::business::BusinessNotificationType::ProfileHash => {
+        wacore::stanza::business::BusinessNotificationType::Profile
+        | wacore::stanza::business::BusinessNotificationType::ProfileHash => {
             debug!(
                 target: "Client/Business",
                 "Contact {} business profile updated (hash: {:?})",
@@ -508,9 +508,9 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wa_rs_binary::builder::NodeBuilder;
-    use wa_rs_core::stanza::devices::DeviceNotificationType;
-    use wa_rs_core::types::events::DeviceListUpdateType;
+    use wacore::stanza::devices::DeviceNotificationType;
+    use wacore::types::events::DeviceListUpdateType;
+    use wacore_binary::builder::NodeBuilder;
 
     #[test]
     fn test_parse_device_add_notification() {

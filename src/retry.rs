@@ -6,17 +6,17 @@ use prost::Message;
 use rand::TryRngCore;
 use scopeguard;
 use std::sync::Arc;
-use wa_rs_binary::builder::NodeBuilder;
-use wa_rs_binary::jid::JidExt as _;
-use wa_rs_binary::node::{Node, NodeContent};
-use wa_rs_core::iq::prekeys::{OneTimePreKeyNode, SignedPreKeyNode};
-use wa_rs_core::libsignal::protocol::{
+use wacore::iq::prekeys::{OneTimePreKeyNode, SignedPreKeyNode};
+use wacore::libsignal::protocol::{
     KeyPair, PreKeyBundle, PublicKey, UsePQRatchet, process_prekey_bundle,
 };
-use wa_rs_core::libsignal::store::PreKeyStore;
-use wa_rs_core::libsignal::store::SessionStore;
-use wa_rs_core::protocol::ProtocolNode;
-use wa_rs_core::types::jid::JidExt;
+use wacore::libsignal::store::PreKeyStore;
+use wacore::libsignal::store::SessionStore;
+use wacore::protocol::ProtocolNode;
+use wacore::types::jid::JidExt;
+use wacore_binary::builder::NodeBuilder;
+use wacore_binary::jid::JidExt as _;
+use wacore_binary::node::{Node, NodeContent};
 
 /// Helper to extract bytes content from a Node.
 fn get_bytes_content(node: &Node) -> Option<&[u8]> {
@@ -382,7 +382,7 @@ impl Client {
     async fn process_retry_key_bundle(
         &self,
         node: &Node,
-        requester_jid: &wa_rs_binary::jid::Jid,
+        requester_jid: &wacore_binary::jid::Jid,
         is_peer: bool,
     ) -> Result<(), anyhow::Error> {
         let keys_node = node
@@ -586,11 +586,10 @@ impl Client {
 
             let new_prekey_id = (rand::random::<u32>() % 16777215) + 1;
             let new_prekey_keypair = KeyPair::generate(&mut rand::rngs::OsRng.unwrap_err());
-            let new_prekey_record =
-                wa_rs_core::libsignal::store::record_helpers::new_pre_key_record(
-                    new_prekey_id,
-                    &new_prekey_keypair,
-                );
+            let new_prekey_record = wacore::libsignal::store::record_helpers::new_pre_key_record(
+                new_prekey_id,
+                &new_prekey_keypair,
+            );
             // This key is not uploaded to the server pool, so mark as false
             if let Err(e) = device_guard
                 .store_prekey(new_prekey_id, new_prekey_record, false)
@@ -707,8 +706,8 @@ mod tests {
     use super::*;
     use crate::store::persistence_manager::PersistenceManager;
     use crate::test_utils::MockHttpClient;
-    use wa_rs_binary::jid::{Jid, JidExt};
-    use wa_rs_proto::whatsapp as wa;
+    use wacore_binary::jid::{Jid, JidExt};
+    use waproto::whatsapp as wa;
 
     #[tokio::test]
     async fn recent_message_cache_insert_and_take() {
@@ -762,7 +761,7 @@ mod tests {
 
     #[test]
     fn get_bytes_content_extracts_bytes() {
-        use wa_rs_binary::node::{Attrs, Node};
+        use wacore_binary::node::{Attrs, Node};
 
         // Test with bytes content
         let node = Node {
@@ -804,8 +803,8 @@ mod tests {
     /// Matches WhatsApp Web's sendRetryReceipt: if (to.isUser()) { if (isMeAccount(to)) { ... } }
     #[test]
     fn retry_receipt_attributes_for_device_sync_vs_peer_vs_group() {
-        use wa_rs_binary::builder::NodeBuilder;
-        use wa_rs_core::types::message::{MessageInfo, MessageSource};
+        use wacore::types::message::{MessageInfo, MessageSource};
+        use wacore_binary::builder::NodeBuilder;
 
         let our_pn = Jid::pn("559999999999");
         let our_lid = Jid::lid("100000000000001");
@@ -814,7 +813,7 @@ mod tests {
             info: &MessageInfo,
             our_pn: &Jid,
             our_lid: &Jid,
-        ) -> wa_rs_binary::node::Node {
+        ) -> wacore_binary::node::Node {
             let mut builder = NodeBuilder::new("receipt")
                 .attr("to", info.source.sender.to_string())
                 .attr("id", info.id.clone())
@@ -1124,7 +1123,7 @@ mod tests {
     #[test]
     fn bot_jid_detection() {
         // Test bot JID detection for bot message filtering
-        use wa_rs_binary::jid::JidExt as _;
+        use wacore_binary::jid::JidExt as _;
 
         // Regular user JID - not a bot
         let regular_user: Jid = "1234567890@s.whatsapp.net".parse().unwrap();
@@ -1149,7 +1148,7 @@ mod tests {
 
     #[test]
     fn extract_registration_id_from_node_test() {
-        use wa_rs_binary::node::{Attrs, Node};
+        use wacore_binary::node::{Attrs, Node};
 
         // Test with 4-byte registration ID
         let reg_bytes = vec![0x00, 0x01, 0x02, 0x03]; // = 66051
@@ -1207,7 +1206,7 @@ mod tests {
     #[test]
     fn group_or_status_detection_for_sender_key_handling() {
         // Test that both groups and status broadcasts trigger sender key handling
-        use wa_rs_binary::jid::JidExt as _;
+        use wacore_binary::jid::JidExt as _;
 
         let group: Jid = "120363021033254949@g.us".parse().unwrap();
         let status: Jid = "status@broadcast".parse().unwrap();

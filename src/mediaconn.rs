@@ -1,14 +1,14 @@
 //! Media connection management.
 //!
-//! Protocol types are defined in `wa_rs_core::iq::mediaconn`.
+//! Protocol types are defined in `wacore::iq::mediaconn`.
 
 use crate::client::Client;
 use crate::request::IqError;
 use std::time::{Duration, Instant};
-use wa_rs_core::iq::mediaconn::MediaConnSpec;
+use wacore::iq::mediaconn::MediaConnSpec;
 
-/// Re-export the host type from wa_rs_core.
-pub use wa_rs_core::iq::mediaconn::MediaConnHost;
+/// Re-export the host type from wacore.
+pub use wacore::iq::mediaconn::MediaConnHost;
 
 /// Media connection with runtime-specific fields.
 #[derive(Debug, Clone)]

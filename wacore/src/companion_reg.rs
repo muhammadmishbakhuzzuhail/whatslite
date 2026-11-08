@@ -5,7 +5,7 @@
 //! they follow `WAWebCompanionRegClientUtils.DEVICE_PLATFORM`, a separate
 //! table the server validates (Edge=2, Firefox=3, IE=4, Opera=5, Safari=6).
 
-use wa_rs_proto::whatsapp as wa;
+use waproto::whatsapp as wa;
 
 /// Prefix `WAWebLinkDeviceQrcode` uses when iOS native-camera linking is on.
 /// Concatenate with `make_qr_data` output to get a scannable deep-link URL.

@@ -17,35 +17,35 @@ Finished `dev` profile [unoptimized + debuginfo] ...
 
 ## What is implemented
 
-- `desktop/src/wallpaper.rs:26` — `TILE_LOGICAL = 550.0`.
+- `desktop/src/wallpaper.rs:26` — `TILE_LOGICAL = 800.0`.
 - `desktop/src/theme.rs` — `wallpaper_style(dark)`:
   - light line `#C9B9A3`
   - dark line `#D8CCBC`, layer 0.12
 - `desktop/build.rs` — alpha-mask PNGs at 800/1600/2400 (1x/2x/3x).
 - `desktop/src/wallpaper.rs` — decodes, tints, caches per (scale, line), prewarms.
-- `desktop/assets/wallpaper/doodle.svg` — original dense source; edge-wrapped.
+- `reference/design/machine/wallpaper-doodle-source.svg` — original dense source; edge-wrapped.
 - `crates/doodle-preview` — standalone comparison app with light/dark/reference panels.
 
 ## Screenshots (native windows, not canvas renders)
 
 | File | Size | Shows |
 |---|---:|---|
-| `design/qa/1440-group-light.png` | 1440×900 | App, 550pt repeat, light |
-| `design/qa/1440-group-dark.png` | 1440×900 | App, 550pt repeat, dark |
-| `design/qa/1920-group-light.png` | 1920×1008 | App, 1920 width |
-| `design/qa/1440-header-hover.png` | 1440×900 | Hover chevron |
-| `design/qa/1440-header-menu.png` | 1440×900 | Dropdown |
-| `design/qa/1440-chat-list-menu.png` | 1440×900 | Chat list menu |
-| `design/qa/1440-contact-profile.png` | 1440×900 | Profile overlay |
-| `design/qa/1440-group-info.png` | 1440×900 | Group info |
-| `design/qa/1440-usecase-demo.png` | 1440×900 | 12-scenario demo |
-| `design/qa/1440-loading-skeleton.png` | 1440×900 | List + conversation skeleton |
-| `design/qa/1440-error-state.png` | 1440×900 | Error + Retry, composer hidden |
-| `design/qa/1440-media-loading.png` | 1440×900 | Media skeleton |
-| `design/qa/1440-media-error.png` | 1440×900 | Media error |
-| `design/qa/1440-readonly-fields.png` | 1440×900 | Read-only fields without chevrons |
-| `design/qa/1440-rtl.png` | 1440×900 | RTL |
-| `design/qa/1440-text-125.png` | 1440×900 | 125% text |
+| `reference/design/qa/1440-group-light.png` | 1440×900 | App, 800pt repeat, light |
+| `reference/design/qa/1440-group-dark.png` | 1440×900 | App, 800pt repeat, dark |
+| `reference/design/qa/1920-group-light.png` | 1920×1008 | App, 1920 width |
+| `reference/design/qa/1440-header-hover.png` | 1440×900 | Hover chevron |
+| `reference/design/qa/1440-header-menu.png` | 1440×900 | Dropdown |
+| `reference/design/qa/1440-chat-list-menu.png` | 1440×900 | Chat list menu |
+| `reference/design/qa/1440-contact-profile.png` | 1440×900 | Profile overlay |
+| `reference/design/qa/1440-group-info.png` | 1440×900 | Group info |
+| `reference/design/qa/1440-usecase-demo.png` | 1440×900 | 12-scenario demo |
+| `reference/design/qa/1440-loading-skeleton.png` | 1440×900 | List + conversation skeleton |
+| `reference/design/qa/1440-error-state.png` | 1440×900 | Error + Retry, composer hidden |
+| `reference/design/qa/1440-media-loading.png` | 1440×900 | Media skeleton |
+| `reference/design/qa/1440-media-error.png` | 1440×900 | Media error |
+| `reference/design/qa/1440-readonly-fields.png` | 1440×900 | Read-only fields without chevrons |
+| `reference/design/qa/1440-rtl.png` | 1440×900 | RTL |
+| `reference/design/qa/1440-text-125.png` | 1440×900 | 125% text |
 
 ## How the screenshots were captured
 

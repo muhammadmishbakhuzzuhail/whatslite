@@ -4,7 +4,7 @@ A WhatsApp-inspired desktop UI written in Rust with GPUI Kit. The current
 build is frontend-only: screens and the use-case demo run on deterministic
 fixtures. The next step is the real backend — **no mock database**. The UI
 talks through `whatslite-services` to `whatslite-wa-adapter` → `bridge` →
-`wa-rs` and the paired account. See `../design/urutan-judul.md` §6 for the
+`wa-rs` and the paired account. See `../reference/design/urutan-judul.md` §6 for the
 full decision and boundary.
 
 ## Run
@@ -17,7 +17,7 @@ Use-case demo: hover the conversation title, open the chevron menu and choose
 `Use case demo` — or run with `WHATSLITE_OVERLAY=demo`.
 
 The doodle wallpaper source is the editable seamless SVG at
-`../design/machine/wallpaper-doodle-source.svg`. `build.rs` rasterises it to
+`../reference/design/machine/wallpaper-doodle-source.svg`. `build.rs` rasterises it to
 1x/2x/3x (800/1600/2400) alpha masks; `src/wallpaper.rs` tints the alpha with
 `theme::wallpaper_style` and repeats it at an **800pt** logical step. Light ink
 is `#C9B9A3` at 60%, dark ink is `#D8CCBC` at 20%; larger windows add more
@@ -36,14 +36,14 @@ working without changing system packages.
 
 ## Design source
 
-The implementation follows the handoff package in `../design/`:
+The implementation follows the handoff package in `../reference/design/`:
 
-- `design/machine/theme.json` — 28 light/dark colour tokens
-- `design/urutan-judul.md` — title order, hover menu, group profile, avatar and doodle fixes, demo, backend rule
-- `design/machine/strings.json` — copy deck
-- `design/03-BEHAVIOUR-RULES.md` — grouping, media, states, keyboard rules
-- `design/04-COMING-SOON.md` — fallback copy for unwired controls
-- `design/05-BUILD-ORDER.md` — layout and acceptance rules
+- `reference/design/machine/theme.json` — 28 light/dark colour tokens
+- `reference/design/urutan-judul.md` — title order, hover menu, group profile, avatar and doodle fixes, demo, backend rule
+- `reference/design/machine/strings.json` — copy deck
+- `reference/design/03-BEHAVIOUR-RULES.md` — grouping, media, states, keyboard rules
+- `reference/design/04-COMING-SOON.md` — fallback copy for unwired controls
+- `reference/design/05-BUILD-ORDER.md` — layout and acceptance rules
 
 The only colour literals live in `src/theme.rs`; all UI surfaces read the
 palette. Dark mode is a value swap, not a second UI.

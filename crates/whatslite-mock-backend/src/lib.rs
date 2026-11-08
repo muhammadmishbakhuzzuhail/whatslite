@@ -8,10 +8,7 @@ use whatslite_services::{
 };
 
 fn sample_attachment_name() -> String {
-    let tokens: serde_json::Value = serde_json::from_str(include_str!("../../../specs/design-system/design-tokens.json"))
-        .expect("design tokens must be valid JSON");
-    tokens["content_fixture"]["sample_attachment"].as_str()
-        .expect("sample_attachment token is required").to_owned()
+    "Design-Update-v2.pdf".to_owned()
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

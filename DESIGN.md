@@ -70,7 +70,7 @@ The design language reflects modern macOS Tahoe aesthetics, Liquid Glass materia
 The visual system strictly avoids generic web dashboard habits, unstyled HTML buttons, and purple/blue AI-slop gradients.
 
 ## Colors
-Derived from `specs/design-system/design-tokens.json`:
+Derived from `reference/design/machine/theme.json` and `tokens.json`:
 - **Light Theme:**
   - Navigation Rail: `#EFF2F5`
   - Chat List: `#FFFFFF`

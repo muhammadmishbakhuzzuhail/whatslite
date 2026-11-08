@@ -38,11 +38,10 @@ Unlike Electron- or browser-based wrappers, this is an ultra-fast, GPU-accelerat
 - Neutral, modern messenger identity respecting macOS desktop interface aesthetics and WhatsApp-inspired functional ergonomics.
 
 ## Evidence on Hand
-- Structural wireframe specifications: 15 SVGs in `specs/wireframes/` (1512×982 viewBox).
-- Interaction flows: 15 Mermaid diagrams in `specs/flows/`.
-- State registry: 120 interaction states in `specs/specifications/screen-map.json`.
-- Design token system: `specs/design-system/design-tokens.json` and `specs/design-system/DESIGN-SYSTEM.md`.
-- GPUI architecture and service contracts: `specs/specifications/GPUI-IMPLEMENTATION.md` and `specs/specifications/SERVICE-CONTRACTS.md`.
+- Screen and component specs: `reference/design/01-SCREENS.md`, `reference/design/02-COMPONENTS.md`, and `reference/design/design/whatslite.pen`.
+- Interaction and state rules: `reference/design/03-BEHAVIOUR-RULES.md` and `reference/design/machine/screens.json`.
+- Design token system: `reference/design/machine/theme.json` and `reference/design/machine/tokens.json`.
+- GPUI architecture and service contracts: `crates/whatslite-services/src/lib.rs` and `desktop/src/`.
 - Desktop application code: `desktop/src/`; UI uses deterministic mock data and does not connect to WhatsApp.
 
 ## Product Principles

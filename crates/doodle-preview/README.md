@@ -25,7 +25,7 @@ Environment:
 | `DOODLE_LIGHT_OPACITY` | `0.60` | Light wallpaper layer opacity. |
 | `DOODLE_DARK_OPACITY` | `0.20` | Dark wallpaper layer opacity. |
 
-The artwork lives in `../../design/machine/wallpaper-doodle-source.svg`;
+The artwork lives in `../../reference/design/machine/wallpaper-doodle-source.svg`;
 `build.rs` rasterises it at 800/1600/2400 for the preview. The main app uses the
 same SVG source, rasterises its own 800/1600/2400 alpha masks at build time, and
 repeats the tile at 800 pt. Light ink is `#C9B9A3` at 60%; dark ink is `#D8CCBC`

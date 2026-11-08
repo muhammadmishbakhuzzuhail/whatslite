@@ -32,12 +32,12 @@ fn main() {
 
 /// Rasterise the editable doodle master at 1x, 2x and 3x.
 ///
-/// The SVG is the source of truth in `design/machine/wallpaper-doodle-source.svg`.
+/// The SVG is the source of truth in `reference/design/machine/wallpaper-doodle-source.svg`.
 /// Its strokes are opaque, so each PNG is an alpha mask; the runtime tints it
 /// with `theme::wallpaper_style` and repeats it at 800pt.
 fn render_doodle() {
     let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
-    let source = Path::new("../design/machine/wallpaper-doodle-source.svg");
+    let source = Path::new("../reference/design/machine/wallpaper-doodle-source.svg");
     println!("cargo:rerun-if-changed={}", source.display());
     let bytes = std::fs::read(source).expect("wallpaper-doodle-source.svg must exist");
     let tree = resvg::usvg::Tree::from_data(&bytes, &resvg::usvg::Options::default())

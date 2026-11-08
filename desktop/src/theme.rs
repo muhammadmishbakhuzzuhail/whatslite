@@ -66,8 +66,8 @@ impl Palette {
 fn tokens() -> &'static Value {
     static TOKENS: OnceLock<Value> = OnceLock::new();
     TOKENS.get_or_init(|| {
-        serde_json::from_str(include_str!("../../design/machine/theme.json"))
-            .expect("design/machine/theme.json must be valid JSON")
+        serde_json::from_str(include_str!("../../reference/design/machine/theme.json"))
+            .expect("reference/design/machine/theme.json must be valid JSON")
     })
 }
 

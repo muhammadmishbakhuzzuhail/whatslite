@@ -122,19 +122,19 @@ Spec:
   objects are 10–50px, packed tightly with no large empty gaps;
 - one stroke `#D8CCBC` at 50% alpha on `$wl-bg-conversation`;
 - dark mode keeps the same pattern at a 12% layer opacity;
-- the app repeats the source at a **550pt logical step**. This was selected in
+- the app repeats the source at a **800pt logical step**. This was selected in
   the doodle preview app after comparing 800/700/600/550/400: 800 was too
   sparse, 400 too repetitive, 550 closest to the reference density;
 - the canvas component is an 800pt proof; the app density is documented here
   and shown by the preview app;
 - `desktop/build.rs` rasterises the original SVG at 1×, 2× and 3×
-  (800/1600/2400); the runtime scales the texture to the 550pt repeat and
+  (800/1600/2400); the runtime scales the texture to the 800pt repeat and
   picks the matching texture, so 1440 and 1920 stay sharp at 3× scale;
 - light line `#C9B9A3` at 50% alpha; dark line `#D8CCBC` at 12% layer opacity.
 
 Do not re-generate the artwork per screen. It is one reusable `Wallpaper / Doodle
 Tile` (`IqUX9`) instance in the canvas and one texture cache in the app. The
-vector source is `desktop/assets/wallpaper/doodle.svg`; the canvas uses the
+vector source is `reference/design/machine/wallpaper-doodle-source.svg`; the canvas uses the
 matching `machine/wallpaper-doodle.png` (referenced as
 `./wallpaper-doodle-dense.png` next to the `.pen`) because the `.pen` stores textures
 as image fills. This is original artwork, not a WhatsApp asset.
@@ -262,7 +262,7 @@ opening a chat.
 | Sender avatar + title | `desktop/src/app.rs` → `render_bubble` |
 | Member rows | `desktop/src/app.rs` → `group_member_row`, `info_group`, `group_members_sheet` |
 | Demo sheet | `desktop/src/app.rs` → `use_case_demo_sheet`, `Action::StartDemo` |
-| Wallpaper | `desktop/src/wallpaper.rs` (tiler), `desktop/build.rs` (1x/2x/3x), `desktop/assets/wallpaper/doodle.svg` |
+| Wallpaper | `desktop/src/wallpaper.rs` (tiler), `desktop/build.rs` (1x/2x/3x), `reference/design/machine/wallpaper-doodle-source.svg` |
 | Design source | `whatslite.pen` → `IqUX9` (doodle), `paZJL` (group rows), `dYttn` (header) |
 | Services / adapter | `crates/whatslite-services`, `crates/whatslite-wa-adapter`, `bridge/` |
 

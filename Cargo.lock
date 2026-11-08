@@ -8504,7 +8504,6 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "async-trait",
- "serde_json",
  "whatslite-services",
 ]
 

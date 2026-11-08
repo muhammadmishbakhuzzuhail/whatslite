@@ -47,7 +47,7 @@
     ],
     "children": [],
     "image": "./wallpaper-doodle.png",
-    "note": "Dense seamless 800pt source proof; app repeats at 550pt. Canvas uses the baked proof; app uses it as an alpha mask and tints via theme::wallpaper_style (light #C9B9A3, dark #D8CCBC). Rasterised at 1x/2x/3x (800/1600/2400)."
+    "note": "Dense seamless 800pt source proof; app repeats at 800pt. Canvas uses the baked proof; app uses it as an alpha mask and tints via theme::wallpaper_style (light #C9B9A3, dark #D8CCBC). Rasterised at 1x/2x/3x (800/1600/2400)."
   },
   {
     "id": "CHTaP",

@@ -9,4 +9,3 @@ publish = false
 async-channel = { workspace = true }
 async-trait = { workspace = true }
 whatslite-services = { path = "../whatslite-services" }
-serde_json = { workspace = true, features = ["std"] }

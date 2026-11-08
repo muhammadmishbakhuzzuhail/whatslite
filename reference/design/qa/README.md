@@ -3,11 +3,11 @@
 Captured from the native app on Linux/X11 at 1440×900 unless noted. These are
 review artifacts, not design sources. The doodle is a build-time alpha mask
 tinted at runtime by `theme::wallpaper_style`; light and dark share the artwork.
-The app repeats the 800pt source at 550pt; the canvas shows an 800pt proof.
+The app repeats the 800pt source at 800pt; the canvas shows an 800pt proof.
 
 | File | What it proves |
 |---|---|
-| `1440-group-light.png` | Group chat: avatars top-aligned with sender names, dense 550pt doodle repeat (800pt source), 1440 layout. |
+| `1440-group-light.png` | Group chat: avatars top-aligned with sender names, dense 800pt doodle repeat (800pt source), 1440 layout. |
 | `1440-group-dark.png` | Same screen in dark mode; doodle at 12% opacity. |
 | `1440-header-hover.png` | Hover/identity state: chevron visible next to the group name, hover surface. |
 | `1440-header-menu.png` | Hover state chevron and the dropdown beside/under the group title. |

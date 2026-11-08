@@ -1,12 +1,12 @@
-# wa-rs Parity with whatsapp-rust 0.7.0 — Implementation Plan
+# wa-rs Parity with whatsapp-rust 0.7.0 — Implementation Plan (v2)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Port the full runtime feature set of `oxidezap/whatsapp-rust` 0.7.0 into `homun-app/wa-rs` 0.2.0 without changing the current tree and without breaking `bridge/` or `desktop/`.
+**Goal:** Port the full runtime feature set of `oxidezap/whatsapp-rust` 0.7.0 (`f077a5d`) into `homun-app/wa-rs` 0.2.0 without changing the current tree and without breaking `bridge/` or `desktop/`.
 
-**Architecture:** Strangler migration per subsystem. Each upstream module is ported into the existing crate boundary (`wacore/`, `waproto/`, `src/`, `storages/`, `transports/`, `http_clients/`) behind a `parity-*` feature flag. The existing `wa-rs` API stays as a compatibility facade; upstream-style APIs are added under `src/features`. Each phase must build, test and pass its gate before the next starts.
+**Architecture:** Strangler migration per subsystem. Port upstream modules into the existing crate boundary (`wacore/`, `waproto/`, `src/`, `storages/`, `transports/`, `http_clients/`) using upstream feature names as the canonical gates. `parity-*` features are additive aliases. Core modules stay always compiled, matching upstream; only optional modules and dependencies are gated. The existing `wa-rs` API remains a compatibility facade.
 
-**Tech Stack:** Rust 2024, Tokio, SQLite/Diesel, buffa (recommended) or prost fallback, rustls, GPUI desktop consumer, `bridge/` HTTP sidecar.
+**Tech Stack:** Rust 2024, Tokio, SQLite/Diesel, buffa 0.9.2, rustls, GPUI desktop consumer, `bridge/` HTTP sidecar.
 
 **Spec:** `reference/design/plans/2026-11-08-wa-rs-parity-design.md`
 
@@ -17,15 +17,14 @@
 - SQLite and TLS/ring may remain C/asm-backed.
 - Rust 1.99.1 current; upstream MSRV 1.95 is compatible.
 - `bridge/` and `desktop/` must compile at every phase gate.
-- Parity features are opt-in behind `parity-*` flags.
-- Do not port upstream CI, Dockerfile, oracle tools, benchmark harnesses, or generated test-vector tooling into runtime crates.
-- Do not maintain a dual backend.
+- Upstream feature names are canonical. `parity-*` features are aliases and never replace upstream gates.
+- Core modules (`runtime`, `time`, `stats`, `session_engine`, `sync_engine`, `message_processing`, ...) are always compiled. Do not add `parity-*` gates to them.
+- Use Cargo dependency aliases and `extern crate self as ...` so ported upstream files keep `wacore::`, `wacore_binary::`, `waproto::` paths.
+- Do not port upstream CI, Dockerfile, oracle tools, benchmark harnesses, or generated test-vector tooling.
+- Excluded features: `bench-harness`, `test-support`, `session-simulator`, `dhat-heap`, `bench-internals`.
 - Every task ends with a commit. Every phase ends with the phase gate.
 
 ## Prerequisites
-
-Run these once before Task 0.1. Phase gates call `cargo fmt` and `cargo clippy`, so
-a missing component is a blocker, not a warning.
 
 - [ ] Install the Rust components:
 
@@ -35,7 +34,7 @@ cargo fmt --version
 cargo clippy --version
 ```
 
-- [ ] Provide the SQLite linker used by the workspace tests:
+- [ ] Provide the SQLite linker used by the workspace tests until Task 5.3 switches the default to bundled SQLite:
 
 ```bash
 mkdir -p /tmp/opencode/sqlite
@@ -50,8 +49,7 @@ cargo test -p wa-rs-sqlite-storage
 cargo test --workspace
 ```
 
-Expected: the baseline is green. If it is not, fix the environment first and
-record the failure; do not start Phase 0 on a red baseline.
+Expected: the baseline is green. If it is not, fix the environment first and record the failure; do not start Phase 0 on a red baseline.
 
 - [ ] Confirm the reference checkout is at the pinned upstream commit:
 
@@ -59,8 +57,14 @@ record the failure; do not start Phase 0 on a red baseline.
 git -C reference/whatsapp-rust rev-parse --short HEAD
 ```
 
-Expected: `f077a5d`. Ported files are copied from this commit, not from a moving
-branch.
+Expected: `f077a5d`. Ported files are copied from this commit, not from a moving branch.
+
+- [ ] Confirm buffa is available locally:
+
+```bash
+ls ~/.cargo/registry/cache/*/buffa-0.9.2.crate
+ls ~/.cargo/registry/cache/*/buffa-build-0.9.2.crate
+```
 
 ## Gate Protocol
 
@@ -73,200 +77,335 @@ Every phase gate runs this standard set first, from the repo root:
 5. `cargo build -p whatslite-desktop`
 6. `cargo check -p wa-rs-bridge`
 
-Then the phase-specific commands listed in that phase's gate. Phase-specific
-commands are additions, never replacements. Clippy must not add new warnings;
-record any pre-existing warning count in the phase commit message.
+Then the phase-specific commands listed in that phase's gate. Phase-specific commands are additions, never replacements. Clippy must not add new warnings; record any pre-existing warning count in the phase commit message.
 
-The bridge smoke test is manual: pair, connect, send, receive. Record the
-result in the phase commit message.
+The bridge smoke test is manual: pair, connect, send, receive. Record the result in the phase commit message.
 
-## Review Focus
+## Feature Contract
 
-These are the failure modes most likely to bite a user even when the module tests pass. Each line has a test in the owning task.
+### Root canonical features
 
-1. **Bridge pairing/send/receive breaks after the proto switch** — a user can still pair, send and receive through `wa-bridge`.
-2. **Feature-flag combinations fail to compile** — `default`, `parity-core`, `parity-messaging`, `parity-social`, `parity-voip`, `parity-mobile`, `parity-plugins` each build independently.
-3. **Event enum ordering/interest bits break persisted state** — existing event kinds keep their discriminants and new kinds are appended.
-4. **Session/Signal state is lost after offline/reconnect** — resume, retry and durability hooks preserve sessions.
-5. **WASM/mobile builds accidentally pull Tokio/native dependencies** — isolated no-default-feature builds link or fail for the expected reason only.
+These are the upstream names. They are the only gates used inside ported code.
 
----
+```toml
+[features]
+# Existing compatibility features
+debug-snapshots = ["wacore/debug-snapshots"]
+danger-skip-tls-verify = ["wa-rs-tokio-transport?/danger-skip-tls-verify"]
+ureq-client = ["dep:wa-rs-ureq-http"]
+tokio-transport = ["dep:wa-rs-tokio-transport"]
+tokio-runtime = ["dep:tokio"]
+tokio-native = ["tokio-runtime", "tokio/rt-multi-thread"]
+signal = ["tokio-runtime", "tokio/signal"]
+sqlite-storage = ["wa-rs-sqlite-storage"]
+sqlite-storage-bundled = ["sqlite-storage", "wa-rs-sqlite-storage/bundled-sqlite"]
 
-## File Structure
+# Runtime optional features
+instance-clock = ["wacore/instance-clock", "wa-rs-sqlite-storage?/instance-clock"]
+legacy-session-interop = ["wacore/legacy-session-interop"]
+client-lifecycle = []
+plugins = ["client-lifecycle"]
+passkey = []
+mobile-core = ["wacore/mobile", "instance-clock", "dep:subtle", "wa-rs-sqlite-storage?/mobile"]
+mobile-transport-native = ["mobile-core", "tokio-transport", "wa-rs-tokio-transport/tcp"]
+generated-group-notifications = []
+js = ["wacore/js", "wa-rs-sqlite-storage?/js"]
+tracing = ["dep:tracing", "wacore/tracing"]
+metrics = ["wacore/metrics"]
+tracing-pii = ["wacore/tracing-pii", "wacore_binary/tracing-pii"]
 
-### Phase 0
+# VoIP features
+voip-control = ["wacore/voip-control"]
+voip-runtime = ["voip-control", "voip-engine-wacore"]
+voip-engine-wacore = ["voip-control", "wacore/voip"]
+voip-relay-native = ["voip-runtime", "tokio-runtime", "tokio/net", "dep:rtc-dtls", "dep:rtc-sctp", "dep:rtc-datachannel", "dep:rtc-shared"]
+voip = ["voip-mlow", "voip-libopus", "voip-relay-native"]
+voip-encoded = ["voip-runtime"]
+voip-mlow = ["voip-runtime", "wacore/voip-mlow"]
+voip-libopus = ["voip-encoded", "dep:opus"]
 
-- Modify: `Cargo.toml`, `wacore/Cargo.toml`, `wacore/src/lib.rs`, `waproto/Cargo.toml`, `waproto/build.rs`, `waproto/src/lib.rs`, `src/lib.rs`, `bridge/Cargo.toml`
-- Create: `wacore/src/runtime.rs`, `wacore/src/time.rs`, `wacore/src/stats.rs`, `wacore/src/telemetry.rs`, `wacore/src/diagnostics.rs`
-- Create tests: `wacore/tests/parity_phase0.rs`, `waproto/tests/proto_roundtrip.rs`, `bridge/tests/parity_smoke.rs`
+# Parity aliases
+parity-core = ["instance-clock", "legacy-session-interop"]
+parity-messaging = ["parity-core"]
+parity-social = ["parity-messaging"]
+parity-voip = ["voip"]
+parity-mobile = ["mobile-core"]
+parity-plugins = ["plugins", "client-lifecycle"]
+parity-observability = ["tracing", "metrics"]
+parity-wasm = ["js"]
+```
 
-### Phase 1
+### Core canonical features
 
-- Create: `wacore/src/adv/`, `wacore/src/identity_verification.rs`, `wacore/src/session_engine/`, `wacore/src/sync_engine/`
-- Create: `src/client/lifecycle.rs`, `src/client/session_state.rs`, `src/client/offline_resume.rs`, `src/client/node_io.rs`, `src/client/builder.rs`, `src/client/iq_ops.rs`
-- Create: `src/passkey/`, `src/mobile/`, `src/mobile_session.rs`
-- Create tests: `wacore/tests/parity_adv.rs`, `tests/parity_auth.rs`
+```toml
+[features]
+default = []
+debug-snapshots = []
+instance-clock = []
+legacy-session-interop = ["wacore_libsignal/legacy-session-interop"]
+tracing = ["dep:tracing"]
+metrics = ["dep:metrics"]
+tracing-pii = ["wacore_binary/tracing-pii"]
+js = ["getrandom/wasm_js"]
+mobile = []
+voip-control = []
+voip = ["voip-control", "dep:aes-gcm", "dep:zerocopy"]
+voip-mlow = ["voip"]
+```
 
-### Phase 2
+### Rules
 
-- Create: `wacore/src/message_processing.rs`, `wacore/src/message_edit.rs`, `wacore/src/msg_secret.rs`, `wacore/src/reaction.rs`, `wacore/src/media_retry.rs`, `wacore/src/webp.rs`, `wacore/src/zip.rs`, `wacore/src/sticker_pack.rs`
-- Create: `src/message/commit_batch.rs`, `src/message/dispatch.rs`, `src/message/durability.rs`, `src/message/live_retention.rs`, `src/message/raw_pending.rs`, `src/message/receive.rs`, `src/message/retry.rs`, `src/message/special.rs`
-- Create: `src/inbound_queue.rs`, `src/flush_scope.rs`, `src/signal_flush.rs`, `src/resend_rate_limiter.rs`, `src/sender_key_device_cache.rs`
-- Create: `src/download/budget.rs`, `src/download/memory.rs`, `src/media.rs`
-- Create tests: `wacore/tests/parity_messaging.rs`, `tests/parity_media.rs`
+- Ported files keep `#[cfg(feature = "plugins")]`, `#[cfg(feature = "mobile-core")]`, `#[cfg(feature = "voip-control")]`, and so on.
+- `parity-*` only adds edges. It never appears in a `#[cfg]` inside ported code.
+- Core modules are always compiled. Only `mobile`, `voip-control`, `voip`, `voip-mlow`, `tracing`, `metrics`, `js` and `instance-clock` gate optional behavior.
+- Never reference a feature that does not exist yet in a `Cargo.toml` edge; add the edge in the task that introduces the module.
+- Task 0.2 declares every feature key as an empty shell. Later tasks add the dependency edges shown above.
 
-### Phase 3
+## Crate Alias Strategy
 
-- Create/modify: `src/features/{groups,community,newsletter,status,polls,events,stickers,business,bots,labels,favorites,quick_replies,comments,chat_actions,pictures,profile,app_state_settings,app_state_resync}.rs`
-- Create/modify: `wacore/src/iq/{abprops,bot,business,community_create,contextual,devices,join_shapes,newsletter,profile,targets,usync/query}.rs`
-- Create/modify: `src/handlers/notification/{companion_reg,device,groups,privacy_business,profile}.rs`
-- Create tests: `tests/parity_social.rs`, `wacore/tests/parity_iq_social.rs`
+### Cargo dependency aliases
 
-### Phase 4
+Root `Cargo.toml`, `bridge/Cargo.toml`, `storages/sqlite-storage/Cargo.toml`, `transports/tokio-transport/Cargo.toml`, and `http_clients/ureq-client/Cargo.toml` depend on the workspace packages under upstream names:
 
-- Create: `wacore/src/voip/`, `wacore/src/voip_control/`, `src/voip/`, `src/voip_control/`, `src/handlers/call/`, `src/features/call_log.rs`
-- Create tests: `wacore/tests/parity_voip_control.rs`, `tests/parity_calls.rs`
+```toml
+wacore = { package = "wa-rs-core", path = "./wacore", version = "0.2.0" }
+wacore_appstate = { package = "wa-rs-appstate", path = "./wacore/appstate", version = "0.2.0" }
+wacore_binary = { package = "wa-rs-binary", path = "./wacore/binary", version = "0.2.0" }
+wacore_derive = { package = "wa-rs-derive", path = "./wacore/derive", version = "0.2.0" }
+wacore_libsignal = { package = "wa-rs-libsignal", path = "./wacore/libsignal", version = "0.2.0" }
+wacore_noise = { package = "wa-rs-noise", path = "./wacore/noise", version = "0.2.0" }
+waproto = { package = "wa-rs-proto", path = "./waproto", version = "0.2.0" }
+```
 
-### Phase 5
+`wacore/Cargo.toml` uses the same aliases for its sibling crates. Paths are adjusted relative to the owning crate.
 
-- Create: `src/plugins/`, `src/plugins/metrics.rs` (or `plugins/metrics` inside `src`), `src/logging.rs`, `src/shutdown.rs`, `src/runtime_impl.rs`
-- Modify: `storages/sqlite-storage/Cargo.toml`, `storages/sqlite-storage/src/`, `transports/tokio-transport/Cargo.toml`, `transports/tokio-transport/src/`
-- Create tests: `tests/parity_platform.rs`, `storages/sqlite-storage/tests/parity_storage.rs`
+### Self aliases
 
----
+Add one line to each crate root so upstream `use` paths resolve inside the crate:
+
+```rust
+// wacore/src/lib.rs
+extern crate self as wacore;
+
+// wacore/binary/src/lib.rs
+extern crate self as wacore_binary;
+
+// waproto/src/lib.rs
+extern crate self as waproto;
+
+// wacore/derive/src/lib.rs
+extern crate self as wacore_derive;
+
+// wacore/appstate/src/lib.rs
+extern crate self as wacore_appstate;
+
+// wacore/noise/src/lib.rs
+extern crate self as wacore_noise;
+
+// wacore/libsignal/src/lib.rs
+extern crate self as wacore_libsignal;
+
+// src/lib.rs
+extern crate self as whatsapp_rust;
+```
+
+### Mechanical rename
+
+In Phase 0 Task 0.1, rename every existing `wa_rs_core::`, `wa_rs_binary::`, `wa_rs_proto::`, `wa_rs_derive::`, `wa_rs_appstate::`, `wa_rs_noise::`, and `wa_rs_libsignal::` path to its upstream alias. This is a one-time mechanical change; later tasks write upstream paths directly.
+
+## Module Inventory
+
+This is the completeness checklist. A phase is not done while a runtime module in its area is missing.
+
+| Area | Upstream count | Phase | Notes |
+|---|---:|---|---|
+| `wacore/src` top-level | 46 `.rs` files | 0–4 | Includes `bot_message`, `client`, `comment`, `companion_reg`, `event`, `messages`, `reporting_token`, `secret_enc_addon`, `sync_marker`, `download`, `upload` |
+| `wacore/src/iq` | 33 `.rs` files + `usync/` | 3 | Includes `mex_operations`, `mex_operations_unlisted`, `pilots`, `pilot_conformance`, `targets` |
+| `wacore/src/types` | 13 `.rs` files + `message_ref/` | 0–4 | Includes `call.rs`, `group_call.rs`, `message_secret.rs`, `wire_enums.rs` |
+| `wacore/src/voip` | 20 files + `mlow/`, `sframe/`, `testdata/` | 4 | Exclude `testdata/` from runtime crates; vendor only required fixtures |
+| `wacore/src/voip_control` | 19 files | 4 | Boundary types and traits |
+| `src/features` | 34 non-test modules | 3 | All 34 must exist and be re-exported from `src/features/mod.rs` |
+| `src/client` | 28 `.rs` files + `app_state/`, `lifecycle/`, `tests/` | 1 | Includes `accessors`, `adapters`, `context_impl`, `device_registry`, `device_topology`, `group_notifications`, `interceptor`, `lid_pn`, `member_index`, `messaging`, `notification_scope`, `sender_keys`, `sessions`, `subsystem` |
+| `src/message` | 11 modules | 2 | Includes `msg_secret.rs` |
+| `src/send` | 5 modules | 2 | `actions`, `group_repair`, `requests`, `tctoken_lifecycle`, `mod` |
+| `src/handlers` | 12 `.rs` files + `call/`, `notification/` | 1–4 | Includes `basic`, `chatstate`, `ib`, `iq`, `message`, `presence`, `receipt`, `router`, `traits` |
+| `src/types` | 10 modules | 1–2 | Admission, durability, enc handler, group notification facts |
+| `src/cache*` | 4 modules | 2 | `cache`, `cache_config`, `cache_store`, `portable_cache` |
+| `src/pdo` | `pdo.rs` + tests | 2 | Port runtime logic and in-crate tests |
+| `src/history_sync` | `history_sync.rs` + tests | 2 | Port runtime logic and in-crate tests |
+| `src/request` | `request.rs` + tests | 2 | Port runtime logic and in-crate tests |
+| `src/usync` | `usync.rs` + tests | 2 | Port runtime logic and in-crate tests |
+| `src/keepalive` | `keepalive.rs` + tests | 2 | Port runtime logic and in-crate tests |
+| `src/lid_pn_cache` | `lid_pn_cache.rs` + `implementation.rs` | 2 | Port runtime logic |
+| `src/socket` | 3 modules | 2 | Port runtime logic |
+| `src/store` | 11 modules | 2 | Port runtime logic |
+| `src/plugins` | 3 modules | 5 | `events`, `iq_reply`, `mod` |
+| `src/mobile` | 2 modules + tests | 1 | `primary`, `registration` |
+| `src/passkey` | 2 modules | 1 | `flow`, `mod` |
+| `src/voip` | 14 files + `facade/`, `transport/` | 4 | Includes `audio`, `direct`, `driver`, `events`, `registry`, `session`, `state`, `video` |
+| `src/voip_control` | 2 modules | 4 | `mod`, `wacore_backend` |
+
+Excluded from runtime crates: `bench_support/`, `test_support/`, `test_utils.rs`, `reexports_test.rs`, `request_context_tests.rs`, `benches/`, `tools/`, `whatspec/`, `unwasm/`, CI files, Dockerfiles, and generated test-vector tooling.
 
 ## Phase 0 — Foundation
 
-**Phase goal:** create the compatibility and build foundation. No user-facing feature is added.
+**Phase goal:** create the build, naming and compatibility foundation. No user-facing feature is added.
 
-### Task 0.1: Add parity feature flags
+### Task 0.1: Add crate aliases and rename imports
+
+**Files:**
+- Modify: `Cargo.toml`, `wacore/Cargo.toml`, `wacore/binary/Cargo.toml`, `wacore/derive/Cargo.toml`, `wacore/appstate/Cargo.toml`, `wacore/noise/Cargo.toml`, `wacore/libsignal/Cargo.toml`, `waproto/Cargo.toml`, `bridge/Cargo.toml`, `storages/sqlite-storage/Cargo.toml`, `transports/tokio-transport/Cargo.toml`, `http_clients/ureq-client/Cargo.toml`
+- Modify: `src/lib.rs`, `wacore/src/lib.rs`, `wacore/binary/src/lib.rs`, `waproto/src/lib.rs`, `wacore/derive/src/lib.rs`, `wacore/appstate/src/lib.rs`, `wacore/noise/src/lib.rs`, `wacore/libsignal/src/lib.rs`
+- Modify: every `.rs` file using `wa_rs_core::`, `wa_rs_binary::`, `wa_rs_proto::`, `wa_rs_derive::`, `wa_rs_appstate::`, `wa_rs_noise::`, `wa_rs_libsignal::`
+- Test: `cargo check --workspace`
+
+**Interfaces:**
+- Produces: dependency names `wacore`, `wacore_binary`, `waproto`, `wacore_derive`, `wacore_appstate`, `wacore_noise`, `wacore_libsignal`.
+- Produces: self aliases in every crate root.
+- Preserves: package names, folder tree, and public crate names for external consumers.
+
+- [ ] **Step 1: Rename the dependency keys**
+
+Rename the existing `[workspace.dependencies]` keys and every member manifest entry from `wa-rs-core`, `wa-rs-binary`, `wa-rs-proto`, and the other sibling packages to the upstream aliases. Keep the package names unchanged. Do not keep both keys for the same package; Cargo rejects duplicate package dependencies. Update every `workspace = true` reference to the new key.
+
+- [ ] **Step 2: Add the self aliases**
+
+Add `extern crate self as ...;` to each crate root that does not already have one. `wacore/src/lib.rs` already has `extern crate self as wa_rs_core;`; the mechanical rename converts it to `wacore`, so do not add a duplicate. Add `extern crate self as whatsapp_rust;` to `src/lib.rs`.
+
+- [ ] **Step 3: Rename the imports**
+
+Run:
+
+```bash
+rg -l 'wa_rs_(core|binary|proto|derive|appstate|noise|libsignal)' \
+  --glob '*.rs' --glob '!reference/**' --glob '!target/**' | xargs sed -i \
+  -e 's/wa_rs_core/wacore/g' \
+  -e 's/wa_rs_binary/wacore_binary/g' \
+  -e 's/wa_rs_proto/waproto/g' \
+  -e 's/wa_rs_derive/wacore_derive/g' \
+  -e 's/wa_rs_appstate/wacore_appstate/g' \
+  -e 's/wa_rs_noise/wacore_noise/g' \
+  -e 's/wa_rs_libsignal/wacore_libsignal/g'
+```
+
+Do not touch `reference/whatsapp-rust`; it is the pinned upstream checkout.
+
+Do not rename the `wa-rs` package itself or the `wa_rs` crate name. Only the internal sibling crates are renamed.
+
+- [ ] **Step 4: Verify**
+
+```bash
+cargo check --workspace
+cargo build -p whatslite-desktop
+```
+
+Expected: both succeed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add Cargo.toml wacore waproto bridge storages transports http_clients src
+git commit -m "build: alias workspace crates to upstream names"
+```
+
+### Task 0.2: Declare the feature contract
 
 **Files:**
 - Modify: `Cargo.toml`
 - Modify: `wacore/Cargo.toml`
+- Modify: `storages/sqlite-storage/Cargo.toml`
+- Modify: `transports/tokio-transport/Cargo.toml`
 - Modify: `src/lib.rs`
-- Modify: `bridge/Cargo.toml`
-- Test: `cargo check` feature matrix
+- Test: feature matrix
 
 **Interfaces:**
-- Produces: root features `parity-core`, `parity-messaging`, `parity-social`, `parity-voip`, `parity-mobile`, `parity-plugins`, `parity-observability`, `parity-wasm`.
-- Produces: `wacore` features `parity-runtime`, `parity-session`, `parity-messaging`, `parity-observability`, `parity-voip`, `parity-mobile`, plus the VoIP sub-features `voip-control`, `voip`, `voip-mlow`.
+- Produces: root features from the Feature Contract section.
+- Produces: core features from the Feature Contract section.
+- Produces: `parity-core`, `parity-messaging`, `parity-social`, `parity-voip`, `parity-mobile`, `parity-plugins`, `parity-observability`, `parity-wasm`.
 
-**Feature naming contract.** Two levels exist and they are not interchangeable:
+- [ ] **Step 1: Declare every feature key as an empty shell**
 
-| Layer | Feature | Purpose |
-|---|---|---|
-| Root `wa-rs` | `parity-core` | runtime, clock, stats, telemetry, diagnostics, session/sync engines |
-| Root `wa-rs` | `parity-messaging` | message pipeline, media, retry, durability |
-| Root `wa-rs` | `parity-social` | groups, communities, newsletters, status, polls, events, business, bots |
-| Root `wa-rs` | `parity-voip` | umbrella that enables the three core VoIP sub-features |
-| Root `wa-rs` | `parity-mobile` | mobile registration and primary session |
-| Root `wa-rs` | `parity-plugins` | plugin host and lifecycle |
-| Root `wa-rs` | `parity-observability` | metrics, tracing, diagnostics export |
-| Root `wa-rs` | `parity-wasm` | WASM storage and randomness |
-| Core `wa-rs-core` | `parity-runtime` | runtime and clock abstraction |
-| Core `wa-rs-core` | `parity-session` | ADV, identity verification, session and sync engines |
-| Core `wa-rs-core` | `parity-messaging` | message processing, edits, secrets, reactions, media retry; implies `parity-session` |
-| Core `wa-rs-core` | `parity-observability` | core-side telemetry hooks |
-| Core `wa-rs-core` | `parity-mobile` | mobile core types |
-| Core `wa-rs-core` | `parity-voip` | umbrella = `voip-control` + `voip` + `voip-mlow` |
-| Core `wa-rs-core` | `voip-control` | neutral call-control traits only |
-| Core `wa-rs-core` | `voip` | SRTP/SFrame/WAHKDF media crypto, implies `voip-control` |
-| Core `wa-rs-core` | `voip-mlow` | PCM/MLOW codec and video frames, implies `voip` |
+Add every canonical feature and every parity alias to the root manifest. Add the core features to `wacore/Cargo.toml`. Add the storage features `bundled-sqlite`, `js`, `mobile`, `wasm-test` and the transport feature `tcp` as empty shells. Do not add dependency edges yet.
 
-Rules:
+- [ ] **Step 2: Add the parity aliases**
 
-- Tests of an isolated core module use the narrow core feature, e.g.
-  `cargo test -p wa-rs-core --features voip-control`.
-- Consumer and phase-gate checks use the root umbrella, e.g.
-  `cargo check -p wa-rs --features parity-voip`.
-- Umbrellas are additive and imply the phase they depend on:
-  `parity-messaging` implies `parity-core`, `parity-social` implies
-  `parity-messaging`, `parity-voip`/`parity-mobile`/`parity-plugins`/
-  `parity-observability`/`parity-wasm` imply `parity-core`.
-- Never reference a feature that does not exist yet in a `Cargo.toml` edge; add
-  the edge in the task that introduces the module.
+```toml
+parity-core = ["instance-clock", "legacy-session-interop"]
+parity-messaging = ["parity-core"]
+parity-social = ["parity-messaging"]
+parity-voip = ["voip"]
+parity-mobile = ["mobile-core"]
+parity-plugins = ["plugins", "client-lifecycle"]
+parity-observability = ["tracing", "metrics"]
+parity-wasm = ["js"]
+```
 
-- [ ] **Step 1: Add the feature declarations**
-
-Declare every flag above in root `Cargo.toml` and `wacore/Cargo.toml`. In this
-task they are empty shells (`parity-core = []`, `voip-control = []`, ...); each
-later task adds its own dependency edges. Add the naming contract as a short
-comment block above `[features]` so the two levels are not confused later.
-
-- [ ] **Step 2: Verify the default build is unchanged**
-
-Run:
+- [ ] **Step 3: Verify the default build is unchanged**
 
 ```bash
 cargo check -p wa-rs --no-default-features
 cargo check -p wa-rs --no-default-features --features parity-core
+cargo check -p wa-rs --no-default-features --features parity-messaging
+cargo check -p wa-rs --no-default-features --features parity-social
+cargo check -p wa-rs --no-default-features --features parity-voip
+cargo check -p wa-rs --no-default-features --features parity-mobile
+cargo check -p wa-rs --no-default-features --features parity-plugins
+cargo check -p wa-rs --no-default-features --features parity-observability
+cargo check -p wa-rs --no-default-features --features parity-wasm
 cargo check -p whatslite-desktop
 ```
 
-Expected: all three commands succeed.
+Expected: all succeed because every key is an empty shell.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add Cargo.toml wacore/Cargo.toml src/lib.rs bridge/Cargo.toml
-git commit -m "build: add parity feature flags"
+git add Cargo.toml wacore/Cargo.toml storages/sqlite-storage/Cargo.toml transports/tokio-transport/Cargo.toml src/lib.rs
+git commit -m "build: declare upstream and parity feature contract"
 ```
 
-### Task 0.2: Port runtime, time, stats, telemetry and diagnostics
+### Task 0.3: Port runtime, time, stats, telemetry, diagnostics and sync markers
 
 **Files:**
-- Create: `wacore/src/runtime.rs`
-- Create: `wacore/src/time.rs`
+- Create: `wacore/src/runtime.rs`, `wacore/src/runtime/clocked.rs`, `wacore/src/runtime/crypto.rs`
+- Create: `wacore/src/time.rs`, `wacore/src/time/clock.rs`
 - Create: `wacore/src/stats.rs`
 - Create: `wacore/src/telemetry.rs`
 - Create: `wacore/src/diagnostics.rs`
+- Create: `wacore/src/sync_marker.rs`
 - Modify: `wacore/src/lib.rs`
 - Modify: `wacore/Cargo.toml`
-- Test: `wacore/tests/parity_phase0.rs`
+- Test: `wacore/tests/parity_runtime.rs`, `wacore/tests/parity_stats.rs`
 
 **Interfaces:**
-- Produces: `wacore::runtime::Runtime` with the upstream `sleep`, `spawn`, `now` contract.
-- Produces: `wacore::time::Clock` and `InstanceClock` compatible with upstream call sites.
-- Produces: `wacore::stats::AllocMeter` and `MemoryReport`.
-- Produces: `wacore::telemetry` hooks gated by `parity-observability`.
-- Produces: `wacore::diagnostics::DiagnosticEvent`.
+- Produces: `Runtime`, `CryptoRuntime`, `ClockedRuntime`, `BoxFuture`, `Spawnable`, `AbortHandle`, `ShutdownNotifier`, `ShutdownSignal`, `timeout`, `wait_for_shutdown`.
+- Produces: `TimeProvider`, `MonotonicProvider`, `Clock`, `ClockReading`, `ClockError`, `GlobalClock`, `VirtualClock`, `Instant`, `AtomicInstant`, `now_millis`, `now_secs`, `now_utc`, `from_secs`, `from_millis`.
+- Produces: `SessionStats`, `StatsSnapshot`, `UnkeyableDevice`, `AllocMeter`, `AllocSnapshot`, `HeapSize`, `CollectionStats`, `TaskInstrument`, `MeteredFuture`, `CpuMeter`, `InstrumentedRuntime`.
+- Produces: `telemetry` metric functions and `Timer`; `ErrorSummary`; `MaybeSend`, `MaybeSendSync`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
-Create `wacore/tests/parity_phase0.rs` with tests:
+Create `wacore/tests/parity_runtime.rs` and `wacore/tests/parity_stats.rs` covering monotonic clock behavior, `VirtualClock::advance`, runtime shutdown, allocation metering, and `ErrorSummary` formatting.
 
-```rust
-#[test]
-fn runtime_clock_is_monotonic() { /* construct test clock, assert no backward jump */ }
-
-#[test]
-fn alloc_meter_records_scoped_allocations() { /* enter scope, assert bytes > 0 */ }
-
-#[test]
-fn diagnostics_are_serializable() { /* serde round-trip of a diagnostic event */ }
-```
-
-- [ ] **Step 2: Run it to verify failure**
-
-Run:
+- [ ] **Step 2: Run them and verify failure**
 
 ```bash
-cargo test -p wa-rs-core --features parity-runtime,parity-observability --test parity_phase0
+cargo test -p wa-rs-core --test parity_runtime --test parity_stats
 ```
 
-Expected: FAIL with unresolved `wacore::runtime`, `wacore::time`, `wacore::stats`.
+Expected: FAIL with unresolved modules and types.
 
 - [ ] **Step 3: Port the modules**
 
-Copy the public API and behavior from `reference/whatsapp-rust/wacore/src/runtime.rs`, `time.rs`, `stats.rs`, `telemetry.rs`, and `diagnostics.rs`. Keep upstream signatures and feature gates. Adapt crate names to `wa_rs_core`.
+Copy the upstream files listed above. Keep the upstream `#[cfg(feature = "instance-clock")]`, `#[cfg(feature = "tracing")]`, and `#[cfg(feature = "metrics")]` attributes. Add `dep:tracing`, `dep:metrics`, `portable-atomic`, `event-listener`, and any missing dependencies to `wacore/Cargo.toml`.
 
-- [ ] **Step 4: Run the test to verify pass**
-
-Run:
+- [ ] **Step 4: Verify**
 
 ```bash
-cargo test -p wa-rs-core --features parity-runtime,parity-observability --test parity_phase0
+cargo test -p wa-rs-core --test parity_runtime --test parity_stats
+cargo test -p wa-rs-core --features instance-clock --test parity_runtime
+cargo test -p wa-rs-core --features metrics,tracing --test parity_runtime
+cargo check -p wa-rs-core
 ```
 
 Expected: PASS.
@@ -274,114 +413,211 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add wacore/src/runtime.rs wacore/src/time.rs wacore/src/stats.rs wacore/src/telemetry.rs wacore/src/diagnostics.rs wacore/src/lib.rs wacore/Cargo.toml wacore/tests/parity_phase0.rs
-git commit -m "feat(core): port runtime time stats telemetry and diagnostics"
+git add wacore/src/runtime.rs wacore/src/runtime wacore/src/time.rs wacore/src/time wacore/src/stats.rs wacore/src/telemetry.rs wacore/src/diagnostics.rs wacore/src/sync_marker.rs wacore/src/lib.rs wacore/Cargo.toml wacore/tests/parity_runtime.rs wacore/tests/parity_stats.rs
+git commit -m "feat(core): port runtime time stats telemetry diagnostics and sync markers"
 ```
 
-### Task 0.3: Switch `waproto` to buffa
+### Task 0.4: Add the WireEnum derive macro
 
 **Files:**
-- Modify: `waproto/Cargo.toml`
-- Modify: `waproto/build.rs`
-- Modify: `waproto/src/lib.rs`
-- Modify: `wacore/Cargo.toml`
-- Modify: `src/` call sites
-- Modify: `bridge/` call sites
-- Test: `waproto/tests/proto_roundtrip.rs`
-- Test: `bridge/tests/parity_smoke.rs`
+- Modify: `wacore/derive/src/lib.rs`
+- Modify: `wacore/src/lib.rs`
+- Test: `wacore/tests/parity_wire_enum.rs`
 
 **Interfaces:**
-- Produces: buffa-generated Rust types under the existing `wa_rs_proto::whatsapp` path.
-- Produces: compatibility conversions for the existing prost-shaped types used by `bridge`.
+- Produces: `WireEnum` derive with `wire`, `wire_alias`, `wire_default`, `wire_fallback` attributes.
+- Produces: `as_str()`, `code()`, `wire_tag()`, `tag_name()`, `TryFrom<&str>`, `Default`.
+- Preserves: existing `StringEnum` derive and all 12 current uses.
 
-- [ ] **Step 1: Write the failing round-trip test**
+- [ ] **Step 1: Write the failing test**
 
-Create `waproto/tests/proto_roundtrip.rs`:
+Create `wacore/tests/parity_wire_enum.rs` with a small enum deriving `WireEnum` and assertions for `as_str`, `code`, `wire_tag`, `TryFrom<&str>`, and default fallback.
 
-```rust
-#[test]
-fn message_round_trips_through_buffa() { /* encode/decode a Message with text and key */ }
-
-#[test]
-fn adv_identity_view_decodes() { /* decode ADVSignedDeviceIdentity bytes */ }
-```
-
-- [ ] **Step 2: Run it to verify failure**
-
-Run:
+- [ ] **Step 2: Run it and verify failure**
 
 ```bash
-cargo test -p wa-rs-proto --test proto_roundtrip
+cargo test -p wa-rs-core --test parity_wire_enum
 ```
 
-Expected: FAIL because the buffa types/codegen are not present.
+Expected: FAIL because `WireEnum` is not exported.
 
-- [ ] **Step 3: Port the codegen**
+- [ ] **Step 3: Port the macro**
 
-Replace the prost build with the upstream `buffa-build` pipeline. Keep the crate name `wa-rs-proto` and path `waproto/`. Update `wacore`, `src`, and `bridge` imports. Add `From`/`TryFrom` adapters where the old API exposed prost structs.
+Copy upstream `WireEnum` from `reference/whatsapp-rust/wacore/derive/src/lib.rs` into `wacore/derive/src/lib.rs`. Keep `StringEnum` in place. Re-export both from `wacore/src/lib.rs`.
 
-- [ ] **Step 4: Run the tests to verify pass**
+Upstream uses `syn 3.0`; the current derive crate uses `syn 2.0`. Upgrade `wacore/derive/Cargo.toml` to `syn = { version = "3.0", features = ["full"] }` and run the existing derive tests. If `syn 3` breaks `ProtocolNode`, `EmptyNode` or `StringEnum`, port the upstream versions of those three macros as well.
 
-Run:
+- [ ] **Step 4: Verify**
 
 ```bash
-cargo test -p wa-rs-proto --test proto_roundtrip
+cargo test -p wa-rs-core --test parity_wire_enum
+cargo test -p wa-rs-core --features instance-clock
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add wacore/derive/src/lib.rs wacore/src/lib.rs wacore/tests/parity_wire_enum.rs
+git commit -m "feat(core): add WireEnum derive alongside StringEnum"
+```
+
+### Task 0.5: Switch waproto to buffa
+
+This task is split into three commits. Do not combine them.
+
+#### Task 0.5a: Port the buffa codegen pipeline
+
+**Files:**
+- Modify: `waproto/Cargo.toml`, `waproto/build.rs`, `waproto/src/lib.rs`
+- Create: `waproto/build_support/`, `waproto/build/`, `waproto/src/whatsapp.desc`, `waproto/src/whatsapp.desc.sha256`, `waproto/api.snapshot`, `waproto/signal-storage.snapshot`
+- Test: `waproto/tests/proto_roundtrip.rs`, `waproto/tests/build_freshness.rs`
+
+**Interfaces:**
+- Produces: buffa-generated types under `waproto::whatsapp`.
+- Produces: view types such as `MessageView`, `ADVSignedDeviceIdentityView`, `ADVSignedKeyIndexListView`.
+- Produces: `waproto` features `serde-deserialize`, `serde-snake-case`, `serde-enum-repr`.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `waproto/tests/proto_roundtrip.rs` and `waproto/tests/build_freshness.rs`.
+
+- [ ] **Step 2: Run them and verify failure**
+
+```bash
+cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
+```
+
+Expected: FAIL because buffa codegen is not present.
+
+- [ ] **Step 3: Port the pipeline**
+
+Copy the upstream `waproto` build pipeline and compatibility layer. Keep the package name `wa-rs-proto` and path `waproto/`. Do not vendor `whatspec` or `unwasm`; the committed descriptor and snapshots are the source of truth.
+
+- [ ] **Step 4: Verify codegen**
+
+```bash
+cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add waproto
+git commit -m "refactor(proto): port buffa codegen pipeline"
+```
+
+#### Task 0.5b: Migrate call sites to buffa types
+
+**Files:**
+- Modify: `wacore/src/`, `src/`, `bridge/src/main.rs`
+- Test: `cargo check -p wa-rs-core`, `cargo check -p wa-rs`, `cargo check -p wa-rs-bridge`
+
+**Interfaces:**
+- Produces: buffa-shaped proto access across `wacore`, `src`, and `bridge`.
+- Preserves: `bridge` message construction through `waproto::whatsapp`.
+
+- [ ] **Step 1: Migrate `wacore`**
+
+Replace prost-specific field access, `Box<T>` wrapping, and `Default` construction with the buffa equivalents. Work in this order and run `cargo check -p wa-rs-core` after each group:
+
+1. `wacore/src/proto_helpers.rs`
+2. `wacore/src/send.rs`
+3. `wacore/src/types/`
+4. `wacore/src/store/`
+5. `wacore/src/download.rs`, `wacore/src/history_sync.rs`
+6. The remaining `wacore/src/` call sites.
+
+This is the largest task in Phase 0. Do not batch it with unrelated changes.
+
+- [ ] **Step 2: Migrate `src`**
+
+Update `src/bot.rs`, `src/appstate_sync.rs`, `src/message.rs`, `src/send.rs`, and the feature modules that construct proto messages.
+
+- [ ] **Step 3: Migrate `bridge`**
+
+`bridge/src/main.rs` constructs `wa::Message` and `wa::message::ExtendedTextMessage`. Update it to the buffa constructors.
+
+- [ ] **Step 4: Verify**
+
+```bash
+cargo check -p wa-rs-core
+cargo check -p wa-rs
 cargo check -p wa-rs-bridge
 cargo check -p whatslite-desktop
 ```
 
-Expected: all pass.
+Expected: all succeed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add waproto wacore/Cargo.toml src bridge
-git commit -m "refactor(proto): switch waproto to buffa"
+git add wacore src bridge
+git commit -m "refactor(proto): migrate call sites to buffa types"
 ```
 
-### Task 0.4: Expand event model and delivery
+#### Task 0.5c: Add proto compatibility tests
+
+**Files:**
+- Create: `waproto/tests/generated_api.rs`, `waproto/tests/retained_schema.rs`, `waproto/tests/serde_enum_repr.rs`
+- Test: `cargo test -p wa-rs-proto`
+
+- [ ] **Step 1: Port the upstream proto tests** that validate the generated API, retained schema fields, and serde enum representation.
+- [ ] **Step 2: Run them and fix the compatibility layer** until they pass.
+- [ ] **Step 3: Verify**
+
+```bash
+cargo test -p wa-rs-proto
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add waproto/tests
+git commit -m "test(proto): cover buffa generated API and retained schema"
+```
+
+### Task 0.6: Port the event model and delivery
 
 **Files:**
 - Modify: `wacore/src/types/events.rs`
-- Create: `src/bot/event_delivery.rs`
+- Create: `wacore/src/event.rs`
 - Modify: `src/bot.rs`
-- Test: `wacore/tests/parity_events.rs`
+- Create: `src/bot/event_delivery.rs`, `src/bot/event_delivery/`
+- Test: `wacore/tests/parity_events.rs`, `tests/parity_event_delivery.rs`
 
 **Interfaces:**
-- Produces: upstream event variants and `EventKind` discriminants.
-- Produces: `EventDelivery` modes and hook registration.
+- Produces: `EventKind` with 80 variants and `Event` with 80 variants.
+- Produces: `EventInterest`, `EventHandler`, `CoreEventBus`, `Subscription`, `ChannelEventHandler`, `ChannelEventStats`, `LazyHistorySync`.
+- Produces: `EventDelivery`, `EventDeliveryStats`, `CallbackEventHandler`.
+- Preserves: current `Event` names used by `bridge` and `src/bot.rs`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
-Create `wacore/tests/parity_events.rs`:
+Create `wacore/tests/parity_events.rs` with a count assertion for 80 `EventKind` and 80 `Event` variants, serde round-trips, and interest-bit tests. Create `tests/parity_event_delivery.rs` for delivery modes and hook registration.
 
-```rust
-#[test]
-fn existing_event_kinds_keep_their_discriminants() { /* assert old values */ }
-
-#[test]
-fn new_event_kinds_are_appended() { /* assert new values > old max */ }
-
-#[test]
-fn event_serde_round_trips() { /* serde round-trip for representative events */ }
-```
-
-- [ ] **Step 2: Run it to verify failure**
+- [ ] **Step 2: Run them and verify failure**
 
 ```bash
 cargo test -p wa-rs-core --test parity_events
+cargo test -p wa-rs --test parity_event_delivery
 ```
 
-Expected: FAIL for missing variants/delivery.
+Expected: FAIL because `EventKind`, `CoreEventBus`, and `EventDelivery` are missing.
 
-- [ ] **Step 3: Port the event enum and delivery**
+- [ ] **Step 3: Port the event model**
 
-Copy upstream `wacore/src/types/events.rs` and `src/bot/event_delivery.rs`. Preserve old discriminants. Add compatibility conversions for old event names.
+Copy upstream `wacore/src/types/events.rs` and `wacore/src/event.rs`. Add the current `Event` variants that upstream no longer has as compatibility adapters if `bridge` still uses them. Port `src/bot/event_delivery.rs` and `src/bot/event_delivery/`.
 
-- [ ] **Step 4: Run the test to verify pass**
+- [ ] **Step 4: Verify**
 
 ```bash
 cargo test -p wa-rs-core --test parity_events
+cargo test -p wa-rs --test parity_event_delivery
 cargo check -p wa-rs-bridge
 ```
 
@@ -390,15 +626,15 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add wacore/src/types/events.rs src/bot/event_delivery.rs src/bot.rs wacore/tests/parity_events.rs
-git commit -m "feat(events): expand event model and delivery"
+git add wacore/src/types/events.rs wacore/src/event.rs src/bot.rs src/bot/event_delivery.rs src/bot/event_delivery wacore/tests/parity_events.rs tests/parity_event_delivery.rs
+git commit -m "feat(events): port 80-variant event model and delivery"
 ```
 
 ### Phase 0 Gate
 
-- [ ] `cargo test -p wa-rs-core --features parity-runtime,parity-observability --test parity_phase0`
-- [ ] `cargo test -p wa-rs-core --test parity_events`
-- [ ] `cargo test -p wa-rs-proto --test proto_roundtrip`
+- [ ] `cargo test -p wa-rs-core --test parity_runtime --test parity_stats --test parity_wire_enum --test parity_events`
+- [ ] `cargo test -p wa-rs-proto`
+- [ ] `cargo test -p wa-rs --test parity_event_delivery`
 - [ ] `cargo build -p whatslite-desktop`
 - [ ] `cargo test --workspace`
 - [ ] `cargo check --workspace`
@@ -406,118 +642,186 @@ git commit -m "feat(events): expand event model and delivery"
 - [ ] `cargo check -p wa-rs-bridge`
 - [ ] Bridge smoke test: pair, connect, send, receive
 
-Commit the phase as a merge/series only when every box is checked.
-
 ---
 
 ## Phase 1 — Auth, session and recovery
 
 **Phase goal:** upstream auth/session lifecycle, passkey and mobile core.
 
-### Task 1.1: Port session and sync engines
+### Task 1.1: Port the core client context, session engine and sync engine
 
 **Files:**
-- Create: `wacore/src/session_engine/`
-- Create: `wacore/src/sync_engine/`
+- Modify: `wacore/src/client.rs`, `wacore/src/client/context.rs`
+- Create: `wacore/src/session_engine/{mod,exchange,lifecycle,publication,retry}.rs`
+- Create: `wacore/src/sync_engine/{mod,app_state,history}.rs`
+- Create: `wacore/src/shortcake.rs`
 - Modify: `wacore/src/lib.rs`
-- Modify: `wacore/Cargo.toml`
-- Test: `wacore/tests/parity_session.rs`
+- Test: `wacore/tests/parity_session.rs`, `wacore/tests/parity_sync.rs`
 
 **Interfaces:**
-- Produces: `SessionEngine`, `SessionTransition`, `SyncEngine`, `SyncAdmission`.
+- Produces: `RegisteredExchange`, `SendingExchange`, `AwaitingExchange`, `CompletedExchange`.
+- Produces: `WorkerGeneration`, `AttemptTicket`, `TransportTicket`, `AuthenticationTicket`, `CleanupTicket`, `DriveLease`, `DriveKind`, `SupervisorPhase`, `DriveState`, `TransportPhase`, `AuthenticationPhase`, `ReconnectPolicy`, `DisconnectIntent`, `DesiredConnection`, `StopReason`, `NextConnection`, `BackoffRequest`, `LifecycleError`, `LifecycleSnapshot`.
+- Produces: `SyncOutcome`, `SyncScope`, `ScopeLost`, `SyncHolder`, `ReservationSkip`, `SyncSettles`, `ReservationWait`, `BatchedSyncRequest`, `StandDown`, `BatchedSyncOutcome`, `CriticalSyncPlan`, `RetryBudget`, `HistoryRecovery`, `HistoryAdmission`, `HistoryReceiptPoint`, `HistoryPublication`, `HistoryGeneration`, `HistoryActivitySnapshot`, `HistoryActivity`.
 - Consumes: `runtime::Runtime`, `time::Clock`, `store::traits`.
 
-- [ ] **Step 1: Write failing tests** for session transitions, offline resume and sync admission.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features parity-session --test parity_session` and verify failure.**
-- [ ] **Step 3: Port upstream `session_engine` and `sync_engine` modules and adapt imports.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-core`.**
-- [ ] **Step 5: Commit** with `feat(core): port session and sync engines`.
+- [ ] **Step 1: Write failing tests** for session transitions, reconnect policy, sync admission, history admission and publication.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 1.2: Port ADV and identity verification
+```bash
+cargo test -p wa-rs-core --test parity_session --test parity_sync
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/client/`, `session_engine/`, `sync_engine/` and `shortcake.rs`. Keep the upstream module paths and type names.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs-core --test parity_session --test parity_sync
+cargo check -p wa-rs-core
+```
+
+- [ ] **Step 5: Commit** with `feat(core): port client context session and sync engines`.
+
+### Task 1.2: Port ADV, identity verification, companion registration and client profile
 
 **Files:**
-- Create: `wacore/src/adv/`
+- Create: `wacore/src/adv.rs`, `wacore/src/adv/`
 - Create: `wacore/src/identity_verification.rs`
+- Modify: `wacore/src/companion_reg.rs`
 - Create: `wacore/src/client_profile.rs`
-- Modify: `wacore/src/iq/prekeys.rs`
-- Modify: `wacore/src/iq/usync.rs`
-- Test: `wacore/tests/parity_adv.rs`
+- Modify: `wacore/src/iq/prekeys.rs`, `wacore/src/iq/usync.rs`
+- Test: `wacore/tests/parity_adv.rs`, `wacore/tests/parity_identity.rs`
 
 **Interfaces:**
-- Produces: `AdvValidation`, `validate_adv_with_identity_key`, identity-change handling.
-- Consumes: buffa-generated `ADVSignedDeviceIdentityView`.
+- Produces: `AdvValidation`, `validate_adv_with_identity_key`, `IdentityChange`.
+- Produces: `CompanionReg`, `ClientProfile`.
+- Consumes: buffa `ADVSignedDeviceIdentityView`, `ADVSignedKeyIndexListView`.
 
-- [ ] **Step 1: Write failing tests** for valid/invalid/no-account-key ADV, hosted/companion prefixes, and identity change.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features parity-session --test parity_adv` and verify failure.**
-- [ ] **Step 3: Port upstream `adv`, `identity_verification`, `client_profile` and adapt USync/device-list parsing.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-core`.**
-- [ ] **Step 5: Commit** with `feat(core): port ADV and identity verification`.
+- [ ] **Step 1: Write failing tests** for valid/invalid/no-account-key ADV, hosted/companion prefixes, identity change, and companion registration parsing.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 1.3: Pair-code lifecycle and passkey
+```bash
+cargo test -p wa-rs-core --test parity_adv --test parity_identity
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/adv.rs`, `adv/`, `identity_verification.rs`, `companion_reg.rs`, `client_profile.rs`, and the USync/device-list parsing changes.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs-core --test parity_adv --test parity_identity
+cargo check -p wa-rs-core
+```
+
+- [ ] **Step 5: Commit** with `feat(core): port ADV identity companion registration and client profile`.
+
+### Task 1.3: Port pair-code lifecycle, passkey and companion notifications
 
 **Files:**
 - Modify: `src/pair_code.rs`
-- Create: `src/passkey/`
+- Create: `src/passkey/mod.rs`, `src/passkey/flow.rs`
+- Replace: `src/handlers/notification.rs` with `src/handlers/notification/mod.rs`
+- Create: `src/handlers/notification/companion_reg.rs`
 - Modify: `src/bot.rs`
-- Modify: `src/handlers/notification/companion_reg.rs`
-- Test: `tests/parity_auth.rs`
+- Modify: `Cargo.toml` (`passkey`)
+- Test: `tests/parity_pair_code.rs`, `tests/parity_passkey.rs`
 
 **Interfaces:**
-- Produces: pair-code refresh, error, cancel, exhausted events.
-- Produces: passkey request/confirmation/error events and flow.
+- Produces: `PairError`, `PairCodeRejection`, `pair_with_code`, `cancel_pair_code`.
+- Produces: `UserVerification`, `AssertionRequest`, `Assertion`, `PasskeyError`, `PasskeyAuthenticator`, `CallbackAuthenticator`, `parse_request_options`, `build_webauthn_assertion_json`, `set_passkey_authenticator`, `send_passkey_response`, `send_passkey_confirmation`.
+- Gate: `passkey`.
 
-- [ ] **Step 1: Write failing tests** for pair-code refresh/cancel/exhausted and passkey event mapping.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-core --test parity_auth` and verify failure.**
-- [ ] **Step 3: Port upstream pair-code lifecycle and passkey flow; keep old `pair_with_code` signature as a wrapper.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs-bridge`.**
+- [ ] **Step 1: Write failing tests** for pair-code refresh/cancel/exhausted and passkey request/response/confirmation.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_pair_code
+cargo test -p wa-rs --features passkey --test parity_passkey
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/pair_code.rs`, `src/passkey/`, and `src/handlers/notification/companion_reg.rs`. Keep the existing `pair_with_code` signature as a wrapper.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_pair_code
+cargo test -p wa-rs --features passkey --test parity_passkey
+cargo check -p wa-rs-bridge
+```
+
 - [ ] **Step 5: Commit** with `feat(auth): port pair-code lifecycle and passkey`.
 
-### Task 1.4: Client lifecycle, offline resume and node I/O
+### Task 1.4: Port client lifecycle, builder, node I/O, offline resume and IQ ops
 
 **Files:**
-- Create: `src/client/lifecycle.rs`
-- Create: `src/client/session_state.rs`
-- Create: `src/client/offline_resume.rs`
-- Create: `src/client/node_io.rs`
-- Create: `src/client/builder.rs`
-- Create: `src/client/iq_ops.rs`
 - Modify: `src/client.rs`
-- Test: `tests/parity_client.rs`
+- Create: `src/client/{lifecycle.rs,builder.rs,node_io.rs,offline_resume.rs,session_state.rs,iq_ops.rs,accessors.rs,adapters.rs,app_state.rs,device_topology.rs,durability_probe_id.rs,group_notifications.rs,interceptor.rs,member_index.rs,messaging.rs,notification_scope.rs,subsystem.rs}`
+- Modify: `src/client/{context_impl.rs,device_registry.rs,lid_pn.rs,sender_keys.rs,sessions.rs}`
+- Create: `src/client/app_state/`, `src/client/lifecycle/`, `src/client/tests.rs`, `src/client/tests/`
+- Create: `src/types/{connect_admission.rs,decrypt_failure_admission.rs,durability_hook.rs,group_notification_durability.rs,group_notification_facts.rs,history_sync_admission.rs,history_sync_durability.rs,retry_admission.rs}`
+- Modify: `src/types/{enc_handler.rs,mod.rs}`
+- Test: `tests/parity_client.rs`, `tests/parity_admission.rs`
 
 **Interfaces:**
-- Produces: `ClientOptions`, `ConnectStage`, `ConnectError`, `NodeFilter`, `NodeWaiter<T>`.
+- Produces: `ClientOptions`, `ClientBuilder`, `ClientBuild`, `ClientBuilderError`, `ConnectStage`, `ConnectError`, `NodeFilter`, `NodeWaiter<T>`, `ClientError`, `SignalMaintenanceError`.
+- Produces: `ConnectAdmission`, `DecryptFailureAdmission`, `DecryptFailureContext`, `DecryptFailureDecision`, `InboundDurabilityHook`, `HistorySyncCaptureHook`, `HistorySyncAdmission`, `HistorySyncDecision`, `HistorySyncMetadata`, `RetryAdmission`, `RetryContext`, `RetryDecision`.
 - Preserves: existing `Client::new`, `run`, `connect`, `disconnect`, `send_node`.
 
-- [ ] **Step 1: Write failing tests** for connect stages, node filter/waiter, and offline resume.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-core --test parity_client` and verify failure.**
-- [ ] **Step 3: Port upstream client modules and wire the old API through compatibility wrappers.**
-- [ ] **Step 4: Run the tests, `cargo check -p wa-rs --features parity-core`, and bridge smoke test.**
-- [ ] **Step 5: Commit** with `feat(client): port lifecycle offline resume and node I/O`.
+- [ ] **Step 1: Write failing tests** for connect stages, node filter/waiter, offline resume, admission decisions and durability hooks.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 1.5: Mobile core
+```bash
+cargo test -p wa-rs --test parity_client --test parity_admission
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/client/`, `src/types/`, and the upstream `src/client.rs`. Keep the old API as compatibility wrappers.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_client --test parity_admission
+cargo check -p wa-rs
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 5: Commit** with `feat(client): port lifecycle builder node IO offline resume and admissions`.
+
+### Task 1.5: Port mobile registration, primary session and mobile API
 
 **Files:**
-- Create: `src/mobile/`
+- Create: `wacore/src/mobile/{mod,environment,primary,registration,registration_wire,session,token}.rs`
+- Create: `src/mobile/{primary.rs,registration.rs}`
 - Create: `src/mobile_session.rs`
-- Create: `wacore/src/mobile/`
-- Modify: `Cargo.toml` (`parity-mobile`)
+- Create: `src/features/mobile_api.rs`
+- Modify: `Cargo.toml` (`mobile-core`, `mobile-transport-native`)
+- Modify: `wacore/Cargo.toml` (`mobile`)
 - Test: `tests/parity_mobile.rs`
 
 **Interfaces:**
-- Produces: mobile registration, primary login, companion hosting.
-- Gate: only compiled with `parity-mobile`.
+- Produces: `MobileConfigurationError`, `RegistrationEndpoint`, `TcpEndpoint`, `MobileTrust`, `EnvironmentBinding`, `MobileEnvironment`.
+- Produces: `PendingCompanion`, `AcknowledgedCompanion`, `VerifiedCompanion`.
+- Produces: `MobileAppStatePolicy`, `MobileEphemeralKeyProvider`, `MobileLoginAttempt`, `MobileLoginOptionsProvider`, `RegisteredMobileSession`, `RegistrationLoginPhoneIdMapping`, `PrimarySelfIdentityProfile`, `PrimaryDeviceIdentityPolicy`, `MobileMediaHttpProfile`, `validate_registration_login_profile`.
+- Gate: `mobile-core` (root), `mobile` (core).
 
-- [ ] **Step 1: Write failing tests** for registration request/response and primary session binding.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-mobile --test parity_mobile` and verify failure.**
-- [ ] **Step 3: Port upstream mobile modules and feature-gate them.**
-- [ ] **Step 4: Run the feature test and `cargo check -p wa-rs --features parity-mobile`.**
-- [ ] **Step 5: Commit** with `feat(mobile): port registration and primary sessions`.
+- [ ] **Step 1: Write failing tests** for registration request/response, primary session binding, environment binding and mobile app-state policy.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --features mobile-core --test parity_mobile
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/mobile/`, `src/mobile/`, `src/mobile_session.rs`, and `src/features/mobile_api.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --features mobile-core --test parity_mobile
+cargo check -p wa-rs --features mobile-core
+```
+
+- [ ] **Step 5: Commit** with `feat(mobile): port registration primary session and mobile API`.
 
 ### Phase 1 Gate
 
-- [ ] `cargo test -p wa-rs-core --features parity-session --test parity_session --test parity_adv`
-- [ ] `cargo test -p wa-rs --features parity-core --test parity_auth --test parity_client`
-- [ ] `cargo test -p wa-rs --features parity-mobile --test parity_mobile`
+- [ ] `cargo test -p wa-rs-core --test parity_session --test parity_sync --test parity_adv --test parity_identity`
+- [ ] `cargo test -p wa-rs --test parity_pair_code --test parity_client --test parity_admission`
+- [ ] `cargo test -p wa-rs --features passkey --test parity_passkey`
+- [ ] `cargo test -p wa-rs --features mobile-core --test parity_mobile`
 - [ ] `cargo check -p wa-rs --features parity-core`
 - [ ] `cargo check -p wa-rs --features parity-mobile`
 - [ ] `cargo check -p wa-rs-bridge`
@@ -528,119 +832,237 @@ Commit the phase as a merge/series only when every box is checked.
 
 ## Phase 2 — Messaging, media and reliability
 
-**Phase goal:** upstream message pipeline, retry/durability, media streaming and recovery.
+**Phase goal:** upstream message pipeline, send pipeline, retry/durability, media streaming and recovery.
 
-### Task 2.1: Message processing, dispatch and durability
+### Task 2.1: Port core message processing and secrets
 
 **Files:**
 - Create: `wacore/src/message_processing.rs`
-- Create: `src/message/commit_batch.rs`
-- Create: `src/message/dispatch.rs`
-- Create: `src/message/durability.rs`
-- Create: `src/message/live_retention.rs`
-- Create: `src/message/raw_pending.rs`
-- Create: `src/message/receive.rs`
-- Create: `src/message/special.rs`
-- Modify: `src/message.rs`
-- Test: `wacore/tests/parity_messaging.rs`
-
-**Interfaces:**
-- Produces: `EncType`, `MessageProcessing`, `CommitBatch`, `DurabilityHook`.
-- Consumes: `session_engine`, `sync_engine`.
-
-- [ ] **Step 1: Write failing tests** for inbound dispatch, commit ordering, live retention and raw pending.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features parity-messaging --test parity_messaging` and verify failure.**
-- [ ] **Step 3: Port upstream message processing and `src/message` modules.**
-- [ ] **Step 4: Run tests and `cargo check -p wa-rs --features parity-messaging`.**
-- [ ] **Step 5: Commit** with `feat(message): port processing dispatch and durability`.
-
-### Task 2.2: Edits, reactions and message secrets
-
-**Files:**
 - Create: `wacore/src/message_edit.rs`
 - Create: `wacore/src/msg_secret.rs`
 - Create: `wacore/src/reaction.rs`
-- Create: `src/features/message_edit.rs`
-- Create: `src/features/reaction.rs`
-- Modify: `src/client.rs`
-- Test: `wacore/tests/parity_edit_reaction.rs`
-
-**Interfaces:**
-- Produces: `EncryptedEdit`, `SecretEncrypted`, `send_reaction`, `decrypt_secret_encrypted`.
-- Preserves: existing `Client::edit_message` and `bot::MessageContext::edit_message`.
-
-- [ ] **Step 1: Write failing tests** for edit envelope, secret edit, reaction send/raw and legacy fallback.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features parity-messaging --test parity_edit_reaction` and verify failure.**
-- [ ] **Step 3: Port the modules and add compatibility wrappers.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs-bridge`.**
-- [ ] **Step 5: Commit** with `feat(message): port edits reactions and secrets`.
-
-### Task 2.3: Retry, receipts, PDO and rate limiting
-
-**Files:**
-- Create: `src/retry_conformance_tests.rs`
-- Create: `src/resend_rate_limiter.rs`
-- Create: `src/sender_key_device_cache.rs`
-- Modify: `src/retry.rs`, `src/receipt.rs`, `src/pdo.rs`
-- Test: `tests/parity_reliability.rs`
-
-**Interfaces:**
-- Produces: `RetryRequestOptions`, `RetryRequestOutcome`, `mark_message_played`, PDO fetch history.
-- Consumes: `StanzaRejection`, `NackReason`.
-
-- [ ] **Step 1: Write failing tests** for retry conformance, played receipts, PDO history and rate limit.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-messaging --test parity_reliability` and verify failure.**
-- [ ] **Step 3: Port upstream retry/receipt/PDO/rate-limit modules.**
-- [ ] **Step 4: Run the tests and bridge smoke test.**
-- [ ] **Step 5: Commit** with `feat(reliability): port retry receipts PDO and rate limiting`.
-
-### Task 2.4: Media streaming, retry/reupload and cache
-
-**Files:**
-- Create: `src/media.rs`
-- Create: `src/download/budget.rs`
-- Create: `src/download/memory.rs`
-- Create: `src/features/media_reupload.rs`
 - Create: `wacore/src/media_retry.rs`
 - Create: `wacore/src/webp.rs`
 - Create: `wacore/src/zip.rs`
 - Create: `wacore/src/sticker_pack.rs`
-- Modify: `src/download.rs`, `src/upload.rs`, `src/mediaconn.rs`
-- Test: `tests/parity_media.rs`
+- Create: `wacore/src/bot_message.rs`
+- Create: `wacore/src/comment.rs`
+- Modify: `wacore/src/messages.rs`
+- Modify: `wacore/src/reporting_token.rs`
+- Create: `wacore/src/secret_enc_addon.rs`
+- Modify: `wacore/src/lib.rs`
+- Test: `wacore/tests/parity_messaging.rs`, `wacore/tests/parity_secrets.rs`
 
 **Interfaces:**
-- Produces: `MediaDownloader`, `DownloadParams`, `UploadOptions`, `MediaReupload`.
-- Consumes: `MediaConn`, `HttpClient`, `Runtime`.
+- Produces: `EncType`, `EncNodeInfo`, `CategorizedEncNodes`, `categorize_enc_nodes`, `ProtocolMessageInfo`, `DecryptedMessageResult`, `process_decrypted_plaintext`.
+- Produces: `EncryptedEdit`, `SecretEncrypted`, `SecretEncKind`, `decrypt_secret_encrypted`, `decrypt_secret_encrypted_with_fallback`.
+- Produces: `BotMessage`, `Comment`, `SecretEncAddon`.
 
-- [ ] **Step 1: Write failing tests** for streaming upload/download, retry/reupload, cache budget, WebP and sticker pack.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-messaging --test parity_media` and verify failure.**
-- [ ] **Step 3: Port upstream media modules and keep old `download`/`upload` wrappers.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-messaging`.**
-- [ ] **Step 5: Commit** with `feat(media): port streaming retry and cache`.
+- [ ] **Step 1: Write failing tests** for enc-node categorization, decrypted plaintext routing, edit envelopes, secret encryption/decryption and reaction payloads.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 2.5: Inbound queue, flush scope and offline resume
+```bash
+cargo test -p wa-rs-core --test parity_messaging --test parity_secrets
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/message_processing.rs`, `message_edit.rs`, `msg_secret.rs`, `reaction.rs`, `media_retry.rs`, `webp.rs`, `zip.rs`, `sticker_pack.rs`, `bot_message.rs`, `comment.rs`, `messages.rs`, `secret_enc_addon.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs-core --test parity_messaging --test parity_secrets
+cargo check -p wa-rs-core
+```
+
+- [ ] **Step 5: Commit** with `feat(core): port message processing edits secrets reactions and stickers`.
+
+### Task 2.2: Port the inbound pipeline, durability and inbound queue
 
 **Files:**
+- Modify: `src/message.rs`
+- Create: `src/message/{commit_batch.rs,dispatch.rs,durability.rs,history_durability_tests.rs,live_retention.rs,msg_secret.rs,raw_pending.rs,receive.rs,retry.rs,special.rs,tests.rs}`
+- Create: `src/msg_secret_buffer.rs`
 - Create: `src/inbound_queue.rs`
 - Create: `src/flush_scope.rs`
 - Create: `src/signal_flush.rs`
-- Modify: `src/client/offline_resume.rs`
-- Test: `tests/parity_offline.rs`
+- Test: `tests/parity_inbound.rs`
 
 **Interfaces:**
-- Produces: inbound queue admission, batch-safe signal flush, offline resume.
-- Consumes: `DurabilityHook`, `SyncEngine`.
+- Produces: `InboundDurabilityHook`, `HistorySyncCaptureHook`, `InboundMessage`, `MessageBatch`, `BatchOrigin`.
+- Produces: `SecretFlushReport`, `DrainOutcome`.
+- Consumes: `types::durability_hook`, `types::history_sync_durability`.
 
-- [ ] **Step 1: Write failing tests** for queued inbound order, flush after reconnect and no duplicate delivery.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-messaging --test parity_offline` and verify failure.**
-- [ ] **Step 3: Port upstream queue/flush/offline modules.**
-- [ ] **Step 4: Run the tests and bridge offline/online smoke test.**
-- [ ] **Step 5: Commit** with `feat(reliability): port inbound queue and offline resume`.
+- [ ] **Step 1: Write failing tests** for commit ordering, live retention, raw pending replay, queued inbound order, flush after reconnect and no duplicate delivery.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_inbound
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/message/`, `src/inbound_queue.rs`, `src/flush_scope.rs`, `src/signal_flush.rs`, and `src/msg_secret_buffer.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_inbound
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(message): port inbound pipeline durability and queue`.
+
+### Task 2.3: Port the send pipeline, cache and error surface
+
+**Files:**
+- Modify: `src/send.rs`
+- Create: `src/send/{mod.rs,actions.rs,requests.rs,group_repair.rs,tctoken_lifecycle.rs}`, `src/send/tests/`
+- Create: `src/error.rs`
+- Create: `src/cache.rs`, `src/cache_config.rs`, `src/cache_store.rs`, `src/portable_cache.rs`, `src/portable_cache/`
+- Create: `src/pending_device_sync.rs`
+- Create: `src/sender_key_device_cache.rs`
+- Create: `src/resend_rate_limiter.rs`
+- Test: `tests/parity_send.rs`, `tests/parity_cache.rs`
+
+**Interfaces:**
+- Produces: `SendError`, `SendOptions`, `EditOptions`, `SendResult`, `PinDuration`, `RevokeType`, `SendRequest`, `EditRequest`.
+- Produces: `ServerRejection`, `Sources`, `ErrorChainExt`.
+- Produces: `CacheConfig`, `CacheStores`, `CacheStore`, `Freshness`, `OriginalMessageResolver`.
+- Produces: `SecretFlushReport`.
+
+- [ ] **Step 1: Write failing tests** for direct/group send, edit, revoke, pin, keep, group repair, cache freshness and error chaining.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_send --test parity_cache
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/send/`, `src/error.rs`, `src/cache.rs`, `src/cache_config.rs`, `src/cache_store.rs`, `src/portable_cache.rs`, `src/pending_device_sync.rs`, `src/sender_key_device_cache.rs`, `src/resend_rate_limiter.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_send --test parity_cache
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 5: Commit** with `feat(send): port send pipeline cache and error surface`.
+
+### Task 2.4: Port media streaming, retry/reupload and cache budgets
+
+**Files:**
+- Create: `src/media.rs`
+- Modify: `src/download.rs`
+- Create: `src/download/{budget.rs,memory.rs}`
+- Modify: `src/upload.rs`
+- Modify: `wacore/src/download.rs`
+- Modify: `wacore/src/upload.rs`
+- Create: `src/features/media_reupload.rs`
+- Test: `tests/parity_media.rs`
+
+**Interfaces:**
+- Produces: `ImageOptions`, `VideoOptions`, `DocumentOptions`, `AudioOptions`.
+- Produces: `DownloadParams`, `MediaDownloadError`, `ClientDownloadError`, `MediaDownloader`, `DownloadLimits`, `DownloadPolicyError`, `MediaByteDomain`.
+- Produces: `UploadResponse`, `UploadOptions`, `MediaReupload`, `MediaReuploadRequest`, `MediaReuploadPhase`, `MediaReuploadError`.
+
+- [ ] **Step 1: Write failing tests** for streaming upload/download, retry/reupload, cache budget, WebP and sticker pack fetch.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_media
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/media.rs`, `src/download.rs`, `src/download/`, `src/upload.rs`, and `src/features/media_reupload.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_media
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(media): port streaming retry reupload and cache budgets`.
+
+### Task 2.5: Port reliability, PDO, history, request/usync, keepalive, LID and store
+
+**Files:**
+- Modify: `src/receipt.rs`, `src/retry.rs`
+- Modify: `src/pdo.rs`
+- Create: `src/pdo/`
+- Modify: `src/history_sync.rs`
+- Create: `src/history_sync/`
+- Modify: `src/request.rs`
+- Create: `src/request/`
+- Modify: `src/usync.rs`
+- Create: `src/usync/`
+- Modify: `src/keepalive.rs`
+- Create: `src/keepalive/`
+- Modify: `src/lid_pn_cache.rs`
+- Create: `src/lid_pn_cache/`
+- Modify: `src/socket/{mod.rs,error.rs,noise_socket.rs}`
+- Modify: `src/store/`
+- Test: `tests/parity_reliability.rs`, `tests/parity_pdo.rs`, `tests/parity_history.rs`
+
+**Interfaces:**
+- Produces: `RetryRequestOptions`, `RetryRequestOutcome`, `RetryRequestError`, `StanzaRejection`, `StanzaResponseError`, `MessageRetransmission`.
+- Produces: `mark_message_played`, `mark_as_played`.
+- Produces: `HistorySync`, `HistorySyncNotification`, `UsyncQuery`, `UsyncProtocol`.
+- Produces: `LidPnEntry`, `LearningSource`, `PersistenceManager`, `DeviceCommand`, `SqliteStore`.
+
+- [ ] **Step 1: Write failing tests** for retry conformance, played receipts, PDO history, history sync admission, usync parsing, keepalive and LID/PN learning.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/receipt.rs`, `retry.rs`, `pdo/`, `history_sync/`, `request/`, `usync/`, `keepalive/`, `lid_pn_cache/`, `socket/`, and `store/`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 5: Commit** with `feat(reliability): port retry receipts PDO history request usync and store`.
+
+### Task 2.6: Port core protocol, handshake, transport and shared utility modules
+
+**Files:**
+- Modify: `wacore/src/net.rs`, `wacore/src/version.rs`, `wacore/src/xml.rs`
+- Create: `wacore/src/serde_helpers.rs`
+- Modify: `wacore/src/handshake/`
+- Replace: `wacore/src/protocol.rs` with `wacore/src/protocol/`
+- Modify: `wacore/src/ib.rs`, `wacore/src/pair.rs`, `wacore/src/pair_code.rs`, `wacore/src/prekeys.rs`, `wacore/src/request.rs`, `wacore/src/send.rs`, `wacore/src/usync.rs`, `wacore/src/history_sync.rs`, `wacore/src/proto_helpers.rs`, `wacore/src/stanza/`, `wacore/src/store/`
+- Modify: `wacore/src/types/{jid.rs,lid_pn.rs,message.rs,mod.rs,presence.rs,spam_report.rs,user.rs}`
+- Create: `wacore/src/types/{message_ref.rs,message_secret.rs,wire_enums.rs}`, `wacore/src/types/message_ref/`
+- Modify: `src/handshake.rs`, `src/http.rs`, `src/jid_utils.rs`, `src/mediaconn.rs`, `src/spam_report.rs`, `src/sync_task.rs`, `src/unified_session.rs`, `src/version.rs`
+- Create: `src/retry_conformance_tests.rs`
+- Test: `tests/parity_protocol.rs`, `tests/parity_transport.rs`
+
+**Interfaces:**
+- Produces: `NoiseHandshake`, `NoiseError`, `HandshakeError`, `Transport`, `TransportFactory`, `HttpClient`, `MediaConn`, `JidUtils`, `SpamFlow`, `SpamReportRequest`, `SpamReportResult`, `SyncTask`, `UnifiedSession`.
+- Preserves: existing `wa_rs::handshake`, `wa_rs::http`, `wa_rs::mediaconn`, `wa_rs::spam_report` APIs.
+
+- [ ] **Step 1: Write failing tests** for handshake state transitions, transport framing, media connection refresh, spam reporting and unified session behavior.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_protocol --test parity_transport
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/net.rs`, `serde_helpers.rs`, `version.rs`, `xml.rs`, `handshake/`, `protocol/`, `ib.rs`, `pair.rs`, `pair_code.rs`, `prekeys.rs`, `request.rs`, `send.rs`, `usync.rs`, `history_sync.rs`, `proto_helpers.rs`, `stanza/`, `store/`, the listed `types/` modules, and the matching root `src/` files.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_protocol --test parity_transport
+cargo check -p wa-rs-core
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(core): port protocol handshake transport and shared utilities`.
 
 ### Phase 2 Gate
 
-- [ ] `cargo test -p wa-rs-core --features parity-messaging --test parity_messaging --test parity_edit_reaction`
-- [ ] `cargo test -p wa-rs --features parity-messaging --test parity_reliability --test parity_media --test parity_offline`
+- [ ] `cargo test -p wa-rs-core --test parity_messaging --test parity_secrets`
+- [ ] `cargo test -p wa-rs --test parity_inbound --test parity_send --test parity_cache --test parity_media`
+- [ ] `cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history`
+- [ ] `cargo test -p wa-rs --test parity_protocol --test parity_transport`
+- [ ] `cargo check -p wa-rs-core`
 - [ ] `cargo check -p wa-rs --features parity-messaging`
 - [ ] `cargo check -p wa-rs-bridge`
 - [ ] `cargo build -p whatslite-desktop`
@@ -650,66 +1072,122 @@ Commit the phase as a merge/series only when every box is checked.
 
 ## Phase 3 — Social features
 
-**Phase goal:** groups, communities, newsletters, status, polls, events, stickers, business, bots, labels, favorites, quick replies, comments and chat actions.
+**Phase goal:** all 34 upstream `src/features` modules, their IQ domains, notification handlers and event surface.
 
-### Task 3.1: Advanced groups and chat actions
+### Task 3.1: Port social foundations and upgrade existing feature modules
 
 **Files:**
-- Modify: `src/features/groups.rs`
+- Modify: `src/features/mod.rs`, `src/lib.rs`, `wacore/src/iq/mex.rs`
+- Create: `src/features/creation.rs`
+- Create: `src/features/group_history.rs`
+- Modify: `src/features/mex.rs`
+- Modify: `src/features/tctoken.rs`
+- Create: `src/features/stanza.rs`
+- Create: `src/features/signal.rs`
+- Create: `src/features/rotate_key.rs`
+- Modify: `src/features/blocking.rs`
+- Modify: `src/features/chatstate.rs`
+- Modify: `src/features/contacts.rs`
+- Modify: `src/features/presence.rs`
+- Test: `tests/parity_social_foundations.rs`, `wacore/tests/parity_iq_social.rs`
+
+**Interfaces:**
+- Produces: `creation_types!` and the `CreatedPoll`, `CreatedEvent`, `PollRef`, `EventRef` types.
+- Produces: `GroupHistorySkipReason`, `GroupHistoryRetryToken`, `GroupHistoryShareOutcome`.
+- Produces: `Mex`, `MexError`, `MexOperation`, `MexRequest`, `MexDoc`, `CappingStatus`.
+- Produces: `TcToken`, `TcTokenError`, `TcTokenEntry`, `ReceivedTcToken`.
+- Produces: `StanzaRejection`, `StanzaResponseError`, `RetryRequestOptions`, `RetryRequestOutcome`, `MessageRetransmission`.
+- Produces: `Signal`, `SignalError`, `SignalSessionInfo`, `SignalSessionMigration`.
+- Preserves: existing `Blocking`, `Chatstate`, `Contacts`, `Presence` method names.
+
+- [ ] **Step 1: Write failing tests** for creation helpers, group-history tokens, MEX requests, TCToken lifecycle, stanza rejection mapping, signal sessions and rotate-key.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_social_foundations
+cargo test -p wa-rs-core --test parity_iq_social
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/features/{creation,group_history,mex,tctoken,stanza,signal,rotate_key,blocking,chatstate,contacts,presence}.rs` and the matching `wacore/src/iq/` domains.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_social_foundations
+cargo test -p wa-rs-core --test parity_iq_social
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(social): port social foundations and upgrade existing features`.
+
+### Task 3.2: Port advanced groups, chat actions, labels, favorites and quick replies
+
+**Files:**
+- Modify: `src/features/mod.rs`, `src/features/groups.rs`
 - Create: `src/features/chat_actions.rs`
 - Create: `src/features/labels.rs`
 - Create: `src/features/favorites.rs`
 - Create: `src/features/quick_replies.rs`
-- Modify: `wacore/src/iq/groups.rs`, `wacore/src/iq/join_shapes.rs`
-- Test: `tests/parity_groups.rs`
-
-**Interfaces:**
-- Produces: `GroupError`, `GroupLookupResult`, `GroupOverview`, `MembershipRequest`, `ClearChatOptions`, `StarredMessages`.
-- Preserves: existing `Groups` basic methods.
-
-- [ ] **Step 1: Write failing tests** for join by invite, membership approve/reject, locked/announce/ephemeral, history share, labels/favorites/quick replies.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-social --test parity_groups` and verify failure.**
-- [ ] **Step 3: Port upstream groups/chat actions/labels/favorites/quick replies and IQ modules.**
-- [ ] **Step 4: Run the tests and bridge group smoke test.**
-- [ ] **Step 5: Commit** with `feat(groups): port advanced groups and chat actions`.
-
-### Task 3.2: Communities
-
-**Files:**
-- Create: `src/features/community.rs`
-- Create: `wacore/src/iq/community_create.rs`
+- Modify: `wacore/src/iq/groups.rs`
 - Create: `wacore/src/iq/join_shapes.rs`
-- Test: `tests/parity_community.rs`
+- Test: `tests/parity_groups.rs`, `tests/parity_chat_actions.rs`
 
 **Interfaces:**
-- Produces: `Community`, `CreateCommunityOptions`, `CreateSubgroupOptions`, `LinkSubgroupOptions`, `CommunitySubgroup`.
+- Produces: `Groups`, `GroupError`, `GroupLookupResult`, `GroupOverview`, `GroupOverviewResult`, `GroupMetadata`, `GroupParticipant`, `MembershipRequest`, `GroupJoinError`, `GroupHistoryAddResult`.
+- Produces: `ChatActions`, `ClearChatOptions`, `StarredMessages`, `MediaDeletion`, `SyncActionMessageRange`.
+- Produces: `Labels`, `Favorites`, `QuickReplies`.
 
-- [ ] **Step 1: Write failing tests** for create/deactivate, subgroup create/link/unlink, participant counts and join.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-social --test parity_community` and verify failure.**
-- [ ] **Step 3: Port upstream community modules and IQ types.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-social`.**
-- [ ] **Step 5: Commit** with `feat(community): port communities and subgroups`.
+- [ ] **Step 1: Write failing tests** for join by invite, membership approve/reject, locked/announce/ephemeral, history share, labels, favorites and quick replies.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 3.3: Newsletters and channels
+```bash
+cargo test -p wa-rs --test parity_groups --test parity_chat_actions
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/features/groups.rs`, `chat_actions.rs`, `labels.rs`, `favorites.rs`, `quick_replies.rs` and the matching IQ domains.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_groups --test parity_chat_actions
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(groups): port advanced groups chat actions labels favorites and quick replies`.
+
+### Task 3.3: Port communities and newsletters
 
 **Files:**
+- Modify: `src/features/mod.rs`, `wacore/src/types/newsletter.rs`
+- Create: `src/features/community.rs`
 - Create: `src/features/newsletter.rs`
+- Create: `wacore/src/iq/community_create.rs`
 - Create: `wacore/src/iq/newsletter.rs`
-- Modify: `src/handlers/notification.rs`
-- Test: `tests/parity_newsletter.rs`
+- Test: `tests/parity_community.rs`, `tests/parity_newsletter.rs`
 
 **Interfaces:**
-- Produces: `Newsletter`, `NewsletterMetadata`, `NewsletterMessage`, `NewsletterAdminInfo`.
+- Produces: `Community<'a>`, `CommunityError`, `CreateCommunityOptions`, `CreateCommunityResult`, `CreateSubgroupOptions`, `LinkSubgroupOptions`, `CommunitySubgroup`, `SubgroupFailure`, `SubgroupVisibility`.
+- Produces: `Newsletter<'a>`, `NewsletterError`, `NewsletterMetadata`, `NewsletterMessage`, `NewsletterAdminInfo`, `NewsletterRole`, `NewsletterState`.
 
-- [ ] **Step 1: Write failing tests** for list/get/create/join/leave/update/admin/messages/reactions/polls.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-social --test parity_newsletter` and verify failure.**
-- [ ] **Step 3: Port upstream newsletter modules and notification handlers.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-social`.**
-- [ ] **Step 5: Commit** with `feat(newsletter): port newsletters and channels`.
+- [ ] **Step 1: Write failing tests** for community create/deactivate, subgroup create/link/unlink, newsletter list/get/create/join/leave/update/admin/messages.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 3.4: Status, polls and events
+```bash
+cargo test -p wa-rs --test parity_community --test parity_newsletter
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/features/community.rs`, `newsletter.rs` and the matching IQ domains.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_community --test parity_newsletter
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(social): port communities and newsletters`.
+
+### Task 3.4: Port status, polls and events
 
 **Files:**
+- Modify: `src/features/mod.rs`
 - Create: `src/features/status.rs`
 - Create: `src/features/polls.rs`
 - Create: `src/features/events.rs`
@@ -717,235 +1195,378 @@ Commit the phase as a merge/series only when every box is checked.
 - Test: `tests/parity_status_polls_events.rs`
 
 **Interfaces:**
-- Produces: `Status`, `StatusSendOptions`, `Polls`, `CreatedPoll`, `Events`, `EventCreationParams`.
+- Produces: `Status`, `StatusSendOptions`, `StatusPrivacySetting`.
+- Produces: `Polls`, `PollError`, `CreatedPoll`, `PollRef`, `PollOptionResult`, `PollVoteCiphertext`.
+- Produces: `Events`, `EventCreationParams`, `CreatedEvent`, `EventRef`, `EventResponseType`.
 
-- [ ] **Step 1: Write failing tests** for status send/revoke/privacy, poll create/vote/decrypt/aggregate and event create/respond.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-social --test parity_status_polls_events` and verify failure.**
-- [ ] **Step 3: Port upstream status/polls/events modules and IQ types.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-social`.**
+- [ ] **Step 1: Write failing tests** for status send/revoke/privacy, poll create/vote/decrypt/aggregate, and event create/respond/cancel.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --test parity_status_polls_events
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/features/status.rs`, `polls.rs`, `events.rs`, `creation.rs` and `wacore/src/poll.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_status_polls_events
+cargo check -p wa-rs
+```
+
 - [ ] **Step 5: Commit** with `feat(social): port status polls and events`.
 
-### Task 3.5: Stickers, business, bots, comments and profile
+### Task 3.5: Port stickers, business, bots, comments, pictures, profile and app state
 
 **Files:**
+- Modify: `src/features/mod.rs`
 - Create: `src/features/stickers.rs`
 - Create: `src/features/business.rs`
 - Create: `src/features/bots.rs`
 - Create: `src/features/comments.rs`
 - Create: `src/features/pictures.rs`
 - Create: `src/features/profile.rs`
+- Create: `src/features/app_state_settings.rs`
+- Create: `src/features/app_state_resync.rs`
+- Modify: `src/appstate_sync.rs`
+- Create: `src/appstate_known_verbs.rs`
+- Create: `wacore/src/appstate_sync.rs`, `wacore/src/appstate_sync/`
 - Create: `wacore/src/iq/{bot,business,profile}.rs`
-- Test: `tests/parity_social_misc.rs`
+- Test: `tests/parity_social_misc.rs`, `tests/parity_appstate.rs`
 
 **Interfaces:**
-- Produces: `Business`, `Catalog`, `Order`, `Bots`, `Comments`, `Pictures`, `Profile`.
+- Produces: `Stickers`, `Business`, `Catalog`, `Collection`, `Order`, `Bots`, `Comments`, `Pictures`, `Profile`.
+- Produces: `AppStateSettings`, `AppStateResyncMode`, `AppStateResyncReport`.
 - Preserves: existing contact/profile picture calls.
 
-- [ ] **Step 1: Write failing tests** for catalog/order, bot list, comments, profile picture and text status.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-social --test parity_social_misc` and verify failure.**
-- [ ] **Step 3: Port upstream modules and IQ types.**
-- [ ] **Step 4: Run the tests and `cargo check -p wa-rs --features parity-social`.**
-- [ ] **Step 5: Commit** with `feat(social): port stickers business bots and comments`.
+- [ ] **Step 1: Write failing tests** for catalog/order, bot list, comments, profile picture, text status, app-state settings/resync and app-state sync.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 3.6: IQ/notification coverage and event parity
+```bash
+cargo test -p wa-rs --test parity_social_misc --test parity_appstate
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/features/{stickers,business,bots,comments,pictures,profile,app_state_settings,app_state_resync}.rs`, `src/appstate_sync.rs`, `wacore/src/appstate_sync.rs`, `wacore/src/appstate_sync/`, and the matching IQ domains.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --test parity_social_misc --test parity_appstate
+cargo check -p wa-rs
+```
+
+- [ ] **Step 5: Commit** with `feat(social): port stickers business bots comments pictures profile and app state`.
+
+### Task 3.6: Port IQ domains, notification handlers and handler coverage
 
 **Files:**
 - Modify: `wacore/src/iq/mod.rs`
-- Modify: `src/handlers/notification/mod.rs`
-- Modify: `src/handlers/notification/{companion_reg,device,groups,privacy_business,profile}.rs`
-- Test: `wacore/tests/parity_iq_social.rs`
+- Modify: `wacore/src/iq/{blocklist,chatstate,contacts,dirty,keepalive,mediaconn,node,passive,prekeys,privacy,props,spam_report,spec,tctoken}.rs`
+- Create: `wacore/src/iq/{abprops,bot,business,contextual,devices,mex_operations,mex_operations_unlisted,pilots,profile,targets}.rs`
+- Modify: `wacore/src/iq/usync.rs`
+- Create: `wacore/src/iq/usync/`
+- Modify: `src/handlers/{basic.rs,chatstate.rs,ib.rs,iq.rs,message.rs,receipt.rs,router.rs,traits.rs}`
+- Create: `src/handlers/presence.rs`
+- Modify: `src/handlers/mod.rs`
+- Modify: `src/handlers/notification/{mod.rs,companion_reg.rs}`
+- Create: `src/handlers/notification/{device.rs,groups.rs,privacy_business.rs,profile.rs}`
+- Test: extend `wacore/tests/parity_iq_social.rs`; create `tests/parity_handlers.rs`
 
 **Interfaces:**
-- Produces: all upstream IQ domains and notification types.
-- Produces: 80-variant event surface.
+- Produces: every upstream IQ domain and notification type.
+- Produces: 80-variant event surface exercised through handlers.
+- Preserves: existing handler entry points used by `bridge`.
 
-- [ ] **Step 1: Write failing conformance tests** for each new IQ domain and notification type.
-- [ ] **Step 2: Run the test and verify failure.**
+- [ ] **Step 1: Write failing conformance tests** for each IQ domain and notification type.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs-core --test parity_iq_social
+cargo test -p wa-rs --test parity_handlers
+```
+
 - [ ] **Step 3: Port the remaining IQ and notification modules.**
-- [ ] **Step 4: Run tests and `cargo check -p wa-rs-bridge`.**
-- [ ] **Step 5: Commit** with `feat(iq): complete social IQ and notification coverage`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs-core --test parity_iq_social
+cargo test -p wa-rs --test parity_handlers
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 5: Commit** with `feat(iq): complete social IQ notification and handler coverage`.
 
 ### Phase 3 Gate
 
-- [ ] `cargo test -p wa-rs --features parity-social --test parity_groups --test parity_community --test parity_newsletter`
-- [ ] `cargo test -p wa-rs --features parity-social --test parity_status_polls_events --test parity_social_misc`
+- [ ] `cargo test -p wa-rs --test parity_social_foundations --test parity_groups --test parity_chat_actions`
+- [ ] `cargo test -p wa-rs --test parity_community --test parity_newsletter --test parity_status_polls_events`
+- [ ] `cargo test -p wa-rs --test parity_social_misc --test parity_appstate --test parity_handlers`
 - [ ] `cargo test -p wa-rs-core --test parity_iq_social`
 - [ ] `cargo check -p wa-rs --features parity-social`
 - [ ] `cargo check -p wa-rs-bridge`
 - [ ] `cargo build -p whatslite-desktop`
-- [ ] Event surface test: 80 variants present
+- [ ] Event surface test: 80 `EventKind` and 80 `Event` variants
 
 ---
 
 ## Phase 4 — Calls and VoIP
 
-**Phase goal:** upstream call control and media stack.
+**Phase goal:** upstream call control and media stack, including the runtime, engine, relay and codec features.
 
-### Task 4.1: VoIP control boundary
+### Task 4.1: Port the VoIP control boundary
 
 **Files:**
-- Create: `wacore/src/voip_control/`
-- Create: `src/voip_control/`
-- Modify: `Cargo.toml` (`parity-voip`)
+- Create: `wacore/src/voip_control/{mod.rs,app_data.rs,audio_format.rs,control.rs,engine_bridge.rs,events.rs,fake_backend.rs,group.rs,kdf.rs,media_stats.rs,ports.rs,registry.rs,relay_parse.rs,resident_session.rs,signaling.rs,signaling_plan.rs,spec_build.rs,ssrc.rs,transport.rs}`
+- Create: `src/voip_control/{mod.rs,wacore_backend.rs}`
+- Modify: `Cargo.toml` (`voip-control`)
+- Modify: `wacore/Cargo.toml` (`voip-control`)
 - Test: `wacore/tests/parity_voip_control.rs`
 
 **Interfaces:**
-- Produces: neutral call-control traits and registry.
-- Gate: core-level `voip-control` only; root `parity-voip` also enables it.
+- Produces: `GroupControl`, `NormalizedGroupControl`, `GroupRawEpoch`, `VideoControl`, `VideoControlSender`, `VideoControlReceiver`, `PeerAnswer`.
+- Produces: `CallEvent`, `MediaGroupEpoch`, `MediaSessionKey`, `MediaAudioSpec`, `MediaKeyframeUrgency`, `VideoFecConfig`, `MediaVideoUpgradeToken`, `MediaGroupTransition`, `MediaCodecDecisionSource`, `MediaSilenceReason`, `MediaEncodedFrame`, `MediaRtcpReportBlock`, `MediaRtcpFeedback`, `MediaSessionSpec`, `MediaDirectPeer`, `MediaGroupSpec`, `MediaCommand`, `MediaGroupControlKind`, `MediaCloseReason`, `MediaSetupError`.
+- Produces: `AudioSource`, `AudioSink`, `EncodedAudioSource`, `EncodedAudioSink`, `VideoFrame`, `TimedVideoFrame`, `VideoInput`.
+- Gate: `voip-control`.
 
-- [ ] **Step 1: Write failing tests** for call registry and control-plane boundary.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features voip-control --test parity_voip_control` and verify failure.**
-- [ ] **Step 3: Port upstream `voip_control` modules.**
-- [ ] **Step 4: Run the feature test and `cargo check -p wa-rs-core --features voip-control`.**
+- [ ] **Step 1: Write failing tests** for call registry, control-plane boundary, group control normalization, media setup errors and relay parsing.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs-core --features voip-control --test parity_voip_control
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/voip_control/` and `src/voip_control/`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs-core --features voip-control --test parity_voip_control
+cargo check -p wa-rs-core --features voip-control
+cargo check -p wa-rs --features voip-control
+```
+
 - [ ] **Step 5: Commit** with `feat(voip): port control boundary`.
 
-### Task 4.2: VoIP media crypto
+### Task 4.2: Port the VoIP engine, media crypto and MLOW
 
 **Files:**
-- Create: `wacore/src/voip/`
-- Modify: `Cargo.toml` (`voip`)
-- Test: `wacore/tests/parity_voip.rs`
+- Create: `wacore/src/voip/{mod.rs,audio.rs,codec_probe.rs,demux.rs,driver.rs,e2e_srtp.rs,engine.rs,fec.rs,group_audio.rs,group_media.rs,h264.rs,hbh_srtp.rs,opus_packet.rs,rtcp.rs,rtp.rs,session.rs,sframe.rs,stun.rs,tap.rs,warp.rs}`
+- Create: `wacore/src/voip/mlow/`, `wacore/src/voip/sframe/`
+- Modify: `Cargo.toml` (`voip`, `voip-mlow`, `voip-libopus`, `voip-encoded`)
+- Modify: `wacore/Cargo.toml` (`voip`, `voip-mlow`)
+- Test: `wacore/tests/parity_voip.rs`, `wacore/tests/parity_voip_mlow.rs`
 
 **Interfaces:**
-- Produces: SRTP, SFrame, WAHKDF, relay session traits.
-- Gate: `voip` feature only.
+- Produces: `AudioConfig`, `OpusMlowPacketError`, `depacketize_opus_from_mlow`, `packetize_opus_for_mlow`.
+- Produces: SRTP, SFrame, WAHKDF, RTP/RTCP, H.264, FEC, STUN, relay session traits.
+- Gate: `voip`, `voip-mlow`, `voip-libopus`, `voip-encoded`.
 
-- [ ] **Step 1: Write failing tests** for SRTP/SFrame vectors and relay session.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features voip --test parity_voip` and verify failure.**
-- [ ] **Step 3: Port upstream `voip` media modules.**
-- [ ] **Step 4: Run the feature test.**
+- [ ] **Step 1: Write failing tests** for SRTP/SFrame vectors, MLOW encode/decode, DTX, H.264 frame boundaries and relay session behavior.
+- [ ] **Step 2: Run and verify failure**
 
 ```bash
 cargo test -p wa-rs-core --features voip --test parity_voip
-cargo check -p wa-rs-core --features voip
+cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow
 ```
 
-- [ ] **Step 5: Commit** with `feat(voip): port media crypto and relay`.
-
-### Task 4.3: MLOW/Opus and video frames
-
-**Files:**
-- Create: `wacore/src/voip/mlow/`
-- Modify: `Cargo.toml` (`voip-mlow`)
-- Test: `wacore/tests/parity_voip_mlow.rs`
-
-**Interfaces:**
-- Produces: PCM/MLOW adapter, audio codec, H.264 frame boundary.
-
-- [ ] **Step 1: Write failing vector tests** for MLOW encode/decode and DTX.
-- [ ] **Step 2: Run `cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow` and verify failure.**
-- [ ] **Step 3: Port MLOW/Opus/video modules.**
-- [ ] **Step 4: Run the test and the two checks below.**
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/voip/`, excluding `testdata/` unless a runtime test needs a fixture.
+- [ ] **Step 4: Verify**
 
 ```bash
+cargo test -p wa-rs-core --features voip --test parity_voip
 cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow
-cargo check -p wa-rs --features parity-voip
+cargo check -p wa-rs-core --features voip-mlow
 ```
 
-- [ ] **Step 5: Commit** with `feat(voip): port MLOW and video frames`.
+- [ ] **Step 5: Commit** with `feat(voip): port engine media crypto and MLOW`.
 
-### Task 4.4: Call handlers, call log and call links
+### Task 4.3: Port the VoIP runtime, facade and native relay
 
 **Files:**
-- Create: `src/handlers/call/`
+- Create: `src/voip/{mod.rs,audio.rs,direct.rs,direct_client.rs,direct_control.rs,direct_ingress.rs,driver.rs,events.rs,registry.rs,session.rs,state.rs,video.rs}`
+- Create: `src/voip/facade/`, `src/voip/facade.rs`, `src/voip/transport/`
+- Modify: `Cargo.toml` (`voip-runtime`, `voip-engine-wacore`, `voip-relay-native`)
+- Test: `tests/parity_voip_facade.rs`
+
+**Interfaces:**
+- Produces: `CallEvents`, `AcceptCall`, `CallHandle`, `CallLinkCall`, `CallTermination`, `GroupBoundCall`, `OutgoingCall`, `OutgoingGroupCall`, `VIDEO_UPGRADE_TIMEOUT`.
+- Produces: `TimedVideoFrame`, `VideoFrame`, `VideoSink`, `VideoSource`, `AudioSink`, `AudioSource`, `EncodedAudioSink`, `EncodedAudioSource`.
+- Produces: `CallError`, `Voip`.
+- Gate: `voip-runtime`, `voip-engine-wacore`, `voip-relay-native`.
+
+- [ ] **Step 1: Write failing tests** for outgoing/incoming calls, call links, group calls, screen sharing, video upgrade and call termination.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --features voip-runtime --test parity_voip_facade
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/voip/`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --features voip-runtime --test parity_voip_facade
+cargo check -p wa-rs --features voip
+cargo check -p wa-rs --features voip-encoded
+cargo check -p wa-rs --features voip-libopus
+```
+
+- [ ] **Step 5: Commit** with `feat(voip): port runtime facade and native relay`.
+
+### Task 4.4: Port call handlers, call log and call types
+
+**Files:**
+- Create: `src/handlers/call.rs`, `src/handlers/call/`
 - Create: `src/features/call_log.rs`
-- Create: `src/voip/`
 - Modify: `wacore/src/types/call.rs`
+- Create: `wacore/src/types/group_call.rs`
+- Modify: `wacore/src/types/mod.rs`
 - Test: `tests/parity_calls.rs`
 
 **Interfaces:**
-- Produces: incoming/missed/ended events, call log, call links, screen sharing.
+- Produces: incoming/missed/ended call events, call log, call links and screen-sharing events.
+- Produces: `CallLog`, `GroupCallUpdate`, `CallEvent`.
 
 - [ ] **Step 1: Write failing tests** for incoming call, group call, call ended elsewhere, call log and call link.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-voip --test parity_calls` and verify failure.**
-- [ ] **Step 3: Port upstream call handlers and call log.**
-- [ ] **Step 4: Run the test and the consumer check below.**
+- [ ] **Step 2: Run and verify failure**
 
 ```bash
-cargo test -p wa-rs --features parity-voip --test parity_calls
-cargo check -p wa-rs --features parity-voip
+cargo test -p wa-rs --features voip --test parity_calls
 ```
 
-- [ ] **Step 5: Commit** with `feat(calls): port handlers call log and call links`.
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/handlers/call.rs`, `src/handlers/call/`, `src/features/call_log.rs`, and `wacore/src/types/call.rs`, `group_call.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --features voip --test parity_calls
+cargo check -p wa-rs --features voip
+cargo check -p wa-rs-bridge
+```
+
+- [ ] **Step 5: Commit** with `feat(calls): port handlers call log and call types`.
 
 ### Phase 4 Gate
 
 - [ ] `cargo test -p wa-rs-core --features voip-control --test parity_voip_control`
 - [ ] `cargo test -p wa-rs-core --features voip --test parity_voip`
 - [ ] `cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow`
-- [ ] `cargo test -p wa-rs --features parity-voip --test parity_calls`
+- [ ] `cargo test -p wa-rs --features voip-runtime --test parity_voip_facade`
+- [ ] `cargo test -p wa-rs --features voip --test parity_calls`
 - [ ] `cargo check -p wa-rs --features parity-voip`
-- [ ] `cargo check -p wa-rs-bridge` (default features)
+- [ ] `cargo check -p wa-rs --features voip-encoded`
+- [ ] `cargo check -p wa-rs --features voip-libopus`
+- [ ] `cargo check -p wa-rs-bridge`
 - [ ] `cargo build -p whatslite-desktop`
 
 ---
 
 ## Phase 5 — Platform and observability
 
-**Phase goal:** plugins, metrics/tracing/diagnostics, WASM/mobile storage, TCP transport and final parity audit.
+**Phase goal:** plugins, metrics/tracing/diagnostics, SQLite bundled/WASM/mobile, TCP transport, feature matrix and final parity audit.
 
-### Task 5.1: Plugin host and lifecycle
+### Task 5.1: Port the plugin host and client lifecycle
 
 **Files:**
-- Create: `src/plugins/`
+- Create: `src/plugins/{mod.rs,events.rs,iq_reply.rs}`
 - Create: `src/client/extension_lifecycle.rs`
-- Modify: `Cargo.toml` (`parity-plugins`)
+- Modify: `Cargo.toml` (`plugins`, `client-lifecycle`)
+- Modify: `src/lib.rs`
 - Test: `tests/parity_plugins.rs`
 
 **Interfaces:**
-- Produces: `ClientPlugin`, `UntypedClientPlugin`, plugin host config.
+- Produces: `ClientPlugin`, `UntypedClientPlugin`, `PluginCapability`, `PluginContext`, `PluginEvents`, `PluginEventRouter`, `PluginIqInterceptor`, `PluginIqReply`, `PluginManifest`, `PluginState`, `PluginHealth`, `PluginHostConfig`, `PluginHostStats`.
+- Produces: `ClientLifecycle`, `ConnectionScope`, `ConnectionScopeState`.
+- Gate: `plugins`, `client-lifecycle`.
 
-- [ ] **Step 1: Write failing tests** for plugin registration, lifecycle and event delivery.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-plugins --test parity_plugins` and verify failure.**
-- [ ] **Step 3: Port upstream plugin host and lifecycle.**
-- [ ] **Step 4: Run the test and `cargo check -p wa-rs --features parity-plugins`.**
-- [ ] **Step 5: Commit** with `feat(plugins): port plugin host and lifecycle`.
+- [ ] **Step 1: Write failing tests** for plugin registration, capability checks, lifecycle, event delivery and IQ reply.
+- [ ] **Step 2: Run and verify failure**
 
-### Task 5.2: Metrics, tracing and diagnostics
+```bash
+cargo test -p wa-rs --features plugins --test parity_plugins
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/plugins/` and `src/client/extension_lifecycle.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --features plugins --test parity_plugins
+cargo check -p wa-rs --features plugins
+cargo check -p wa-rs --features client-lifecycle
+```
+
+- [ ] **Step 5: Commit** with `feat(plugins): port plugin host and client lifecycle`.
+
+### Task 5.2: Port metrics, tracing and diagnostics
 
 **Files:**
+- Modify: `wacore/src/telemetry.rs`, `wacore/src/stats.rs`
 - Create: `src/logging.rs`
 - Create: `src/client/device_memo_stats.rs`
-- Modify: `wacore/src/stats.rs`, `wacore/src/telemetry.rs`
+- Modify: `Cargo.toml` (`tracing`, `metrics`, `tracing-pii`)
+- Modify: `wacore/Cargo.toml` (`tracing`, `metrics`, `tracing-pii`)
 - Test: `tests/parity_observability.rs`
 
 **Interfaces:**
-- Produces: `metrics` and `tracing` features, diagnostic events, memory reports.
+- Produces: metric emission, tracing spans, `Timer`, `SessionStats`, `StatsSnapshot`, `AllocMeter`, `MemoryReport`, `ResourceReport`, `SubsystemCollection`, `SubsystemMemory`.
+- Gate: `tracing`, `metrics`, `tracing-pii`.
 
-- [ ] **Step 1: Write failing tests** for metric emission and tracing span creation.
-- [ ] **Step 2: Run `cargo test -p wa-rs --features parity-observability --test parity_observability` and verify failure.**
-- [ ] **Step 3: Port observability modules behind `parity-observability`.**
-- [ ] **Step 4: Run the test and `cargo check -p wa-rs --features parity-observability`.**
+- [ ] **Step 1: Write failing tests** for metric emission, tracing span creation and memory reports.
+- [ ] **Step 2: Run and verify failure**
+
+```bash
+cargo test -p wa-rs --features tracing,metrics --test parity_observability
+```
+
+- [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/telemetry.rs`, `stats.rs`, `src/logging.rs`, `src/client/device_memo_stats.rs`, and the observability parts of `src/client/accessors.rs`.
+- [ ] **Step 4: Verify**
+
+```bash
+cargo test -p wa-rs --features tracing,metrics --test parity_observability
+cargo check -p wa-rs --features tracing
+cargo check -p wa-rs --features metrics
+cargo check -p wa-rs --features tracing-pii
+```
+
 - [ ] **Step 5: Commit** with `feat(observability): port metrics tracing and diagnostics`.
 
-### Task 5.3: SQLite bundled/WASM/mobile and TCP transport
+### Task 5.3: Port storage profiles, TCP transport and runtime implementation
 
 **Files:**
-- Modify: `storages/sqlite-storage/Cargo.toml`
-- Modify: `storages/sqlite-storage/src/`
-- Modify: `transports/tokio-transport/Cargo.toml`
-- Modify: `transports/tokio-transport/src/`
-- Test: `storages/sqlite-storage/tests/parity_storage.rs`
+- Modify: `storages/sqlite-storage/Cargo.toml`, `storages/sqlite-storage/src/`
+- Modify: `transports/tokio-transport/Cargo.toml`, `transports/tokio-transport/src/`
+- Create: `src/runtime_impl.rs`
+- Create: `src/shutdown.rs`
+- Modify: `Cargo.toml` (`sqlite-storage-bundled`, `mobile-transport-native`, `tokio-runtime`)
+- Test: `storages/sqlite-storage/tests/parity_storage.rs`, `transports/tokio-transport/tests/parity_tcp.rs`
 
 **Interfaces:**
-- Produces: `bundled-sqlite`, `js`, `mobile`, `wasm-test` features.
-- Produces: `tcp-transport` feature.
+- Produces: storage features `bundled-sqlite`, `js`, `mobile`, `wasm-test`.
+- Produces: transport feature `tcp`.
+- Produces: `TokioRuntime`, `shutdown_signal`.
+- Changes: storage default becomes `bundled-sqlite`, matching upstream. The system SQLite symlink remains a fallback for `--no-default-features`.
 
 - [ ] **Step 1: Write failing tests** for bundled storage, WASM storage contract and TCP transport.
-- [ ] **Step 2: Run `cargo test -p wa-rs-sqlite-storage --test parity_storage` and verify failure.**
-- [ ] **Step 3: Port storage/transport feature changes.**
-- [ ] **Step 4: Run the native checks.**
+- [ ] **Step 2: Run and verify failure**
 
 ```bash
 cargo test -p wa-rs-sqlite-storage --test parity_storage
-cargo check -p wa-rs-sqlite-storage --features bundled-sqlite
-cargo check -p wa-rs-tokio-transport --features tcp-transport
+cargo test -p wa-rs-tokio-transport --features tcp --test parity_tcp
 ```
 
-WASM target checks are part of Task 5.4, not this task.
-- [ ] **Step 5: Commit** with `feat(platform): port storage and transport profiles`.
+- [ ] **Step 3: Port the feature changes** from upstream storage and transport manifests.
+- [ ] **Step 4: Verify**
 
-### Task 5.4: WASM consumer and final feature matrix
+```bash
+cargo test -p wa-rs-sqlite-storage --test parity_storage
+cargo test -p wa-rs-tokio-transport --features tcp --test parity_tcp
+cargo check -p wa-rs-sqlite-storage --features bundled-sqlite
+cargo check -p wa-rs-tokio-transport --features tcp
+cargo check -p wa-rs --features sqlite-storage-bundled
+cargo check -p wa-rs --features mobile-transport-native
+cargo check -p wa-rs --features tokio-runtime
+```
+
+- [ ] **Step 5: Commit** with `feat(platform): port storage profiles TCP transport and runtime implementation`.
+
+### Task 5.4: Add the feature matrix and WASM consumer checks
 
 **Files:**
 - Create: `tests/parity_matrix.rs`
@@ -955,8 +1576,8 @@ WASM target checks are part of Task 5.4, not this task.
 **Interfaces:**
 - Produces: documented feature matrix and consumer checks.
 
-- [ ] **Step 1: Write the matrix test** for default, parity-core, parity-messaging, parity-social, parity-voip, parity-mobile, parity-plugins.
-- [ ] **Step 2: Run the matrix and verify expected failures/successes.**
+- [ ] **Step 1: Write the matrix test** covering the parity aliases and the canonical features.
+- [ ] **Step 2: Run the matrix and verify expected results.**
 - [ ] **Step 3: Fix feature leaks and missing gates.**
 - [ ] **Step 4: Run all matrix commands.**
 
@@ -970,9 +1591,14 @@ cargo check -p wa-rs --no-default-features --features parity-mobile
 cargo check -p wa-rs --no-default-features --features parity-plugins
 cargo check -p wa-rs --no-default-features --features parity-observability
 cargo check -p wa-rs --no-default-features --features parity-wasm
+cargo check -p wa-rs --features plugins
+cargo check -p wa-rs --features passkey
+cargo check -p wa-rs --features mobile-core
+cargo check -p wa-rs --features voip
+cargo check -p wa-rs --features tracing,metrics
 ```
 
-- [ ] **Step 4a: Run the WASM link check** (requires `rustup target add wasm32-unknown-unknown`):
+- [ ] **Step 4a: Run the WASM check** (requires `rustup target add wasm32-unknown-unknown`):
 
 ```bash
 cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features js
@@ -990,7 +1616,7 @@ cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features j
 **Interfaces:**
 - Produces: module-by-module parity table and known gaps.
 
-- [ ] **Step 1: Write the audit checklist** comparing upstream `src/features`, `wacore/src`, and `wacore/src/iq` to the ported tree.
+- [ ] **Step 1: Write the audit checklist** comparing upstream `src/features`, `wacore/src`, `wacore/src/iq`, `wacore/src/voip`, and `wacore/src/voip_control` to the ported tree.
 - [ ] **Step 2: Run the audit and list every missing module or method.**
 - [ ] **Step 3: Close remaining gaps or record them as explicit non-goals.**
 - [ ] **Step 4: Run the final gate.**
@@ -1001,15 +1627,16 @@ cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features j
 - [ ] `cargo build -p whatslite-desktop`
 - [ ] `cargo test --workspace`
 - [ ] `cargo check --workspace`
-- [ ] `cargo test -p wa-rs --features parity-plugins --test parity_plugins`
-- [ ] `cargo test -p wa-rs --features parity-observability --test parity_observability`
+- [ ] `cargo test -p wa-rs --features plugins --test parity_plugins`
+- [ ] `cargo test -p wa-rs --features tracing,metrics --test parity_observability`
 - [ ] `cargo test -p wa-rs-sqlite-storage --test parity_storage`
+- [ ] `cargo test -p wa-rs-tokio-transport --features tcp --test parity_tcp`
 - [ ] `cargo check -p wa-rs --no-default-features --features parity-core`
 - [ ] `cargo check -p wa-rs --features parity-voip`
 - [ ] `cargo check -p wa-rs --features parity-mobile`
 - [ ] `cargo check -p wa-rs --features parity-plugins`
-- [ ] `cargo check -p wa-rs-sqlite-storage --features bundled-sqlite`
-- [ ] `cargo check -p wa-rs-tokio-transport --features tcp-transport`
+- [ ] `cargo check -p wa-rs --features sqlite-storage-bundled`
+- [ ] `cargo check -p wa-rs --features mobile-transport-native`
 - [ ] `cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features js`
 - [ ] `cargo check -p wa-rs-bridge`
 - [ ] Bridge pair/connect/send/receive/media/call smoke tests
@@ -1022,8 +1649,8 @@ cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features j
 - [ ] All upstream runtime feature modules exist under the current tree.
 - [ ] `cargo build`, `cargo test --workspace`, `cargo check --workspace` pass.
 - [ ] `bridge/` and `desktop/` compile on default features.
-- [ ] Feature matrix passes.
-- [ ] Event surface matches upstream 80 variants.
+- [ ] Feature matrix passes for every parity alias and canonical feature.
+- [ ] Event surface matches upstream: 80 `EventKind` and 80 `Event` variants.
 - [ ] No JS/Python/Kotlin/Java runtime code.
 - [ ] Parity report lists any remaining explicit non-goals.
 
@@ -1031,6 +1658,6 @@ cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --features j
 
 Plan complete and saved to `reference/design/plans/2026-11-08-wa-rs-parity-plan.md` (repo) and `/home/muhammadmishbakhuzzuhail/.opencode/plan/2026-11-08-wa-rs-parity-plan.md` (working copy).
 
-Recommended execution: **subagent-driven**, because the phases have many independent module tasks but share interfaces (`runtime`, `time`, `buffa` types, `Event`, `SessionEngine`). A fresh implementer per task and a fresh reviewer per phase gate reduces cross-module regressions.
+Recommended execution: **subagent-driven**, because the phases have many independent module tasks but share interfaces (`Runtime`, `Clock`, buffa types, `Event`, `session_engine`). A fresh implementer per task and a fresh reviewer per phase gate reduces cross-module regressions.
 
 Before implementation, review this plan and confirm it captures what you want.

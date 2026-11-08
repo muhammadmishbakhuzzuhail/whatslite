@@ -1,5 +1,5 @@
-use wacore::appstate::expand_app_state_keys;
-use wacore::appstate::hash::{HashState, generate_content_mac, generate_patch_mac};
+use wa_rs_core::appstate::expand_app_state_keys;
+use wa_rs_core::appstate::hash::{HashState, generate_content_mac, generate_patch_mac};
 use waproto::whatsapp as wa;
 
 // Helper to build a SyncdRecord with provided key id and value blob (iv+ciphertext+valuemac appended later in logic)

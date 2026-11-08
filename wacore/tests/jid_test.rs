@@ -127,7 +127,7 @@ fn test_lid_jid_with_dot_in_user_part() {
     // CRITICAL: Test that to_protocol_address matches WhatsApp Web's format
     // WhatsApp Web uses: {user}[:device]@{server}.0
     // The device is encoded in the name, and device_id is always 0
-    use wacore::types::jid::JidExt as CoreJidExt;
+    use wa_rs_core::types::jid::JidExt as CoreJidExt;
     let protocol_addr = lid_jid.to_protocol_address();
     assert_eq!(
         protocol_addr.name(),

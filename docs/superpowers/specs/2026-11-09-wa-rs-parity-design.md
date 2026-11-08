@@ -1,10 +1,20 @@
-# wa-rs Parity with whatsapp-rust 0.7.0 — Design (v2)
+# wa-rs Parity with whatsapp-rust 0.7.0 — Design (v3)
+
+> Implementation plan: `docs/superpowers/plans/2026-11-09-wa-rs-parity/README.md`
 
 ## Intent
 
 Bring the full runtime feature set of `oxidezap/whatsapp-rust` 0.7.0
 (`f077a5d`) into `homun-app/wa-rs` 0.2.0, preserving the current repository
 tree and keeping `bridge/` and `desktop/` compiling throughout.
+
+## Reference baseline
+
+The plan is pinned to upstream `origin/main` at `f077a5d` (2026-11-07).
+`origin/fix/adv-primary-migration` is 4 commits ahead at `7df72129` with
+ADV/USync migration fixes and an expanded `src/usync/ordinary_recovery_tests.rs`.
+Those commits are not merged; keep the baseline at `f077a5d` and port the
+branch's tests when it lands on main.
 
 ## Goals
 
@@ -228,9 +238,13 @@ Rules:
 - `cargo build`, `cargo test --workspace` and `cargo check --workspace` pass.
 - `bridge/` and `desktop/` compile on the default feature set.
 - Each parity phase has tests and a documented feature gate.
+- All upstream runtime tests are ported or listed as non-goals; no test is
+  deleted to make the build green.
+- Existing workspace tests, desktop tests and bridge HTTP tests pass.
 - Event surface matches upstream: 80 `EventKind` and 80 `Event` variants.
 - No JS/Python/Kotlin/Java runtime code is introduced.
 - Remaining non-Rust artifacts are only data/schema/build tooling.
+- The test parity report lists every ported test file and every non-goal.
 
 ## Approved Decisions
 

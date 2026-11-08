@@ -85,6 +85,8 @@ git commit -m "build: alias workspace crates to upstream names"
 
 Add every canonical feature and every parity alias to the root manifest. Add the core features to `wacore/Cargo.toml`. Add the storage features `bundled-sqlite`, `js`, `mobile`, `wasm-test` and the transport feature `tcp` as empty shells. Do not add dependency edges yet.
 
+Also declare the `wa-rs` binary target with `required-features = ["sqlite-storage", "tokio-transport", "ureq-client", "tokio-native"]`. The CLI always needs the native stack; without this, `cargo check -p wa-rs --no-default-features` fails on `src/main.rs` instead of checking the library.
+
 - [ ] **Step 2: Add the parity aliases**
 
 ```toml

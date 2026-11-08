@@ -10,6 +10,16 @@ description = "Core WhatsApp protocol implementation without runtime dependencie
 [features]
 default = []
 debug-snapshots = []
+instance-clock = []
+legacy-session-interop = []
+tracing = []
+metrics = []
+tracing-pii = []
+js = []
+mobile = []
+voip-control = []
+voip = []
+voip-mlow = []
 
 [dependencies]
 aes = { workspace = true }

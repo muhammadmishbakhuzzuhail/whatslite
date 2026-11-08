@@ -83,6 +83,44 @@ signal = ["tokio/signal"]
 sqlite-storage = ["wa-rs-sqlite-storage"]
 tokio-native = ["tokio/rt-multi-thread"]
 
+# Canonical parity features. Edges are added by the task that ports each module.
+sqlite-storage-bundled = []
+instance-clock = []
+legacy-session-interop = []
+client-lifecycle = []
+plugins = []
+passkey = []
+mobile-core = []
+mobile-transport-native = []
+generated-group-notifications = []
+js = []
+tracing = []
+metrics = []
+tracing-pii = []
+voip-control = []
+voip-runtime = []
+voip-engine-wacore = []
+voip-relay-native = []
+voip = []
+voip-encoded = []
+voip-mlow = []
+voip-libopus = []
+
+# Parity aliases
+parity-core = ["instance-clock", "legacy-session-interop"]
+parity-messaging = ["parity-core"]
+parity-social = ["parity-messaging"]
+parity-voip = ["voip"]
+parity-mobile = ["mobile-core"]
+parity-plugins = ["plugins", "client-lifecycle"]
+parity-observability = ["tracing", "metrics"]
+parity-wasm = ["js"]
+
+[[bin]]
+name = "wa-rs"
+path = "src/main.rs"
+required-features = ["sqlite-storage", "tokio-transport", "ureq-client", "tokio-native"]
+
 [dependencies]
 anyhow = { workspace = true }
 async-channel = { workspace = true }

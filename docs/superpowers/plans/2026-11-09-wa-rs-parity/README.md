@@ -80,6 +80,16 @@ cargo test --workspace
 
 Expected: the baseline is green. If it is not, fix the environment first and record the failure; do not start Phase 0 on a red baseline.
 
+- [ ] Verified on 2026-11-09:
+
+  - `cargo fmt --all -- --check` → exit 0
+  - `cargo clippy --workspace --all-targets` → exit 0, 7 pre-existing warnings (4 `wa-rs` lib, 1 `wa-rs` bin, 2 `wa-rs-bridge`)
+  - `cargo test --workspace` → exit 0, 780 passed, 0 failed, 27 ignored
+  - `cargo test -p wa-rs-sqlite-storage` → exit 0, 21 passed
+
+  Phase gates must not add new clippy warnings; the 7 warnings above are the
+  baseline to compare against.
+
 - [ ] Confirm the reference checkout is at the pinned upstream commit:
 
 ```bash

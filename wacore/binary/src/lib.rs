@@ -4,6 +4,7 @@ pub mod attrs;
 pub mod builder;
 pub mod consts;
 mod decoder;
+pub mod diagnostics;
 mod encoder;
 pub mod error;
 pub mod jid;
@@ -14,6 +15,7 @@ pub mod util;
 
 pub use attrs::{AttrParser, AttrParserRef};
 pub use error::{BinaryError, Result};
+pub use jid::Jid;
 pub use marshal::{
     marshal, marshal_auto, marshal_exact, marshal_ref, marshal_ref_auto, marshal_ref_exact,
     marshal_ref_to, marshal_ref_to_vec, marshal_to, marshal_to_vec,

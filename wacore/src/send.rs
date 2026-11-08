@@ -21,6 +21,9 @@ use wacore_libsignal::crypto::aes_256_cbc_encrypt_into;
 use waproto::whatsapp as wa;
 use waproto::whatsapp::message::DeviceSentMessage;
 
+/// Server rejection code for a device that is no longer registered.
+pub(crate) const UNREGISTERED_DEVICE_CODE: u16 = 406;
+
 pub async fn encrypt_group_message<S, R>(
     sender_key_store: &mut S,
     group_jid: &Jid,

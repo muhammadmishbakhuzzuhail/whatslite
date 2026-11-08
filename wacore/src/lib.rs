@@ -7,6 +7,13 @@ pub use wacore_noise as noise;
 // Re-export derive macros
 pub use wacore_derive::{EmptyNode, ProtocolNode, StringEnum};
 
+pub mod diagnostics;
+pub mod runtime;
+pub mod stats;
+pub mod sync_marker;
+pub mod telemetry;
+pub mod time;
+
 pub mod client;
 pub mod companion_reg;
 pub mod download;

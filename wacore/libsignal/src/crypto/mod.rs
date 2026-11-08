@@ -19,3 +19,9 @@ pub use error::{Error, Result};
 pub use hash::{
     CryptographicHash, CryptographicMac, SHA1_OUTPUT_SIZE, SHA256_OUTPUT_SIZE, SHA512_OUTPUT_SIZE,
 };
+
+/// Caller-owned symmetric crypto port.
+///
+/// Phase 0 needs the runtime seam only; the full upstream method surface is
+/// ported with the libsignal crypto task.
+pub trait SymmetricCryptoProvider: Send + Sync + 'static {}

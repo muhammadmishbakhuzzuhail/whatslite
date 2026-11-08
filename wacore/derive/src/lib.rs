@@ -33,6 +33,13 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, parse_macro_input};
 
+mod wire_enum;
+
+#[proc_macro_derive(WireEnum, attributes(wire, wire_alias, wire_default, wire_fallback))]
+pub fn derive_wire_enum(input: TokenStream) -> TokenStream {
+    wire_enum::derive_wire_enum(input)
+}
+
 /// Derive macro for implementing `ProtocolNode` on structs with attributes.
 ///
 /// # Attributes

@@ -14,7 +14,12 @@ use std::io::BufWriter;
 use std::io::Write as _;
 
 /// 24-bit uncompressed BMP, hand-rolled to avoid pulling in an image crate.
-fn write_bmp(path: &str, img_w: u32, img_h: u32, pixel: impl Fn(u32, u32) -> u8) -> std::io::Result<()> {
+fn write_bmp(
+    path: &str,
+    img_w: u32,
+    img_h: u32,
+    pixel: impl Fn(u32, u32) -> u8,
+) -> std::io::Result<()> {
     let row_bytes = (img_w * 3 + 3) & !3; // rows padded to 4 bytes
     let data_size = row_bytes * img_h;
     let file_size = 54 + data_size;
@@ -75,8 +80,7 @@ fn main() {
         let mut path = String::new();
         for y in 0..modules {
             for x in 0..modules {
-                if colors[y as usize * modules as usize + x as usize]
-                    == qrcode::types::Color::Dark
+                if colors[y as usize * modules as usize + x as usize] == qrcode::types::Color::Dark
                 {
                     path.push_str(&format!("M{} {}h1v1z ", x + quiet, y + quiet));
                 }
@@ -101,11 +105,7 @@ fn main() {
         let dark = in_matrix
             && colors[my as u32 as usize * modules as usize + mx as u32 as usize]
                 == qrcode::types::Color::Dark;
-        if dark {
-            0x00
-        } else {
-            0xFF
-        }
+        if dark { 0x00 } else { 0xFF }
     })
     .expect("write BMP");
 

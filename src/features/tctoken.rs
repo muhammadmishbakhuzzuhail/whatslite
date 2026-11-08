@@ -14,9 +14,11 @@
 
 use crate::client::Client;
 use crate::request::IqError;
-use wa_rs_core::iq::tctoken::{IssuePrivacyTokensSpec, ReceivedTcToken, tc_token_expiration_cutoff};
-use wa_rs_core::store::traits::TcTokenEntry;
 use wa_rs_binary::jid::Jid;
+use wa_rs_core::iq::tctoken::{
+    IssuePrivacyTokensSpec, ReceivedTcToken, tc_token_expiration_cutoff,
+};
+use wa_rs_core::store::traits::TcTokenEntry;
 
 /// Feature handle for trusted contact token operations.
 pub struct TcToken<'a> {

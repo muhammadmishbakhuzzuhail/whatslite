@@ -6,9 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::Icon;
 use gpui_kit::prelude::*;
-use gpui_kit::{
-    div, px, Div, ElementId, FontWeight, Rgba, Role, Stateful,
-};
+use gpui_kit::{Div, ElementId, FontWeight, Rgba, Role, Stateful, div, px};
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -233,7 +231,11 @@ pub fn chip(label: impl Into<String>, selected: bool, p: Palette) -> Stateful<Di
         .border_1()
         .border_color(if selected { p.accent_soft } else { p.border })
         .bg(if selected { p.accent_soft } else { p.bg_list })
-        .text_color(if selected { p.unread_text } else { p.text_primary })
+        .text_color(if selected {
+            p.unread_text
+        } else {
+            p.text_primary
+        })
         .text_size(px(13.))
         .font_weight(FontWeight::MEDIUM)
         .child(label)
@@ -392,7 +394,13 @@ pub fn skeleton_bubble(p: Palette, width: f32, outgoing: bool) -> Div {
         .gap(px(6.))
         .when(outgoing, |el| el.justify_end())
         .when(!outgoing, |el| {
-            el.child(div().size(px(28.)).flex_shrink_0().rounded_full().bg(p.bg_search))
+            el.child(
+                div()
+                    .size(px(28.))
+                    .flex_shrink_0()
+                    .rounded_full()
+                    .bg(p.bg_search),
+            )
         })
         .child(
             div()
@@ -404,8 +412,20 @@ pub fn skeleton_bubble(p: Palette, width: f32, outgoing: bool) -> Div {
                 .flex()
                 .flex_col()
                 .gap(px(6.))
-                .child(div().h(px(7.)).w(px(width * 0.62)).rounded(px(3.5)).bg(p.bg_list))
-                .child(div().h(px(7.)).w(px(width * 0.38)).rounded(px(3.5)).bg(p.bg_list)),
+                .child(
+                    div()
+                        .h(px(7.))
+                        .w(px(width * 0.62))
+                        .rounded(px(3.5))
+                        .bg(p.bg_list),
+                )
+                .child(
+                    div()
+                        .h(px(7.))
+                        .w(px(width * 0.38))
+                        .rounded(px(3.5))
+                        .bg(p.bg_list),
+                ),
         )
 }
 
@@ -419,13 +439,11 @@ pub fn skeleton_conversation(p: Palette) -> Div {
         .px(px(16.))
         .py(px(12.))
         .child(
-            div().w_full().flex().justify_center().child(
-                div()
-                    .h(px(22.))
-                    .w(px(72.))
-                    .rounded_full()
-                    .bg(p.bg_search),
-            ),
+            div()
+                .w_full()
+                .flex()
+                .justify_center()
+                .child(div().h(px(22.)).w(px(72.)).rounded_full().bg(p.bg_search)),
         )
         .child(skeleton_bubble(p, 280., false))
         .child(skeleton_bubble(p, 340., false))
@@ -531,7 +549,9 @@ fn settings_row_impl(
                             .child(value),
                     )
                 })
-                .when(chevron, |el| el.child(icon(IconName::ChevronRight, 16.0, p.text_secondary))),
+                .when(chevron, |el| {
+                    el.child(icon(IconName::ChevronRight, 16.0, p.text_secondary))
+                }),
         )
 }
 
@@ -571,7 +591,14 @@ pub fn media_tile(
     accent: usize,
     p: Palette,
 ) -> Div {
-    let colors = [p.attach_orange, p.attach_blue, p.attach_green, p.attach_red, p.accent, p.tick_read];
+    let colors = [
+        p.attach_orange,
+        p.attach_blue,
+        p.attach_green,
+        p.attach_red,
+        p.accent,
+        p.tick_read,
+    ];
     let bg = colors[accent % colors.len()];
     let label = label.into();
     let meta = meta.into();

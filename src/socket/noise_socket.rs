@@ -158,7 +158,8 @@ impl NoiseSocket {
 
             plaintext_buf.clear();
             out_buf.clear();
-            if let Err(e) = wa_rs_core::framing::encode_frame_into(&ciphertext, None, &mut out_buf) {
+            if let Err(e) = wa_rs_core::framing::encode_frame_into(&ciphertext, None, &mut out_buf)
+            {
                 return Err(EncryptSendError::framing(e, plaintext_buf, out_buf));
             }
         }

@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use gpui_kit::prelude::*;
 use gpui_kit::{
-    canvas, div, img, point, px, rgb, rgba, size, Bounds, Corners, Div, ImageSource, ObjectFit,
-    RenderImage, Rgba, WindowOptions,
+    Bounds, Corners, Div, ImageSource, ObjectFit, RenderImage, Rgba, WindowOptions, canvas, div,
+    img, point, px, rgb, rgba, size,
 };
 
 const TILE_1X: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/doodle-1x.png"));
@@ -53,8 +53,9 @@ fn tinted(scale: f32, line: Rgba) -> Option<Arc<RenderImage>> {
     let red = (line.r.clamp(0.0, 1.0) * 255.0).round() as u8;
     let green = (line.g.clamp(0.0, 1.0) * 255.0).round() as u8;
     let blue = (line.b.clamp(0.0, 1.0) * 255.0).round() as u8;
-    let table: [u8; 256] =
-        std::array::from_fn(|i| ((i as u16 * (line.a.clamp(0.0, 1.0) * 255.0).round() as u16 + 127) / 255) as u8);
+    let table: [u8; 256] = std::array::from_fn(|i| {
+        ((i as u16 * (line.a.clamp(0.0, 1.0) * 255.0).round() as u16 + 127) / 255) as u8
+    });
     let raw: &mut [u8] = pixels.as_mut();
     for pixel in raw.chunks_exact_mut(4) {
         let alpha = pixel[3];
@@ -135,7 +136,11 @@ struct Preview {
 }
 
 impl Render for Preview {
-    fn render(&mut self, _window: &mut gpui_kit::Window, _cx: &mut gpui_kit::Context<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        _window: &mut gpui_kit::Window,
+        _cx: &mut gpui_kit::Context<Self>,
+    ) -> impl IntoElement {
         let panel = |title: String, background: u32, content: gpui_kit::AnyElement| {
             div()
                 .flex_1()
@@ -178,7 +183,11 @@ impl Render for Preview {
                     .into_any_element(),
             )
         } else {
-            panel("WHATSAPP REFERENCE · set DOODLE_REFERENCE".to_string(), 0x1A1A1A, div().into_any_element())
+            panel(
+                "WHATSAPP REFERENCE · set DOODLE_REFERENCE".to_string(),
+                0x1A1A1A,
+                div().into_any_element(),
+            )
         };
 
         div()
@@ -203,17 +212,27 @@ fn main() {
     gpui_kit::application().run(|cx| {
         gpui_kit::init(cx);
         let reference = load_reference();
-        let tile = std::env::var("DOODLE_TILE").ok().and_then(|v| v.parse().ok()).unwrap_or(800.0);
-        let line = std::env::var("DOODLE_LINE").ok().and_then(|v| u32::from_str_radix(v.trim_start_matches('#'), 16).ok()).unwrap_or(LINE);
-        let light_opacity = std::env::var("DOODLE_LIGHT_OPACITY").ok().and_then(|v| v.parse().ok()).unwrap_or(0.60);
-        let dark_opacity = std::env::var("DOODLE_DARK_OPACITY").ok().and_then(|v| v.parse().ok()).unwrap_or(0.20);
+        let tile = std::env::var("DOODLE_TILE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(800.0);
+        let line = std::env::var("DOODLE_LINE")
+            .ok()
+            .and_then(|v| u32::from_str_radix(v.trim_start_matches('#'), 16).ok())
+            .unwrap_or(LINE);
+        let light_opacity = std::env::var("DOODLE_LIGHT_OPACITY")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0.60);
+        let dark_opacity = std::env::var("DOODLE_DARK_OPACITY")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0.20);
         gpui_kit::open_window(
             WindowOptions {
-                window_bounds: Some(gpui_kit::WindowBounds::Windowed(gpui_kit::Bounds::centered(
-                    None,
-                    size(px(1500.), px(900.)),
-                    cx,
-                ))),
+                window_bounds: Some(gpui_kit::WindowBounds::Windowed(
+                    gpui_kit::Bounds::centered(None, size(px(1500.), px(900.)), cx),
+                )),
                 titlebar: Some(gpui_kit::TitlebarOptions {
                     title: Some("Doodle Preview".into()),
                     ..Default::default()
@@ -221,7 +240,15 @@ fn main() {
                 ..Default::default()
             },
             cx,
-            move |_window, cx| cx.new(|_| Preview { reference, tile, line, light_opacity, dark_opacity }),
+            move |_window, cx| {
+                cx.new(|_| Preview {
+                    reference,
+                    tile,
+                    line,
+                    light_opacity,
+                    dark_opacity,
+                })
+            },
         )
         .expect("Failed to open doodle preview");
     });

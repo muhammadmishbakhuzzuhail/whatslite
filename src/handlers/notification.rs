@@ -5,14 +5,14 @@ use crate::types::events::Event;
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use std::sync::Arc;
+use wa_rs_binary::jid::{Jid, JidExt};
+use wa_rs_binary::{jid::SERVER_JID, node::Node};
 use wa_rs_core::stanza::business::BusinessNotification;
 use wa_rs_core::stanza::devices::DeviceNotification;
 use wa_rs_core::store::traits::{DeviceInfo, DeviceListRecord};
 use wa_rs_core::types::events::{
     BusinessStatusUpdate, BusinessUpdateType, DeviceListUpdate, DeviceNotificationInfo,
 };
-use wa_rs_binary::jid::{Jid, JidExt};
-use wa_rs_binary::{jid::SERVER_JID, node::Node};
 
 /// Handler for `<notification>` stanzas.
 ///
@@ -508,9 +508,9 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wa_rs_binary::builder::NodeBuilder;
     use wa_rs_core::stanza::devices::DeviceNotificationType;
     use wa_rs_core::types::events::DeviceListUpdateType;
-    use wa_rs_binary::builder::NodeBuilder;
 
     #[test]
     fn test_parse_device_add_notification() {

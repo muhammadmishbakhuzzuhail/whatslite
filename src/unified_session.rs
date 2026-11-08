@@ -7,9 +7,9 @@ use log::debug;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use tokio::sync::Mutex;
+use wa_rs_binary::node::Node;
 use wa_rs_core::ib::{IbStanza, UnifiedSession};
 use wa_rs_core::protocol::ProtocolNode;
-use wa_rs_binary::node::Node;
 
 /// Manager for unified session telemetry.
 pub struct UnifiedSessionManager {

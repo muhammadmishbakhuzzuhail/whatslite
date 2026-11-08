@@ -1,12 +1,14 @@
 use async_channel::Receiver;
-use thiserror::Error;
 use std::fmt;
+use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InvalidStableId;
 
 impl fmt::Display for InvalidStableId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str("stable IDs must be lowercase ASCII letters, digits, or hyphens") }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("stable IDs must be lowercase ASCII letters, digits, or hyphens")
+    }
 }
 impl std::error::Error for InvalidStableId {}
 
@@ -17,11 +19,25 @@ macro_rules! stable_id {
         impl $name {
             pub fn new(value: impl Into<String>) -> Result<Self, InvalidStableId> {
                 let value = value.into();
-                if !value.is_empty() && value.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') { Ok(Self(value)) } else { Err(InvalidStableId) }
+                if !value.is_empty()
+                    && value
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+                {
+                    Ok(Self(value))
+                } else {
+                    Err(InvalidStableId)
+                }
             }
-            pub fn as_str(&self) -> &str { &self.0 }
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
         }
-        impl fmt::Display for $name { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { self.0.fmt(f) } }
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
     };
 }
 stable_id!(AccountId);
@@ -43,25 +59,61 @@ pub struct ChatSummary {
     pub pinned: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ContactSummary { pub id: ContactId, pub name: String }
+pub struct ContactSummary {
+    pub id: ContactId,
+    pub name: String,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MessageDraft { pub chat_id: ChatId, pub text: String }
+pub struct MessageDraft {
+    pub chat_id: ChatId,
+    pub text: String,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MediaItem { pub id: MediaId, pub name: String }
+pub struct MediaItem {
+    pub id: MediaId,
+    pub name: String,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PairingStatus { pub code: String, pub expires_in_seconds: u64 }
+pub struct PairingStatus {
+    pub code: String,
+    pub expires_in_seconds: u64,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GroupSummary { pub id: ChatId, pub name: String, pub member_count: usize }
+pub struct GroupSummary {
+    pub id: ChatId,
+    pub name: String,
+    pub member_count: usize,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallRecord { pub id: String, pub contact_id: ContactId, pub timestamp: String, pub video: bool, pub missed: bool }
+pub struct CallRecord {
+    pub id: String,
+    pub contact_id: ContactId,
+    pub timestamp: String,
+    pub video: bool,
+    pub missed: bool,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CallOptions { pub video: bool, pub muted: bool }
+pub struct CallOptions {
+    pub video: bool,
+    pub muted: bool,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AppSettings { pub theme: ThemePreference, pub notifications_enabled: bool }
+pub struct AppSettings {
+    pub theme: ThemePreference,
+    pub notifications_enabled: bool,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ThemePreference { Light, Dark, System }
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CallState { Ringing, Connected, Ended }
+pub enum CallState {
+    Ringing,
+    Connected,
+    Ended,
+}
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ServiceError {
     #[error("simulated offline failure")]
@@ -87,9 +139,17 @@ pub trait ChatService: Send + Sync {
     async fn send(&self, draft: MessageDraft) -> Result<MessageId, ServiceError>;
     async fn edit(&self, message_id: &MessageId, text: &str) -> Result<(), ServiceError>;
     async fn delete(&self, message_id: &MessageId) -> Result<(), ServiceError>;
-    async fn forward(&self, message_id: &MessageId, target: &ChatId) -> Result<MessageId, ServiceError>;
+    async fn forward(
+        &self,
+        message_id: &MessageId,
+        target: &ChatId,
+    ) -> Result<MessageId, ServiceError>;
     async fn react(&self, message_id: &MessageId, reaction: &str) -> Result<(), ServiceError>;
-    async fn search(&self, chat_id: Option<&ChatId>, query: &str) -> Result<Vec<String>, ServiceError>;
+    async fn search(
+        &self,
+        chat_id: Option<&ChatId>,
+        query: &str,
+    ) -> Result<Vec<String>, ServiceError>;
 }
 
 #[async_trait::async_trait]
@@ -102,7 +162,8 @@ pub trait ContactService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait GroupService: Send + Sync {
-    async fn create(&self, name: &str, members: &[ContactId]) -> Result<GroupSummary, ServiceError>;
+    async fn create(&self, name: &str, members: &[ContactId])
+    -> Result<GroupSummary, ServiceError>;
     async fn update(&self, id: &ChatId, name: &str) -> Result<GroupSummary, ServiceError>;
     async fn members(&self, id: &ChatId) -> Result<Vec<ContactSummary>, ServiceError>;
     async fn set_permissions(&self, id: &ChatId, admins_only: bool) -> Result<(), ServiceError>;
@@ -121,7 +182,11 @@ pub trait MediaService: Send + Sync {
 #[async_trait::async_trait]
 pub trait CallService: Send + Sync {
     async fn history(&self) -> Result<Vec<CallRecord>, ServiceError>;
-    async fn place(&self, contact_id: &ContactId, options: CallOptions) -> Result<CallState, ServiceError>;
+    async fn place(
+        &self,
+        contact_id: &ContactId,
+        options: CallOptions,
+    ) -> Result<CallState, ServiceError>;
     async fn accept(&self) -> Result<CallState, ServiceError>;
     async fn reject(&self) -> Result<(), ServiceError>;
     async fn hangup(&self) -> Result<CallState, ServiceError>;

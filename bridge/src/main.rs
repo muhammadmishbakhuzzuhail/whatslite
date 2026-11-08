@@ -23,7 +23,7 @@ use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::RwLock;
 use wa_rs::bot::{Bot, MessageContext};
 use wa_rs::client::Client;
@@ -116,7 +116,10 @@ impl AppState {
 }
 
 fn env_or(key: &str, default: &str) -> String {
-    std::env::var(key).ok().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| default.to_string())
+    std::env::var(key)
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| default.to_string())
 }
 
 /// Persist the paired identities next to the session db, and restore them at
@@ -208,8 +211,18 @@ async fn send(
             Json(json!({"ok": false, "error": "bridge_not_ready"})),
         );
     };
-    let to = body.get("to").and_then(Value::as_str).unwrap_or("").trim().to_string();
-    let text = body.get("text").and_then(Value::as_str).unwrap_or("").trim().to_string();
+    let to = body
+        .get("to")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    let text = body
+        .get("text")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if to.is_empty() || text.is_empty() {
         return (
             axum::http::StatusCode::BAD_REQUEST,
@@ -217,13 +230,25 @@ async fn send(
         );
     }
     // Accept bare phone numbers as well as full JIDs.
-    let mut jid_str = if to.contains('@') { to } else { format!("{to}@s.whatsapp.net") };
+    let mut jid_str = if to.contains('@') {
+        to
+    } else {
+        format!("{to}@s.whatsapp.net")
+    };
     // Self-chat routing: the self-chat only renders notes sent to the
     // account's phone-number JID. The companion JID and the account's LID
     // form are accepted by the server but land in invisible chats, so every
     // self-directed destination is rewritten to the bare PN form.
     {
-        let bare = |s: &str| s.split('@').next().unwrap_or("").split(':').next().unwrap_or("").to_string();
+        let bare = |s: &str| {
+            s.split('@')
+                .next()
+                .unwrap_or("")
+                .split(':')
+                .next()
+                .unwrap_or("")
+                .to_string()
+        };
         let own_jid = state.jid.read().await.clone();
         let own_lid = state.lid.read().await.clone();
         let peer = state.self_chat_peer.read().await.clone();
@@ -232,7 +257,8 @@ async fn send(
         let peer_user = peer.as_deref().map(bare).unwrap_or_default();
         let to_user = bare(&jid_str);
         let is_self_destination = !own_pn.is_empty()
-            && (to_user == own_pn || (!own_lid_user.is_empty() && to_user == own_lid_user)
+            && (to_user == own_pn
+                || (!own_lid_user.is_empty() && to_user == own_lid_user)
                 || (!peer_user.is_empty() && to_user == peer_user));
         if is_self_destination {
             jid_str = format!("{own_pn}@s.whatsapp.net");
@@ -252,7 +278,10 @@ async fn send(
         ..Default::default()
     };
     match client.send_message(jid, message).await {
-        Ok(id) => (axum::http::StatusCode::OK, Json(json!({"ok": true, "id": id}))),
+        Ok(id) => (
+            axum::http::StatusCode::OK,
+            Json(json!({"ok": true, "id": id})),
+        ),
         Err(e) => (
             axum::http::StatusCode::BAD_GATEWAY,
             Json(json!({"ok": false, "error": e.to_string()})),
@@ -266,8 +295,12 @@ async fn main() {
 
     let port: u16 = env_or("WA_BRIDGE_PORT", "8902").parse().unwrap_or(8902);
     let db_path = env_or("WA_BRIDGE_DB", "wa-bridge.db");
-    let phone = std::env::var("WA_BRIDGE_PHONE").ok().filter(|v| !v.trim().is_empty());
-    let custom_code = std::env::var("WA_BRIDGE_PAIR_CODE").ok().filter(|v| !v.trim().is_empty());
+    let phone = std::env::var("WA_BRIDGE_PHONE")
+        .ok()
+        .filter(|v| !v.trim().is_empty());
+    let custom_code = std::env::var("WA_BRIDGE_PAIR_CODE")
+        .ok()
+        .filter(|v| !v.trim().is_empty());
     let callback = Callback {
         url: env_or("WA_BRIDGE_CALLBACK_URL", ""),
         token: env_or("WA_BRIDGE_CALLBACK_TOKEN", ""),
@@ -429,7 +462,15 @@ async fn handle_message(state: &Arc<AppState>, ctx: MessageContext) {
     let sender = info.source.sender.to_string();
     let jid = state.jid.read().await.clone();
     let lid = state.lid.read().await.clone();
-    let bare = |s: &str| s.split('@').next().unwrap_or("").split(':').next().unwrap_or("").to_string();
+    let bare = |s: &str| {
+        s.split('@')
+            .next()
+            .unwrap_or("")
+            .split(':')
+            .next()
+            .unwrap_or("")
+            .to_string()
+    };
     let own_users: Vec<String> = [jid.clone(), lid.clone()]
         .into_iter()
         .flatten()
@@ -459,7 +500,10 @@ async fn handle_message(state: &Arc<AppState>, ctx: MessageContext) {
         }
     } else {
         let peer = state.self_chat_peer.read().await.clone();
-        let from_peer = peer.as_deref().map(|p| bare(p) == bare(&sender)).unwrap_or(false);
+        let from_peer = peer
+            .as_deref()
+            .map(|p| bare(p) == bare(&sender))
+            .unwrap_or(false);
         if from_peer {
             self_note = true;
         } else {
@@ -488,7 +532,10 @@ async fn handle_message(state: &Arc<AppState>, ctx: MessageContext) {
         // The direct copy and the companion echo can both arrive: forward the
         // first, drop its duplicate.
         let mut recent = state.recent_self.write().await;
-        if recent.iter().any(|(t, at)| t == &text && at.elapsed() < std::time::Duration::from_secs(25)) {
+        if recent
+            .iter()
+            .any(|(t, at)| t == &text && at.elapsed() < std::time::Duration::from_secs(25))
+        {
             log::info!("dropped duplicate self-note copy");
             return;
         }
@@ -519,5 +566,3 @@ async fn handle_message(state: &Arc<AppState>, ctx: MessageContext) {
     log::info!("forwarding message to engine callback (self_note={self_note})");
     push_callback(&state.callback, body).await;
 }
-
-

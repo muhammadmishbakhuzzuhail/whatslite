@@ -1,5 +1,6 @@
 use crate::client::Client;
 use std::collections::HashMap;
+use wa_rs_binary::jid::Jid;
 use wa_rs_core::client::context::GroupInfo;
 use wa_rs_core::iq::groups::{
     AddParticipantsIq, DemoteParticipantsIq, GetGroupInviteLinkIq, GroupCreateIq,
@@ -8,7 +9,6 @@ use wa_rs_core::iq::groups::{
     normalize_participants,
 };
 use wa_rs_core::types::message::AddressingMode;
-use wa_rs_binary::jid::Jid;
 
 pub use wa_rs_core::iq::groups::{
     GroupCreateOptions, GroupDescription, GroupParticipantOptions, GroupSubject, MemberAddMode,

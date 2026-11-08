@@ -2,14 +2,14 @@ use chrono::{Local, Utc};
 use log::{error, info};
 use std::io::Cursor;
 use std::sync::Arc;
-use wa_rs_core::download::{Downloadable, MediaType};
-use wa_rs_core::proto_helpers::MessageExt;
-use wa_rs_core::types::events::Event;
-use wa_rs_proto::whatsapp as wa;
 use wa_rs::bot::{Bot, MessageContext};
 use wa_rs::pair_code::PairCodeOptions;
 use wa_rs::store::SqliteStore;
 use wa_rs::upload::UploadResponse;
+use wa_rs_core::download::{Downloadable, MediaType};
+use wa_rs_core::proto_helpers::MessageExt;
+use wa_rs_core::types::events::Event;
+use wa_rs_proto::whatsapp as wa;
 use wa_rs_tokio_transport::TokioWebSocketTransportFactory;
 use wa_rs_ureq_http::UreqHttpClient;
 

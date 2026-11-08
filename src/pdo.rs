@@ -21,8 +21,8 @@ use moka::future::Cache;
 use prost::Message;
 use std::sync::Arc;
 use std::time::Duration;
-use wa_rs_core::types::message::{EditAttribute, MessageSource, MsgMetaInfo};
 use wa_rs_binary::jid::{Jid, JidExt};
+use wa_rs_core::types::message::{EditAttribute, MessageSource, MsgMetaInfo};
 use wa_rs_proto::whatsapp as wa;
 
 /// Cache entry for pending PDO requests.

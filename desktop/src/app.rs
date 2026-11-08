@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use gpui_kit::Keystroke;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::ActiveTheme as _;
 use gpui_kit::component::avatar::{Avatar, AvatarGroup};
@@ -11,24 +12,24 @@ use gpui_kit::component::input::{Input, InputState, Textarea, TextareaState};
 use gpui_kit::component::kbd::Kbd;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::Radio;
-use gpui_kit::Keystroke;
 use gpui_kit::component::scroll::ScrollableElement;
 use gpui_kit::prelude::*;
 use gpui_kit::{
-    div, px, Animation, AnimationExt, Context, Entity, FontWeight, IntoElement, KeyDownEvent,
-    MouseButton, Render, Role, Window,
+    Animation, AnimationExt, Context, Entity, FontWeight, IntoElement, KeyDownEvent, MouseButton,
+    Render, Role, Window, div, px,
 };
 
 use crate::components as ui;
 use crate::model::{
-    self, Account, Broadcast, CallEntry, Chat as ChatModel, Community, Contact, Delivery, MediaItem, MediaKind,
-    MediaState, Message, MessageBody, Notice, Reaction, Sender, StarredMessage, StatusUpdate,
+    self, Account, Broadcast, CallEntry, Chat as ChatModel, Community, Contact, Delivery,
+    MediaItem, MediaKind, MediaState, Message, MessageBody, Notice, Reaction, Sender,
+    StarredMessage, StatusUpdate,
 };
 use crate::theme::{
-    palette, Palette, ThemeMode, CHAT_ROW_HEIGHT, COMPACT_BREAKPOINT, COMPOSER_HEIGHT,
-    CONVERSATION_HEADER_HEIGHT, INFO_PANEL_WIDTH, LIST_WIDTH, PANEL_INLINE_BREAKPOINT, RAIL_WIDTH,
-    RADIUS_BUBBLE, RADIUS_LG, RADIUS_MD, RADIUS_SM, RADIUS_XL, SETTINGS_NAV_WIDTH, SIDEBAR_WIDTH,
-    TEXT_BODY, TEXT_CAPTION, TEXT_HEADING, TEXT_SMALL, TITLEBAR_HEIGHT,
+    CHAT_ROW_HEIGHT, COMPACT_BREAKPOINT, COMPOSER_HEIGHT, CONVERSATION_HEADER_HEIGHT,
+    INFO_PANEL_WIDTH, LIST_WIDTH, PANEL_INLINE_BREAKPOINT, Palette, RADIUS_BUBBLE, RADIUS_LG,
+    RADIUS_MD, RADIUS_SM, RADIUS_XL, RAIL_WIDTH, SETTINGS_NAV_WIDTH, SIDEBAR_WIDTH, TEXT_BODY,
+    TEXT_CAPTION, TEXT_HEADING, TEXT_SMALL, TITLEBAR_HEIGHT, ThemeMode, palette,
 };
 
 pub const STATUS_ITEM_LIMIT: usize = 30;
@@ -60,7 +61,6 @@ pub enum Route {
     Locked,
     Broadcast,
 }
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChatSearchFilter {
@@ -680,7 +680,10 @@ impl App {
         };
         let selected_contact = (route == Route::Contacts).then_some(0);
         let selected_community = (route == Route::Communities).then_some(0);
-        let settings_subpage = match std::env::var("WHATSLITE_SUBPAGE").unwrap_or_default().as_str() {
+        let settings_subpage = match std::env::var("WHATSLITE_SUBPAGE")
+            .unwrap_or_default()
+            .as_str()
+        {
             "linked-devices" => Some(SettingsSubpage::LinkedDevices),
             "linked-logout" => Some(SettingsSubpage::LinkedDeviceLogout),
             "visibility" => Some(SettingsSubpage::Visibility),
@@ -716,7 +719,10 @@ impl App {
             "about" => Some(SettingsSubpage::About),
             _ => None,
         };
-        let overlay = match std::env::var("WHATSLITE_OVERLAY").unwrap_or_default().as_str() {
+        let overlay = match std::env::var("WHATSLITE_OVERLAY")
+            .unwrap_or_default()
+            .as_str()
+        {
             "attachments" => Some(Overlay::AttachmentMenu),
             "demo" => Some(Overlay::UseCaseDemo),
             "header-menu" => Some(Overlay::HeaderMenu),
@@ -821,7 +827,11 @@ impl App {
             broadcasts: model::broadcasts(),
             accounts: model::accounts(),
             active_account: 0,
-            broadcast_step: if std::env::var("WHATSLITE_BROADCAST_STEP").as_deref() == Ok("2") { 2 } else { 1 },
+            broadcast_step: if std::env::var("WHATSLITE_BROADCAST_STEP").as_deref() == Ok("2") {
+                2
+            } else {
+                1
+            },
             broadcast_recipients: (0..model::contacts().len()).collect(),
             missed_banner: true,
             blocked_chats: [6usize].into_iter().collect(),
@@ -846,7 +856,10 @@ impl App {
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(4)
                 .clamp(2, 6),
-            call_state: match std::env::var("WHATSLITE_CALL_STATE").unwrap_or_default().as_str() {
+            call_state: match std::env::var("WHATSLITE_CALL_STATE")
+                .unwrap_or_default()
+                .as_str()
+            {
                 "dialing" => CallState::Dialing,
                 "ringing" => CallState::Ringing,
                 "connecting" => CallState::Connecting,
@@ -871,7 +884,11 @@ impl App {
             drag_file_hover: std::env::var("WHATSLITE_DRAG_FILE")
                 .ok()
                 .and_then(|value| value.parse::<usize>().ok()),
-            gif_query: if std::env::var("WHATSLITE_GIF_NO_RESULTS").as_deref() == Ok("1") { 1 } else { 0 },
+            gif_query: if std::env::var("WHATSLITE_GIF_NO_RESULTS").as_deref() == Ok("1") {
+                1
+            } else {
+                0
+            },
             media_zoom: 100,
             media_starred: HashSet::new(),
             media_deleted: HashSet::new(),
@@ -889,7 +906,10 @@ impl App {
             reduced_motion,
             system_theme,
             os_theme_dark,
-            profile_photo: match std::env::var("WHATSLITE_PROFILE_PHOTO").unwrap_or_default().as_str() {
+            profile_photo: match std::env::var("WHATSLITE_PROFILE_PHOTO")
+                .unwrap_or_default()
+                .as_str()
+            {
                 "cropping" => ProfilePhotoState::Cropping,
                 "uploaded" => ProfilePhotoState::Uploaded,
                 "saved" => ProfilePhotoState::Saved,
@@ -897,7 +917,10 @@ impl App {
             },
             profile_photo_zoom: 100,
             shortcut_overrides: vec![None; SHORTCUTS.len()],
-            status_items: match std::env::var("WHATSLITE_STATUS_ITEMS").ok().and_then(|value| value.parse::<usize>().ok()) {
+            status_items: match std::env::var("WHATSLITE_STATUS_ITEMS")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+            {
                 Some(count) => (0..count.min(STATUS_ITEM_LIMIT)).collect(),
                 None => vec![0, 2, 3, 1],
             },
@@ -909,13 +932,29 @@ impl App {
             channel_following: true,
             member_requests: vec!["Dewi Lestari".into(), "Budi Santoso".into(), "Rina".into()],
             community_admin: std::env::var("WHATSLITE_COMMUNITY_MEMBER").as_deref() != Ok("1"),
-            staged_attachments: match std::env::var("WHATSLITE_STAGED").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(0) {
+            staged_attachments: match std::env::var("WHATSLITE_STAGED")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0)
+            {
                 0 => Vec::new(),
-                1 => vec![StagedAttachment { kind: StagedKind::Image, label: "IMG_2241.jpg".into() }],
+                1 => vec![StagedAttachment {
+                    kind: StagedKind::Image,
+                    label: "IMG_2241.jpg".into(),
+                }],
                 _ => vec![
-                    StagedAttachment { kind: StagedKind::Image, label: "IMG_2241.jpg".into() },
-                    StagedAttachment { kind: StagedKind::File, label: "Invoice-2026-09.pdf".into() },
-                    StagedAttachment { kind: StagedKind::Contact, label: "Rizky Pratama".into() },
+                    StagedAttachment {
+                        kind: StagedKind::Image,
+                        label: "IMG_2241.jpg".into(),
+                    },
+                    StagedAttachment {
+                        kind: StagedKind::File,
+                        label: "Invoice-2026-09.pdf".into(),
+                    },
+                    StagedAttachment {
+                        kind: StagedKind::Contact,
+                        label: "Rizky Pratama".into(),
+                    },
                 ],
             },
             status_font: 0,
@@ -939,13 +978,19 @@ impl App {
             voice_speed: 0,
             searching,
             search_hit: 0,
-            chat_search_filter: match std::env::var("WHATSLITE_SEARCH_FILTER").unwrap_or_default().as_str() {
+            chat_search_filter: match std::env::var("WHATSLITE_SEARCH_FILTER")
+                .unwrap_or_default()
+                .as_str()
+            {
                 "media" => ChatSearchFilter::Media,
                 "links" => ChatSearchFilter::Links,
                 "docs" => ChatSearchFilter::Docs,
                 _ => ChatSearchFilter::All,
             },
-            network_state: match std::env::var("WHATSLITE_NETWORK").unwrap_or_default().as_str() {
+            network_state: match std::env::var("WHATSLITE_NETWORK")
+                .unwrap_or_default()
+                .as_str()
+            {
                 "connecting" => NetworkState::Connecting,
                 "offline" => NetworkState::Offline,
                 "reconnecting" => NetworkState::Reconnecting,
@@ -960,7 +1005,11 @@ impl App {
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(612),
             recording: std::env::var("WHATSLITE_RECORDING").as_deref() == Ok("1"),
-            recording_seconds: if std::env::var("WHATSLITE_RECORDING").as_deref() == Ok("1") { 3 } else { 0 },
+            recording_seconds: if std::env::var("WHATSLITE_RECORDING").as_deref() == Ok("1") {
+                3
+            } else {
+                0
+            },
             toggles,
             qr_state: match std::env::var("WHATSLITE_QR").unwrap_or_default().as_str() {
                 "loading" => QrState::Loading,
@@ -968,7 +1017,10 @@ impl App {
                 "success" => QrState::Success,
                 _ => QrState::Active,
             },
-            list_state: match std::env::var("WHATSLITE_LIST_STATE").unwrap_or_default().as_str() {
+            list_state: match std::env::var("WHATSLITE_LIST_STATE")
+                .unwrap_or_default()
+                .as_str()
+            {
                 "loading" => ListState::Loading,
                 "failed" => ListState::Failed,
                 _ => ListState::Ready,
@@ -984,10 +1036,7 @@ impl App {
     }
 
     fn shortcut_keys(&self, index: usize) -> Vec<String> {
-        let default = SHORTCUTS
-            .get(index)
-            .map(|(_, keys)| *keys)
-            .unwrap_or(&[]);
+        let default = SHORTCUTS.get(index).map(|(_, keys)| *keys).unwrap_or(&[]);
         let custom = self
             .shortcut_overrides
             .get(index)
@@ -998,7 +1047,10 @@ impl App {
     fn toast(&mut self, message: impl Into<String>, cx: &mut Context<Self>) {
         let id = self.toast_seq;
         self.toast_seq += 1;
-        self.toasts.push(Toast { id, message: message.into() });
+        self.toasts.push(Toast {
+            id,
+            message: message.into(),
+        });
         if self.toasts.len() > 3 {
             self.toasts.remove(0);
         }
@@ -1094,13 +1146,21 @@ impl App {
             }
             Action::SetSystemTheme => {
                 self.system_theme = true;
-                self.theme = if self.os_theme_dark { ThemeMode::Dark } else { ThemeMode::Light };
+                self.theme = if self.os_theme_dark {
+                    ThemeMode::Dark
+                } else {
+                    ThemeMode::Light
+                };
                 crate::theme::apply_theme(cx, self.theme);
             }
             Action::SetOsTheme(dark) => {
                 self.os_theme_dark = dark;
                 if self.system_theme {
-                    self.theme = if dark { ThemeMode::Dark } else { ThemeMode::Light };
+                    self.theme = if dark {
+                        ThemeMode::Dark
+                    } else {
+                        ThemeMode::Light
+                    };
                     crate::theme::apply_theme(cx, self.theme);
                 }
             }
@@ -1155,7 +1215,11 @@ impl App {
                     9 => self.overlay = Some(Overlay::EditContact(0)),
                     10 => self.overlay = Some(Overlay::ChatListMenu),
                     _ => {
-                        self.theme = if self.theme == ThemeMode::Dark { ThemeMode::Light } else { ThemeMode::Dark };
+                        self.theme = if self.theme == ThemeMode::Dark {
+                            ThemeMode::Light
+                        } else {
+                            ThemeMode::Dark
+                        };
                         crate::theme::apply_theme(cx, self.theme);
                     }
                 }
@@ -1184,7 +1248,8 @@ impl App {
             Action::Reply(index) => {
                 self.reply_to = Some(index);
                 self.overlay = None;
-                self.composer.update(cx, |state, cx| state.focus(window, cx));
+                self.composer
+                    .update(cx, |state, cx| state.focus(window, cx));
             }
             Action::Edit(index) => {
                 let text = self
@@ -1199,7 +1264,8 @@ impl App {
                 self.overlay = None;
                 self.composer
                     .update(cx, |state, cx| state.set_value(text, window, cx));
-                self.composer.update(cx, |state, cx| state.focus(window, cx));
+                self.composer
+                    .update(cx, |state, cx| state.focus(window, cx));
             }
             Action::StarMessage(index) => {
                 if let Some(message) = self
@@ -1210,7 +1276,14 @@ impl App {
                     message.starred = !message.starred;
                     let starred = message.starred;
                     self.overlay = None;
-                    self.toast(if starred { "Message starred" } else { "Removed from starred" }, cx);
+                    self.toast(
+                        if starred {
+                            "Message starred"
+                        } else {
+                            "Removed from starred"
+                        },
+                        cx,
+                    );
                 }
             }
             Action::OpenPinnedMessages => self.overlay = Some(Overlay::PinnedMessages),
@@ -1253,7 +1326,8 @@ impl App {
                     .get_mut(self.selected_chat)
                     .and_then(|messages| messages.get_mut(index))
                 {
-                    if let Some(reaction) = message.reactions.iter_mut().find(|r| r.emoji == emoji) {
+                    if let Some(reaction) = message.reactions.iter_mut().find(|r| r.emoji == emoji)
+                    {
                         reaction.count += 1;
                     } else {
                         message.reactions.push(Reaction { emoji, count: 1 });
@@ -1294,7 +1368,11 @@ impl App {
                 self.overlay = None;
             }
             Action::PinCallParticipant(index) => {
-                self.call_pinned = if self.call_pinned == Some(index) { None } else { Some(index) };
+                self.call_pinned = if self.call_pinned == Some(index) {
+                    None
+                } else {
+                    Some(index)
+                };
             }
             Action::ToggleMute => self.call_muted = !self.call_muted,
             Action::ToggleVideo => self.call_video = !self.call_video,
@@ -1367,11 +1445,19 @@ impl App {
                 }
             }
             Action::MediaDownload(index) => {
-                let name = self.media.get(index).map(|item| item.name.clone()).unwrap_or_default();
+                let name = self
+                    .media
+                    .get(index)
+                    .map(|item| item.name.clone())
+                    .unwrap_or_default();
                 self.toast(format!("Saved to Downloads · {name}"), cx);
             }
             Action::MediaForward(index) => {
-                let name = self.media.get(index).map(|item| item.name.clone()).unwrap_or_default();
+                let name = self
+                    .media
+                    .get(index)
+                    .map(|item| item.name.clone())
+                    .unwrap_or_default();
                 self.toast(format!("Forwarded · {name}"), cx);
             }
             Action::MediaDelete(index) => {
@@ -1436,7 +1522,11 @@ impl App {
                 if key == "system_theme" {
                     self.system_theme = self.toggles.contains(key);
                     if self.system_theme {
-                        self.theme = if self.os_theme_dark { ThemeMode::Dark } else { ThemeMode::Light };
+                        self.theme = if self.os_theme_dark {
+                            ThemeMode::Dark
+                        } else {
+                            ThemeMode::Light
+                        };
                         crate::theme::apply_theme(cx, self.theme);
                     }
                 }
@@ -1445,7 +1535,11 @@ impl App {
             Action::NewGroup => self.overlay = Some(Overlay::NewGroup),
             Action::CreateGroup => {
                 let index = self.chats.len();
-                let mut chat = self.chats.get(1).cloned().unwrap_or_else(|| self.chats[0].clone());
+                let mut chat = self
+                    .chats
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| self.chats[0].clone());
                 chat.id = index;
                 chat.name = "New group".into();
                 chat.initials = "NG".into();
@@ -1538,7 +1632,10 @@ impl App {
                 self.active_account = index;
                 self.overlay = None;
                 if let Some(account) = self.accounts.get(index) {
-                    self.toast(format!("Switched to {} · {}", account.name, account.label), cx);
+                    self.toast(
+                        format!("Switched to {} · {}", account.name, account.label),
+                        cx,
+                    );
                 }
             }
             Action::AddAccount => self.overlay = Some(Overlay::AddAccount),
@@ -1578,7 +1675,14 @@ impl App {
             Action::OpenSystemState(state) => self.overlay = Some(Overlay::SystemState(state)),
             Action::ToggleAiTranslation => {
                 self.ai_draft_english = !self.ai_draft_english;
-                self.toast(if self.ai_draft_english { "Draft translated to English" } else { "Showing original draft" }, cx);
+                self.toast(
+                    if self.ai_draft_english {
+                        "Draft translated to English"
+                    } else {
+                        "Showing original draft"
+                    },
+                    cx,
+                );
             }
             Action::InsertAiDraft => {
                 let draft = "Siap, aku kirim deck final jam tiga ya. Kalau ada revisi kecil, tulis di kolom komentar.";
@@ -1639,7 +1743,9 @@ impl App {
                 self.route = Route::Chats;
                 self.toast("Suggested reply inserted into the composer", cx);
             }
-            Action::OpenShortcutEditor(index) => self.overlay = Some(Overlay::ShortcutEditor(index)),
+            Action::OpenShortcutEditor(index) => {
+                self.overlay = Some(Overlay::ShortcutEditor(index))
+            }
             Action::ApplyShortcut(index, keys) => {
                 if let Some(slot) = self.shortcut_overrides.get_mut(index) {
                     *slot = Some(keys.clone());
@@ -1677,7 +1783,10 @@ impl App {
                 let count = self.status_items.len();
                 if count > 0 {
                     self.overlay = None;
-                    self.toast(format!("Status posted · {count} items · expires in 24 hours"), cx);
+                    self.toast(
+                        format!("Status posted · {count} items · expires in 24 hours"),
+                        cx,
+                    );
                 }
             }
             Action::OpenStatusFont => self.overlay = Some(Overlay::StatusFont),
@@ -1687,7 +1796,8 @@ impl App {
             Action::SetStatusPrivacy(index) => self.status_privacy = index.min(3),
             Action::StageAttachment(kind, label) => {
                 if self.staged_attachments.len() < 5 {
-                    self.staged_attachments.push(StagedAttachment { kind, label });
+                    self.staged_attachments
+                        .push(StagedAttachment { kind, label });
                 }
                 self.overlay = None;
                 self.toast("Attachment staged · not sent yet", cx);
@@ -1721,9 +1831,19 @@ impl App {
                 for attachment in staged {
                     let id = self.messages[chat].len();
                     let body = match attachment.kind {
-                        StagedKind::Image => MessageBody::Image { caption: Some(attachment.label.clone()), state: MediaState::Ready, ratio: 1.0 },
-                        StagedKind::File => MessageBody::Document { name: attachment.label.clone(), meta: "PDF · 1.2 MB".into() },
-                        StagedKind::Contact => MessageBody::ContactCard { name: attachment.label.clone(), phone: "+62 812 3456 7890".into() },
+                        StagedKind::Image => MessageBody::Image {
+                            caption: Some(attachment.label.clone()),
+                            state: MediaState::Ready,
+                            ratio: 1.0,
+                        },
+                        StagedKind::File => MessageBody::Document {
+                            name: attachment.label.clone(),
+                            meta: "PDF · 1.2 MB".into(),
+                        },
+                        StagedKind::Contact => MessageBody::ContactCard {
+                            name: attachment.label.clone(),
+                            phone: "+62 812 3456 7890".into(),
+                        },
                     };
                     self.messages[chat].push(Message {
                         id,
@@ -1740,7 +1860,8 @@ impl App {
                         forwarded: 0,
                     });
                 }
-                self.composer.update(cx, |state, cx| state.set_value("", window, cx));
+                self.composer
+                    .update(cx, |state, cx| state.set_value("", window, cx));
                 self.toast("Attachment sent · local mock", cx);
             }
             Action::OpenPollComposer => self.overlay = Some(Overlay::PollComposer),
@@ -1754,7 +1875,11 @@ impl App {
                     sender_name: None,
                     body: MessageBody::Poll {
                         question: "Warna mana yang paling cocok?".into(),
-                        options: vec![("Linen natural".into(), 0), ("Hitam arang".into(), 0), ("Coral".into(), 0)],
+                        options: vec![
+                            ("Linen natural".into(), 0),
+                            ("Hitam arang".into(), 0),
+                            ("Coral".into(), 0),
+                        ],
                         state: crate::model::PollState::Open,
                         multiple: false,
                     },
@@ -1774,7 +1899,13 @@ impl App {
             Action::SetDisappearing(index) => {
                 self.disappearing = index.min(3);
                 self.overlay = None;
-                self.toast(format!("Disappearing messages · {}", ["24 hours", "7 days", "90 days", "Off"][self.disappearing]), cx);
+                self.toast(
+                    format!(
+                        "Disappearing messages · {}",
+                        ["24 hours", "7 days", "90 days", "Off"][self.disappearing]
+                    ),
+                    cx,
+                );
             }
             Action::OpenStickerPicker => self.overlay = Some(Overlay::StickerPicker),
             Action::SendSticker(symbol) => {
@@ -1784,7 +1915,10 @@ impl App {
                     id,
                     sender: Sender::Me,
                     sender_name: None,
-                    body: MessageBody::Sticker { symbol, pack_missing: false },
+                    body: MessageBody::Sticker {
+                        symbol,
+                        pack_missing: false,
+                    },
                     time: "now".into(),
                     delivery: Delivery::Sent,
                     edited: false,
@@ -1816,12 +1950,24 @@ impl App {
             Action::OpenMemberApprovals => self.overlay = Some(Overlay::MemberApprovals),
             Action::ToggleChannelFollow => {
                 self.channel_following = !self.channel_following;
-                self.toast(if self.channel_following { "Following channel" } else { "Channel unfollowed" }, cx);
+                self.toast(
+                    if self.channel_following {
+                        "Following channel"
+                    } else {
+                        "Channel unfollowed"
+                    },
+                    cx,
+                );
             }
             Action::OpenStatusViewers => self.overlay = Some(Overlay::StatusViewers),
             Action::OpenForward(index) => self.overlay = Some(Overlay::Forward(index)),
             Action::ForwardTo(message_index, chat_index) => {
-                if let Some(message) = self.messages.get(self.selected_chat).and_then(|messages| messages.get(message_index)).cloned() {
+                if let Some(message) = self
+                    .messages
+                    .get(self.selected_chat)
+                    .and_then(|messages| messages.get(message_index))
+                    .cloned()
+                {
                     if let Some(chat) = self.chats.get(chat_index) {
                         let chat_name = chat.name.clone();
                         let id = self.messages[chat_index].len();
@@ -1865,7 +2011,11 @@ impl App {
             Action::SelectionStar => {
                 let selected = self.selected_messages.clone();
                 for index in &selected {
-                    if let Some(message) = self.messages.get_mut(self.selected_chat).and_then(|messages| messages.get_mut(*index)) {
+                    if let Some(message) = self
+                        .messages
+                        .get_mut(self.selected_chat)
+                        .and_then(|messages| messages.get_mut(*index))
+                    {
                         message.starred = true;
                     }
                 }
@@ -1874,13 +2024,20 @@ impl App {
             Action::SelectionDelete => {
                 let selected = self.selected_messages.clone();
                 for index in &selected {
-                    if let Some(message) = self.messages.get_mut(self.selected_chat).and_then(|messages| messages.get_mut(*index)) {
+                    if let Some(message) = self
+                        .messages
+                        .get_mut(self.selected_chat)
+                        .and_then(|messages| messages.get_mut(*index))
+                    {
                         message.body = MessageBody::Deleted;
                         message.reply = None;
                         message.reactions.clear();
                     }
                 }
-                self.toast(format!("Deleted {} messages · local mock", selected.len()), cx);
+                self.toast(
+                    format!("Deleted {} messages · local mock", selected.len()),
+                    cx,
+                );
                 self.message_select_mode = false;
                 self.selected_messages.clear();
             }
@@ -1889,7 +2046,10 @@ impl App {
                     self.overlay = Some(Overlay::Forward(index));
                 }
             }
-            Action::SelectionCopy => self.toast(format!("Copied {} messages", self.selected_messages.len()), cx),
+            Action::SelectionCopy => self.toast(
+                format!("Copied {} messages", self.selected_messages.len()),
+                cx,
+            ),
             Action::OpenGifPicker => self.overlay = Some(Overlay::GifPicker),
             Action::SetGifQuery(index) => self.gif_query = index.min(1),
             Action::SendGif(caption) => {
@@ -1899,7 +2059,10 @@ impl App {
                     id,
                     sender: Sender::Me,
                     sender_name: None,
-                    body: MessageBody::Gif { caption: Some(caption), failed: false },
+                    body: MessageBody::Gif {
+                        caption: Some(caption),
+                        failed: false,
+                    },
                     time: "now".into(),
                     delivery: Delivery::Sent,
                     edited: false,
@@ -1947,7 +2110,10 @@ impl App {
                 }
             }
             Action::AttachSelectedFile => {
-                self.staged_attachments.push(StagedAttachment { kind: StagedKind::File, label: "Invoice-2026-09.pdf".into() });
+                self.staged_attachments.push(StagedAttachment {
+                    kind: StagedKind::File,
+                    label: "Invoice-2026-09.pdf".into(),
+                });
                 self.file_selected = false;
                 self.overlay = None;
                 self.toast("File attached · not sent yet", cx);
@@ -2014,21 +2180,19 @@ impl App {
                 self.searching = !self.searching;
                 self.search_hit = 0;
                 if self.searching {
-                    self.chat_search.update(cx, |state, cx| state.focus(window, cx));
+                    self.chat_search
+                        .update(cx, |state, cx| state.focus(window, cx));
                 }
             }
             Action::SetChatSearchFilter(filter) => {
                 self.chat_search_filter = filter;
                 self.search_hit = 0;
                 let query = self.chat_search.read(cx).value().to_lowercase();
-                let first = self
-                    .messages
-                    .get(self.selected_chat)
-                    .and_then(|messages| {
-                        messages
-                            .iter()
-                            .position(|message| message_matches_search(message, &query, filter))
-                    });
+                let first = self.messages.get(self.selected_chat).and_then(|messages| {
+                    messages
+                        .iter()
+                        .position(|message| message_matches_search(message, &query, filter))
+                });
                 if let Some(first) = first {
                     self.conversation_scroll.scroll_to_item(first);
                 }
@@ -2079,7 +2243,10 @@ impl App {
                         id,
                         sender: Sender::Me,
                         sender_name: None,
-                        body: MessageBody::Voice { duration, transcript: None },
+                        body: MessageBody::Voice {
+                            duration,
+                            transcript: None,
+                        },
                         time,
                         delivery: Delivery::Sent,
                         edited: false,
@@ -2249,12 +2416,16 @@ impl App {
             .bg(p.bg_conversation)
             .text_color(p.text_primary)
             .font_family("Inter")
-            .when(status_view.is_none(), |el| el.child(self.render_titlebar(cx, p)))
+            .when(status_view.is_none(), |el| {
+                el.child(self.render_titlebar(cx, p))
+            })
             .child(body)
             .when_some(self.overlay.clone(), |el, overlay| {
                 el.child(self.render_overlay(overlay, cx, p))
             })
-            .when(!self.toasts.is_empty(), |el| el.child(self.render_toasts(p)))
+            .when(!self.toasts.is_empty(), |el| {
+                el.child(self.render_toasts(p))
+            })
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
                 if event.keystroke.key == "escape" {
                     this.apply(Action::CloseOverlay, window, cx);
@@ -2318,13 +2489,9 @@ impl App {
                         p,
                         |window| window.zoom_window(),
                     ))
-                    .child(window_control(
-                        cx,
-                        IconName::X,
-                        "Close",
-                        p,
-                        |window| window.remove_window(),
-                    )),
+                    .child(window_control(cx, IconName::X, "Close", p, |window| {
+                        window.remove_window()
+                    })),
             )
     }
 
@@ -2369,57 +2536,123 @@ impl App {
             Route::Settings => {
                 let nav = self.render_settings_nav(cx, p);
                 let detail = self.render_settings_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(nav).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(nav)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Calls => {
                 let list = self.render_calls_list(cx, p);
                 let detail = self.render_calls_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Updates => {
                 let list = self.render_updates_list(cx, p);
                 let detail = self.render_updates_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Communities => {
                 let list = self.render_communities_list(cx, p);
                 let detail = self.render_communities_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Media => {
                 let list = self.render_media_list(cx, p);
                 let detail = self.render_media_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Ai => {
                 let list = self.render_ai_list(cx, p);
                 let detail = self.render_ai_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Contacts => {
                 let list = self.render_contacts_list(cx, p);
                 let detail = self.render_contacts_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Archived => {
                 let list = self.render_archived_list(cx, p);
                 let detail = self.render_brand_empty(cx, p, "Archived");
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Starred => {
                 let list = self.render_starred_list(cx, p);
                 let detail = self.render_brand_empty(cx, p, "Starred");
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Locked => {
                 let list = self.render_locked_list(cx, p);
                 let detail = self.render_locked_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Broadcast => {
                 let list = self.render_broadcast_list(cx, p);
                 let detail = self.render_broadcast_detail(cx, p);
-                div().flex_1().flex().min_w(px(0.)).child(list).child(detail).into_any_element()
+                div()
+                    .flex_1()
+                    .flex()
+                    .min_w(px(0.))
+                    .child(list)
+                    .child(detail)
+                    .into_any_element()
             }
             Route::Onboarding => div().flex_1().into_any_element(),
         };
@@ -2442,7 +2675,11 @@ impl App {
         let width = if collapsed { RAIL_WIDTH } else { SIDEBAR_WIDTH };
         let account_row = if self.accounts.len() > 1 {
             let active = self.accounts.get(self.active_account).cloned();
-            let other = self.accounts.iter().find(|account| !account.active).cloned();
+            let other = self
+                .accounts
+                .iter()
+                .find(|account| !account.active)
+                .cloned();
             let mut row = div()
                 .id("account-switcher")
                 .h(px(48.))
@@ -2460,11 +2697,12 @@ impl App {
                             el.child(ui::avatar(account.initials, 28., false, p))
                         })
                         .when_some(other, |el, account| {
-                            el.child(
-                                div()
-                                    .ml(px(-8.))
-                                    .child(ui::avatar(account.initials, 28., false, p)),
-                            )
+                            el.child(div().ml(px(-8.)).child(ui::avatar(
+                                account.initials,
+                                28.,
+                                false,
+                                p,
+                            )))
                         }),
                 )
                 .when(!collapsed, |el| {
@@ -2487,14 +2725,19 @@ impl App {
                                     .child("Personal · Studio"),
                             ),
                     )
-                    .child(ui::icon(IconName::ChevronDown, 14.0, p.text_secondary))
+                    .child(ui::icon(
+                        IconName::ChevronDown,
+                        14.0,
+                        p.text_secondary,
+                    ))
                 });
             row = self.clickable(cx, row, Action::OpenAccounts);
             Some(row)
         } else {
             None
         };
-        let mut nav = |icon, label, route, badge| self.nav_item(cx, p, icon, label, route, badge, collapsed);
+        let mut nav =
+            |icon, label, route, badge| self.nav_item(cx, p, icon, label, route, badge, collapsed);
 
         let mut sidebar = div()
             .w(px(width))
@@ -2534,7 +2777,12 @@ impl App {
             .child(nav(IconName::MessageSquare, "Chats", Route::Chats, None))
             .child(nav(IconName::CircleDashed, "Updates", Route::Updates, None))
             .child(nav(IconName::Phone, "Calls", Route::Calls, Some(8)))
-            .child(nav(IconName::Users, "Communities", Route::Communities, None))
+            .child(nav(
+                IconName::Users,
+                "Communities",
+                Route::Communities,
+                None,
+            ))
             .child(nav(IconName::Image, "Media", Route::Media, None))
             .child(nav(IconName::Sparkles, "AI", Route::Ai, None));
 
@@ -2570,7 +2818,11 @@ impl App {
                                 .text_color(p.text_primary)
                                 .child("You"),
                         )
-                        .child(ui::icon(IconName::Pencil, 15.0, p.text_secondary))
+                        .child(ui::icon(
+                            IconName::Pencil,
+                            15.0,
+                            p.text_secondary,
+                        ))
                     }),
             );
 
@@ -2601,7 +2853,11 @@ impl App {
             .items_center()
             .gap(px(12.))
             .rounded(px(RADIUS_LG))
-            .bg(if selected { p.bg_selected } else { p.bg_sidebar })
+            .bg(if selected {
+                p.bg_selected
+            } else {
+                p.bg_sidebar
+            })
             .text_color(p.text_primary)
             .text_size(px(13.))
             .font_weight(FontWeight::MEDIUM)
@@ -2764,33 +3020,27 @@ impl App {
                     ),
             )
             .child(
-                div()
-                    .px(px(12.))
-                    .py(px(5.))
-                    .child(
-                        div()
-                            .h(px(32.))
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .rounded_full()
-                            .bg(p.bg_search)
-                            .px(px(10.))
-                            .child(ui::icon(IconName::Search, 16.0, p.text_secondary))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .min_w(px(0.))
-                                    .child(
-                                        Input::new(&self.search)
-                                            .id("chat-search")
-                                            .appearance(false)
-                                            .bordered(false)
-                                            .cleanable(true)
-                                            .aria_label("Search chats"),
-                                    ),
+                div().px(px(12.)).py(px(5.)).child(
+                    div()
+                        .h(px(32.))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .rounded_full()
+                        .bg(p.bg_search)
+                        .px(px(10.))
+                        .child(ui::icon(IconName::Search, 16.0, p.text_secondary))
+                        .child(
+                            div().flex_1().min_w(px(0.)).child(
+                                Input::new(&self.search)
+                                    .id("chat-search")
+                                    .appearance(false)
+                                    .bordered(false)
+                                    .cleanable(true)
+                                    .aria_label("Search chats"),
                             ),
-                    ),
+                        ),
+                ),
             )
             .child(
                 div()
@@ -2844,8 +3094,16 @@ impl App {
             .px(px(12.))
             .border_b_1()
             .border_color(p.divider)
-            .bg(if self.drag_file_hover == Some(chat_id) { p.accent_soft } else if selected { p.bg_row_selected } else { p.bg_list })
-            .when(self.drag_file_hover == Some(chat_id), |el| el.border_1().border_color(p.accent))
+            .bg(if self.drag_file_hover == Some(chat_id) {
+                p.accent_soft
+            } else if selected {
+                p.bg_row_selected
+            } else {
+                p.bg_list
+            })
+            .when(self.drag_file_hover == Some(chat_id), |el| {
+                el.border_1().border_color(p.accent)
+            })
             .hover(move |style| style.bg(p.bg_row_selected))
             .child(ui::avatar(chat.initials.clone(), 44., chat.online, p))
             .child(
@@ -2881,10 +3139,18 @@ impl App {
                                         el.child(ui::icon(IconName::Pin, 12.0, p.text_secondary))
                                     })
                                     .when(muted, |el| {
-                                        el.child(ui::icon(IconName::BellOff, 12.0, p.text_secondary))
+                                        el.child(ui::icon(
+                                            IconName::BellOff,
+                                            12.0,
+                                            p.text_secondary,
+                                        ))
                                     })
                                     .when(chat.verified, |el| {
-                                        el.child(ui::icon(IconName::BadgeCheck, 14.0, p.attach_blue))
+                                        el.child(ui::icon(
+                                            IconName::BadgeCheck,
+                                            14.0,
+                                            p.attach_blue,
+                                        ))
                                     })
                                     .when(chat.business, |el| {
                                         el.child(ui::icon(IconName::Briefcase, 12.0, p.attach_blue))
@@ -2948,9 +3214,16 @@ impl App {
             let label = label.clone();
             drop_app.update(cx, |this, cx| {
                 this.selected_chat = target;
-                this.staged_attachments.push(StagedAttachment { kind: StagedKind::File, label: label.clone() });
+                this.staged_attachments.push(StagedAttachment {
+                    kind: StagedKind::File,
+                    label: label.clone(),
+                });
                 this.drag_file_hover = None;
-                let name = this.chats.get(target).map(|chat| chat.name.clone()).unwrap_or_default();
+                let name = this
+                    .chats
+                    .get(target)
+                    .map(|chat| chat.name.clone())
+                    .unwrap_or_default();
                 this.toast(format!("File staged for {name} · {label}"), cx);
             });
         });
@@ -2975,17 +3248,21 @@ impl App {
         };
 
         let header = self.render_conversation_header(cx, p, &chat);
-        let messages = self.messages.get(self.selected_chat).cloned().unwrap_or_default();
+        let messages = self
+            .messages
+            .get(self.selected_chat)
+            .cloned()
+            .unwrap_or_default();
         let message_views = self.render_messages(cx, p, &chat, &messages);
 
         let search_query = self.chat_search.read(cx).value().to_lowercase();
         let active_search = self.searching
-            && (!search_query.trim().is_empty() || self.chat_search_filter != ChatSearchFilter::All);
+            && (!search_query.trim().is_empty()
+                || self.chat_search_filter != ChatSearchFilter::All);
         if active_search {
-            if let Some(first) = messages
-                .iter()
-                .position(|message| message_matches_search(message, &search_query, self.chat_search_filter))
-            {
+            if let Some(first) = messages.iter().position(|message| {
+                message_matches_search(message, &search_query, self.chat_search_filter)
+            }) {
                 self.conversation_scroll.scroll_to_item(first);
             }
         } else {
@@ -3068,7 +3345,6 @@ impl App {
             }
         }
 
-
         let ready = self.list_state == ListState::Ready;
         let composer = ready.then(|| self.render_composer(cx, p));
         let search_filters = if ready && self.searching {
@@ -3083,36 +3359,42 @@ impl App {
                     .bg(p.bg_header)
                     .border_b_1()
                     .border_color(p.divider)
-                    .children([
-                        (ChatSearchFilter::All, "All"),
-                        (ChatSearchFilter::Media, "Media"),
-                        (ChatSearchFilter::Links, "Links"),
-                        (ChatSearchFilter::Docs, "Docs"),
-                    ]
-                    .into_iter()
-                    .map(|(filter, label)| {
-                        let selected = self.chat_search_filter == filter;
-                        self.clickable(
-                            cx,
-                            div()
-                                .id(format!("search-filter-{label}"))
-                                .role(Role::Button)
-                                .tab_index(0)
-                                .aria_label(label)
-                                .cursor_pointer()
-                                .h(px(24.))
-                                .px(px(10.))
-                                .flex()
-                                .items_center()
-                                .rounded_full()
-                                .bg(if selected { p.accent_soft } else { p.bg_search })
-                                .text_size(px(TEXT_CAPTION))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(if selected { p.unread_text } else { p.text_secondary })
-                                .child(label),
-                            Action::SetChatSearchFilter(filter),
-                        )
-                    })),
+                    .children(
+                        [
+                            (ChatSearchFilter::All, "All"),
+                            (ChatSearchFilter::Media, "Media"),
+                            (ChatSearchFilter::Links, "Links"),
+                            (ChatSearchFilter::Docs, "Docs"),
+                        ]
+                        .into_iter()
+                        .map(|(filter, label)| {
+                            let selected = self.chat_search_filter == filter;
+                            self.clickable(
+                                cx,
+                                div()
+                                    .id(format!("search-filter-{label}"))
+                                    .role(Role::Button)
+                                    .tab_index(0)
+                                    .aria_label(label)
+                                    .cursor_pointer()
+                                    .h(px(24.))
+                                    .px(px(10.))
+                                    .flex()
+                                    .items_center()
+                                    .rounded_full()
+                                    .bg(if selected { p.accent_soft } else { p.bg_search })
+                                    .text_size(px(TEXT_CAPTION))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(if selected {
+                                        p.unread_text
+                                    } else {
+                                        p.text_secondary
+                                    })
+                                    .child(label),
+                                Action::SetChatSearchFilter(filter),
+                            )
+                        }),
+                    ),
             )
         } else {
             None
@@ -3123,7 +3405,10 @@ impl App {
                 NetworkState::Connecting => "Connecting to WhatsApp…".to_owned(),
                 NetworkState::Offline => {
                     if self.outbox > 0 {
-                        format!("No internet — {} messages queued · will send when you reconnect.", self.outbox)
+                        format!(
+                            "No internet — {} messages queued · will send when you reconnect.",
+                            self.outbox
+                        )
                     } else {
                         "No internet — messages will send when you reconnect.".to_owned()
                     }
@@ -3158,10 +3443,14 @@ impl App {
             .bg(p.bg_conversation)
             .child(header)
             .when_some(search_filters, |el, filters| el.child(filters))
-            .when(ready && !self.pinned.is_empty(), |el| el.child(self.render_pinned_bar(cx, p)))
+            .when(ready && !self.pinned.is_empty(), |el| {
+                el.child(self.render_pinned_bar(cx, p))
+            })
             .child(stage)
             .when_some(network_banner, |el, banner| el.child(banner))
-            .when(ready && self.message_select_mode, |el| el.child(self.render_selection_bar(cx, p)))
+            .when(ready && self.message_select_mode, |el| {
+                el.child(self.render_selection_bar(cx, p))
+            })
             .when_some(composer, |el, composer| el.child(composer))
     }
 
@@ -3193,73 +3482,70 @@ impl App {
                 .px(px(10.))
                 .child(ui::icon(IconName::Search, 16.0, p.text_secondary))
                 .child(
+                    div().flex_1().child(
+                        Input::new(&self.chat_search)
+                            .id("in-chat-search")
+                            .appearance(false)
+                            .bordered(false)
+                            .cleanable(true)
+                            .aria_label("Search in conversation"),
+                    ),
+                )
+                .child({
+                    let query = self.chat_search.read(cx).value().to_lowercase();
+                    let total = self
+                        .messages
+                        .get(self.selected_chat)
+                        .map(|messages| {
+                            messages
+                                .iter()
+                                .filter(|message| {
+                                    message_matches_search(message, &query, self.chat_search_filter)
+                                })
+                                .count()
+                        })
+                        .unwrap_or(0);
+                    let active = !query.trim().is_empty()
+                        || self.chat_search_filter != ChatSearchFilter::All;
+                    let label = if !active {
+                        "Search".to_owned()
+                    } else if total == 0 {
+                        "0 results".to_owned()
+                    } else {
+                        format!("{} of {}", self.search_hit.min(total - 1) + 1, total)
+                    };
                     div()
-                        .flex_1()
-                        .child(
-                            Input::new(&self.chat_search)
-                                .id("in-chat-search")
-                                .appearance(false)
-                                .bordered(false)
-                                .cleanable(true)
-                                .aria_label("Search in conversation"),
-                        ),
-                )
-                .child(
-                    {
-                        let query = self.chat_search.read(cx).value().to_lowercase();
-                        let total = self
-                            .messages
-                            .get(self.selected_chat)
-                            .map(|messages| {
-                                messages
-                                    .iter()
-                                    .filter(|message| {
-                                        message_matches_search(message, &query, self.chat_search_filter)
-                                    })
-                                    .count()
-                            })
-                            .unwrap_or(0);
-                        let active = !query.trim().is_empty() || self.chat_search_filter != ChatSearchFilter::All;
-                        let label = if !active {
-                            "Search".to_owned()
-                        } else if total == 0 {
-                            "0 results".to_owned()
-                        } else {
-                            format!("{} of {}", self.search_hit.min(total - 1) + 1, total)
-                        };
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(4.))
-                            .text_size(px(TEXT_CAPTION))
-                            .text_color(p.text_secondary)
-                            .child(label)
-                            .child(self.clickable(
-                                cx,
-                                ui::icon_button_small(
-                                    "search-prev",
-                                    IconName::ChevronUp,
-                                    14.0,
-                                    p.text_secondary,
-                                    p.hover(),
-                                    "Previous hit",
-                                ),
-                                Action::SearchPrev,
-                            ))
-                            .child(self.clickable(
-                                cx,
-                                ui::icon_button_small(
-                                    "search-next",
-                                    IconName::ChevronDown,
-                                    14.0,
-                                    p.text_secondary,
-                                    p.hover(),
-                                    "Next hit",
-                                ),
-                                Action::SearchNext,
-                            ))
-                    },
-                )
+                        .flex()
+                        .items_center()
+                        .gap(px(4.))
+                        .text_size(px(TEXT_CAPTION))
+                        .text_color(p.text_secondary)
+                        .child(label)
+                        .child(self.clickable(
+                            cx,
+                            ui::icon_button_small(
+                                "search-prev",
+                                IconName::ChevronUp,
+                                14.0,
+                                p.text_secondary,
+                                p.hover(),
+                                "Previous hit",
+                            ),
+                            Action::SearchPrev,
+                        ))
+                        .child(self.clickable(
+                            cx,
+                            ui::icon_button_small(
+                                "search-next",
+                                IconName::ChevronDown,
+                                14.0,
+                                p.text_secondary,
+                                p.hover(),
+                                "Next hit",
+                            ),
+                            Action::SearchNext,
+                        ))
+                })
                 .child(
                     self.clickable(
                         cx,
@@ -3317,7 +3603,11 @@ impl App {
                                     div()
                                         .flex_shrink_0()
                                         .opacity(if show_chevron { 1. } else { 0. })
-                                        .child(ui::icon(IconName::ChevronDown, 16.0, p.text_secondary)),
+                                        .child(ui::icon(
+                                            IconName::ChevronDown,
+                                            16.0,
+                                            p.text_secondary,
+                                        )),
                                 ),
                         )
                         .child(
@@ -3414,7 +3704,10 @@ impl App {
             let system = matches!(message.sender, Sender::System)
                 || matches!(message.body, MessageBody::Date(_));
             if system {
-                views.push(self.render_system_message(cx, p, message).into_any_element());
+                views.push(
+                    self.render_system_message(cx, p, message)
+                        .into_any_element(),
+                );
                 continue;
             }
 
@@ -3536,7 +3829,10 @@ impl App {
         let highlight = self.searching
             && !query.trim().is_empty()
             && message_matches_search(message, &query, self.chat_search_filter);
-        let bare = matches!(message.body, MessageBody::Emoji(_) | MessageBody::Sticker { .. });
+        let bare = matches!(
+            message.body,
+            MessageBody::Emoji(_) | MessageBody::Sticker { .. }
+        );
         let bubble_color = if bare {
             p.bubble_in.alpha(0.0)
         } else if outgoing {
@@ -3628,16 +3924,16 @@ impl App {
                 .gap(px(4.))
                 .text_size(px(TEXT_CAPTION))
                 .text_color(p.text_secondary)
-                .when(message.starred, |el| el.child(ui::icon(IconName::Star, 11.0, p.attach_orange)))
+                .when(message.starred, |el| {
+                    el.child(ui::icon(IconName::Star, 11.0, p.attach_orange))
+                })
                 .when_some(message.countdown.clone(), |el, countdown| {
                     el.child(ui::icon(IconName::Timer, 11.0, p.text_secondary))
                         .child(countdown)
                 })
                 .child(message.time.clone())
                 .when(message.edited, |el| el.child("· edited"))
-                .when(outgoing, |el| {
-                    el.child(delivery_icon(message.delivery, p))
-                }),
+                .when(outgoing, |el| el.child(delivery_icon(message.delivery, p))),
         );
 
         let mut row = div()
@@ -3647,26 +3943,41 @@ impl App {
             .gap(px(6.))
             .mt(px(gap))
             .when(outgoing, |el| {
-                if self.rtl { el.justify_start() } else { el.justify_end() }
+                if self.rtl {
+                    el.justify_start()
+                } else {
+                    el.justify_end()
+                }
             })
             .when(!outgoing, |el| {
-                if self.rtl { el.justify_end() } else { el.justify_start() }
+                if self.rtl {
+                    el.justify_end()
+                } else {
+                    el.justify_start()
+                }
             });
 
         if show_identity {
             let sender = message.sender_name.clone().unwrap_or_default();
-            row = row.child(self.clickable(
-                cx,
-                div()
-                    .id(format!("sender-avatar-{}", message.id))
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .gap(px(2.))
-                    .cursor_pointer()
-                    .child(ui::avatar(initials_for(message.sender_name.as_deref()), 28., false, p)),
-                Action::OpenContactProfile(sender.clone()),
-            ));
+            row = row.child(
+                self.clickable(
+                    cx,
+                    div()
+                        .id(format!("sender-avatar-{}", message.id))
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .gap(px(2.))
+                        .cursor_pointer()
+                        .child(ui::avatar(
+                            initials_for(message.sender_name.as_deref()),
+                            28.,
+                            false,
+                            p,
+                        )),
+                    Action::OpenContactProfile(sender.clone()),
+                ),
+            );
         }
 
         let mut column = div()
@@ -3678,17 +3989,19 @@ impl App {
 
         if show_identity {
             let sender = message.sender_name.clone().unwrap_or_default();
-            column = column.child(self.clickable(
-                cx,
-                div()
-                    .id(format!("sender-name-{}", message.id))
-                    .cursor_pointer()
-                    .text_size(px(TEXT_SMALL))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(sender_color(message.sender_name.as_deref(), p))
-                    .child(sender.clone()),
-                Action::OpenContactProfile(sender),
-            ));
+            column = column.child(
+                self.clickable(
+                    cx,
+                    div()
+                        .id(format!("sender-name-{}", message.id))
+                        .cursor_pointer()
+                        .text_size(px(TEXT_SMALL))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(sender_color(message.sender_name.as_deref(), p))
+                        .child(sender.clone()),
+                    Action::OpenContactProfile(sender),
+                ),
+            );
         }
 
         let bubble_action = if self.message_select_mode {
@@ -3698,9 +4011,15 @@ impl App {
         };
         let bubble = self.clickable(
             cx,
-            body.id(format!("message-{}", message.id)).role(Role::Button).tab_index(0).aria_label(
-                format!("{} · {} · {}", message.time, message.sender_name.clone().unwrap_or_else(|| "You".into()), message_preview(message)),
-            ),
+            body.id(format!("message-{}", message.id))
+                .role(Role::Button)
+                .tab_index(0)
+                .aria_label(format!(
+                    "{} · {} · {}",
+                    message.time,
+                    message.sender_name.clone().unwrap_or_else(|| "You".into()),
+                    message_preview(message)
+                )),
             bubble_action,
         );
         column = column.child(bubble);
@@ -3727,24 +4046,32 @@ impl App {
                             .border_1()
                             .border_color(p.border)
                             .text_size(px(TEXT_CAPTION))
-                            .child(ui::icon(reaction_icon(&reaction.emoji), 11.0, p.text_primary))
-                            .when(reaction.count > 1, |el| el.child(reaction.count.to_string()))
+                            .child(ui::icon(
+                                reaction_icon(&reaction.emoji),
+                                11.0,
+                                p.text_primary,
+                            ))
+                            .when(reaction.count > 1, |el| {
+                                el.child(reaction.count.to_string())
+                            })
                     }))
                     .when(extra > 0, |el| {
-                        el.child(self.clickable(
-                            cx,
-                            div()
-                                .id("reaction-overflow")
-                                .px(px(6.))
-                                .py(px(2.))
-                                .rounded_full()
-                                .bg(p.accent_soft)
-                                .text_size(px(TEXT_CAPTION))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(p.unread_text)
-                                .child(format!("+{extra}")),
-                            Action::OpenReactions(index),
-                        ))
+                        el.child(
+                            self.clickable(
+                                cx,
+                                div()
+                                    .id("reaction-overflow")
+                                    .px(px(6.))
+                                    .py(px(2.))
+                                    .rounded_full()
+                                    .bg(p.accent_soft)
+                                    .text_size(px(TEXT_CAPTION))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(p.unread_text)
+                                    .child(format!("+{extra}")),
+                                Action::OpenReactions(index),
+                            ),
+                        )
                     }),
             );
         }
@@ -3791,7 +4118,11 @@ impl App {
                 .text_color(p.text_secondary)
                 .child("This message was deleted")
                 .into_any_element(),
-            MessageBody::Image { caption, state, ratio } => {
+            MessageBody::Image {
+                caption,
+                state,
+                ratio,
+            } => {
                 let height = 160.0 * ratio.clamp(0.75, 1.1);
                 let mut image = div()
                     .w(px(288.))
@@ -3828,7 +4159,11 @@ impl App {
                     })
                     .into_any_element()
             }
-            MessageBody::Video { caption, duration, state } => div()
+            MessageBody::Video {
+                caption,
+                duration,
+                state,
+            } => div()
                 .flex()
                 .flex_col()
                 .gap(px(4.))
@@ -3876,7 +4211,10 @@ impl App {
                     el.child(div().text_size(px(13.)).child(caption))
                 })
                 .into_any_element(),
-            MessageBody::Voice { duration, transcript } => div()
+            MessageBody::Voice {
+                duration,
+                transcript,
+            } => div()
                 .flex()
                 .flex_col()
                 .gap(px(4.))
@@ -3896,56 +4234,59 @@ impl App {
                                 .bg(p.accent)
                                 .child(ui::icon(IconName::Play, 16.0, p.text_inverse)),
                         )
-                        .child(
-                            div()
-                                .flex_1()
-                                .flex()
-                                .items_center()
-                                .gap(px(2.))
-                                .children((0..24).map(|index| {
-                                    let height = 6.0 + ((index * 7 + 3) % 18) as f32;
-                                    div()
-                                        .w(px(2.))
-                                        .h(px(height))
-                                        .rounded_full()
-                                        .bg(p.text_secondary)
-                                })),
-                        )
+                        .child(div().flex_1().flex().items_center().gap(px(2.)).children(
+                            (0..24).map(|index| {
+                                let height = 6.0 + ((index * 7 + 3) % 18) as f32;
+                                div()
+                                    .w(px(2.))
+                                    .h(px(height))
+                                    .rounded_full()
+                                    .bg(p.text_secondary)
+                            }),
+                        ))
                         .child(
                             div()
                                 .text_size(px(TEXT_CAPTION))
                                 .text_color(p.text_secondary)
                                 .child(duration.clone()),
                         )
-                        .child(self.clickable(
-                            cx,
-                            div()
-                                .id("voice-speed")
-                                .text_size(px(TEXT_CAPTION))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(p.accent)
-                                .child(["1×", "1.5×", "2×"][self.voice_speed]),
-                            Action::CycleVoiceSpeed,
-                        )),
+                        .child(
+                            self.clickable(
+                                cx,
+                                div()
+                                    .id("voice-speed")
+                                    .text_size(px(TEXT_CAPTION))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(p.accent)
+                                    .child(["1×", "1.5×", "2×"][self.voice_speed]),
+                                Action::CycleVoiceSpeed,
+                            ),
+                        ),
                 )
                 .when_some(transcript.clone(), |el, transcript| {
-                    el.child(self.clickable(
-                        cx,
-                        div()
-                            .id("transcript-toggle")
-                            .flex()
-                            .items_center()
-                            .gap(px(3.))
-                            .text_size(px(TEXT_CAPTION))
-                            .text_color(p.text_secondary)
-                            .child(ui::icon(
-                                if self.transcript_open { IconName::ChevronDown } else { IconName::ChevronRight },
-                                12.0,
-                                p.text_secondary,
-                            ))
-                            .child("Transcript"),
-                        Action::ToggleTranscript,
-                    ))
+                    el.child(
+                        self.clickable(
+                            cx,
+                            div()
+                                .id("transcript-toggle")
+                                .flex()
+                                .items_center()
+                                .gap(px(3.))
+                                .text_size(px(TEXT_CAPTION))
+                                .text_color(p.text_secondary)
+                                .child(ui::icon(
+                                    if self.transcript_open {
+                                        IconName::ChevronDown
+                                    } else {
+                                        IconName::ChevronRight
+                                    },
+                                    12.0,
+                                    p.text_secondary,
+                                ))
+                                .child("Transcript"),
+                            Action::ToggleTranscript,
+                        ),
+                    )
                     .when(self.transcript_open, |el| {
                         el.child(
                             div()
@@ -3990,7 +4331,11 @@ impl App {
                         ),
                 )
                 .into_any_element(),
-            MessageBody::Link { title, domain, description } => div()
+            MessageBody::Link {
+                title,
+                domain,
+                description,
+            } => div()
                 .w(px(300.))
                 .flex()
                 .flex_col()
@@ -4031,7 +4376,11 @@ impl App {
                         .w(px(width))
                         .h(px(height))
                         .rounded(px(RADIUS_MD))
-                        .bg(if index % 2 == 0 { p.attach_orange } else { p.attach_blue })
+                        .bg(if index % 2 == 0 {
+                            p.attach_orange
+                        } else {
+                            p.attach_blue
+                        })
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4044,18 +4393,14 @@ impl App {
                         .gap(px(3.))
                         .child(tile(0, 148., 120.))
                         .child(tile(1, 148., 120.)),
-                    3 => div()
-                        .flex()
-                        .gap(px(3.))
-                        .child(tile(0, 180., 240.))
-                        .child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .gap(px(3.))
-                                .child(tile(1, 116., 118.))
-                                .child(tile(2, 116., 118.)),
-                        ),
+                    3 => div().flex().gap(px(3.)).child(tile(0, 180., 240.)).child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(tile(1, 116., 118.))
+                            .child(tile(2, 116., 118.)),
+                    ),
                     _ => div()
                         .grid()
                         .grid_cols(2)
@@ -4082,7 +4427,12 @@ impl App {
                     })
                     .into_any_element()
             }
-            MessageBody::Poll { question, options, state, multiple } => {
+            MessageBody::Poll {
+                question,
+                options,
+                state,
+                multiple,
+            } => {
                 let total: u32 = options.iter().map(|(_, count)| *count).sum();
                 let (state_label, state_color) = match state {
                     crate::model::PollState::Open => ("Tap to vote", p.accent),
@@ -4109,7 +4459,11 @@ impl App {
                         )
                     })
                     .children(options.iter().enumerate().map(|(index, (label, count))| {
-                        let pct = if total == 0 { 0.0 } else { (*count as f32 / total as f32) * 240.0 };
+                        let pct = if total == 0 {
+                            0.0
+                        } else {
+                            (*count as f32 / total as f32) * 240.0
+                        };
                         let selected = *state == crate::model::PollState::Voted && index == 0;
                         div()
                             .flex()
@@ -4128,7 +4482,11 @@ impl App {
                                             .items_center()
                                             .gap(px(4.))
                                             .when(selected, |el| {
-                                                el.child(ui::icon(IconName::CircleCheck, 12.0, p.attach_green))
+                                                el.child(ui::icon(
+                                                    IconName::CircleCheck,
+                                                    12.0,
+                                                    p.attach_green,
+                                                ))
                                             })
                                             .child(label.clone()),
                                     )
@@ -4140,7 +4498,13 @@ impl App {
                                     .w_full()
                                     .rounded_full()
                                     .bg(p.bg_search)
-                                    .child(div().h(px(5.)).w(px(pct)).rounded_full().bg(if selected { p.attach_green } else { p.accent })),
+                                    .child(
+                                        div().h(px(5.)).w(px(pct)).rounded_full().bg(if selected {
+                                            p.attach_green
+                                        } else {
+                                            p.accent
+                                        }),
+                                    ),
                             )
                     }))
                     .child(
@@ -4155,20 +4519,27 @@ impl App {
                                     .child(state_label.to_owned()),
                             )
                             .when(*state == crate::model::PollState::Voted, |el| {
-                                el.child(self.clickable(
-                                    cx,
-                                    div()
-                                        .id("poll-view-votes")
-                                        .text_size(px(TEXT_CAPTION))
-                                        .text_color(p.accent)
-                                        .child("View votes"),
-                                    Action::OpenPollVotes,
-                                ))
+                                el.child(
+                                    self.clickable(
+                                        cx,
+                                        div()
+                                            .id("poll-view-votes")
+                                            .text_size(px(TEXT_CAPTION))
+                                            .text_color(p.accent)
+                                            .child("View votes"),
+                                        Action::OpenPollVotes,
+                                    ),
+                                )
                             }),
                     )
                     .into_any_element()
             }
-            MessageBody::Event { title, time, location, state } => {
+            MessageBody::Event {
+                title,
+                time,
+                location,
+                state,
+            } => {
                 let (label, color) = match state {
                     crate::model::EventState::Invited => ("Going?", p.accent),
                     crate::model::EventState::Going => ("Going", p.attach_green),
@@ -4194,8 +4565,18 @@ impl App {
                                     .child(title.clone()),
                             ),
                     )
-                    .child(div().text_size(px(TEXT_SMALL)).text_color(p.text_secondary).child(time.clone()))
-                    .child(div().text_size(px(TEXT_SMALL)).text_color(p.text_secondary).child(location.clone()))
+                    .child(
+                        div()
+                            .text_size(px(TEXT_SMALL))
+                            .text_color(p.text_secondary)
+                            .child(time.clone()),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(TEXT_SMALL))
+                            .text_color(p.text_secondary)
+                            .child(location.clone()),
+                    )
                     .child(
                         div()
                             .flex()
@@ -4206,10 +4587,18 @@ impl App {
                                     .px(px(8.))
                                     .py(px(2.))
                                     .rounded_full()
-                                    .bg(if *state == crate::model::EventState::Cancelled { p.attach_red } else { p.accent_soft })
+                                    .bg(if *state == crate::model::EventState::Cancelled {
+                                        p.attach_red
+                                    } else {
+                                        p.accent_soft
+                                    })
                                     .text_size(px(TEXT_CAPTION))
                                     .font_weight(FontWeight::MEDIUM)
-                                    .text_color(if *state == crate::model::EventState::Cancelled { p.text_inverse } else { color })
+                                    .text_color(if *state == crate::model::EventState::Cancelled {
+                                        p.text_inverse
+                                    } else {
+                                        color
+                                    })
                                     .child(label.to_owned()),
                             )
                             .when(*state == crate::model::EventState::Invited, |el| {
@@ -4270,9 +4659,17 @@ impl App {
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(name.clone()),
                 )
-                .child(div().text_size(px(TEXT_SMALL)).text_color(p.text_secondary).child(address.clone()))
+                .child(
+                    div()
+                        .text_size(px(TEXT_SMALL))
+                        .text_color(p.text_secondary)
+                        .child(address.clone()),
+                )
                 .into_any_element(),
-            MessageBody::Sticker { symbol: _, pack_missing } => {
+            MessageBody::Sticker {
+                symbol: _,
+                pack_missing,
+            } => {
                 if *pack_missing {
                     div()
                         .w(px(180.))
@@ -4344,7 +4741,9 @@ impl App {
                 .into_any_element(),
             MessageBody::ViewOnce { caption, state } => {
                 let (icon_name, label) = match state {
-                    crate::model::ViewOnceState::Sealed => (IconName::Eye, "Tap to open · cannot be forwarded"),
+                    crate::model::ViewOnceState::Sealed => {
+                        (IconName::Eye, "Tap to open · cannot be forwarded")
+                    }
                     crate::model::ViewOnceState::Opening => (IconName::LoaderCircle, "Opening…"),
                     crate::model::ViewOnceState::Opened => (IconName::EyeOff, "Opened"),
                 };
@@ -4372,15 +4771,31 @@ impl App {
                             .child(label),
                     )
                     .when_some(caption.clone(), |el, caption| {
-                        el.child(div().text_size(px(TEXT_CAPTION)).text_color(p.text_secondary).child(caption))
+                        el.child(
+                            div()
+                                .text_size(px(TEXT_CAPTION))
+                                .text_color(p.text_secondary)
+                                .child(caption),
+                        )
                     })
                     .into_any_element()
             }
-            MessageBody::LiveLocation { name, address, remaining, state } => {
+            MessageBody::LiveLocation {
+                name,
+                address,
+                remaining,
+                state,
+            } => {
                 let (label, color, action) = match state {
-                    crate::model::LiveLocationState::Sharing => (format!("Sharing for {remaining}"), p.attach_green, "Stop"),
-                    crate::model::LiveLocationState::Paused => (format!("Paused · {remaining}"), p.attach_orange, "Resume"),
-                    crate::model::LiveLocationState::Ended => (format!("Ended · {remaining}"), p.text_secondary, "View"),
+                    crate::model::LiveLocationState::Sharing => {
+                        (format!("Sharing for {remaining}"), p.attach_green, "Stop")
+                    }
+                    crate::model::LiveLocationState::Paused => {
+                        (format!("Paused · {remaining}"), p.attach_orange, "Resume")
+                    }
+                    crate::model::LiveLocationState::Ended => {
+                        (format!("Ended · {remaining}"), p.text_secondary, "View")
+                    }
                 };
                 div()
                     .w(px(280.))
@@ -4392,8 +4807,16 @@ impl App {
                             .h(px(120.))
                             .w_full()
                             .rounded(px(RADIUS_MD))
-                            .bg(if *state == crate::model::LiveLocationState::Ended { p.bg_search } else { p.attach_green })
-                            .opacity(if *state == crate::model::LiveLocationState::Paused { 0.7 } else { 1.0 })
+                            .bg(if *state == crate::model::LiveLocationState::Ended {
+                                p.bg_search
+                            } else {
+                                p.attach_green
+                            })
+                            .opacity(if *state == crate::model::LiveLocationState::Paused {
+                                0.7
+                            } else {
+                                1.0
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -4405,7 +4828,12 @@ impl App {
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(name.clone()),
                     )
-                    .child(div().text_size(px(TEXT_SMALL)).text_color(p.text_secondary).child(address.clone()))
+                    .child(
+                        div()
+                            .text_size(px(TEXT_SMALL))
+                            .text_color(p.text_secondary)
+                            .child(address.clone()),
+                    )
                     .child(
                         div()
                             .flex()
@@ -4421,7 +4849,11 @@ impl App {
                     )
                     .into_any_element()
             }
-            MessageBody::Call { missed, video, duration } => div()
+            MessageBody::Call {
+                missed,
+                video,
+                duration,
+            } => div()
                 .w(px(280.))
                 .flex()
                 .items_center()
@@ -4435,7 +4867,11 @@ impl App {
                         .rounded_full()
                         .bg(if *missed { p.danger() } else { p.attach_green })
                         .child(ui::icon(
-                            if *video { IconName::Video } else { IconName::Phone },
+                            if *video {
+                                IconName::Video
+                            } else {
+                                IconName::Phone
+                            },
                             18.0,
                             p.text_inverse,
                         )),
@@ -4449,9 +4885,17 @@ impl App {
                                 .text_size(px(13.))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child(if *missed {
-                                    if *video { "Missed video call".to_owned() } else { "Missed voice call".to_owned() }
+                                    if *video {
+                                        "Missed video call".to_owned()
+                                    } else {
+                                        "Missed voice call".to_owned()
+                                    }
                                 } else {
-                                    format!("{} · {}", if *video { "Video call" } else { "Voice call" }, duration.clone().unwrap_or_else(|| "1 min".into()))
+                                    format!(
+                                        "{} · {}",
+                                        if *video { "Video call" } else { "Voice call" },
+                                        duration.clone().unwrap_or_else(|| "1 min".into())
+                                    )
                                 }),
                         )
                         .child(
@@ -4462,7 +4906,11 @@ impl App {
                         ),
                 )
                 .into_any_element(),
-            MessageBody::Upload { name, progress, failed } => div()
+            MessageBody::Upload {
+                name,
+                progress,
+                failed,
+            } => div()
                 .w(px(280.))
                 .flex()
                 .flex_col()
@@ -4472,7 +4920,11 @@ impl App {
                         .flex()
                         .items_center()
                         .gap(px(8.))
-                        .child(ui::icon(IconName::FileText, 18.0, if *failed { p.danger() } else { p.accent }))
+                        .child(ui::icon(
+                            IconName::FileText,
+                            18.0,
+                            if *failed { p.danger() } else { p.accent },
+                        ))
                         .child(
                             div()
                                 .text_size(px(13.))
@@ -4497,7 +4949,11 @@ impl App {
                 .child(
                     div()
                         .text_size(px(TEXT_CAPTION))
-                        .text_color(if *failed { p.danger() } else { p.text_secondary })
+                        .text_color(if *failed {
+                            p.danger()
+                        } else {
+                            p.text_secondary
+                        })
                         .child(if *failed {
                             "Upload failed · retry available".to_owned()
                         } else {
@@ -4529,20 +4985,36 @@ impl App {
                                 .gap(px(4.))
                                 .text_size(px(if *failed { 12. } else { 24. }))
                                 .font_weight(FontWeight::BOLD)
-                                .text_color(if *failed { p.text_secondary } else { p.text_inverse })
+                                .text_color(if *failed {
+                                    p.text_secondary
+                                } else {
+                                    p.text_inverse
+                                })
                                 .child(if *failed { "GIF failed to load" } else { "GIF" })
                                 .when(*failed, |el| el.child(ui::chip("Retry", false, p))),
                         ),
                 )
                 .when_some(caption.clone(), |el, caption| {
-                    el.child(div().text_size(px(TEXT_SMALL)).text_color(p.text_secondary).child(caption))
+                    el.child(
+                        div()
+                            .text_size(px(TEXT_SMALL))
+                            .text_color(p.text_secondary)
+                            .child(caption),
+                    )
                 })
                 .into_any_element(),
-            MessageBody::Date(_) | MessageBody::Notice(_) | MessageBody::System(_) | MessageBody::Unread(_) => div().into_any_element(),
+            MessageBody::Date(_)
+            | MessageBody::Notice(_)
+            | MessageBody::System(_)
+            | MessageBody::Unread(_) => div().into_any_element(),
         }
     }
 
-    fn render_pinned_bar(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Stateful<gpui_kit::Div> {
+    fn render_pinned_bar(
+        &self,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Stateful<gpui_kit::Div> {
         let label = if self.pinned.len() == 1 {
             "1 pinned message".to_owned()
         } else {
@@ -4633,7 +5105,14 @@ impl App {
             .child(div().flex_1())
             .child(self.clickable(
                 cx,
-                ui::icon_button_small("selection-close", IconName::X, 16.0, p.text_secondary, p.hover(), "Exit selection"),
+                ui::icon_button_small(
+                    "selection-close",
+                    IconName::X,
+                    16.0,
+                    p.text_secondary,
+                    p.hover(),
+                    "Exit selection",
+                ),
                 Action::ExitMessageSelection,
             ))
     }
@@ -4666,7 +5145,9 @@ impl App {
                         .flex_1()
                         .text_size(px(TEXT_SMALL))
                         .text_color(p.text_secondary)
-                        .child(format!("You blocked {name}. Unblock to send messages or make calls.")),
+                        .child(format!(
+                            "You blocked {name}. Unblock to send messages or make calls."
+                        )),
                 )
                 .child(self.clickable(
                     cx,
@@ -4738,59 +5219,65 @@ impl App {
                     .bg(p.bg_composer)
                     .border_b_1()
                     .border_color(p.divider)
-                    .children(self.staged_attachments.iter().enumerate().map(|(index, attachment)| {
-                        let icon_name = match attachment.kind {
-                            StagedKind::Image => IconName::Image,
-                            StagedKind::File => IconName::FileText,
-                            StagedKind::Contact => IconName::User,
-                        };
-                        let drag_app = cx.entity();
-                        let palette = p;
-                        let drag_label = attachment.label.clone();
-                        let constructor = move |label: &String, _offset, _window: &mut Window, cx: &mut gpui_kit::App| {
-                            let label = label.clone();
-                            drag_app.update(cx, |this, cx| {
-                                this.drag_file_hover = Some(this.selected_chat);
-                                cx.notify();
-                            });
-                            cx.new(|_| FileDragPreview { label, palette })
-                        };
-                        div()
-                            .id(format!("staged-{index}"))
-                            .h(px(40.))
-                            .flex()
-                            .items_center()
-                            .gap(px(6.))
-                            .px(px(8.))
-                            .rounded(px(RADIUS_MD))
-                            .bg(p.bg_list)
-                            .border_1()
-                            .border_color(p.border)
-                            .child(ui::icon(icon_name, 14.0, p.accent))
-                            .child(
-                                div()
-                                    .max_w(px(120.))
-                                    .overflow_hidden()
-                                    .whitespace_nowrap()
-                                    .text_ellipsis()
-                                    .text_size(px(TEXT_CAPTION))
-                                    .text_color(p.text_primary)
-                                    .child(attachment.label.clone()),
-                            )
-                            .child(self.clickable(
-                                cx,
-                                ui::icon_button_small(
-                                    format!("remove-staged-{index}"),
-                                    IconName::X,
-                                    10.0,
-                                    p.text_secondary,
-                                    p.hover(),
-                                    "Remove attachment",
-                                ),
-                                Action::RemoveStagedAttachment(index),
-                            ))
-                            .on_drag(drag_label, constructor)
-                    }))
+                    .children(self.staged_attachments.iter().enumerate().map(
+                        |(index, attachment)| {
+                            let icon_name = match attachment.kind {
+                                StagedKind::Image => IconName::Image,
+                                StagedKind::File => IconName::FileText,
+                                StagedKind::Contact => IconName::User,
+                            };
+                            let drag_app = cx.entity();
+                            let palette = p;
+                            let drag_label = attachment.label.clone();
+                            let constructor =
+                                move |label: &String,
+                                      _offset,
+                                      _window: &mut Window,
+                                      cx: &mut gpui_kit::App| {
+                                    let label = label.clone();
+                                    drag_app.update(cx, |this, cx| {
+                                        this.drag_file_hover = Some(this.selected_chat);
+                                        cx.notify();
+                                    });
+                                    cx.new(|_| FileDragPreview { label, palette })
+                                };
+                            div()
+                                .id(format!("staged-{index}"))
+                                .h(px(40.))
+                                .flex()
+                                .items_center()
+                                .gap(px(6.))
+                                .px(px(8.))
+                                .rounded(px(RADIUS_MD))
+                                .bg(p.bg_list)
+                                .border_1()
+                                .border_color(p.border)
+                                .child(ui::icon(icon_name, 14.0, p.accent))
+                                .child(
+                                    div()
+                                        .max_w(px(120.))
+                                        .overflow_hidden()
+                                        .whitespace_nowrap()
+                                        .text_ellipsis()
+                                        .text_size(px(TEXT_CAPTION))
+                                        .text_color(p.text_primary)
+                                        .child(attachment.label.clone()),
+                                )
+                                .child(self.clickable(
+                                    cx,
+                                    ui::icon_button_small(
+                                        format!("remove-staged-{index}"),
+                                        IconName::X,
+                                        10.0,
+                                        p.text_secondary,
+                                        p.hover(),
+                                        "Remove attachment",
+                                    ),
+                                    Action::RemoveStagedAttachment(index),
+                                ))
+                                .on_drag(drag_label, constructor)
+                        },
+                    ))
                     .child(div().flex_1())
                     .child(
                         div()
@@ -4875,7 +5362,11 @@ impl App {
                             cx,
                             ui::icon_button_small(
                                 "call-bar-mute",
-                                if self.call_muted { IconName::MicOff } else { IconName::Mic },
+                                if self.call_muted {
+                                    IconName::MicOff
+                                } else {
+                                    IconName::Mic
+                                },
                                 16.0,
                                 p.text_primary,
                                 p.hover(),
@@ -4883,19 +5374,21 @@ impl App {
                             ),
                             Action::ToggleMute,
                         ))
-                        .child(self.clickable(
-                            cx,
-                            ui::icon_button_small(
-                                "call-bar-end",
-                                IconName::PhoneOff,
-                                16.0,
-                                p.text_inverse,
-                                p.danger(),
-                                "End call",
-                            )
-                            .bg(p.danger()),
-                            Action::EndCall,
-                        )),
+                        .child(
+                            self.clickable(
+                                cx,
+                                ui::icon_button_small(
+                                    "call-bar-end",
+                                    IconName::PhoneOff,
+                                    16.0,
+                                    p.text_inverse,
+                                    p.danger(),
+                                    "End call",
+                                )
+                                .bg(p.danger()),
+                                Action::EndCall,
+                            ),
+                        ),
                 );
             }
         }
@@ -4926,7 +5419,12 @@ impl App {
                                         .text_size(px(TEXT_SMALL))
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(p.accent)
-                                        .child(message.sender_name.clone().unwrap_or_else(|| "You".into())),
+                                        .child(
+                                            message
+                                                .sender_name
+                                                .clone()
+                                                .unwrap_or_else(|| "You".into()),
+                                        ),
                                 )
                                 .child(
                                     div()
@@ -4992,26 +5490,28 @@ impl App {
                 .gap(px(8.))
                 .px(px(16.))
                 .py(px(8.))
-                .child(self.clickable(
-                    cx,
-                    div()
-                        .id("attach")
-                        .role(Role::Button)
-                        .tab_index(0)
-                        .aria_label("Attach")
-                        .cursor_pointer()
-                        .size(px(38.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded_full()
-                        .bg(p.bg_list)
-                        .border_1()
-                        .border_color(p.border)
-                        .hover(move |style| style.bg(p.hover()))
-                        .child(ui::icon(IconName::Plus, 20.0, p.text_primary)),
-                    Action::OpenAttachments,
-                ))
+                .child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("attach")
+                            .role(Role::Button)
+                            .tab_index(0)
+                            .aria_label("Attach")
+                            .cursor_pointer()
+                            .size(px(38.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .bg(p.bg_list)
+                            .border_1()
+                            .border_color(p.border)
+                            .hover(move |style| style.bg(p.hover()))
+                            .child(ui::icon(IconName::Plus, 20.0, p.text_primary)),
+                        Action::OpenAttachments,
+                    ),
+                )
                 .child(
                     div()
                         .flex_1()
@@ -5045,33 +5545,43 @@ impl App {
                     ),
                     Action::OpenEmoji,
                 ))
-                .child(self.clickable(
-                    cx,
-                    div()
-                        .id("send")
-                        .role(Role::Button)
-                        .tab_index(0)
-                        .aria_label(if has_text { "Send message" } else { "Record voice message" })
-                        .cursor_pointer()
-                        .size(px(40.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded_full()
-                        .bg(p.accent)
-                        .child(ui::icon(
-                            if can_send { IconName::Send } else { IconName::Mic },
-                            18.0,
-                            p.text_inverse,
-                        )),
-                    if !can_send {
-                        Action::ToggleRecording
-                    } else if self.staged_attachments.is_empty() {
-                        Action::Send
-                    } else {
-                        Action::SendStaged
-                    },
-                )),
+                .child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("send")
+                            .role(Role::Button)
+                            .tab_index(0)
+                            .aria_label(if has_text {
+                                "Send message"
+                            } else {
+                                "Record voice message"
+                            })
+                            .cursor_pointer()
+                            .size(px(40.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .bg(p.accent)
+                            .child(ui::icon(
+                                if can_send {
+                                    IconName::Send
+                                } else {
+                                    IconName::Mic
+                                },
+                                18.0,
+                                p.text_inverse,
+                            )),
+                        if !can_send {
+                            Action::ToggleRecording
+                        } else if self.staged_attachments.is_empty() {
+                            Action::Send
+                        } else {
+                            Action::SendStaged
+                        },
+                    ),
+                ),
         )
     }
 
@@ -5082,12 +5592,18 @@ impl App {
     fn render_onboarding(&mut self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
         let qr = render_qr(self.qr_state, p);
         let (title, body) = match self.qr_state {
-            QrState::Loading => ("Requesting a fresh code…", "First paint while the code is requested."),
+            QrState::Loading => (
+                "Requesting a fresh code…",
+                "First paint while the code is requested.",
+            ),
             QrState::Active => (
                 "Link with phone number",
                 "Open WhatsLite on your phone, tap Menu → Linked devices, then point the camera at this code.",
             ),
-            QrState::Expired => ("Code expired", "Codes last 60 seconds by design. Refresh to scan again."),
+            QrState::Expired => (
+                "Code expired",
+                "Codes last 60 seconds by design. Refresh to scan again.",
+            ),
             QrState::Success => ("Syncing your messages", "3.240 of 8.112 · about 2 minutes"),
         };
 
@@ -5139,98 +5655,106 @@ impl App {
                             div()
                                 .text_size(px(TEXT_SMALL))
                                 .text_color(p.text_secondary)
-                                .child("Keep your phone connected while WhatsLite finishes syncing."),
+                                .child(
+                                    "Keep your phone connected while WhatsLite finishes syncing.",
+                                ),
                         )
                     })
-                    .child(self.clickable(
-                        cx,
-                        div()
-                            .id("qr-refresh")
-                            .h(px(36.))
-                            .px(px(16.))
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .rounded_full()
-                            .bg(p.bg_search)
-                            .text_size(px(TEXT_SMALL))
-                            .text_color(p.text_primary)
-                            .child(ui::icon(IconName::RefreshCw, 15.0, p.text_secondary))
-                            .child(match self.qr_state {
-                                QrState::Active => "Refresh code · expires in 0:48",
-                                QrState::Loading => "Requesting a fresh code…",
-                                QrState::Expired => "Refresh code",
-                                QrState::Success => "Open WhatsLite",
-                            }),
-                        if self.qr_state == QrState::Success {
-                            Action::Navigate(Route::Chats)
-                        } else {
-                            Action::CycleQr
-                        },
-                    )),
+                    .child(
+                        self.clickable(
+                            cx,
+                            div()
+                                .id("qr-refresh")
+                                .h(px(36.))
+                                .px(px(16.))
+                                .flex()
+                                .items_center()
+                                .gap(px(8.))
+                                .rounded_full()
+                                .bg(p.bg_search)
+                                .text_size(px(TEXT_SMALL))
+                                .text_color(p.text_primary)
+                                .child(ui::icon(IconName::RefreshCw, 15.0, p.text_secondary))
+                                .child(match self.qr_state {
+                                    QrState::Active => "Refresh code · expires in 0:48",
+                                    QrState::Loading => "Requesting a fresh code…",
+                                    QrState::Expired => "Refresh code",
+                                    QrState::Success => "Open WhatsLite",
+                                }),
+                            if self.qr_state == QrState::Success {
+                                Action::Navigate(Route::Chats)
+                            } else {
+                                Action::CycleQr
+                            },
+                        ),
+                    ),
             )
     }
 
     fn render_calls_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.calls.iter().map(|call| {
-            let row = div()
-                .id(format!("call-row-{}", call.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(format!("{} · {}", call.name, call.time))
-                .cursor_pointer()
-                .h(px(76.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(call.initials.clone(), 44., false, p))
-                .child(
-                    div()
-                        .flex_1()
-                        .flex()
-                        .flex_col()
-                        .gap(px(3.))
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(call.name.clone()),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap(px(5.))
-                                .child(ui::call_direction_icon(call.missed, call.incoming, p))
-                                .child(
-                                    div()
-                                        .text_size(px(TEXT_SMALL))
-                                        .text_color(p.text_secondary)
-                                        .child(call_label(call)),
-                                ),
-                        ),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .items_end()
-                        .gap(px(6.))
-                        .child(
-                            div()
-                                .text_size(px(TEXT_CAPTION))
-                                .text_color(p.text_secondary)
-                                .child(call.time.clone()),
-                        )
-                        .child(ui::icon(IconName::Phone, 15.0, p.accent)),
-                );
-            self.clickable(cx, row, Action::StartCall(call.id, call.video))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .calls
+            .iter()
+            .map(|call| {
+                let row = div()
+                    .id(format!("call-row-{}", call.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(format!("{} · {}", call.name, call.time))
+                    .cursor_pointer()
+                    .h(px(76.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(call.initials.clone(), 44., false, p))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(call.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(5.))
+                                    .child(ui::call_direction_icon(call.missed, call.incoming, p))
+                                    .child(
+                                        div()
+                                            .text_size(px(TEXT_SMALL))
+                                            .text_color(p.text_secondary)
+                                            .child(call_label(call)),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .items_end()
+                            .gap(px(6.))
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_CAPTION))
+                                    .text_color(p.text_secondary)
+                                    .child(call.time.clone()),
+                            )
+                            .child(ui::icon(IconName::Phone, 15.0, p.accent)),
+                    );
+                self.clickable(cx, row, Action::StartCall(call.id, call.video))
+            })
+            .collect::<Vec<_>>();
 
         let banner = if self.missed_banner {
             self.calls
@@ -5285,7 +5809,13 @@ impl App {
             .bg(p.bg_list)
             .border_r_1()
             .border_color(p.divider)
-            .child(section_header(cx, p, "Calls", Some(IconName::Plus), Action::StartCall(0, false)))
+            .child(section_header(
+                cx,
+                p,
+                "Calls",
+                Some(IconName::Plus),
+                Action::StartCall(0, false),
+            ))
             .child(
                 div()
                     .h(px(36.))
@@ -5327,9 +5857,19 @@ impl App {
                                 .relative()
                                 .h(px(130.))
                                 .rounded(px(RADIUS_LG))
-                                .bg(if pinned || speaking { p.accent_soft } else { p.bg_list })
+                                .bg(if pinned || speaking {
+                                    p.accent_soft
+                                } else {
+                                    p.bg_list
+                                })
                                 .border_2()
-                                .border_color(if pinned { p.attach_orange } else if speaking { p.accent } else { p.border })
+                                .border_color(if pinned {
+                                    p.attach_orange
+                                } else if speaking {
+                                    p.accent
+                                } else {
+                                    p.border
+                                })
                                 .flex()
                                 .flex_col()
                                 .items_center()
@@ -5345,22 +5885,32 @@ impl App {
                                 )
                                 .when(speaking, |el| el.child(ui::chip("Speaking", true, p)))
                                 .when(pinned, |el| el.child(ui::chip("Pinned", false, p)))
-                                .child(self.clickable(
-                                    cx,
-                                    div()
-                                        .id(format!("pin-participant-{index}"))
-                                        .absolute()
-                                        .top(px(6.))
-                                        .right(px(6.))
-                                        .size(px(24.))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .rounded_full()
-                                        .bg(if pinned { p.attach_orange } else { p.bg_list })
-                                        .child(ui::icon(IconName::Pin, 12.0, if pinned { p.text_inverse } else { p.text_secondary })),
-                                    Action::PinCallParticipant(index),
-                                ))
+                                .child(
+                                    self.clickable(
+                                        cx,
+                                        div()
+                                            .id(format!("pin-participant-{index}"))
+                                            .absolute()
+                                            .top(px(6.))
+                                            .right(px(6.))
+                                            .size(px(24.))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded_full()
+                                            .bg(if pinned { p.attach_orange } else { p.bg_list })
+                                            .child(ui::icon(
+                                                IconName::Pin,
+                                                12.0,
+                                                if pinned {
+                                                    p.text_inverse
+                                                } else {
+                                                    p.text_secondary
+                                                },
+                                            )),
+                                        Action::PinCallParticipant(index),
+                                    ),
+                                )
                         }))
                         .into_any_element()
                 } else if self.call_video {
@@ -5407,7 +5957,11 @@ impl App {
                     CallState::Declined => "Declined by you",
                 };
                 let call_kind = if call.group {
-                    if self.call_video { "Group video call" } else { "Group voice call" }
+                    if self.call_video {
+                        "Group video call"
+                    } else {
+                        "Group voice call"
+                    }
                 } else if self.call_video {
                     "Video call"
                 } else {
@@ -5462,93 +6016,125 @@ impl App {
                                 )
                             }),
                     )
-                    .when(self.call_incoming && self.call_state == CallState::Ringing, |el| {
-                        el.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap(px(12.))
-                                .child(self.clickable(
-                                    cx,
-                                    div()
-                                        .id("decline-call")
-                                        .role(Role::Button)
-                                        .tab_index(0)
-                                        .aria_label("Decline call")
-                                        .cursor_pointer()
-                                        .size(px(52.))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .rounded_full()
-                                        .bg(p.danger())
-                                        .child(ui::icon(IconName::PhoneOff, 22.0, p.text_inverse)),
-                                    Action::DeclineCall,
-                                ))
-                                .child(self.clickable(
-                                    cx,
-                                    div()
-                                        .id("accept-call")
-                                        .role(Role::Button)
-                                        .tab_index(0)
-                                        .aria_label("Accept call")
-                                        .cursor_pointer()
-                                        .size(px(52.))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .rounded_full()
-                                        .bg(p.accent)
-                                        .child(ui::icon(IconName::Phone, 22.0, p.text_inverse)),
-                                    Action::AcceptCall,
-                                )),
-                        )
-                    })
-                    .when(!(self.call_incoming && self.call_state == CallState::Ringing), |el| {
-                        el.child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap(px(12.))
-                                .child(self.clickable(
-                                    cx,
-                                    call_control(
-                                        "call-mute",
-                                        if self.call_muted { IconName::MicOff } else { IconName::Mic },
-                                        self.call_muted,
-                                        p,
+                    .when(
+                        self.call_incoming && self.call_state == CallState::Ringing,
+                        |el| {
+                            el.child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.))
+                                    .child(
+                                        self.clickable(
+                                            cx,
+                                            div()
+                                                .id("decline-call")
+                                                .role(Role::Button)
+                                                .tab_index(0)
+                                                .aria_label("Decline call")
+                                                .cursor_pointer()
+                                                .size(px(52.))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
+                                                .bg(p.danger())
+                                                .child(ui::icon(
+                                                    IconName::PhoneOff,
+                                                    22.0,
+                                                    p.text_inverse,
+                                                )),
+                                            Action::DeclineCall,
+                                        ),
+                                    )
+                                    .child(
+                                        self.clickable(
+                                            cx,
+                                            div()
+                                                .id("accept-call")
+                                                .role(Role::Button)
+                                                .tab_index(0)
+                                                .aria_label("Accept call")
+                                                .cursor_pointer()
+                                                .size(px(52.))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
+                                                .bg(p.accent)
+                                                .child(ui::icon(
+                                                    IconName::Phone,
+                                                    22.0,
+                                                    p.text_inverse,
+                                                )),
+                                            Action::AcceptCall,
+                                        ),
                                     ),
-                                    Action::ToggleMute,
-                                ))
-                                .child(self.clickable(
-                                    cx,
-                                    call_control(
-                                        "call-video",
-                                        if self.call_video { IconName::Video } else { IconName::VideoOff },
-                                        self.call_video,
-                                        p,
+                            )
+                        },
+                    )
+                    .when(
+                        !(self.call_incoming && self.call_state == CallState::Ringing),
+                        |el| {
+                            el.child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(12.))
+                                    .child(self.clickable(
+                                        cx,
+                                        call_control(
+                                            "call-mute",
+                                            if self.call_muted {
+                                                IconName::MicOff
+                                            } else {
+                                                IconName::Mic
+                                            },
+                                            self.call_muted,
+                                            p,
+                                        ),
+                                        Action::ToggleMute,
+                                    ))
+                                    .child(self.clickable(
+                                        cx,
+                                        call_control(
+                                            "call-video",
+                                            if self.call_video {
+                                                IconName::Video
+                                            } else {
+                                                IconName::VideoOff
+                                            },
+                                            self.call_video,
+                                            p,
+                                        ),
+                                        Action::ToggleVideo,
+                                    ))
+                                    .child(
+                                        self.clickable(
+                                            cx,
+                                            div()
+                                                .id("call-end")
+                                                .role(Role::Button)
+                                                .tab_index(0)
+                                                .aria_label("End call")
+                                                .cursor_pointer()
+                                                .size(px(52.))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_full()
+                                                .bg(p.danger())
+                                                .child(ui::icon(
+                                                    IconName::PhoneOff,
+                                                    22.0,
+                                                    p.text_inverse,
+                                                )),
+                                            Action::EndCall,
+                                        ),
                                     ),
-                                    Action::ToggleVideo,
-                                ))
-                                .child(self.clickable(
-                                    cx,
-                                    div()
-                                        .id("call-end")
-                                        .role(Role::Button)
-                                        .tab_index(0)
-                                        .aria_label("End call")
-                                        .cursor_pointer()
-                                        .size(px(52.))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .rounded_full()
-                                        .bg(p.danger())
-                                        .child(ui::icon(IconName::PhoneOff, 22.0, p.text_inverse)),
-                                    Action::EndCall,
-                                )),
-                        )
-                    });
+                            )
+                        },
+                    );
             }
         }
 
@@ -5572,51 +6158,59 @@ impl App {
     }
 
     fn render_updates_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.statuses.iter().map(|status| {
-            let row = div()
-                .id(format!("status-row-{}", status.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(format!("{} · {}", status.name, status.time))
-                .cursor_pointer()
-                .h(px(72.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .hover(move |style| style.bg(p.hover()))
-                .child(if status.id == 0 {
-                    ui::avatar("Y", 44., false, p)
-                } else {
-                    ui::avatar_with_ring(status.initials.clone(), 44., status.seen, p)
-                })
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(3.))
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap(px(5.))
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(status.name.clone())
-                                .when(status.muted, |el| {
-                                    el.child(ui::icon(IconName::BellOff, 12.0, p.text_secondary))
-                                }),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(status.time.clone()),
-                        ),
-                );
-            self.clickable(cx, row, Action::OpenStatus(status.id))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .statuses
+            .iter()
+            .map(|status| {
+                let row = div()
+                    .id(format!("status-row-{}", status.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(format!("{} · {}", status.name, status.time))
+                    .cursor_pointer()
+                    .h(px(72.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(if status.id == 0 {
+                        ui::avatar("Y", 44., false, p)
+                    } else {
+                        ui::avatar_with_ring(status.initials.clone(), 44., status.seen, p)
+                    })
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(5.))
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(status.name.clone())
+                                    .when(status.muted, |el| {
+                                        el.child(ui::icon(
+                                            IconName::BellOff,
+                                            12.0,
+                                            p.text_secondary,
+                                        ))
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(status.time.clone()),
+                            ),
+                    );
+                self.clickable(cx, row, Action::OpenStatus(status.id))
+            })
+            .collect::<Vec<_>>();
 
         let mut channel = |name: &'static str, preview: &'static str| {
             self.clickable(
@@ -5698,12 +6292,26 @@ impl App {
                             .gap(px(2.))
                             .child(self.clickable(
                                 cx,
-                                ui::icon_button("updates-camera", IconName::Camera, 18.0, p.text_primary, p.hover(), "Post a status"),
+                                ui::icon_button(
+                                    "updates-camera",
+                                    IconName::Camera,
+                                    18.0,
+                                    p.text_primary,
+                                    p.hover(),
+                                    "Post a status",
+                                ),
                                 Action::OpenStatusComposer,
                             ))
                             .child(self.clickable(
                                 cx,
-                                ui::icon_button("updates-pencil", IconName::Pencil, 18.0, p.text_primary, p.hover(), "Text status"),
+                                ui::icon_button(
+                                    "updates-pencil",
+                                    IconName::Pencil,
+                                    18.0,
+                                    p.text_primary,
+                                    p.hover(),
+                                    "Text status",
+                                ),
                                 Action::OpenStatusComposer,
                             )),
                     ),
@@ -5755,20 +6363,15 @@ impl App {
             .flex()
             .flex_col()
             .bg(p.text_primary)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(6.))
-                    .p(px(16.))
-                    .children((0..status.items.max(1)).map(|index| {
-                        div()
-                            .flex_1()
-                            .h(px(3.))
-                            .rounded_full()
-                            .bg(if index == 0 { p.accent } else { p.text_secondary })
-                    })),
-            )
+            .child(div().flex().items_center().gap(px(6.)).p(px(16.)).children(
+                (0..status.items.max(1)).map(|index| {
+                    div().flex_1().h(px(3.)).rounded_full().bg(if index == 0 {
+                        p.accent
+                    } else {
+                        p.text_secondary
+                    })
+                }),
+            ))
             .child(
                 div()
                     .flex()
@@ -5805,7 +6408,11 @@ impl App {
                         cx,
                         ui::icon_button_small(
                             "status-pause",
-                            if self.status_paused { IconName::Play } else { IconName::Pause },
+                            if self.status_paused {
+                                IconName::Play
+                            } else {
+                                IconName::Pause
+                            },
                             18.0,
                             p.text_inverse,
                             p.text_primary,
@@ -5827,34 +6434,29 @@ impl App {
                     )),
             )
             .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(
-                        div()
-                            .w(px(420.))
-                            .h(px(560.))
-                            .rounded(px(RADIUS_XL))
-                            .bg(if status.accent % 2 == 0 {
-                                p.attach_orange
-                            } else {
-                                p.attach_blue
-                            })
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(
-                                div()
-                                    .max_w(px(320.))
-                                    .text_center()
-                                    .text_size(px(20.))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(p.text_inverse)
-                                    .child(status.caption.clone()),
-                            ),
-                    ),
+                div().flex_1().flex().items_center().justify_center().child(
+                    div()
+                        .w(px(420.))
+                        .h(px(560.))
+                        .rounded(px(RADIUS_XL))
+                        .bg(if status.accent % 2 == 0 {
+                            p.attach_orange
+                        } else {
+                            p.attach_blue
+                        })
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .max_w(px(320.))
+                                .text_center()
+                                .text_size(px(20.))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(p.text_inverse)
+                                .child(status.caption.clone()),
+                        ),
+                ),
             )
             .child(
                 div()
@@ -5869,7 +6471,11 @@ impl App {
                             .w(px(52.))
                             .h(px(38.))
                             .rounded(px(RADIUS_SM))
-                            .bg(if index == 1 { p.attach_orange } else { p.attach_blue })
+                            .bg(if index == 1 {
+                                p.attach_orange
+                            } else {
+                                p.attach_blue
+                            })
                             .opacity(if index == 1 { 1.0 } else { 0.55 })
                     })),
             )
@@ -5932,48 +6538,52 @@ impl App {
     }
 
     fn render_communities_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.communities.iter().map(|community| {
-            let row = div()
-                .id(format!("community-row-{}", community.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(community.name.clone())
-                .cursor_pointer()
-                .h(px(76.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(community.initials.clone(), 44., false, p))
-                .child(
-                    div()
-                        .flex_1()
-                        .flex()
-                        .flex_col()
-                        .gap(px(3.))
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(community.name.clone()),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(format!("{} · {}", community.groups, community.members)),
-                        ),
-                )
-                .when(community.unread > 0, |el| el.child(ui::badge(community.unread, p)))
-                .when(!community.joined, |el| {
-                    el.child(ui::chip("View", false, p))
-                });
-            self.clickable(cx, row, Action::SelectCommunity(community.id))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .communities
+            .iter()
+            .map(|community| {
+                let row = div()
+                    .id(format!("community-row-{}", community.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(community.name.clone())
+                    .cursor_pointer()
+                    .h(px(76.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(community.initials.clone(), 44., false, p))
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(community.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(format!("{} · {}", community.groups, community.members)),
+                            ),
+                    )
+                    .when(community.unread > 0, |el| {
+                        el.child(ui::badge(community.unread, p))
+                    })
+                    .when(!community.joined, |el| el.child(ui::chip("View", false, p)));
+                self.clickable(cx, row, Action::SelectCommunity(community.id))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -6126,42 +6736,47 @@ impl App {
                             .flex()
                             .flex_col()
                             .gap(px(6.))
-                            .child(ui::section_label(format!("GROUPS · {}", community.groups), p))
-                            .children([
-                                ("Produksi", "12 members"),
-                                ("Desain Motif", "8 members"),
-                                ("Penjualan", "24 members"),
-                                ("Arsip Foto", "6 members"),
-                            ]
-                            .into_iter()
-                            .map(|(name, members)| {
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(10.))
-                                    .p(px(10.))
-                                    .rounded(px(RADIUS_LG))
-                                    .bg(p.bg_list)
-                                    .child(ui::avatar(initials_for(Some(name)), 34., false, p))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_col()
-                                            .child(
-                                                div()
-                                                    .text_size(px(13.))
-                                                    .font_weight(FontWeight::MEDIUM)
-                                                    .text_color(p.text_primary)
-                                                    .child(name),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_size(px(TEXT_CAPTION))
-                                                    .text_color(p.text_secondary)
-                                                    .child(members),
-                                            ),
-                                    )
-                            })),
+                            .child(ui::section_label(
+                                format!("GROUPS · {}", community.groups),
+                                p,
+                            ))
+                            .children(
+                                [
+                                    ("Produksi", "12 members"),
+                                    ("Desain Motif", "8 members"),
+                                    ("Penjualan", "24 members"),
+                                    ("Arsip Foto", "6 members"),
+                                ]
+                                .into_iter()
+                                .map(|(name, members)| {
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(10.))
+                                        .p(px(10.))
+                                        .rounded(px(RADIUS_LG))
+                                        .bg(p.bg_list)
+                                        .child(ui::avatar(initials_for(Some(name)), 34., false, p))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .child(
+                                                    div()
+                                                        .text_size(px(13.))
+                                                        .font_weight(FontWeight::MEDIUM)
+                                                        .text_color(p.text_primary)
+                                                        .child(name),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_size(px(TEXT_CAPTION))
+                                                        .text_color(p.text_secondary)
+                                                        .child(members),
+                                                ),
+                                        )
+                                }),
+                            ),
                     ),
             )
             .child(
@@ -6179,7 +6794,11 @@ impl App {
                             .flex_1()
                             .h(px(40.))
                             .rounded(px(RADIUS_XL))
-                            .bg(if self.community_admin { p.bg_list } else { p.bg_search })
+                            .bg(if self.community_admin {
+                                p.bg_list
+                            } else {
+                                p.bg_search
+                            })
                             .border_1()
                             .border_color(p.border)
                             .px(px(12.))
@@ -6194,12 +6813,21 @@ impl App {
                             }),
                     )
                     .when(self.community_admin, |el| {
-                        el.child(self.clickable(
-                            cx,
-                            ui::icon_button("send-announcement", IconName::Send, 18.0, p.text_inverse, p.accent, "Send announcement")
+                        el.child(
+                            self.clickable(
+                                cx,
+                                ui::icon_button(
+                                    "send-announcement",
+                                    IconName::Send,
+                                    18.0,
+                                    p.text_inverse,
+                                    p.accent,
+                                    "Send announcement",
+                                )
                                 .bg(p.accent),
-                            Action::SendAnnouncement,
-                        ))
+                                Action::SendAnnouncement,
+                            ),
+                        )
                     }),
             )
     }
@@ -6214,7 +6842,11 @@ impl App {
                 .items_center()
                 .gap(px(12.))
                 .px(px(16.))
-                .bg(if self.selected_media_chat.is_none() { p.bg_row_selected } else { p.bg_list })
+                .bg(if self.selected_media_chat.is_none() {
+                    p.bg_row_selected
+                } else {
+                    p.bg_list
+                })
                 .hover(move |style| style.bg(p.bg_row_selected))
                 .child(
                     div()
@@ -6249,45 +6881,50 @@ impl App {
                 ),
             Action::SelectMediaChat(String::new()),
         );
-        let mut rows = self.chats.iter().take(5).map(|chat| {
-            let count = self
-                .media
-                .iter()
-                .filter(|item| item.chat == chat.name)
-                .count();
-            let row = div()
-                .id(format!("media-chat-{}", chat.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(chat.name.clone())
-                .cursor_pointer()
-                .h(px(64.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(chat.initials.clone(), 38., false, p))
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(chat.name.clone()),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(format!("{count} files")),
-                        ),
-                );
-            self.clickable(cx, row, Action::SelectMediaChat(chat.name.clone()))
-        }).collect::<Vec<_>>();
+        let mut rows = self
+            .chats
+            .iter()
+            .take(5)
+            .map(|chat| {
+                let count = self
+                    .media
+                    .iter()
+                    .filter(|item| item.chat == chat.name)
+                    .count();
+                let row = div()
+                    .id(format!("media-chat-{}", chat.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(chat.name.clone())
+                    .cursor_pointer()
+                    .h(px(64.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(chat.initials.clone(), 38., false, p))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(chat.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(format!("{count} files")),
+                            ),
+                    );
+                self.clickable(cx, row, Action::SelectMediaChat(chat.name.clone()))
+            })
+            .collect::<Vec<_>>();
         rows.insert(0, all_row);
 
         div()
@@ -6299,7 +6936,13 @@ impl App {
             .bg(p.bg_list)
             .border_r_1()
             .border_color(p.divider)
-            .child(section_header(cx, p, "Media", Some(IconName::Ellipsis), Action::Toast("Coming soon — media settings are not wired up.".into())))
+            .child(section_header(
+                cx,
+                p,
+                "Media",
+                Some(IconName::Ellipsis),
+                Action::Toast("Coming soon — media settings are not wired up.".into()),
+            ))
             .child(
                 div()
                     .mx(px(16.))
@@ -6343,7 +6986,11 @@ impl App {
     }
 
     fn render_media_detail(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let tabs = [(MediaTab::Media, "Media"), (MediaTab::Links, "Links"), (MediaTab::Docs, "Docs")];
+        let tabs = [
+            (MediaTab::Media, "Media"),
+            (MediaTab::Links, "Links"),
+            (MediaTab::Docs, "Docs"),
+        ];
         let items = self
             .media
             .iter()
@@ -6408,7 +7055,9 @@ impl App {
                                 .bg(if selected { p.accent } else { p.bg_list })
                                 .border_1()
                                 .border_color(if selected { p.accent } else { p.border })
-                                .when(selected, |el| el.child(ui::icon(IconName::Check, 12.0, p.text_inverse))),
+                                .when(selected, |el| {
+                                    el.child(ui::icon(IconName::Check, 12.0, p.text_inverse))
+                                }),
                         )
                     });
                 let action = if self.media_select_mode {
@@ -6442,10 +7091,12 @@ impl App {
                                     .text_size(px(20.))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(p.text_primary)
-                                    .child(self.selected_media_chat.clone().unwrap_or_else(|| match self.media_tab {
-                                        MediaTab::Media => "All media".to_owned(),
-                                        MediaTab::Links => "Links".to_owned(),
-                                        MediaTab::Docs => "Docs".to_owned(),
+                                    .child(self.selected_media_chat.clone().unwrap_or_else(|| {
+                                        match self.media_tab {
+                                            MediaTab::Media => "All media".to_owned(),
+                                            MediaTab::Links => "Links".to_owned(),
+                                            MediaTab::Docs => "Docs".to_owned(),
+                                        }
                                     })),
                             )
                             .child(
@@ -6456,9 +7107,16 @@ impl App {
                                         ListState::Loading => "Loading media…".to_owned(),
                                         ListState::Failed => "Could not load media".to_owned(),
                                         ListState::Ready => match self.media_tab {
-                                            MediaTab::Media => "128 photos and videos across 6 chats".to_owned(),
-                                            MediaTab::Links => "Links shared in the chat, newest first".to_owned(),
-                                            MediaTab::Docs => "Documents shared in the chat, newest first".to_owned(),
+                                            MediaTab::Media => {
+                                                "128 photos and videos across 6 chats".to_owned()
+                                            }
+                                            MediaTab::Links => {
+                                                "Links shared in the chat, newest first".to_owned()
+                                            }
+                                            MediaTab::Docs => {
+                                                "Documents shared in the chat, newest first"
+                                                    .to_owned()
+                                            }
                                         },
                                     }),
                             ),
@@ -6486,87 +7144,99 @@ impl App {
                                         .bg(if selected { p.accent_soft } else { p.bg_list })
                                         .text_size(px(TEXT_SMALL))
                                         .font_weight(FontWeight::MEDIUM)
-                                        .text_color(if selected { p.unread_text } else { p.text_secondary })
+                                        .text_color(if selected {
+                                            p.unread_text
+                                        } else {
+                                            p.text_secondary
+                                        })
                                         .child(label),
                                     Action::SetMediaTab(tab),
                                 )
                             }))
-                            .child(self.clickable(
-                                cx,
-                                div()
-                                    .id("media-select-mode")
-                                    .role(Role::Button)
-                                    .tab_index(0)
-                                    .aria_label("Select media")
-                                    .cursor_pointer()
-                                    .h(px(32.))
-                                    .px(px(12.))
-                                    .flex()
-                                    .items_center()
-                                    .rounded_full()
-                                    .bg(if self.media_select_mode { p.accent } else { p.bg_search })
-                                    .text_size(px(TEXT_SMALL))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(if self.media_select_mode { p.text_inverse } else { p.text_secondary })
-                                    .child(if self.media_select_mode { "Done" } else { "Select" }),
-                                Action::ToggleMediaSelectMode,
-                            )),
+                            .child(
+                                self.clickable(
+                                    cx,
+                                    div()
+                                        .id("media-select-mode")
+                                        .role(Role::Button)
+                                        .tab_index(0)
+                                        .aria_label("Select media")
+                                        .cursor_pointer()
+                                        .h(px(32.))
+                                        .px(px(12.))
+                                        .flex()
+                                        .items_center()
+                                        .rounded_full()
+                                        .bg(if self.media_select_mode {
+                                            p.accent
+                                        } else {
+                                            p.bg_search
+                                        })
+                                        .text_size(px(TEXT_SMALL))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(if self.media_select_mode {
+                                            p.text_inverse
+                                        } else {
+                                            p.text_secondary
+                                        })
+                                        .child(if self.media_select_mode {
+                                            "Done"
+                                        } else {
+                                            "Select"
+                                        }),
+                                    Action::ToggleMediaSelectMode,
+                                ),
+                            ),
                     ),
             )
-            .when(self.media_select_mode && !self.media_selected.is_empty(), |el| {
-                el.child(
-                    div()
-                        .mx(px(24.))
-                        .mb(px(10.))
-                        .px(px(12.))
-                        .py(px(8.))
-                        .flex()
-                        .items_center()
-                        .gap(px(8.))
-                        .rounded(px(RADIUS_MD))
-                        .bg(p.bg_search)
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_size(px(TEXT_SMALL))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(p.text_primary)
-                                .child(format!("{} selected", self.media_selected.len())),
-                        )
-                        .child(self.clickable(
-                            cx,
-                            ui::secondary_button("media-star-selected", "Star", p),
-                            Action::MediaStarSelected,
-                        ))
-                        .child(self.clickable(
-                            cx,
-                            ui::secondary_button("media-forward-selected", "Forward", p),
-                            Action::MediaForwardSelected,
-                        ))
-                        .child(self.clickable(
-                            cx,
-                            ui::danger_button("media-delete-selected", "Delete", p),
-                            Action::MediaDeleteSelected,
-                        )),
-                )
-            })
+            .when(
+                self.media_select_mode && !self.media_selected.is_empty(),
+                |el| {
+                    el.child(
+                        div()
+                            .mx(px(24.))
+                            .mb(px(10.))
+                            .px(px(12.))
+                            .py(px(8.))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .rounded(px(RADIUS_MD))
+                            .bg(p.bg_search)
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_size(px(TEXT_SMALL))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(p.text_primary)
+                                    .child(format!("{} selected", self.media_selected.len())),
+                            )
+                            .child(self.clickable(
+                                cx,
+                                ui::secondary_button("media-star-selected", "Star", p),
+                                Action::MediaStarSelected,
+                            ))
+                            .child(self.clickable(
+                                cx,
+                                ui::secondary_button("media-forward-selected", "Forward", p),
+                                Action::MediaForwardSelected,
+                            ))
+                            .child(self.clickable(
+                                cx,
+                                ui::danger_button("media-delete-selected", "Delete", p),
+                                Action::MediaDeleteSelected,
+                            )),
+                    )
+                },
+            )
             .child(match self.list_state {
                 ListState::Loading => div()
                     .flex_1()
                     .px(px(24.))
                     .pb(px(24.))
-                    .child(
-                        div()
-                            .grid()
-                            .grid_cols(4)
-                            .gap(px(10.))
-                            .children((0..8).map(|_| {
-                                div()
-                                    .h(px(140.))
-                                    .rounded(px(RADIUS_LG))
-                                    .bg(p.bg_search)
-                            })),
-                    )
+                    .child(div().grid().grid_cols(4).gap(px(10.)).children(
+                        (0..8).map(|_| div().h(px(140.)).rounded(px(RADIUS_LG)).bg(p.bg_search)),
+                    ))
                     .into_any_element(),
                 ListState::Failed => div()
                     .flex_1()
@@ -6593,9 +7263,15 @@ impl App {
                             MediaTab::Docs => "No documents yet",
                         },
                         match self.media_tab {
-                            MediaTab::Media => "Photos and videos shared in the chat appear here, newest first.",
-                            MediaTab::Links => "Links shared in the chat appear here, newest first.",
-                            MediaTab::Docs => "Documents shared in the chat appear here, newest first.",
+                            MediaTab::Media => {
+                                "Photos and videos shared in the chat appear here, newest first."
+                            }
+                            MediaTab::Links => {
+                                "Links shared in the chat appear here, newest first."
+                            }
+                            MediaTab::Docs => {
+                                "Documents shared in the chat appear here, newest first."
+                            }
                         },
                         None,
                         p,
@@ -6606,13 +7282,7 @@ impl App {
                     .overflow_y_scrollbar()
                     .px(px(24.))
                     .pb(px(24.))
-                    .child(
-                        div()
-                            .grid()
-                            .grid_cols(4)
-                            .gap(px(10.))
-                            .children(grid),
-                    )
+                    .child(div().grid().grid_cols(4).gap(px(10.)).children(grid))
                     .into_any_element(),
             })
     }
@@ -6624,56 +7294,61 @@ impl App {
             ("Translate", "Terjemahkan ke Bahasa Inggris"),
             ("Find decisions", "Cari kesepakatan di chat ini"),
         ];
-        let rows = suggestions.into_iter().map(|(title, subtitle)| {
-            let row = div()
-                .id(format!("ai-{title}"))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(title)
-                .cursor_pointer()
-                .h(px(64.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .hover(move |style| style.bg(p.hover()))
-                .child(
-                    div()
-                        .size(px(32.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded_full()
-                        .bg(p.accent_soft)
-                        .child(ui::icon(IconName::Sparkles, 16.0, p.accent)),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(title),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(subtitle),
-                        ),
-                );
-            let action = if title == "Draft a reply" {
-                Action::AiSuggest
-            } else {
-                Action::ShowComingSoon("Coming soon — the assistant endpoint is not part of this build.")
-            };
-            self.clickable(cx, row, action)
-        }).collect::<Vec<_>>();
+        let rows = suggestions
+            .into_iter()
+            .map(|(title, subtitle)| {
+                let row = div()
+                    .id(format!("ai-{title}"))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(title)
+                    .cursor_pointer()
+                    .h(px(64.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(
+                        div()
+                            .size(px(32.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .bg(p.accent_soft)
+                            .child(ui::icon(IconName::Sparkles, 16.0, p.accent)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(title),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(subtitle),
+                            ),
+                    );
+                let action = if title == "Draft a reply" {
+                    Action::AiSuggest
+                } else {
+                    Action::ShowComingSoon(
+                        "Coming soon — the assistant endpoint is not part of this build.",
+                    )
+                };
+                self.clickable(cx, row, action)
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -6706,7 +7381,9 @@ impl App {
                     .pb(px(10.))
                     .text_size(px(TEXT_SMALL))
                     .text_color(p.text_secondary)
-                    .child("Answers use only the chat you have open. Nothing is sent anywhere else."),
+                    .child(
+                        "Answers use only the chat you have open. Nothing is sent anywhere else.",
+                    ),
             )
             .child(self.list_body(
                 cx,
@@ -6968,57 +7645,63 @@ impl App {
                             .text_color(p.text_secondary)
                             .child("Ask about this conversation"),
                     )
-                    .child(self.clickable(
-                        cx,
-                        ui::icon_button(
-                            "ai-send",
-                            IconName::Send,
-                            18.0,
-                            p.text_inverse,
-                            p.accent,
-                            "Send prompt",
-                        )
-                        .bg(p.accent),
-                        Action::AiPrompt,
-                    )),
+                    .child(
+                        self.clickable(
+                            cx,
+                            ui::icon_button(
+                                "ai-send",
+                                IconName::Send,
+                                18.0,
+                                p.text_inverse,
+                                p.accent,
+                                "Send prompt",
+                            )
+                            .bg(p.accent),
+                            Action::AiPrompt,
+                        ),
+                    ),
             )
     }
 
     fn render_contacts_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.contacts.iter().map(|contact| {
-            let row = div()
-                .id(format!("contact-row-{}", contact.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(contact.name.clone())
-                .cursor_pointer()
-                .h(px(64.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(contact.initials.clone(), 40., contact.online, p))
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(contact.name.clone()),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(contact.about.clone()),
-                        ),
-                );
-            self.clickable(cx, row, Action::SelectContact(contact.id))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .contacts
+            .iter()
+            .map(|contact| {
+                let row = div()
+                    .id(format!("contact-row-{}", contact.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(contact.name.clone())
+                    .cursor_pointer()
+                    .h(px(64.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(contact.initials.clone(), 40., contact.online, p))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(contact.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(contact.about.clone()),
+                            ),
+                    );
+                self.clickable(cx, row, Action::SelectContact(contact.id))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -7029,7 +7712,13 @@ impl App {
             .bg(p.bg_list)
             .border_r_1()
             .border_color(p.divider)
-            .child(section_header(cx, p, "Contacts", Some(IconName::Plus), Action::Toast("Add contact sheet opened · local mock".into())))
+            .child(section_header(
+                cx,
+                p,
+                "Contacts",
+                Some(IconName::Plus),
+                Action::Toast("Add contact sheet opened · local mock".into()),
+            ))
             .child(ui::section_label("ALL CONTACTS", p))
             .child(self.list_body(
                 cx,
@@ -7079,7 +7768,12 @@ impl App {
                     .bg(p.bg_list)
                     .border_1()
                     .border_color(p.border)
-                    .child(ui::avatar(contact.initials.clone(), 112., contact.online, p))
+                    .child(ui::avatar(
+                        contact.initials.clone(),
+                        112.,
+                        contact.online,
+                        p,
+                    ))
                     .child(
                         div()
                             .flex()
@@ -7135,83 +7829,101 @@ impl App {
                         Action::CloseOverlayAndToast("Muted for 8 hours · local demo".into()),
                     ))
                     .child(self.clickable(
-                cx,
-                ui::settings_row(
-                    "Disappearing messages",
-                    "Default timer for new chats",
-                    Some(["24 hours", "7 days", "90 days", "Off"][self.disappearing].into()),
-                    p,
-                ),
-                Action::OpenDisappearingPicker,
-            ))
+                        cx,
+                        ui::settings_row(
+                            "Disappearing messages",
+                            "Default timer for new chats",
+                            Some(
+                                ["24 hours", "7 days", "90 days", "Off"][self.disappearing].into(),
+                            ),
+                            p,
+                        ),
+                        Action::OpenDisappearingPicker,
+                    ))
                     .child(self.clickable(
                         cx,
-                        ui::settings_row("Chat lock", "Hide this chat behind device authentication", None, p),
+                        ui::settings_row(
+                            "Chat lock",
+                            "Hide this chat behind device authentication",
+                            None,
+                            p,
+                        ),
                         Action::CloseOverlayAndToast("Chat lock is coming soon.".into()),
                     ))
                     .child(self.clickable(
                         cx,
-                        ui::settings_row("Encryption", "Messages and calls are end-to-end encrypted", None, p),
+                        ui::settings_row(
+                            "Encryption",
+                            "Messages and calls are end-to-end encrypted",
+                            None,
+                            p,
+                        ),
                         Action::OpenSecurityCode,
                     ))
-                    .child(self.clickable(
-                        cx,
-                        div()
-                            .id("block-contact-detail")
-                            .w_full()
-                            .py(px(12.))
-                            .text_size(px(TEXT_BODY))
-                            .text_color(p.danger())
-                            .child("Block contact"),
-                        Action::OpenSubpage(SettingsSubpage::BlockedContactPicker),
-                    )),
+                    .child(
+                        self.clickable(
+                            cx,
+                            div()
+                                .id("block-contact-detail")
+                                .w_full()
+                                .py(px(12.))
+                                .text_size(px(TEXT_BODY))
+                                .text_color(p.danger())
+                                .child("Block contact"),
+                            Action::OpenSubpage(SettingsSubpage::BlockedContactPicker),
+                        ),
+                    ),
             )
     }
 
     fn render_archived_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.archived.iter().map(|chat| {
-            let row = div()
-                .id(format!("archived-row-{}", chat.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(chat.name.clone())
-                .cursor_pointer()
-                .h(px(72.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(chat.initials.clone(), 44., false, p))
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(chat.name.clone()),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(chat.preview.clone()),
-                        ),
-                )
-                .child(div().flex_1())
-                .child(
-                    div()
-                        .text_size(px(TEXT_CAPTION))
-                        .text_color(p.text_secondary)
-                        .child(chat.time.clone()),
-                );
-            self.clickable(cx, row, Action::SelectChat(chat.id))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .archived
+            .iter()
+            .map(|chat| {
+                let row = div()
+                    .id(format!("archived-row-{}", chat.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(chat.name.clone())
+                    .cursor_pointer()
+                    .h(px(72.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(chat.initials.clone(), 44., false, p))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(chat.name.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(chat.preview.clone()),
+                            ),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        div()
+                            .text_size(px(TEXT_CAPTION))
+                            .text_color(p.text_secondary)
+                            .child(chat.time.clone()),
+                    );
+                self.clickable(cx, row, Action::SelectChat(chat.id))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -7263,49 +7975,58 @@ impl App {
     }
 
     fn render_starred_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.starred.iter().map(|starred| {
-            let row = div()
-                .id(format!("starred-row-{}", starred.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(starred.preview.clone())
-                .cursor_pointer()
-                .h(px(76.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::avatar(initials_for(Some(&starred.sender)), 44., false, p))
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(p.text_primary)
-                                .child(starred.chat.clone()),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(starred.preview.clone()),
-                        ),
-                )
-                .child(div().flex_1())
-                .child(
-                    div()
-                        .text_size(px(TEXT_CAPTION))
-                        .text_color(p.text_secondary)
-                        .child(starred.date.clone()),
-                );
-            self.clickable(cx, row, Action::OpenStarredChat(starred.chat.clone()))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .starred
+            .iter()
+            .map(|starred| {
+                let row = div()
+                    .id(format!("starred-row-{}", starred.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(starred.preview.clone())
+                    .cursor_pointer()
+                    .h(px(76.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::avatar(
+                        initials_for(Some(&starred.sender)),
+                        44.,
+                        false,
+                        p,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(p.text_primary)
+                                    .child(starred.chat.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(starred.preview.clone()),
+                            ),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        div()
+                            .text_size(px(TEXT_CAPTION))
+                            .text_color(p.text_secondary)
+                            .child(starred.date.clone()),
+                    );
+                self.clickable(cx, row, Action::OpenStarredChat(starred.chat.clone()))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -7398,7 +8119,13 @@ impl App {
             .bg(p.bg_list)
             .border_r_1()
             .border_color(p.divider)
-            .child(section_header(cx, p, "Locked chats", Some(IconName::Ellipsis), Action::Toast("Locked chat settings opened · local mock".into())))
+            .child(section_header(
+                cx,
+                p,
+                "Locked chats",
+                Some(IconName::Ellipsis),
+                Action::Toast("Locked chat settings opened · local mock".into()),
+            ))
             .child(body)
     }
 
@@ -7423,67 +8150,78 @@ impl App {
     }
 
     fn render_broadcast_list(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let rows = self.broadcasts.iter().map(|broadcast| {
-            let selected = self.selected_broadcast == Some(broadcast.id);
-            let row = div()
-                .id(format!("broadcast-row-{}", broadcast.id))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(broadcast.name.clone())
-                .cursor_pointer()
-                .h(px(76.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(16.))
-                .border_b_1()
-                .border_color(p.divider)
-                .bg(if selected { p.bg_row_selected } else { p.bg_list })
-                .hover(move |style| style.bg(p.bg_row_selected))
-                .child(
-                    div()
-                        .size(px(44.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded_full()
-                        .bg(p.accent_soft)
-                        .child(ui::icon(IconName::Megaphone, 20.0, p.accent)),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.))
-                        .flex()
-                        .flex_col()
-                        .gap(px(3.))
-                        .child(
-                            div()
-                                .flex()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .text_size(px(TEXT_BODY))
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(p.text_primary)
-                                        .child(broadcast.name.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(px(TEXT_CAPTION))
-                                        .text_color(p.text_secondary)
-                                        .child(broadcast.time.clone()),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(TEXT_SMALL))
-                                .text_color(p.text_secondary)
-                                .child(format!("{} · {}", broadcast.recipients, broadcast.preview)),
-                        ),
-                );
-            self.clickable(cx, row, Action::SelectBroadcast(broadcast.id))
-        }).collect::<Vec<_>>();
+        let rows = self
+            .broadcasts
+            .iter()
+            .map(|broadcast| {
+                let selected = self.selected_broadcast == Some(broadcast.id);
+                let row = div()
+                    .id(format!("broadcast-row-{}", broadcast.id))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(broadcast.name.clone())
+                    .cursor_pointer()
+                    .h(px(76.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(16.))
+                    .border_b_1()
+                    .border_color(p.divider)
+                    .bg(if selected {
+                        p.bg_row_selected
+                    } else {
+                        p.bg_list
+                    })
+                    .hover(move |style| style.bg(p.bg_row_selected))
+                    .child(
+                        div()
+                            .size(px(44.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded_full()
+                            .bg(p.accent_soft)
+                            .child(ui::icon(IconName::Megaphone, 20.0, p.accent)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .flex()
+                            .flex_col()
+                            .gap(px(3.))
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_between()
+                                    .child(
+                                        div()
+                                            .text_size(px(TEXT_BODY))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(p.text_primary)
+                                            .child(broadcast.name.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(TEXT_CAPTION))
+                                            .text_color(p.text_secondary)
+                                            .child(broadcast.time.clone()),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child(format!(
+                                        "{} · {}",
+                                        broadcast.recipients, broadcast.preview
+                                    )),
+                            ),
+                    );
+                self.clickable(cx, row, Action::SelectBroadcast(broadcast.id))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(LIST_WIDTH))
@@ -7508,12 +8246,21 @@ impl App {
                             .text_color(p.text_primary)
                             .child("Broadcast"),
                     )
-                    .child(self.clickable(
-                        cx,
-                        ui::icon_button("new-broadcast", IconName::Plus, 18.0, p.text_inverse, p.accent, "New broadcast list")
+                    .child(
+                        self.clickable(
+                            cx,
+                            ui::icon_button(
+                                "new-broadcast",
+                                IconName::Plus,
+                                18.0,
+                                p.text_inverse,
+                                p.accent,
+                                "New broadcast list",
+                            )
                             .bg(p.accent),
-                        Action::NewBroadcast,
-                    )),
+                            Action::NewBroadcast,
+                        ),
+                    ),
             )
             .child(self.list_body(
                 cx,
@@ -7595,7 +8342,14 @@ impl App {
                     .child(div().flex_1())
                     .child(self.clickable(
                         cx,
-                        ui::icon_button("broadcast-info", IconName::Ellipsis, 19.0, p.text_primary, p.hover(), "Broadcast info"),
+                        ui::icon_button(
+                            "broadcast-info",
+                            IconName::Ellipsis,
+                            19.0,
+                            p.text_primary,
+                            p.hover(),
+                            "Broadcast info",
+                        ),
                         Action::Toast("Broadcast settings opened · local mock".into()),
                     )),
             )
@@ -7667,16 +8421,30 @@ impl App {
                             .text_color(p.text_secondary)
                             .child(format!("Broadcast · {}", broadcast.recipients)),
                     )
-                    .child(self.clickable(
-                        cx,
-                        ui::icon_button("broadcast-send", IconName::Send, 18.0, p.text_inverse, p.accent, "Send broadcast")
+                    .child(
+                        self.clickable(
+                            cx,
+                            ui::icon_button(
+                                "broadcast-send",
+                                IconName::Send,
+                                18.0,
+                                p.text_inverse,
+                                p.accent,
+                                "Send broadcast",
+                            )
                             .bg(p.accent),
-                        Action::Toast(format!("Broadcast sent to {}", broadcast.recipients)),
-                    )),
+                            Action::Toast(format!("Broadcast sent to {}", broadcast.recipients)),
+                        ),
+                    ),
             )
     }
 
-    fn render_brand_empty(&self, _cx: &mut Context<Self>, p: Palette, _label: &str) -> gpui_kit::Div {
+    fn render_brand_empty(
+        &self,
+        _cx: &mut Context<Self>,
+        p: Palette,
+        _label: &str,
+    ) -> gpui_kit::Div {
         div()
             .flex_1()
             .h_full()
@@ -7720,33 +8488,40 @@ impl App {
     }
 
     fn render_settings_nav(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let items = SettingsPage::ALL.into_iter().map(|page| {
-            let selected = self.settings_page == page;
-            let row = div()
-                .id(format!("settings-nav-{:?}", page))
-                .role(Role::Button)
-                .tab_index(0)
-                .aria_label(page.title())
-                .cursor_pointer()
-                .h(px(40.))
-                .flex()
-                .items_center()
-                .gap(px(12.))
-                .px(px(12.))
-                .rounded(px(RADIUS_LG))
-                .bg(if selected { p.bg_selected } else { p.bg_list })
-                .text_size(px(13.))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(if selected { p.text_primary } else { p.text_secondary })
-                .hover(move |style| style.bg(p.hover()))
-                .child(ui::icon(
-                    page.icon(),
-                    18.0,
-                    if selected { p.accent } else { p.text_secondary },
-                ))
-                .child(page.title());
-            self.clickable(cx, row, Action::SettingsPage(page))
-        }).collect::<Vec<_>>();
+        let items = SettingsPage::ALL
+            .into_iter()
+            .map(|page| {
+                let selected = self.settings_page == page;
+                let row = div()
+                    .id(format!("settings-nav-{:?}", page))
+                    .role(Role::Button)
+                    .tab_index(0)
+                    .aria_label(page.title())
+                    .cursor_pointer()
+                    .h(px(40.))
+                    .flex()
+                    .items_center()
+                    .gap(px(12.))
+                    .px(px(12.))
+                    .rounded(px(RADIUS_LG))
+                    .bg(if selected { p.bg_selected } else { p.bg_list })
+                    .text_size(px(13.))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(if selected {
+                        p.text_primary
+                    } else {
+                        p.text_secondary
+                    })
+                    .hover(move |style| style.bg(p.hover()))
+                    .child(ui::icon(
+                        page.icon(),
+                        18.0,
+                        if selected { p.accent } else { p.text_secondary },
+                    ))
+                    .child(page.title());
+                self.clickable(cx, row, Action::SettingsPage(page))
+            })
+            .collect::<Vec<_>>();
 
         div()
             .w(px(SETTINGS_NAV_WIDTH))
@@ -7932,34 +8707,64 @@ impl App {
             .child(ui::section_label("CONTACT", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Phone number", "Used for sign-in and pairing", Some("+62 812 3456 7890".into()), p),
+                ui::settings_row(
+                    "Phone number",
+                    "Used for sign-in and pairing",
+                    Some("+62 812 3456 7890".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::ChangeNumber),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Email", "Optional recovery address", Some("Not set".into()), p),
+                ui::settings_row(
+                    "Email",
+                    "Optional recovery address",
+                    Some("Not set".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::RecoveryEmail),
             ))
             .child(ui::section_label("SECURITY", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Two-step verification", "6-digit PIN + recovery email", Some("Off".into()), p),
+                ui::settings_row(
+                    "Two-step verification",
+                    "6-digit PIN + recovery email",
+                    Some("Off".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::TwoStep),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Linked devices", "Other machines with access", Some("2 devices".into()), p),
+                ui::settings_row(
+                    "Linked devices",
+                    "Other machines with access",
+                    Some("2 devices".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::LinkedDevices),
             ))
             .child(ui::section_label("ACCOUNT", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Request account info", "Download a copy of your data", None, p),
+                ui::settings_row(
+                    "Request account info",
+                    "Download a copy of your data",
+                    None,
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::AccountInfo),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Delete account", "Removes the account and its data", None, p),
+                ui::settings_row(
+                    "Delete account",
+                    "Removes the account and its data",
+                    None,
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::DeleteAccount),
             ))
     }
@@ -7971,26 +8776,52 @@ impl App {
             .child(ui::section_label("VISIBILITY", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Last seen and online", "Everyone in your contacts", Some("Contacts".into()), p),
+                ui::settings_row(
+                    "Last seen and online",
+                    "Everyone in your contacts",
+                    Some("Contacts".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::Visibility),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Profile photo", "Everyone except blocked", Some("Everyone".into()), p),
+                ui::settings_row(
+                    "Profile photo",
+                    "Everyone except blocked",
+                    Some("Everyone".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::Visibility),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("About", "Everyone except blocked", Some("Everyone".into()), p),
+                ui::settings_row(
+                    "About",
+                    "Everyone except blocked",
+                    Some("Everyone".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::Visibility),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Status", "Everyone except blocked", Some("Contacts".into()), p),
+                ui::settings_row(
+                    "Status",
+                    "Everyone except blocked",
+                    Some("Contacts".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::Visibility),
             ))
             .child(ui::section_label("MESSAGING", p))
-            .child(self.toggle_row(cx, p, "read_receipts", "Read receipts", "Turns off both blue ticks in both directions"))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "read_receipts",
+                "Read receipts",
+                "Turns off both blue ticks in both directions",
+            ))
             .child(self.clickable(
                 cx,
                 ui::settings_row(
@@ -8003,7 +8834,12 @@ impl App {
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Blocked contacts", "Blocked people cannot call or message you", Some("3".into()), p),
+                ui::settings_row(
+                    "Blocked contacts",
+                    "Blocked people cannot call or message you",
+                    Some("3".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::BlockedContacts),
             ))
             .child(self.clickable(
@@ -8014,12 +8850,22 @@ impl App {
             .child(ui::section_label("APP LOCK", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Unlock with Windows Hello", "Locks the app when idle", Some("Off".into()), p),
+                ui::settings_row(
+                    "Unlock with Windows Hello",
+                    "Locks the app when idle",
+                    Some("Off".into()),
+                    p,
+                ),
                 Action::OpenLockedUnlock,
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Auto-lock after", "Applies while WhatsLite is in the background", Some("15 minutes".into()), p),
+                ui::settings_row(
+                    "Auto-lock after",
+                    "Applies while WhatsLite is in the background",
+                    Some("15 minutes".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::AutoLock),
             ))
             .child(self.clickable(
@@ -8207,35 +9053,84 @@ impl App {
             .flex()
             .flex_col()
             .child(ui::section_label("MESSAGING", p))
-            .child(self.toggle_row(cx, p, "notifications", "Desktop notifications", "Banners while WhatsLite is running"))
-            .child(self.toggle_row(cx, p, "taskbar_badge", "Taskbar badge", "Show the total unread count on the app icon"))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "notifications",
+                "Desktop notifications",
+                "Banners while WhatsLite is running",
+            ))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "taskbar_badge",
+                "Taskbar badge",
+                "Show the total unread count on the app icon",
+            ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Notification sound", "Plays the default tone", Some("Default".into()), p),
+                ui::settings_row(
+                    "Notification sound",
+                    "Plays the default tone",
+                    Some("Default".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::NotificationSound),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Message preview", "Show sender, message text or nothing", Some("Sender and message".into()), p),
+                ui::settings_row(
+                    "Message preview",
+                    "Show sender, message text or nothing",
+                    Some("Sender and message".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::NotificationPreview),
             ))
-            .child(self.toggle_row(cx, p, "reaction_notifications", "Reaction notifications", "Notify when someone reacts to your message"))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "reaction_notifications",
+                "Reaction notifications",
+                "Notify when someone reacts to your message",
+            ))
             .child(ui::section_label("DO NOT DISTURB", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Quiet hours", "Silence banners between the times below", Some("22:00 – 07:00".into()), p),
+                ui::settings_row(
+                    "Quiet hours",
+                    "Silence banners between the times below",
+                    Some("22:00 – 07:00".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::QuietHours),
             ))
-            .child(self.toggle_row(cx, p, "call_exceptions", "Allow calls during quiet hours", "Applies every day"))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "call_exceptions",
+                "Allow calls during quiet hours",
+                "Applies every day",
+            ))
             .child(ui::section_label("EXCEPTIONS", p))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Per-chat overrides", "2 chats always notify, 4 muted", None, p),
+                ui::settings_row(
+                    "Per-chat overrides",
+                    "2 chats always notify, 4 muted",
+                    None,
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::NotificationOverrides),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Top chats", "Always notify for these conversations", Some("6 chats".into()), p),
+                ui::settings_row(
+                    "Top chats",
+                    "Always notify for these conversations",
+                    Some("6 chats".into()),
+                    p,
+                ),
                 Action::OpenSubpage(SettingsSubpage::NotificationOverrides),
             ))
     }
@@ -8292,11 +9187,22 @@ impl App {
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Media cache", "Cached photos, videos and documents", Some(format!("{} MB", self.media_cache_mb)), p),
+                ui::settings_row(
+                    "Media cache",
+                    "Cached photos, videos and documents",
+                    Some(format!("{} MB", self.media_cache_mb)),
+                    p,
+                ),
                 Action::ClearMediaCache,
             ))
             .child(ui::section_label("AUTO-DOWNLOAD", p))
-            .child(self.toggle_row(cx, p, "auto_download", "Auto-download media", "Wi-Fi only in this mock"))
+            .child(self.toggle_row(
+                cx,
+                p,
+                "auto_download",
+                "Auto-download media",
+                "Wi-Fi only in this mock",
+            ))
             .child(self.clickable(
                 cx,
                 ui::settings_row("Photos", "Download automatically", Some("Wi-Fi".into()), p),
@@ -9686,7 +10592,11 @@ impl App {
                     .items_center()
                     .gap(px(10.))
                     .child(ui::icon(
-                        if selected { IconName::CircleCheck } else { IconName::Circle },
+                        if selected {
+                            IconName::CircleCheck
+                        } else {
+                            IconName::Circle
+                        },
                         18.0,
                         if selected { p.accent } else { p.text_secondary },
                     ))
@@ -9697,7 +10607,9 @@ impl App {
                             .child(label),
                     ),
             )
-            .when(selected, |el| el.child(ui::icon(IconName::Check, 16.0, p.accent)));
+            .when(selected, |el| {
+                el.child(ui::icon(IconName::Check, 16.0, p.accent))
+            });
         self.clickable(cx, row, action)
     }
 
@@ -9764,7 +10676,10 @@ impl App {
         cx: &mut Context<Self>,
         p: Palette,
     ) -> gpui_kit::Div {
-        let chat = self.selected_chat().cloned().unwrap_or_else(|| model::chats()[0].clone());
+        let chat = self
+            .selected_chat()
+            .cloned()
+            .unwrap_or_else(|| model::chats()[0].clone());
         let content = match panel {
             InfoPanel::Contact => self.info_contact(cx, p, &chat),
             InfoPanel::Group => self.info_group(cx, p, &chat),
@@ -9921,7 +10836,11 @@ impl App {
                         div()
                             .h(px(84.))
                             .rounded(px(RADIUS_MD))
-                            .bg(if index % 2 == 0 { p.attach_orange } else { p.attach_blue })
+                            .bg(if index % 2 == 0 {
+                                p.attach_orange
+                            } else {
+                                p.attach_blue
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -9943,22 +10862,33 @@ impl App {
                 ui::settings_row("Chat lock", "Hide this chat", None, p),
                 Action::CloseOverlayAndToast("Chat lock is coming soon.".into()),
             ))
-            .child(self.clickable(cx, ui::settings_row("Starred messages", "6 messages", None, p), Action::Navigate(Route::Starred)))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Encryption", "Messages and calls are end-to-end encrypted", None, p),
+                ui::settings_row("Starred messages", "6 messages", None, p),
+                Action::Navigate(Route::Starred),
+            ))
+            .child(self.clickable(
+                cx,
+                ui::settings_row(
+                    "Encryption",
+                    "Messages and calls are end-to-end encrypted",
+                    None,
+                    p,
+                ),
                 Action::OpenSecurityCode,
             ))
             .child(
-                div().px(px(16.)).py(px(10.)).child(self.clickable(
-                    cx,
-                    div()
-                        .id("block-contact")
-                        .text_size(px(TEXT_BODY))
-                        .text_color(p.danger())
-                        .child("Block contact"),
-                    Action::Toast("Contact blocked · local mock".into()),
-                )),
+                div().px(px(16.)).py(px(10.)).child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("block-contact")
+                            .text_size(px(TEXT_BODY))
+                            .text_color(p.danger())
+                            .child("Block contact"),
+                        Action::Toast("Contact blocked · local mock".into()),
+                    ),
+                ),
             )
     }
 
@@ -10075,7 +11005,11 @@ impl App {
                         div()
                             .h(px(84.))
                             .rounded(px(RADIUS_MD))
-                            .bg(if index % 2 == 0 { p.attach_orange } else { p.attach_blue })
+                            .bg(if index % 2 == 0 {
+                                p.attach_orange
+                            } else {
+                                p.attach_blue
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
@@ -10099,7 +11033,12 @@ impl App {
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Encryption", "Messages and calls are end-to-end encrypted", None, p),
+                ui::settings_row(
+                    "Encryption",
+                    "Messages and calls are end-to-end encrypted",
+                    None,
+                    p,
+                ),
                 Action::OpenSecurityCode,
             ))
             .child(self.clickable(
@@ -10118,15 +11057,17 @@ impl App {
                 Action::OpenSecurityCode,
             ))
             .child(
-                div().px(px(16.)).py(px(10.)).child(self.clickable(
-                    cx,
-                    div()
-                        .id("exit-group")
-                        .text_size(px(TEXT_BODY))
-                        .text_color(p.danger())
-                        .child("Exit group"),
-                    Action::Toast("You left the group · local mock".into()),
-                )),
+                div().px(px(16.)).py(px(10.)).child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("exit-group")
+                            .text_size(px(TEXT_BODY))
+                            .text_color(p.danger())
+                            .child("Exit group"),
+                        Action::Toast("You left the group · local mock".into()),
+                    ),
+                ),
             )
     }
 
@@ -10179,7 +11120,11 @@ impl App {
                 ui::settings_row("Groups", community.groups.clone(), None, p),
                 Action::CloseOverlayAndToast("Community groups · local demo".into()),
             ))
-            .child(self.clickable(cx, ui::settings_row("Members", community.members.clone(), None, p), Action::OpenCommunityMembers))
+            .child(self.clickable(
+                cx,
+                ui::settings_row("Members", community.members.clone(), None, p),
+                Action::OpenCommunityMembers,
+            ))
             .child(self.clickable(
                 cx,
                 ui::settings_row("Mute notifications", "Silence this community", None, p),
@@ -10187,29 +11132,46 @@ impl App {
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Edit community info", "Name, description and photo", None, p),
+                ui::settings_row(
+                    "Edit community info",
+                    "Name, description and photo",
+                    None,
+                    p,
+                ),
                 Action::Toast("Community info editor opened · local mock".into()),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Community settings", "Approvals, announcements and groups", None, p),
+                ui::settings_row(
+                    "Community settings",
+                    "Approvals, announcements and groups",
+                    None,
+                    p,
+                ),
                 Action::Toast("Community settings opened · local mock".into()),
             ))
             .child(self.clickable(
                 cx,
-                ui::settings_row("Approve new members", "Requests waiting for an admin", Some(self.member_requests.len().to_string()), p),
+                ui::settings_row(
+                    "Approve new members",
+                    "Requests waiting for an admin",
+                    Some(self.member_requests.len().to_string()),
+                    p,
+                ),
                 Action::OpenMemberApprovals,
             ))
             .child(
-                div().px(px(16.)).py(px(10.)).child(self.clickable(
-                    cx,
-                    div()
-                        .id("exit-community")
-                        .text_size(px(TEXT_BODY))
-                        .text_color(p.danger())
-                        .child("Exit community"),
-                    Action::Toast("You left the community · local mock".into()),
-                )),
+                div().px(px(16.)).py(px(10.)).child(
+                    self.clickable(
+                        cx,
+                        div()
+                            .id("exit-community")
+                            .text_size(px(TEXT_BODY))
+                            .text_color(p.danger())
+                            .child("Exit community"),
+                        Action::Toast("You left the community · local mock".into()),
+                    ),
+                ),
             )
     }
 
@@ -10317,7 +11279,10 @@ impl App {
                 let palette = p;
                 let accent = *media;
                 let target = position;
-                let constructor = move |data: &StatusDrag, _offset, _window: &mut Window, cx: &mut gpui_kit::App| {
+                let constructor = move |data: &StatusDrag,
+                                        _offset,
+                                        _window: &mut Window,
+                                        cx: &mut gpui_kit::App| {
                     let from = data.from;
                     drag_app.update(cx, |this, cx| {
                         this.status_drag = Some(from);
@@ -10623,7 +11588,12 @@ impl App {
     }
 
     fn group_members_sheet(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let members = [("You", "Admin"), ("Rina", "Admin"), ("Bayu", "Member"), ("Sari", "Member")];
+        let members = [
+            ("You", "Admin"),
+            ("Rina", "Admin"),
+            ("Bayu", "Member"),
+            ("Sari", "Member"),
+        ];
         modal_frame(
             p,
             ui::modal_shell(p)
@@ -10640,7 +11610,12 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("4 members · 2 admins. Search, promote, demote or remove people."),
                 )
-                .child(ui::settings_row_field("Search", "Name or phone number", Some("Search members".into()), p))
+                .child(ui::settings_row_field(
+                    "Search",
+                    "Name or phone number",
+                    Some("Search members".into()),
+                    p,
+                ))
                 .children(members.into_iter().map(|(name, role)| {
                     div()
                         .flex()
@@ -10650,45 +11625,58 @@ impl App {
                         .py(px(8.))
                         .rounded(px(RADIUS_MD))
                         .hover(move |style| style.bg(p.hover()))
-                        .child(self.clickable_modal(
-                            cx,
-                            div()
-                                .id(format!("open-profile-{name}"))
-                                .flex_1()
-                                .flex()
-                                .items_center()
-                                .gap(px(10.))
-                                .cursor_pointer()
-                                .child(ui::avatar(initials_for(Some(name)), 34., false, p))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .flex_col()
-                                        .child(
-                                            div()
-                                                .text_size(px(TEXT_BODY))
-                                                .font_weight(FontWeight::MEDIUM)
-                                                .text_color(p.text_primary)
-                                                .child(name),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(TEXT_CAPTION))
-                                                .text_color(p.text_secondary)
-                                                .child(role),
-                                        ),
-                                ),
-                            if name == "You" {
-                                Action::CloseOverlayAndToast("Opening your profile…".into())
-                            } else {
-                                Action::OpenContactProfile(name.to_owned())
-                            },
+                        .child(
+                            self.clickable_modal(
+                                cx,
+                                div()
+                                    .id(format!("open-profile-{name}"))
+                                    .flex_1()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(10.))
+                                    .cursor_pointer()
+                                    .child(ui::avatar(initials_for(Some(name)), 34., false, p))
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .flex_col()
+                                            .child(
+                                                div()
+                                                    .text_size(px(TEXT_BODY))
+                                                    .font_weight(FontWeight::MEDIUM)
+                                                    .text_color(p.text_primary)
+                                                    .child(name),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_size(px(TEXT_CAPTION))
+                                                    .text_color(p.text_secondary)
+                                                    .child(role),
+                                            ),
+                                    ),
+                                if name == "You" {
+                                    Action::CloseOverlayAndToast("Opening your profile…".into())
+                                } else {
+                                    Action::OpenContactProfile(name.to_owned())
+                                },
+                            ),
+                        )
+                        .child(ui::chip(
+                            if role == "Admin" { "Demote" } else { "Promote" },
+                            false,
+                            p,
                         ))
-                        .child(ui::chip(if role == "Admin" { "Demote" } else { "Promote" }, false, p))
                         .when(name != "You", |el| {
                             el.child(self.clickable_modal(
                                 cx,
-                                ui::icon_button_small("remove-member", IconName::X, 12.0, p.text_secondary, p.hover(), "Remove member"),
+                                ui::icon_button_small(
+                                    "remove-member",
+                                    IconName::X,
+                                    12.0,
+                                    p.text_secondary,
+                                    p.hover(),
+                                    "Remove member",
+                                ),
                                 Action::Toast(format!("Removed {name} · local mock")),
                             ))
                         })
@@ -10714,18 +11702,54 @@ impl App {
 
     fn use_case_demo_sheet(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
         let scenarios = [
-            ("Group chat · identity", "Hover the title for the chevron, click a sender name for their profile."),
-            ("Contact profile", "Click Rina in the group. Saved name, number, username rule and actions."),
-            ("Header dropdown", "Open the chat menu beside the title: info, search, media, mute, clear."),
-            ("Attachment menu", "Every attach action opens a surface; sending is deferred."),
-            ("Message actions", "Reply, react, edit, forward, star, select and delete are reachable."),
-            ("Search in chat", "Search field with hit count, previous and next controls."),
-            ("Group info", "Members open profiles. Add member opens the members sheet."),
-            ("Create group", "The full create flow is clickable; the new group stays local until the backend exists."),
-            ("Delete message", "Confirmation is wired; the change stays local until the backend exists."),
-            ("Edit contact", "The form opens and validates; saving stays local until the backend exists."),
-            ("Chat list menu", "The ellipsis in the Chats header opens create, find and organise."),
-            ("Theme swap", "Toggle light and dark without changing the layout."),
+            (
+                "Group chat · identity",
+                "Hover the title for the chevron, click a sender name for their profile.",
+            ),
+            (
+                "Contact profile",
+                "Click Rina in the group. Saved name, number, username rule and actions.",
+            ),
+            (
+                "Header dropdown",
+                "Open the chat menu beside the title: info, search, media, mute, clear.",
+            ),
+            (
+                "Attachment menu",
+                "Every attach action opens a surface; sending is deferred.",
+            ),
+            (
+                "Message actions",
+                "Reply, react, edit, forward, star, select and delete are reachable.",
+            ),
+            (
+                "Search in chat",
+                "Search field with hit count, previous and next controls.",
+            ),
+            (
+                "Group info",
+                "Members open profiles. Add member opens the members sheet.",
+            ),
+            (
+                "Create group",
+                "The full create flow is clickable; the new group stays local until the backend exists.",
+            ),
+            (
+                "Delete message",
+                "Confirmation is wired; the change stays local until the backend exists.",
+            ),
+            (
+                "Edit contact",
+                "The form opens and validates; saving stays local until the backend exists.",
+            ),
+            (
+                "Chat list menu",
+                "The ellipsis in the Chats header opens create, find and organise.",
+            ),
+            (
+                "Theme swap",
+                "Toggle light and dark without changing the layout.",
+            ),
         ];
         modal_frame(
             p,
@@ -10905,7 +11929,9 @@ impl App {
     fn security_code_sheet(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
         let cells = (0..64).map(|index| {
             let dark = (index * 7 + index / 3) % 5 < 2;
-            div().size(px(7.)).bg(if dark { p.text_primary } else { p.bg_list })
+            div()
+                .size(px(7.))
+                .bg(if dark { p.text_primary } else { p.bg_list })
         });
         modal_frame(
             p,
@@ -10967,7 +11993,12 @@ impl App {
         )
     }
 
-    fn channel_info_sheet(&self, name: String, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
+    fn channel_info_sheet(
+        &self,
+        name: String,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Div {
         modal_frame(
             p,
             ui::modal_shell(p)
@@ -11045,7 +12076,13 @@ impl App {
     }
 
     fn community_members_sheet(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let members = [("You", "Admin"), ("Rina", "Admin"), ("Bayu", "Member"), ("Sari", "Member"), ("Dewi", "Member")];
+        let members = [
+            ("You", "Admin"),
+            ("Rina", "Admin"),
+            ("Bayu", "Member"),
+            ("Sari", "Member"),
+            ("Dewi", "Member"),
+        ];
         modal_frame(
             p,
             ui::modal_shell(p)
@@ -11056,9 +12093,23 @@ impl App {
                         .text_color(p.text_primary)
                         .child("Community members"),
                 )
-                .child(ui::settings_row_field("Search", "Name or phone number", Some("Search members".into()), p))
+                .child(ui::settings_row_field(
+                    "Search",
+                    "Name or phone number",
+                    Some("Search members".into()),
+                    p,
+                ))
                 .children(members.into_iter().map(|(name, role)| {
-                    ui::settings_row_field(name, role, Some(if role == "Admin" { "Admin".into() } else { String::new() }), p)
+                    ui::settings_row_field(
+                        name,
+                        role,
+                        Some(if role == "Admin" {
+                            "Admin".into()
+                        } else {
+                            String::new()
+                        }),
+                        p,
+                    )
                 }))
                 .child(
                     div()
@@ -11208,20 +12259,20 @@ impl App {
                                 .child(ui::icon(IconName::Eye, 14.0, p.text_secondary))
                         })),
                 )
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::primary_button("close-viewers", "Done", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::primary_button("close-viewers", "Done", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
-    fn forward_sheet(&self, message_index: usize, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
+    fn forward_sheet(
+        &self,
+        message_index: usize,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Div {
         modal_frame(
             p,
             ui::modal_shell(p)
@@ -11262,16 +12313,11 @@ impl App {
                         Action::ForwardTo(message_index, chat_index),
                     )
                 }))
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::secondary_button("cancel-forward", "Cancel", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::secondary_button("cancel-forward", "Cancel", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -11319,16 +12365,11 @@ impl App {
                         )
                         .child(ui::chip(option, false, p))
                 }))
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::primary_button("close-poll-votes", "Done", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::primary_button("close-poll-votes", "Done", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -11449,7 +12490,11 @@ impl App {
                                         .id(format!("gif-{caption}"))
                                         .h(px(84.))
                                         .rounded(px(RADIUS_MD))
-                                        .bg(if caption.len() % 2 == 0 { p.attach_blue } else { p.attach_orange })
+                                        .bg(if caption.len() % 2 == 0 {
+                                            p.attach_blue
+                                        } else {
+                                            p.attach_orange
+                                        })
                                         .flex()
                                         .flex_col()
                                         .items_center()
@@ -11470,16 +12515,11 @@ impl App {
                             })),
                     )
                 })
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::secondary_button("close-gifs", "Close", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::secondary_button("close-gifs", "Close", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -11489,14 +12529,27 @@ impl App {
             .get(self.selected_chat)
             .and_then(|messages| messages.get(index))
             .cloned();
-        let names = ["Rizky Pratama", "Maya", "Rina", "Bayu", "Sari", "Dewi Lestari", "Jakarta Crew", "Budi Santoso"];
+        let names = [
+            "Rizky Pratama",
+            "Maya",
+            "Rina",
+            "Bayu",
+            "Sari",
+            "Dewi Lestari",
+            "Jakarta Crew",
+            "Budi Santoso",
+        ];
         let reactions = message
             .map(|message| message.reactions)
             .filter(|reactions| !reactions.is_empty())
             .or_else(|| {
                 self.messages
                     .get(self.selected_chat)
-                    .and_then(|messages| messages.iter().find(|message| !message.reactions.is_empty()))
+                    .and_then(|messages| {
+                        messages
+                            .iter()
+                            .find(|message| !message.reactions.is_empty())
+                    })
                     .map(|message| message.reactions.clone())
             })
             .unwrap_or_default();
@@ -11516,57 +12569,66 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Everyone who reacted to this message."),
                 )
-                .children(reactions.into_iter().enumerate().map(|(reaction_index, reaction)| {
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .px(px(8.))
-                        .py(px(6.))
-                        .child(
+                .children(
+                    reactions
+                        .into_iter()
+                        .enumerate()
+                        .map(|(reaction_index, reaction)| {
                             div()
-                                .size(px(34.))
                                 .flex()
                                 .items_center()
-                                .justify_center()
-                                .rounded_full()
-                                .bg(p.accent_soft)
-                                .child(ui::icon(reaction_icon(&reaction.emoji), 16.0, p.accent)),
-                        )
-                        .child(
-                            div()
-                                .flex_1()
-                                .flex()
-                                .flex_col()
+                                .gap(px(10.))
+                                .px(px(8.))
+                                .py(px(6.))
                                 .child(
                                     div()
-                                        .text_size(px(TEXT_BODY))
-                                        .text_color(p.text_primary)
-                                        .child(names.get(reaction_index).copied().unwrap_or("Someone")),
+                                        .size(px(34.))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_full()
+                                        .bg(p.accent_soft)
+                                        .child(ui::icon(
+                                            reaction_icon(&reaction.emoji),
+                                            16.0,
+                                            p.accent,
+                                        )),
                                 )
                                 .child(
                                     div()
-                                        .text_size(px(TEXT_CAPTION))
-                                        .text_color(p.text_secondary)
-                                        .child(format!(
-                                            "{} · {} reaction{}",
-                                            reaction_label(&reaction.emoji),
-                                            reaction.count,
-                                            if reaction.count == 1 { "" } else { "s" }
-                                        )),
-                                ),
-                        )
-                }))
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::primary_button("close-reactions", "Done", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                                        .flex_1()
+                                        .flex()
+                                        .flex_col()
+                                        .child(
+                                            div()
+                                                .text_size(px(TEXT_BODY))
+                                                .text_color(p.text_primary)
+                                                .child(
+                                                    names
+                                                        .get(reaction_index)
+                                                        .copied()
+                                                        .unwrap_or("Someone"),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_size(px(TEXT_CAPTION))
+                                                .text_color(p.text_secondary)
+                                                .child(format!(
+                                                    "{} · {} reaction{}",
+                                                    reaction_label(&reaction.emoji),
+                                                    reaction.count,
+                                                    if reaction.count == 1 { "" } else { "s" }
+                                                )),
+                                        ),
+                                )
+                        }),
+                )
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::primary_button("close-reactions", "Done", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -11673,16 +12735,11 @@ impl App {
                             )
                         })),
                 )
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::secondary_button("close-stickers", "Close", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::secondary_button("close-stickers", "Close", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -11841,10 +12898,30 @@ impl App {
                         .text_color(p.text_secondary)
                         .child("Add a title, date, time and place. Guests can accept or decline."),
                 )
-                .child(ui::settings_row_field("Title", "Event name", Some("Review koleksi September".into()), p))
-                .child(ui::settings_row_field("Date", "Calendar date", Some("Fri, 26 Sep".into()), p))
-                .child(ui::settings_row_field("Time", "Start time", Some("15:00".into()), p))
-                .child(ui::settings_row_field("Location", "Where it happens", Some("Studio Kemang".into()), p))
+                .child(ui::settings_row_field(
+                    "Title",
+                    "Event name",
+                    Some("Review koleksi September".into()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Date",
+                    "Calendar date",
+                    Some("Fri, 26 Sep".into()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Time",
+                    "Start time",
+                    Some("15:00".into()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Location",
+                    "Where it happens",
+                    Some("Studio Kemang".into()),
+                    p,
+                ))
                 .child(
                     div()
                         .flex()
@@ -12377,7 +13454,12 @@ impl App {
         modal_frame(p, ui::modal_shell(p).child(body))
     }
 
-    fn shortcut_editor_sheet(&self, index: usize, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
+    fn shortcut_editor_sheet(
+        &self,
+        index: usize,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Div {
         let (label, default_keys) = SHORTCUTS
             .get(index)
             .copied()
@@ -12440,36 +13522,40 @@ impl App {
                         ),
                 )
                 .children(choices.into_iter().map(|(title, value)| {
-                    let selected = self.shortcut_overrides.get(index).and_then(|value| value.clone()).as_deref() == Some(value.as_str());
-                    let row = div()
-                        .id(format!("shortcut-choice-{title}"))
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .px(px(10.))
-                        .py(px(9.))
-                        .rounded(px(RADIUS_MD))
-                        .hover(move |style| style.bg(p.hover()))
-                        .child(
-                            div()
-                                .text_size(px(TEXT_BODY))
-                                .text_color(p.text_primary)
-                                .child(title),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .items_center()
-                                .gap(px(6.))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(4.))
-                                        .children(value.split('+').map(|part| key(part.to_owned()))),
-                                )
-                                .when(selected, |el| el.child(ui::icon(IconName::Check, 14.0, p.accent))),
-                        );
+                    let selected = self
+                        .shortcut_overrides
+                        .get(index)
+                        .and_then(|value| value.clone())
+                        .as_deref()
+                        == Some(value.as_str());
+                    let row =
+                        div()
+                            .id(format!("shortcut-choice-{title}"))
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .px(px(10.))
+                            .py(px(9.))
+                            .rounded(px(RADIUS_MD))
+                            .hover(move |style| style.bg(p.hover()))
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_BODY))
+                                    .text_color(p.text_primary)
+                                    .child(title),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(6.))
+                                    .child(div().flex().items_center().gap(px(4.)).children(
+                                        value.split('+').map(|part| key(part.to_owned())),
+                                    ))
+                                    .when(selected, |el| {
+                                        el.child(ui::icon(IconName::Check, 14.0, p.accent))
+                                    }),
+                            );
                     let apply = value.clone();
                     self.clickable_modal(cx, row, Action::ApplyShortcut(index, apply))
                 }))
@@ -12492,7 +13578,12 @@ impl App {
         )
     }
 
-    fn render_overlay(&self, overlay: Overlay, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
+    fn render_overlay(
+        &self,
+        overlay: Overlay,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Div {
         match overlay {
             Overlay::AttachmentMenu => self.attachment_menu(cx, p),
             Overlay::HeaderMenu => self.header_menu(cx, p),
@@ -12540,12 +13631,42 @@ impl App {
 
     fn attachment_menu(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
         let items = [
-            (IconName::FileText, "File", p.attach_blue, Action::OpenFileDialog),
-            (IconName::Image, "Photos and videos", p.attach_blue, Action::StageAttachment(StagedKind::Image, "IMG_2241.jpg".into())),
-            (IconName::ChartBar, "Poll", p.attach_orange, Action::OpenPollComposer),
-            (IconName::Calendar, "Event", p.attach_red, Action::OpenEventComposer),
-            (IconName::User, "Contact", p.attach_orange, Action::StageAttachment(StagedKind::Contact, "Rizky Pratama".into())),
-            (IconName::Sparkles, "Sticker", p.attach_green, Action::OpenStickerPicker),
+            (
+                IconName::FileText,
+                "File",
+                p.attach_blue,
+                Action::OpenFileDialog,
+            ),
+            (
+                IconName::Image,
+                "Photos and videos",
+                p.attach_blue,
+                Action::StageAttachment(StagedKind::Image, "IMG_2241.jpg".into()),
+            ),
+            (
+                IconName::ChartBar,
+                "Poll",
+                p.attach_orange,
+                Action::OpenPollComposer,
+            ),
+            (
+                IconName::Calendar,
+                "Event",
+                p.attach_red,
+                Action::OpenEventComposer,
+            ),
+            (
+                IconName::User,
+                "Contact",
+                p.attach_orange,
+                Action::StageAttachment(StagedKind::Contact, "Rizky Pratama".into()),
+            ),
+            (
+                IconName::Sparkles,
+                "Sticker",
+                p.attach_green,
+                Action::OpenStickerPicker,
+            ),
             (IconName::Video, "GIF", p.attach_blue, Action::OpenGifPicker),
         ];
         div()
@@ -12599,7 +13720,11 @@ impl App {
     }
 
     fn chat_list_menu(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let titlebar = if self.shell == ShellStyle::MacOS { 0. } else { TITLEBAR_HEIGHT };
+        let titlebar = if self.shell == ShellStyle::MacOS {
+            0.
+        } else {
+            TITLEBAR_HEIGHT
+        };
         let collapsed = self.collapsed || self.compact;
         let sidebar = if self.shell == ShellStyle::MacOS {
             if collapsed { RAIL_WIDTH + 16. } else { 208. }
@@ -12654,12 +13779,32 @@ impl App {
                 div()
                     .p(px(6.))
                     .child(item("New group", IconName::Users, Action::NewGroup))
-                    .child(item("New broadcast", IconName::Megaphone, Action::NewBroadcast))
+                    .child(item(
+                        "New broadcast",
+                        IconName::Megaphone,
+                        Action::NewBroadcast,
+                    ))
                     .child(div().my(px(4.)).h(px(1.)).bg(p.divider))
-                    .child(item("Starred messages", IconName::Star, Action::Navigate(Route::Starred)))
-                    .child(item("Archived", IconName::Archive, Action::Navigate(Route::Archived)))
-                    .child(item("Settings", IconName::Settings, Action::Navigate(Route::Settings)))
-                    .child(item("Use case demo", IconName::Sparkles, Action::OpenUseCaseDemo)),
+                    .child(item(
+                        "Starred messages",
+                        IconName::Star,
+                        Action::Navigate(Route::Starred),
+                    ))
+                    .child(item(
+                        "Archived",
+                        IconName::Archive,
+                        Action::Navigate(Route::Archived),
+                    ))
+                    .child(item(
+                        "Settings",
+                        IconName::Settings,
+                        Action::Navigate(Route::Settings),
+                    ))
+                    .child(item(
+                        "Use case demo",
+                        IconName::Sparkles,
+                        Action::OpenUseCaseDemo,
+                    )),
             );
         div()
             .absolute()
@@ -12672,9 +13817,16 @@ impl App {
     }
 
     fn header_menu(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let chat = self.selected_chat().cloned().unwrap_or_else(|| model::chats()[0].clone());
+        let chat = self
+            .selected_chat()
+            .cloned()
+            .unwrap_or_else(|| model::chats()[0].clone());
         let group = chat.is_group;
-        let titlebar = if self.shell == ShellStyle::MacOS { 0. } else { TITLEBAR_HEIGHT };
+        let titlebar = if self.shell == ShellStyle::MacOS {
+            0.
+        } else {
+            TITLEBAR_HEIGHT
+        };
         let collapsed = self.collapsed || self.compact;
         let sidebar = if self.shell == ShellStyle::MacOS {
             if collapsed { RAIL_WIDTH + 16. } else { 208. }
@@ -12721,7 +13873,11 @@ impl App {
                         div()
                             .text_size(px(TEXT_CAPTION))
                             .text_color(p.text_secondary)
-                            .child(if group { "Group options" } else { "Chat options" }),
+                            .child(if group {
+                                "Group options"
+                            } else {
+                                "Chat options"
+                            }),
                     ),
             )
             .child(div().h(px(1.)).bg(p.divider))
@@ -12738,9 +13894,17 @@ impl App {
                         },
                     ))
                     .when(group, |el| {
-                        el.child(item("Add members", IconName::UserPlus, Action::OpenGroupMembers))
+                        el.child(item(
+                            "Add members",
+                            IconName::UserPlus,
+                            Action::OpenGroupMembers,
+                        ))
                     })
-                    .child(item("Search in chat", IconName::Search, Action::ToggleSearch))
+                    .child(item(
+                        "Search in chat",
+                        IconName::Search,
+                        Action::ToggleSearch,
+                    ))
                     .child(item(
                         "Media, links and docs",
                         IconName::Image,
@@ -12758,7 +13922,11 @@ impl App {
                     ))
                     .child(div().my(px(4.)).h(px(1.)).bg(p.divider))
                     .child(item("Clear chat", IconName::Trash, Action::OpenClearChat))
-                    .child(item("Use case demo", IconName::Sparkles, Action::OpenUseCaseDemo))
+                    .child(item(
+                        "Use case demo",
+                        IconName::Sparkles,
+                        Action::OpenUseCaseDemo,
+                    ))
                     .when(group, |el| {
                         el.child(item(
                             "Exit group",
@@ -12777,8 +13945,17 @@ impl App {
             .child(menu)
     }
 
-    fn contact_profile_sheet(&self, name: &str, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let found = self.contacts.iter().find(|contact| contact.name == name).cloned();
+    fn contact_profile_sheet(
+        &self,
+        name: &str,
+        cx: &mut Context<Self>,
+        p: Palette,
+    ) -> gpui_kit::Div {
+        let found = self
+            .contacts
+            .iter()
+            .find(|contact| contact.name == name)
+            .cloned();
         let saved = found.is_some();
         let contact = found.unwrap_or_else(|| Contact {
             id: 0,
@@ -12790,14 +13967,21 @@ impl App {
             blocked: false,
             favorite: false,
         });
-        let display = if saved { contact.name.clone() } else { contact.phone.clone() };
-        let save_action = Action::CloseOverlayAndToast(format!("Saved {name} to contacts · local demo"));
+        let display = if saved {
+            contact.name.clone()
+        } else {
+            contact.phone.clone()
+        };
+        let save_action =
+            Action::CloseOverlayAndToast(format!("Saved {name} to contacts · local demo"));
         let message_action = self
             .chats
             .iter()
             .position(|chat| chat.name == contact.name)
             .map(Action::SelectChat)
-            .unwrap_or_else(|| Action::CloseOverlayAndToast(format!("Opening chat with {display}…")));
+            .unwrap_or_else(|| {
+                Action::CloseOverlayAndToast(format!("Opening chat with {display}…"))
+            });
         modal_frame(
             p,
             ui::modal_shell(p)
@@ -12845,7 +14029,11 @@ impl App {
                             div()
                                 .text_size(px(TEXT_SMALL))
                                 .text_color(p.text_secondary)
-                                .child(if saved { contact.about.clone() } else { "Not in your contacts".into() }),
+                                .child(if saved {
+                                    contact.about.clone()
+                                } else {
+                                    "Not in your contacts".into()
+                                }),
                         ),
                 )
                 .child(
@@ -12872,7 +14060,11 @@ impl App {
                     cx,
                     ui::settings_row(
                         "Phone",
-                        if saved { "From your address book" } else { "This number is not saved" },
+                        if saved {
+                            "From your address book"
+                        } else {
+                            "This number is not saved"
+                        },
                         Some(contact.phone.clone()),
                         p,
                     ),
@@ -12880,26 +14072,50 @@ impl App {
                 ))
                 .child(self.clickable_modal(
                     cx,
-                    ui::settings_row("Username", "Shown only when this person shares it", Some("Not shared".into()), p),
-                    Action::CloseOverlayAndToast("Usernames are opt-in; this person has not shared one.".into()),
+                    ui::settings_row(
+                        "Username",
+                        "Shown only when this person shares it",
+                        Some("Not shared".into()),
+                        p,
+                    ),
+                    Action::CloseOverlayAndToast(
+                        "Usernames are opt-in; this person has not shared one.".into(),
+                    ),
                 ))
                 .child(if saved {
                     self.clickable_modal(
                         cx,
-                        ui::settings_row("Saved contact", "Name from your address book", Some("Yes".into()), p),
+                        ui::settings_row(
+                            "Saved contact",
+                            "Name from your address book",
+                            Some("Yes".into()),
+                            p,
+                        ),
                         Action::EditContact(contact.id),
                     )
                 } else {
                     self.clickable_modal(
                         cx,
-                        ui::settings_row("Save contact", "Numbers are never saved automatically", Some("Save".into()), p),
+                        ui::settings_row(
+                            "Save contact",
+                            "Numbers are never saved automatically",
+                            Some("Save".into()),
+                            p,
+                        ),
                         save_action,
                     )
                 })
                 .child(self.clickable_modal(
                     cx,
-                    ui::settings_row("Add to favourites", "Keep this contact close", Some("Add".into()), p),
-                    Action::CloseOverlayAndToast(format!("Added {name} to favourites · local demo")),
+                    ui::settings_row(
+                        "Add to favourites",
+                        "Keep this contact close",
+                        Some("Add".into()),
+                        p,
+                    ),
+                    Action::CloseOverlayAndToast(format!(
+                        "Added {name} to favourites · local demo"
+                    )),
                 ))
                 .child(
                     div()
@@ -12924,27 +14140,43 @@ impl App {
         let mut item = |label: &'static str, icon_name: IconName, action: Action| {
             self.clickable_modal(cx, ui::menu_item(label, icon_name, p), action)
         };
-        div()
-            .absolute()
-            .top(px(250.))
-            .right(px(80.))
-            .child(
-                ui::context_menu_shell(p)
-                    .child(item("Reply", IconName::Reply, Action::Reply(index)))
-                    .child(item("React", IconName::Heart, Action::React(index, "♥".into())))
-                    .child(item("Edit", IconName::Pencil, Action::Edit(index)))
-                    .child(item("Forward", IconName::Forward, Action::OpenForward(index)))
-                    .child(item("Copy", IconName::Copy, Action::Toast("Copied to clipboard".into())))
-                    .child(item("Star message", IconName::Star, Action::StarMessage(index)))
-                    .child(item("Select", IconName::Check, Action::EnterMessageSelection(index)))
-                    .child(item("Delete", IconName::Trash, Action::Delete(index))),
-            )
+        div().absolute().top(px(250.)).right(px(80.)).child(
+            ui::context_menu_shell(p)
+                .child(item("Reply", IconName::Reply, Action::Reply(index)))
+                .child(item(
+                    "React",
+                    IconName::Heart,
+                    Action::React(index, "♥".into()),
+                ))
+                .child(item("Edit", IconName::Pencil, Action::Edit(index)))
+                .child(item(
+                    "Forward",
+                    IconName::Forward,
+                    Action::OpenForward(index),
+                ))
+                .child(item(
+                    "Copy",
+                    IconName::Copy,
+                    Action::Toast("Copied to clipboard".into()),
+                ))
+                .child(item(
+                    "Star message",
+                    IconName::Star,
+                    Action::StarMessage(index),
+                ))
+                .child(item(
+                    "Select",
+                    IconName::Check,
+                    Action::EnterMessageSelection(index),
+                ))
+                .child(item("Delete", IconName::Trash, Action::Delete(index))),
+        )
     }
 
     fn emoji_picker(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
         let emojis = [
-            "♥", "☺", "★", "☀", "☁", "✈", "✂", "✎", "✓", "✗", "☎", "☕", "♫", "⚑", "⚡",
-            "❄", "♠", "♦", "♣", "☂", "☃", "♨", "☯", "✿",
+            "♥", "☺", "★", "☀", "☁", "✈", "✂", "✎", "✓", "✗", "☎", "☕", "♫", "⚑", "⚡", "❄", "♠",
+            "♦", "♣", "☂", "☃", "♨", "☯", "✿",
         ];
         div()
             .absolute()
@@ -12981,11 +14213,19 @@ impl App {
     }
 
     fn pinned_messages_sheet(&self, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let messages = self.messages.get(self.selected_chat).cloned().unwrap_or_default();
+        let messages = self
+            .messages
+            .get(self.selected_chat)
+            .cloned()
+            .unwrap_or_default();
         let pinned = self
             .pinned
             .iter()
-            .filter_map(|index| messages.get(*index).map(|message| (*index, message.clone())))
+            .filter_map(|index| {
+                messages
+                    .get(*index)
+                    .map(|message| (*index, message.clone()))
+            })
             .collect::<Vec<_>>();
         modal_frame(
             p,
@@ -13023,7 +14263,12 @@ impl App {
                                     div()
                                         .text_size(px(TEXT_CAPTION))
                                         .text_color(p.text_secondary)
-                                        .child(message.sender_name.clone().unwrap_or_else(|| "You".into())),
+                                        .child(
+                                            message
+                                                .sender_name
+                                                .clone()
+                                                .unwrap_or_else(|| "You".into()),
+                                        ),
                                 )
                                 .child(
                                     div()
@@ -13042,16 +14287,11 @@ impl App {
                         ));
                     row
                 }))
-                .child(
-                    div()
-                        .flex()
-                        .justify_end()
-                        .child(self.clickable_modal(
-                            cx,
-                            ui::primary_button("close-pinned", "Done", p),
-                            Action::CloseOverlay,
-                        )),
-                ),
+                .child(div().flex().justify_end().child(self.clickable_modal(
+                    cx,
+                    ui::primary_button("close-pinned", "Done", p),
+                    Action::CloseOverlay,
+                ))),
         )
     }
 
@@ -13095,38 +14335,42 @@ impl App {
         let actions = [
             ("New group", IconName::Users, Action::NewGroup),
             ("New community", IconName::Users, Action::NewCommunity),
-            ("Invite via link", IconName::Link, Action::Toast("Invite link copied · local mock".into())),
+            (
+                "Invite via link",
+                IconName::Link,
+                Action::Toast("Invite link copied · local mock".into()),
+            ),
         ];
         modal_frame(
             p,
             ui::modal_shell(p)
-                    .child(
-                        div()
-                            .text_size(px(18.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(p.text_primary)
-                            .child("New chat"),
-                    )
-                    .child(
-                        div()
-                            .h(px(40.))
-                            .flex()
-                            .items_center()
-                            .gap(px(8.))
-                            .rounded_full()
-                            .bg(p.bg_search)
-                            .px(px(12.))
-                            .child(ui::icon(IconName::Search, 16.0, p.text_secondary))
-                            .child(
-                                div()
-                                    .text_size(px(TEXT_SMALL))
-                                    .text_color(p.text_secondary)
-                                    .child("Search name or number"),
-                            ),
-                    )
-                    .children(actions.into_iter().map(|(label, icon_name, action)| {
-                        self.clickable_modal(cx, ui::menu_item(label, icon_name, p), action)
-                    })),
+                .child(
+                    div()
+                        .text_size(px(18.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(p.text_primary)
+                        .child("New chat"),
+                )
+                .child(
+                    div()
+                        .h(px(40.))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .rounded_full()
+                        .bg(p.bg_search)
+                        .px(px(12.))
+                        .child(ui::icon(IconName::Search, 16.0, p.text_secondary))
+                        .child(
+                            div()
+                                .text_size(px(TEXT_SMALL))
+                                .text_color(p.text_secondary)
+                                .child("Search name or number"),
+                        ),
+                )
+                .children(actions.into_iter().map(|(label, icon_name, action)| {
+                    self.clickable_modal(cx, ui::menu_item(label, icon_name, p), action)
+                })),
         )
     }
 
@@ -13134,55 +14378,51 @@ impl App {
         modal_frame(
             p,
             ui::modal_shell(p)
-                    .child(
-                        div()
-                            .text_size(px(18.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(p.text_primary)
-                            .child("New group"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(TEXT_SMALL))
-                            .text_color(p.text_secondary)
-                            .child("Pick members, then name the group. This flow is a local preview."),
-                    )
-                    .child(
+                .child(
+                    div()
+                        .text_size(px(18.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(p.text_primary)
+                        .child("New group"),
+                )
+                .child(
+                    div()
+                        .text_size(px(TEXT_SMALL))
+                        .text_color(p.text_secondary)
+                        .child("Pick members, then name the group. This flow is a local preview."),
+                )
+                .child(div().flex().flex_col().gap(px(4.)).children(
+                    self.contacts.iter().take(4).map(|contact| {
                         div()
                             .flex()
-                            .flex_col()
-                            .gap(px(4.))
-                            .children(self.contacts.iter().take(4).map(|contact| {
+                            .items_center()
+                            .gap(px(10.))
+                            .p(px(6.))
+                            .child(ui::avatar(contact.initials.clone(), 32., false, p))
+                            .child(
                                 div()
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(10.))
-                                    .p(px(6.))
-                                    .child(ui::avatar(contact.initials.clone(), 32., false, p))
-                                    .child(
-                                        div()
-                                            .text_size(px(TEXT_BODY))
-                                            .text_color(p.text_primary)
-                                            .child(contact.name.clone()),
-                                    )
-                            })),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .justify_end()
-                            .gap(px(8.))
-                            .child(self.clickable_modal(
-                                cx,
-                                ui::secondary_button("cancel-group", "Cancel", p),
-                                Action::CloseOverlay,
-                            ))
-                            .child(self.clickable_modal(
-                                cx,
-                                ui::primary_button("create-group", "Create group", p),
-                                Action::CreateGroup,
-                            )),
-                    ),
+                                    .text_size(px(TEXT_BODY))
+                                    .text_color(p.text_primary)
+                                    .child(contact.name.clone()),
+                            )
+                    }),
+                ))
+                .child(
+                    div()
+                        .flex()
+                        .justify_end()
+                        .gap(px(8.))
+                        .child(self.clickable_modal(
+                            cx,
+                            ui::secondary_button("cancel-group", "Cancel", p),
+                            Action::CloseOverlay,
+                        ))
+                        .child(self.clickable_modal(
+                            cx,
+                            ui::primary_button("create-group", "Create group", p),
+                            Action::CreateGroup,
+                        )),
+                ),
         )
     }
 
@@ -13202,9 +14442,16 @@ impl App {
                         div()
                             .text_size(px(TEXT_SMALL))
                             .text_color(p.text_secondary)
-                            .child("Recipients get a normal message; replies land in normal chats."),
+                            .child(
+                                "Recipients get a normal message; replies land in normal chats.",
+                            ),
                     )
-                    .child(ui::settings_row_field("List name", "Up to 25 characters", Some("Resellers".into()), p))
+                    .child(ui::settings_row_field(
+                        "List name",
+                        "Up to 25 characters",
+                        Some("Resellers".into()),
+                        p,
+                    ))
                     .child(ui::settings_row_field(
                         "Recipients",
                         "Selected in the previous step",
@@ -13362,10 +14609,30 @@ impl App {
                                 .child("Edit contact"),
                         ),
                 )
-                .child(ui::settings_row_field("Name", "Shown to your contacts", Some(contact.name.clone()), p))
-                .child(ui::settings_row_field("Phone", "Used for calls and messages", Some(contact.phone.clone()), p))
-                .child(ui::settings_row_field("Label", "Optional label", Some("Studio".into()), p))
-                .child(ui::settings_row_field("Favourite", "Keep this contact close", Some(if contact.favorite { "On" } else { "Off" }.into()), p))
+                .child(ui::settings_row_field(
+                    "Name",
+                    "Shown to your contacts",
+                    Some(contact.name.clone()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Phone",
+                    "Used for calls and messages",
+                    Some(contact.phone.clone()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Label",
+                    "Optional label",
+                    Some("Studio".into()),
+                    p,
+                ))
+                .child(ui::settings_row_field(
+                    "Favourite",
+                    "Keep this contact close",
+                    Some(if contact.favorite { "On" } else { "Off" }.into()),
+                    p,
+                ))
                 .child(
                     div()
                         .flex()
@@ -13386,7 +14653,11 @@ impl App {
     }
 
     fn lightbox(&self, index: usize, cx: &mut Context<Self>, p: Palette) -> gpui_kit::Div {
-        let item = self.media.get(index).cloned().unwrap_or_else(|| model::media_items()[0].clone());
+        let item = self
+            .media
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| model::media_items()[0].clone());
         div()
             .absolute()
             .top_0()
@@ -13429,7 +14700,11 @@ impl App {
                             "lightbox-star",
                             IconName::Star,
                             18.0,
-                            if self.media_starred.contains(&item.id) { p.attach_orange } else { p.text_inverse },
+                            if self.media_starred.contains(&item.id) {
+                                p.attach_orange
+                            } else {
+                                p.text_inverse
+                            },
                             p.text_secondary,
                             "Star",
                         ),
@@ -13437,22 +14712,50 @@ impl App {
                     ))
                     .child(self.clickable_modal(
                         cx,
-                        ui::icon_button("lightbox-download", IconName::Download, 18.0, p.text_inverse, p.text_secondary, "Download"),
+                        ui::icon_button(
+                            "lightbox-download",
+                            IconName::Download,
+                            18.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Download",
+                        ),
                         Action::MediaDownload(item.id),
                     ))
                     .child(self.clickable_modal(
                         cx,
-                        ui::icon_button("lightbox-forward", IconName::Forward, 18.0, p.text_inverse, p.text_secondary, "Forward"),
+                        ui::icon_button(
+                            "lightbox-forward",
+                            IconName::Forward,
+                            18.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Forward",
+                        ),
                         Action::MediaForward(item.id),
                     ))
                     .child(self.clickable_modal(
                         cx,
-                        ui::icon_button("lightbox-delete", IconName::Trash, 18.0, p.text_inverse, p.text_secondary, "Delete"),
+                        ui::icon_button(
+                            "lightbox-delete",
+                            IconName::Trash,
+                            18.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Delete",
+                        ),
                         Action::MediaDelete(item.id),
                     ))
                     .child(self.clickable_modal(
                         cx,
-                        ui::icon_button("lightbox-close", IconName::X, 18.0, p.text_inverse, p.text_secondary, "Close"),
+                        ui::icon_button(
+                            "lightbox-close",
+                            IconName::X,
+                            18.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Close",
+                        ),
                         Action::CloseMedia,
                     )),
             )
@@ -13468,32 +14771,40 @@ impl App {
                             .w(px(520. * self.media_zoom as f32 / 100.))
                             .h(px(560. * self.media_zoom as f32 / 100.))
                             .rounded(px(RADIUS_LG))
-                            .bg(if item.accent % 2 == 0 { p.attach_orange } else { p.attach_blue })
+                            .bg(if item.accent % 2 == 0 {
+                                p.attach_orange
+                            } else {
+                                p.attach_blue
+                            })
                             .flex()
                             .items_center()
                             .justify_center()
                             .child(ui::icon(IconName::Image, 80.0, p.text_inverse)),
                     )
-                    .child(
-                        div()
-                            .absolute()
-                            .left(px(16.))
-                            .child(self.clickable_modal(
-                                cx,
-                                ui::icon_button("lightbox-prev", IconName::ChevronLeft, 22.0, p.text_inverse, p.text_secondary, "Previous media"),
-                                Action::MediaPrev,
-                            )),
-                    )
-                    .child(
-                        div()
-                            .absolute()
-                            .right(px(16.))
-                            .child(self.clickable_modal(
-                                cx,
-                                ui::icon_button("lightbox-next", IconName::ChevronRight, 22.0, p.text_inverse, p.text_secondary, "Next media"),
-                                Action::MediaNext,
-                            )),
-                    ),
+                    .child(div().absolute().left(px(16.)).child(self.clickable_modal(
+                        cx,
+                        ui::icon_button(
+                            "lightbox-prev",
+                            IconName::ChevronLeft,
+                            22.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Previous media",
+                        ),
+                        Action::MediaPrev,
+                    )))
+                    .child(div().absolute().right(px(16.)).child(self.clickable_modal(
+                        cx,
+                        ui::icon_button(
+                            "lightbox-next",
+                            IconName::ChevronRight,
+                            22.0,
+                            p.text_inverse,
+                            p.text_secondary,
+                            "Next media",
+                        ),
+                        Action::MediaNext,
+                    ))),
             )
             .child(
                 div()
@@ -13507,7 +14818,11 @@ impl App {
                             .w(px(56.))
                             .h(px(40.))
                             .rounded(px(RADIUS_SM))
-                            .bg(if thumb == 2 { p.attach_orange } else { p.attach_blue })
+                            .bg(if thumb == 2 {
+                                p.attach_orange
+                            } else {
+                                p.attach_blue
+                            })
                             .opacity(if thumb == 2 { 1.0 } else { 0.55 })
                     })),
             )
@@ -13531,7 +14846,14 @@ impl App {
                             .gap(px(4.))
                             .child(self.clickable_modal(
                                 cx,
-                                ui::icon_button_small("zoom-out", IconName::Minus, 14.0, p.text_inverse, p.text_secondary, "Zoom out"),
+                                ui::icon_button_small(
+                                    "zoom-out",
+                                    IconName::Minus,
+                                    14.0,
+                                    p.text_inverse,
+                                    p.text_secondary,
+                                    "Zoom out",
+                                ),
                                 Action::ZoomOut,
                             ))
                             .child(
@@ -13542,7 +14864,14 @@ impl App {
                             )
                             .child(self.clickable_modal(
                                 cx,
-                                ui::icon_button_small("zoom-in", IconName::Plus, 14.0, p.text_inverse, p.text_secondary, "Zoom in"),
+                                ui::icon_button_small(
+                                    "zoom-in",
+                                    IconName::Plus,
+                                    14.0,
+                                    p.text_inverse,
+                                    p.text_secondary,
+                                    "Zoom in",
+                                ),
                                 Action::ZoomIn,
                             )),
                     ),
@@ -13559,9 +14888,11 @@ impl App {
             .flex_col()
             .items_center()
             .gap(px(8.))
-            .children(self.toasts.iter().map(|toast| {
-                ui::toast_shell(toast.message.clone(), p)
-            }))
+            .children(
+                self.toasts
+                    .iter()
+                    .map(|toast| ui::toast_shell(toast.message.clone(), p)),
+            )
     }
 }
 
@@ -13599,7 +14930,10 @@ fn modal_frame(p: Palette, content: gpui_kit::Div) -> gpui_kit::Div {
 }
 
 fn initial_route() -> Route {
-    match std::env::var("WHATSLITE_ROUTE").unwrap_or_default().as_str() {
+    match std::env::var("WHATSLITE_ROUTE")
+        .unwrap_or_default()
+        .as_str()
+    {
         "calls" => Route::Calls,
         "updates" => Route::Updates,
         "communities" => Route::Communities,
@@ -13713,13 +15047,24 @@ fn call_label(call: &CallEntry) -> String {
     if call.missed {
         format!("Missed {group}{kind} call")
     } else if call.incoming {
-        format!("Incoming · {}", call.duration.clone().unwrap_or_else(|| "1 min".into()))
+        format!(
+            "Incoming · {}",
+            call.duration.clone().unwrap_or_else(|| "1 min".into())
+        )
     } else {
-        format!("Outgoing · {}", call.duration.clone().unwrap_or_else(|| "4 min".into()))
+        format!(
+            "Outgoing · {}",
+            call.duration.clone().unwrap_or_else(|| "4 min".into())
+        )
     }
 }
 
-fn call_control(id: &'static str, icon_name: IconName, active: bool, p: Palette) -> gpui_kit::Stateful<gpui_kit::Div> {
+fn call_control(
+    id: &'static str,
+    icon_name: IconName,
+    active: bool,
+    p: Palette,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
     div()
         .id(id)
         .role(Role::Button)
@@ -13734,10 +15079,23 @@ fn call_control(id: &'static str, icon_name: IconName, active: bool, p: Palette)
         .bg(if active { p.accent } else { p.bg_list })
         .border_1()
         .border_color(p.border)
-        .child(ui::icon(icon_name, 22.0, if active { p.text_inverse } else { p.text_primary }))
+        .child(ui::icon(
+            icon_name,
+            22.0,
+            if active {
+                p.text_inverse
+            } else {
+                p.text_primary
+            },
+        ))
 }
 
-fn info_action(id: &'static str, icon_name: IconName, label: &'static str, p: Palette) -> gpui_kit::Stateful<gpui_kit::Div> {
+fn info_action(
+    id: &'static str,
+    icon_name: IconName,
+    label: &'static str,
+    p: Palette,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
     div()
         .id(id)
         .role(Role::Button)
@@ -13787,8 +15145,18 @@ fn same_sender(left: &Message, right: &Message) -> bool {
 }
 
 fn sender_color(name: Option<&str>, p: Palette) -> gpui_kit::Rgba {
-    let colors = [p.attach_blue, p.attach_orange, p.attach_green, p.attach_red, p.accent, p.tick_read];
-    let index = name.unwrap_or("").bytes().fold(0usize, |acc, byte| acc.wrapping_add(byte as usize));
+    let colors = [
+        p.attach_blue,
+        p.attach_orange,
+        p.attach_green,
+        p.attach_red,
+        p.accent,
+        p.tick_read,
+    ];
+    let index = name
+        .unwrap_or("")
+        .bytes()
+        .fold(0usize, |acc, byte| acc.wrapping_add(byte as usize));
     colors[index % colors.len()]
 }
 
@@ -13796,7 +15164,9 @@ fn delivery_icon(delivery: Delivery, p: Palette) -> gpui_kit::AnyElement {
     match delivery {
         Delivery::Sending => ui::icon(IconName::Clock, 13.0, p.text_secondary).into_any_element(),
         Delivery::Sent => ui::icon(IconName::Check, 13.0, p.text_secondary).into_any_element(),
-        Delivery::Delivered => ui::icon(IconName::CheckCheck, 13.0, p.text_secondary).into_any_element(),
+        Delivery::Delivered => {
+            ui::icon(IconName::CheckCheck, 13.0, p.text_secondary).into_any_element()
+        }
         Delivery::Read => ui::icon(IconName::CheckCheck, 13.0, p.tick_read).into_any_element(),
         Delivery::Failed => ui::icon(IconName::CircleAlert, 13.0, p.danger()).into_any_element(),
     }
@@ -13978,7 +15348,9 @@ fn message_preview(message: &Message) -> String {
             .collect(),
         MessageBody::Image { .. } => "Photo".into(),
         MessageBody::Video { .. } => "Video".into(),
-        MessageBody::Voice { transcript, .. } => transcript.clone().unwrap_or_else(|| "Voice note".into()),
+        MessageBody::Voice { transcript, .. } => {
+            transcript.clone().unwrap_or_else(|| "Voice note".into())
+        }
         MessageBody::Document { name, .. } => name.clone(),
         MessageBody::Link { title, .. } => title.clone(),
         MessageBody::Album { count, .. } => format!("{count} photos"),
@@ -13990,13 +15362,23 @@ fn message_preview(message: &Message) -> String {
         MessageBody::Sticker { symbol, .. } => format!("Sticker {symbol}"),
         MessageBody::Mention { mention, .. } => format!("Mention @{mention}"),
         MessageBody::ViewOnce { .. } => "Photo · view once".into(),
-        MessageBody::Gif { failed, .. } => if *failed { "GIF failed".into() } else { "GIF".into() },
+        MessageBody::Gif { failed, .. } => {
+            if *failed {
+                "GIF failed".into()
+            } else {
+                "GIF".into()
+            }
+        }
         MessageBody::Upload { name, .. } => name.clone(),
         MessageBody::LiveLocation { name, .. } => format!("Live location · {name}"),
         MessageBody::Unread(text) => text.clone(),
         MessageBody::Call { missed, video, .. } => {
             if *missed {
-                if *video { "Missed video call".into() } else { "Missed voice call".into() }
+                if *video {
+                    "Missed video call".into()
+                } else {
+                    "Missed voice call".into()
+                }
             } else {
                 "Call".into()
             }
@@ -14010,27 +15392,21 @@ fn message_preview(message: &Message) -> String {
 
 fn render_qr(state: QrState, p: Palette) -> gpui_kit::Div {
     let pattern: [u8; 21 * 21] = [
-        1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,0,
-        1,0,0,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,0,
-        1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,0,
-        1,0,1,1,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,0,
-        1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,0,
-        1,0,0,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,1,0,0,
-        1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,0,
-        0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,
-        1,0,1,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,1,0,0,
-        0,1,0,0,1,0,0,1,0,1,0,1,0,0,1,0,1,0,0,0,0,
-        1,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,1,0,0,
-        0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,
-        1,1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,0,0,
-        1,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,0,1,0,0,
-        1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,1,1,0,1,0,0,
-        1,0,1,1,1,0,1,0,1,0,0,1,1,0,1,1,1,0,1,0,0,
-        1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,1,1,0,1,0,0,
-        1,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,0,1,0,0,
-        1,1,1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,1,1,0,0,
-        0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
+        1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0,
+        1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0,
+        1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0,
+        1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0,
+        1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0,
+        1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1,
+        1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0,
+        1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ];
     let opacity = match state {
         QrState::Loading => 0.15,
@@ -14049,11 +15425,12 @@ fn render_qr(state: QrState, p: Palette) -> gpui_kit::Div {
         .border_color(p.border)
         .opacity(opacity);
     for cell in pattern {
-        grid = grid.child(
-            div()
-                .size(px(9.))
-                .bg(if cell == 1 { p.text_primary } else { p.bg_list }),
-        );
+        grid =
+            grid.child(
+                div()
+                    .size(px(9.))
+                    .bg(if cell == 1 { p.text_primary } else { p.bg_list }),
+            );
     }
     div()
         .flex()
@@ -14082,7 +15459,7 @@ fn render_qr(state: QrState, p: Palette) -> gpui_kit::Div {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::{palette, ThemeMode};
+    use crate::theme::{ThemeMode, palette};
 
     #[test]
     fn initials_are_uppercase_for_people_and_groups() {
@@ -14116,63 +15493,140 @@ mod tests {
         };
         assert_eq!(message_preview(&text), "Halo");
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Image { caption: None, state: MediaState::Ready, ratio: 1.0 }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Image {
+                    caption: None,
+                    state: MediaState::Ready,
+                    ratio: 1.0
+                },
+                ..text.clone()
+            }),
             "Photo"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Album { count: 5, caption: None }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Album {
+                    count: 5,
+                    caption: None
+                },
+                ..text.clone()
+            }),
             "5 photos"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Deleted, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Deleted,
+                ..text.clone()
+            }),
             "This message was deleted"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Upload { name: "IMG_2241.jpg".into(), progress: 62, failed: false }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Upload {
+                    name: "IMG_2241.jpg".into(),
+                    progress: 62,
+                    failed: false
+                },
+                ..text.clone()
+            }),
             "IMG_2241.jpg"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::ViewOnce { caption: None, state: crate::model::ViewOnceState::Sealed }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::ViewOnce {
+                    caption: None,
+                    state: crate::model::ViewOnceState::Sealed
+                },
+                ..text.clone()
+            }),
             "Photo · view once"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::LiveLocation { name: "Studio Kain".into(), address: "Jl. Kemang".into(), remaining: "12 more minutes".into(), state: crate::model::LiveLocationState::Sharing }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::LiveLocation {
+                    name: "Studio Kain".into(),
+                    address: "Jl. Kemang".into(),
+                    remaining: "12 more minutes".into(),
+                    state: crate::model::LiveLocationState::Sharing
+                },
+                ..text.clone()
+            }),
             "Live location · Studio Kain"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Call { missed: true, video: false, duration: None }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Call {
+                    missed: true,
+                    video: false,
+                    duration: None
+                },
+                ..text.clone()
+            }),
             "Missed voice call"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Mention { text: "Tolong cek".into(), mention: "Rina".into() }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Mention {
+                    text: "Tolong cek".into(),
+                    mention: "Rina".into()
+                },
+                ..text.clone()
+            }),
             "Mention @Rina"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Sticker { symbol: "✿".into(), pack_missing: false }, ..text.clone() }),
+            message_preview(&Message {
+                body: MessageBody::Sticker {
+                    symbol: "✿".into(),
+                    pack_missing: false
+                },
+                ..text.clone()
+            }),
             "Sticker ✿"
         );
         assert_eq!(
-            message_preview(&Message { body: MessageBody::Gif { caption: None, failed: true }, ..text }),
+            message_preview(&Message {
+                body: MessageBody::Gif {
+                    caption: None,
+                    failed: true
+                },
+                ..text
+            }),
             "GIF failed"
         );
     }
 
     #[test]
     fn media_state_labels_are_user_facing() {
-        assert_eq!(media_state_label(MediaState::TapToDownload), "Tap to download");
+        assert_eq!(
+            media_state_label(MediaState::TapToDownload),
+            "Tap to download"
+        );
         assert_eq!(media_state_label(MediaState::Downloading), "Downloading");
         assert_eq!(media_state_label(MediaState::Failed), "Tap to retry");
-        assert_eq!(media_state_label(MediaState::Expired), "No longer available");
+        assert_eq!(
+            media_state_label(MediaState::Expired),
+            "No longer available"
+        );
         assert_eq!(media_state_label(MediaState::Ready), "");
     }
 
     #[test]
     fn call_labels_cover_incoming_outgoing_and_missed() {
-        let missed = model::calls().into_iter().find(|call| call.missed).expect("missed fixture");
+        let missed = model::calls()
+            .into_iter()
+            .find(|call| call.missed)
+            .expect("missed fixture");
         assert_eq!(call_label(&missed), "Missed voice call");
-        let incoming = model::calls().into_iter().find(|call| call.incoming && !call.missed).expect("incoming fixture");
+        let incoming = model::calls()
+            .into_iter()
+            .find(|call| call.incoming && !call.missed)
+            .expect("incoming fixture");
         assert!(call_label(&incoming).starts_with("Incoming"));
-        let outgoing = model::calls().into_iter().find(|call| !call.incoming && !call.missed).expect("outgoing fixture");
+        let outgoing = model::calls()
+            .into_iter()
+            .find(|call| !call.incoming && !call.missed)
+            .expect("outgoing fixture");
         assert!(call_label(&outgoing).starts_with("Outgoing"));
     }
 
@@ -14220,7 +15674,12 @@ mod tests {
 
     #[test]
     fn ai_states_cover_idle_suggested_streaming_and_error() {
-        let states = [AiState::Idle, AiState::Suggested, AiState::Streaming, AiState::Error];
+        let states = [
+            AiState::Idle,
+            AiState::Suggested,
+            AiState::Streaming,
+            AiState::Error,
+        ];
         assert_eq!(states.len(), 4);
     }
 
@@ -14258,8 +15717,14 @@ mod tests {
             sender: Sender::Me,
             sender_name: None,
             body: MessageBody::Rich(vec![
-                crate::model::TextRun { text: "Deck ".into(), style: crate::model::TextRunStyle::Bold },
-                crate::model::TextRun { text: "final".into(), style: crate::model::TextRunStyle::Link },
+                crate::model::TextRun {
+                    text: "Deck ".into(),
+                    style: crate::model::TextRunStyle::Bold,
+                },
+                crate::model::TextRun {
+                    text: "final".into(),
+                    style: crate::model::TextRunStyle::Link,
+                },
             ]),
             time: "09:20".into(),
             delivery: Delivery::Sent,

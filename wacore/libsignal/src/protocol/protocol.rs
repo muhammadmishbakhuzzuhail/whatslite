@@ -658,8 +658,9 @@ impl TryFrom<&[u8]> for SenderKeyDistributionMessage {
             ));
         }
 
-        let proto_structure = wa_rs_proto::whatsapp::SenderKeyDistributionMessage::decode(&value[1..])
-            .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
+        let proto_structure =
+            wa_rs_proto::whatsapp::SenderKeyDistributionMessage::decode(&value[1..])
+                .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
 
         let chain_id = proto_structure
             .id

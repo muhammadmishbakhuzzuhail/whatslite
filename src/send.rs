@@ -1,11 +1,11 @@
 use crate::client::Client;
 use crate::store::signal_adapter::SignalProtocolStoreAdapter;
 use anyhow::anyhow;
+use wa_rs_binary::jid::{DeviceKey, Jid, JidExt as _};
+use wa_rs_binary::node::Node;
 use wa_rs_core::client::context::SendContextResolver;
 use wa_rs_core::libsignal::protocol::SignalProtocolError;
 use wa_rs_core::types::jid::JidExt;
-use wa_rs_binary::jid::{DeviceKey, Jid, JidExt as _};
-use wa_rs_binary::node::Node;
 use wa_rs_proto::whatsapp as wa;
 
 /// Options for sending messages with additional customization.

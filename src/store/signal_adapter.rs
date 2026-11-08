@@ -270,7 +270,10 @@ impl wa_rs_core::libsignal::protocol::SenderKeyStore for SenderKeyAdapter {
         Option<wa_rs_core::libsignal::protocol::SenderKeyRecord>,
     > {
         let mut device = self.0.device.write().await;
-        wa_rs_core::libsignal::protocol::SenderKeyStore::load_sender_key(&mut *device, sender_key_name)
-            .await
+        wa_rs_core::libsignal::protocol::SenderKeyStore::load_sender_key(
+            &mut *device,
+            sender_key_name,
+        )
+        .await
     }
 }

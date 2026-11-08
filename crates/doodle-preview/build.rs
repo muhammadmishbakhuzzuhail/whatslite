@@ -1,7 +1,8 @@
 use std::path::Path;
 
 fn main() {
-    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
+    let out_dir =
+        std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     let source = Path::new("../../reference/design/machine/wallpaper-doodle-source.svg");
     println!("cargo:rerun-if-changed={}", source.display());
     let bytes = std::fs::read(source).expect("wallpaper-doodle-source.svg must exist");

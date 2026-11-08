@@ -779,10 +779,8 @@ fn setup_with_archived_sessions() -> (User, User, Vec<Vec<u8>>) {
 
         // Bob processes Alice's first message to establish his side
         let ct = CiphertextMessage::PreKeySignalMessage(
-            wa_rs_libsignal::protocol::PreKeySignalMessage::try_from(
-                old_ciphertexts[0].as_slice(),
-            )
-            .unwrap(),
+            wa_rs_libsignal::protocol::PreKeySignalMessage::try_from(old_ciphertexts[0].as_slice())
+                .unwrap(),
         );
         message_decrypt(
             &ct,
@@ -1139,10 +1137,8 @@ fn bench_promote_matching_session(data: (User, User, Vec<u8>)) {
         // Process multiple PreKey messages to exercise promote_matching_session
         for _ in 0..5 {
             let ct = CiphertextMessage::PreKeySignalMessage(
-                wa_rs_libsignal::protocol::PreKeySignalMessage::try_from(
-                    prekey_message.as_slice(),
-                )
-                .unwrap(),
+                wa_rs_libsignal::protocol::PreKeySignalMessage::try_from(prekey_message.as_slice())
+                    .unwrap(),
             );
             let result = message_decrypt(
                 &ct,

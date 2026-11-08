@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use gpui_kit::component::theme::{Theme, ThemeMode as GpuiThemeMode};
-use gpui_kit::{px, App, Rgba, rgb};
+use gpui_kit::{App, Rgba, px, rgb};
 use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,7 +17,6 @@ impl ThemeMode {
             Self::Dark => "dark",
         }
     }
-
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -60,7 +59,6 @@ impl Palette {
     pub fn hover(self) -> Rgba {
         self.bg_row_selected
     }
-
 }
 
 fn tokens() -> &'static Value {

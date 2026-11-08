@@ -2,9 +2,9 @@
 
 use crate::client::Client;
 use log::debug;
-use wa_rs_core::StringEnum;
 use wa_rs_binary::builder::NodeBuilder;
 use wa_rs_binary::jid::Jid;
+use wa_rs_core::StringEnum;
 
 /// Chat state type for typing indicators.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, StringEnum)]

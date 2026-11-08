@@ -7,9 +7,9 @@ use crate::client::Client;
 use anyhow::Result;
 use log::debug;
 use std::collections::HashMap;
+use wa_rs_binary::jid::{Jid, JidExt};
 use wa_rs_core::iq::contacts::{ProfilePictureSpec, ProfilePictureType};
 use wa_rs_core::iq::usync::{ContactInfoSpec, IsOnWhatsAppSpec, UserInfoSpec};
-use wa_rs_binary::jid::{Jid, JidExt};
 
 // Re-export types from wa_rs_core
 pub use wa_rs_core::iq::contacts::ProfilePicture;

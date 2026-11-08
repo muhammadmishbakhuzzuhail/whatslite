@@ -1,9 +1,9 @@
 use crate::client::Client;
 use log::{debug, warn};
-use wa_rs_core::StringEnum;
-use wa_rs_core::iq::tctoken::build_tc_token_node;
 use wa_rs_binary::builder::NodeBuilder;
 use wa_rs_binary::jid::Jid;
+use wa_rs_core::StringEnum;
+use wa_rs_core::iq::tctoken::build_tc_token_node;
 
 /// Presence status for online/offline state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, StringEnum)]

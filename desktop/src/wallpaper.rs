@@ -11,9 +11,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use gpui_kit::prelude::*;
-use gpui_kit::{
-    canvas, div, point, px, size, Bounds, Corners, Div, RenderImage, Rgba,
-};
+use gpui_kit::{Bounds, Corners, Div, RenderImage, Rgba, canvas, div, point, px, size};
 
 use crate::theme::wallpaper_style;
 
@@ -111,12 +109,7 @@ pub fn wallpaper(dark: bool) -> Div {
         .opacity(style.opacity)
         .child(
             canvas(
-                move |bounds, window, _cx| {
-                    (
-                        bounds,
-                        texture(window.scale_factor(), style.line),
-                    )
-                },
+                move |bounds, window, _cx| (bounds, texture(window.scale_factor(), style.line)),
                 move |_bounds, (bounds, texture), window, _cx| {
                     let Some(texture) = texture else {
                         return;
@@ -156,7 +149,7 @@ pub fn wallpaper(dark: bool) -> Div {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui_kit::{rgb, DevicePixels};
+    use gpui_kit::{DevicePixels, rgb};
 
     #[test]
     fn picks_the_1x_2x_3x_texture() {

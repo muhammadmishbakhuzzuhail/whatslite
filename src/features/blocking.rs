@@ -6,9 +6,9 @@
 use crate::client::Client;
 use crate::request::IqError;
 use log::debug;
+use wa_rs_binary::jid::Jid;
 pub use wa_rs_core::iq::blocklist::BlocklistEntry;
 use wa_rs_core::iq::blocklist::{GetBlocklistSpec, UpdateBlocklistSpec};
-use wa_rs_binary::jid::Jid;
 
 /// Feature handle for blocklist operations.
 pub struct Blocking<'a> {

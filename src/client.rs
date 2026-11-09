@@ -9,6 +9,7 @@ pub mod interceptor;
 pub mod iq_ops;
 mod lid_pn;
 pub mod lifecycle;
+pub(crate) mod member_index;
 pub mod node_io;
 mod notification_scope;
 #[allow(

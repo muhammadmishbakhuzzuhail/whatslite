@@ -7993,6 +7993,7 @@ dependencies = [
  "async-channel",
  "async-trait",
  "base64",
+ "bon",
  "bytes",
  "chrono",
  "dashmap",

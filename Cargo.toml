@@ -133,6 +133,7 @@ anyhow = { workspace = true }
 async-channel = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
+bon = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true, features = ["clock", "serde"] }
 dashmap = "6.1.0"

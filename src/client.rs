@@ -1,6 +1,9 @@
+pub mod builder;
 mod context_impl;
 mod device_registry;
 mod lid_pn;
+pub mod lifecycle;
+pub mod node_io;
 mod sender_keys;
 mod sessions;
 
@@ -263,6 +266,11 @@ pub struct Client {
 }
 
 impl Client {
+    /// Upstream-style builder while `Client::new` remains the compatibility constructor.
+    pub fn builder() -> crate::client::builder::ClientBuilder {
+        crate::client::builder::ClientBuilder::new()
+    }
+
     /// Enable or disable skipping of history sync notifications at runtime.
     ///
     /// When enabled, the client will acknowledge incoming history sync

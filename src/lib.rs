@@ -12,6 +12,14 @@ pub mod types;
 
 pub mod client;
 pub use client::Client;
+pub use client::builder::{ClientBuild, ClientBuilder, ClientBuilderError, ClientOptions};
+pub use client::lifecycle::{ConnectError, ConnectStage};
+pub use client::node_io::{NodeFilter, NodeWaiter};
+pub use types::connect_admission::ConnectAdmission;
+pub use types::decrypt_failure_admission::DecryptFailureAdmission;
+pub use types::durability_hook::{HistorySyncCaptureHook, InboundDurabilityHook};
+pub use types::history_sync_admission::HistorySyncAdmission;
+pub use types::retry_admission::RetryAdmission;
 pub mod download;
 pub mod handlers;
 pub use handlers::chatstate::ChatStateEvent;

@@ -4,6 +4,7 @@ pub mod business;
 pub mod chatstate;
 pub mod community_create;
 pub mod contacts;
+pub mod contextual;
 pub mod devices;
 pub mod dirty;
 pub mod groups;

@@ -51,6 +51,33 @@ dependencies. The Phase 0 gate only requires the rows marked done above.
 Phase 1 gate automated commands all pass. Live bridge pairing/reconnect smoke
 still requires a WhatsApp account/phone and is not claimed.
 
+## Phase 2
+
+| Row | Status | Evidence / reason |
+|---|---|---|
+| `wacore/tests/parity_messaging.rs`, `parity_secrets.rs` | done | 8 passed |
+| `tests/parity_inbound.rs` | done | 3 passed |
+| `tests/parity_send.rs`, `parity_cache.rs` | done | 6 passed |
+| `tests/parity_media.rs` | done | 3 passed |
+| `tests/parity_reliability.rs`, `parity_pdo.rs`, `parity_history.rs` | done | 7 passed |
+| `wacore/tests/parity_protocol.rs` | done | 2 passed |
+| `tests/parity_transport.rs`, `parity_types.rs` | done | 5 passed |
+| `wacore/tests/noise_handshake_test.rs` | done | 4 passed |
+| `wacore/binary/tests/*` | covered | `cargo test -p wa-rs-binary` green |
+| Upstream message/send/cache/retry/usync/history/keepalive directory splits | deferred | Coupled to the monolithic client, store-release leases and the Phase 1 lifecycle. The self-contained queues/caches/retry surfaces are covered by the parity files. |
+
+## Phase 3
+
+| Row | Status | Evidence / reason |
+|---|---|---|
+| `tests/parity_social_foundations.rs`, `parity_groups.rs`, `parity_chat_actions.rs` | done | 3 passed |
+| `tests/parity_groups_membership.rs`, `parity_group_history.rs`, `label_sublist_public_api.rs`, `label_timestamp_public_api.rs` | done | 4 passed |
+| `tests/parity_community.rs`, `parity_newsletter.rs`, `parity_status_polls_events.rs` | done | 3 passed |
+| `tests/parity_social_misc.rs`, `parity_appstate.rs`, `parity_handlers.rs` | done | 3 passed |
+| `wacore/tests/parity_iq_social.rs`, `abprops_retained.rs`, `props_stream_memory.rs`, `iq_pilots.rs`, `mex_retained.rs` | done | 6 passed |
+| `src/features/{picture_mutation_tests,pictures_metrics_tests,pictures_tests}.rs` | deferred | Deep picture mutation/IQ metrics depend on the deferred picture IQ domain. |
+| Upstream social IQ/handler directory splits | deferred | Feature surfaces exist; deep notification handlers and several IQ domains are deferred. |
+
 ## Phase 4
 
 | Row | Status | Evidence / reason |
@@ -62,3 +89,24 @@ still requires a WhatsApp account/phone and is not claimed.
 | `tests/parity_voip_facade.rs` | done | 1 passed with `--features voip-runtime` |
 | `tests/parity_calls.rs` | done | 1 passed with `--features voip` |
 | upstream `wacore/src/voip/**` engine/session/relay/codec suites | deferred / non-goal for this pass | The full native engine, relay and codec wiring depends on the upstream monolithic client/socket and store-release APIs. The ported primitives and sans-IO engine are covered by the Phase 4 parity files; no upstream test was deleted. |
+
+## Phase 5
+
+| Row | Status | Evidence / reason |
+|---|---|---|
+| `tests/parity_plugins.rs` | done | 7 passed with `--features plugins` |
+| `tests/parity_observability.rs` | done | 5 passed with `--features tracing,metrics` |
+| `tests/parity_matrix.rs` | done | 9 tests; all seven `parity-*` alias runs exit 0 |
+| `tests/shutdown_signal.rs` | done | 1 passed with `--features signal` |
+| `storages/sqlite-storage/tests/parity_storage.rs` | done | 1 passed (bundled profile) |
+| `transports/tokio-transport/tests/parity_tcp.rs` | done | 3 passed with `--features tcp` |
+| `tests/handshake_span_scope.rs` | deferred | Depends on the upstream `wa.conn.handshake` span and `NoiseSocket::SendObservers`, not exposed by the compatibility client. |
+| Upstream storage/transport reader-lifecycle and dialer suites | deferred | Depend on upstream storage/transport internals; bundled profile, device scoping, TCP dial and byte-stream contracts are covered. |
+| `tests/sqlite-sdk-browser/` | non-goal except WASM check | Browser SDK harness is external; the WASM storage check is covered by the `wasm32` check below. |
+
+Final evidence: workspace 1297 passed/0 failed/29 ignored; clippy 190 baseline
+warnings; desktop 21 passed; bridge 3 passed; 7/7 parity alias test runs; 14/14
+feature-matrix checks; WASM storage check green with
+`--no-default-features --features js`. Live bridge pairing/send/receive/media
+smoke remains blocked on a real WhatsApp account/phone.
+

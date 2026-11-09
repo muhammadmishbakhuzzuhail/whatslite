@@ -623,6 +623,13 @@ and keep `target/` bounded.
 - **Iteration commands:** prefer `cargo check -p <crate>` and
   `cargo test -p <crate> --test <name>`. Avoid `--all-targets` and
   `cargo test --workspace` except at phase gates.
+- **Test execution:** run the full suite with
+  `cargo test --workspace -- --test-threads=4`. The default is `nproc` (16
+  here), which multiplies runtime memory across test binaries.
+- **Measured peaks (jobs = 4, debug = 1):** workspace check ~4.4 GB,
+  `cargo test --workspace --no-run` ~5.3 GB, `cargo clippy --workspace
+  --all-targets` ~6.3 GB, release link ~3.9 GB. With a browser/Docker running,
+  use `-j2` for clippy/test builds.
 - **Cleanup:** `target/` should stay below ~50 GB. Reclaim space with:
   `rm -rf target/debug/incremental target/debug/examples`,
   `cargo clean --target wasm32-unknown-unknown`, and `cargo clean -p <heavy-crate>`.

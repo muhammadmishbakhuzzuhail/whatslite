@@ -402,3 +402,6 @@ impl<'a> NewsletterMessageRef<'a> {
             .ok_or(MessageRefError::MissingServerMessageId)
     }
 }
+
+#[cfg(test)]
+mod tests;

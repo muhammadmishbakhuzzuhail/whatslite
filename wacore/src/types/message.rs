@@ -240,7 +240,13 @@ pub struct MsgMetaInfo {
 pub struct MessageInfo {
     pub source: MessageSource,
     pub id: MessageId,
+    /// Legacy range-filtered server id; zero also represents absence. Prefer
+    /// `newsletter_server_id` for lossless newsletter addressing.
     pub server_id: MessageServerId,
+    /// Newsletter envelope `server_id`, retaining every representable number.
+    /// Absence remains absent and zero is a number, not a sentinel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub newsletter_server_id: Option<u64>,
     pub r#type: String,
     pub push_name: String,
     pub timestamp: DateTime<Utc>,

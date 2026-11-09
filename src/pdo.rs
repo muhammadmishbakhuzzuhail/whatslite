@@ -325,6 +325,7 @@ impl Client {
         Ok(MessageInfo {
             id: key.id.clone().unwrap_or_default(),
             server_id: 0,
+            newsletter_server_id: None,
             r#type: String::new(),
             source: MessageSource {
                 chat: remote_jid,

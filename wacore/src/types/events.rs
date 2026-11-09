@@ -1648,13 +1648,13 @@ impl InboundMessage {
         &self,
     ) -> Result<super::message_ref::NewsletterMessageRef<'_>, super::message_ref::MessageRefError>
     {
-        use super::message_ref::{MessageId, NewsletterMessageRef};
+        use super::message_ref::{MessageId, NewsletterMessageRef, ServerMessageId};
         NewsletterMessageRef::new(
             &self.info.source.chat,
             (!self.info.id.is_empty())
                 .then(|| MessageId::new(self.info.id.as_str()))
                 .transpose()?,
-            None,
+            self.info.newsletter_server_id.map(ServerMessageId::new),
         )
     }
 }

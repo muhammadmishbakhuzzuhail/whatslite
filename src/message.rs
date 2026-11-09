@@ -1319,8 +1319,13 @@ impl Client {
 
         let id = attrs.required_string("id")?.to_string();
         // server_id must be in range 99-2147476647 (per WhatsApp Web)
-        let server_id = attrs
-            .optional_u64("server_id")
+        let parsed_server_id = attrs.optional_u64("server_id");
+        let newsletter_server_id = source
+            .chat
+            .is_newsletter()
+            .then_some(parsed_server_id)
+            .flatten();
+        let server_id = parsed_server_id
             .filter(|&v| (99..=2_147_476_647).contains(&v))
             .unwrap_or(0) as i32;
 
@@ -1334,6 +1339,7 @@ impl Client {
             source,
             id,
             server_id,
+            newsletter_server_id,
             push_name: attrs
                 .optional_string("notify")
                 .map(|s| s.to_string())
@@ -1657,6 +1663,38 @@ mod tests {
             info.source.is_group,
             "Broadcast messages should be treated as group-like"
         );
+    }
+
+    #[tokio::test]
+    async fn test_parse_message_info_keeps_lossless_newsletter_server_id() {
+        let backend = Arc::new(
+            SqliteStore::new("file:memdb_newsletter_server_id?mode=memory&cache=shared")
+                .await
+                .expect("Failed to create test backend"),
+        );
+        let pm = Arc::new(
+            PersistenceManager::new(backend)
+                .await
+                .expect("test backend should initialize"),
+        );
+        let (client, _sync_rx) = Client::new(pm, mock_transport(), mock_http_client(), None).await;
+
+        for value in [None, Some(0), Some(42), Some(u64::MAX)] {
+            let mut builder = NodeBuilder::new("message")
+                .attr("from", "120363000000000001@newsletter")
+                .attr("id", "CLIENT_CONTENT")
+                .attr("t", "123");
+            if let Some(value) = value {
+                builder = builder.attr("server_id", value.to_string());
+            }
+            let node = builder.build();
+            let info = client
+                .parse_message_info(&node)
+                .await
+                .expect("parse_message_info should not fail");
+            assert_eq!(info.newsletter_server_id, value);
+            assert!(!info.source.is_from_me);
+        }
     }
 
     #[tokio::test]
@@ -3592,6 +3630,7 @@ mod tests {
         MessageInfo {
             id: msg_id.to_string(),
             server_id: 0,
+            newsletter_server_id: None,
             r#type: "text".to_string(),
             source: MessageSource {
                 chat: chat_jid.clone(),

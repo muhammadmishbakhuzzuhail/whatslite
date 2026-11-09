@@ -47,6 +47,7 @@ pub mod reporting_token;
 pub mod request;
 pub mod secret_enc_addon;
 pub mod send;
+mod serde_helpers;
 pub mod session_engine;
 pub mod shortcake;
 pub mod stanza;

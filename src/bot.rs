@@ -4,7 +4,7 @@ use crate::store::commands::DeviceCommand;
 use crate::store::persistence_manager::PersistenceManager;
 use crate::store::traits::Backend;
 use crate::types::enc_handler::EncHandler;
-use crate::types::events::{Event, EventHandler};
+use crate::types::events::{Event, EventHandler, EventInterest};
 use crate::types::message::MessageInfo;
 use anyhow::Result;
 use log::{info, warn};
@@ -15,6 +15,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task;
 use waproto::whatsapp as wa;
+
+mod event_delivery;
+pub use event_delivery::{CallbackEventHandler, EventDelivery, EventDeliveryStats};
 
 pub struct MessageContext {
     pub message: Box<wa::Message>,
@@ -84,10 +87,10 @@ struct BotEventHandler {
 }
 
 impl EventHandler for BotEventHandler {
-    fn handle_event(&self, event: &Event) {
+    fn handle_event(&self, event: std::sync::Arc<Event>) {
         if let Some(handler) = &self.event_handler {
             let handler_clone = handler.clone();
-            let event_clone = event.clone();
+            let event_clone = (*event).clone();
             let client_clone = self.client.clone();
 
             tokio::spawn(async move {
@@ -168,17 +171,17 @@ impl Bot {
                     .await
                 {
                     warn!(target: "Bot/PairCode", "Timeout waiting for socket: {}", e);
-                    let pair_error = crate::types::events::PairError {
-                        id: wacore_binary::jid::Jid::default(),
-                        lid: wacore_binary::jid::Jid::default(),
-                        business_name: String::new(),
-                        platform: String::new(),
-                        error: format!("Socket timeout: {e}"),
-                    };
+                    let pair_error = crate::types::events::PairError::builder()
+                        .id(wacore_binary::jid::Jid::default())
+                        .lid(wacore_binary::jid::Jid::default())
+                        .business_name(String::new())
+                        .platform(String::new())
+                        .error(format!("Socket timeout: {e}"))
+                        .build();
                     client_for_pair
                         .core
                         .event_bus
-                        .dispatch(&Event::PairError(pair_error));
+                        .dispatch(Event::PairError(pair_error));
                     return;
                 }
 
@@ -196,17 +199,17 @@ impl Bot {
                     Err(e) => {
                         warn!(target: "Bot/PairCode", "Failed to request pair code: {}", e);
                         // Dispatch PairError event so the application can handle it
-                        let pair_error = crate::types::events::PairError {
-                            id: wacore_binary::jid::Jid::default(),
-                            lid: wacore_binary::jid::Jid::default(),
-                            business_name: String::new(),
-                            platform: String::new(),
-                            error: format!("{e}"),
-                        };
+                        let pair_error = crate::types::events::PairError::builder()
+                            .id(wacore_binary::jid::Jid::default())
+                            .lid(wacore_binary::jid::Jid::default())
+                            .business_name(String::new())
+                            .platform(String::new())
+                            .error(format!("{e}"))
+                            .build();
                         client_for_pair
                             .core
                             .event_bus
-                            .dispatch(&Event::PairError(pair_error));
+                            .dispatch(Event::PairError(pair_error));
                     }
                 }
             });

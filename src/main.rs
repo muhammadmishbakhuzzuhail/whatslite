@@ -93,105 +93,117 @@ fn main() {
             .on_event(move |event, client| {
                 async move {
                     match event {
-                        Event::PairingQrCode { code, timeout } => {
+                        Event::PairingQrCode(qr) => {
                             info!("----------------------------------------");
                             info!(
                                 "QR code received (valid for {} seconds):",
-                                timeout.as_secs()
+                                qr.timeout.as_secs()
                             );
-                            info!("\n{}\n", code);
+                            info!("\n{}\n", qr.code);
                             info!("----------------------------------------");
                         }
-                        Event::PairingCode { code, timeout } => {
+                        Event::PairingCode(pair_code) => {
                             info!("========================================");
-                            info!("PAIR CODE (valid for {} seconds):", timeout.as_secs());
+                            info!(
+                                "PAIR CODE (valid for {} seconds):",
+                                pair_code.timeout.as_secs()
+                            );
                             info!("Enter this code on your phone:");
                             info!("WhatsApp > Linked Devices > Link a Device");
                             info!("> Link with phone number instead");
                             info!("");
-                            info!("    >>> {} <<<", code);
+                            info!("    >>> {} <<<", pair_code.code);
                             info!("");
                             info!("========================================");
                         }
 
-                        Event::Message(msg, info) => {
-                            let ctx = MessageContext {
-                                message: msg,
-                                info,
-                                client,
-                            };
-
-                            if let Some(media_ping_request) = get_pingable_media(&ctx.message) {
-                                handle_media_ping(&ctx, media_ping_request).await;
-                            }
-
-                            if let Some(text) = ctx.message.text_content()
-                                && text == PING_TRIGGER
-                            {
-                                info!("Received text ping, sending pong...");
-
-                                let mut message_key = wa::MessageKey::default();
-                                message_key.remote_jid = Some(ctx.info.source.chat.to_string());
-                                message_key.id = Some(ctx.info.id.clone());
-                                message_key.from_me = Some(ctx.info.source.is_from_me);
-                                message_key.participant = if ctx.info.source.is_group {
-                                    Some(ctx.info.source.sender.to_string())
-                                } else {
-                                    None
+                        Event::Messages(batch) => {
+                            for inbound in batch.iter() {
+                                let ctx = MessageContext {
+                                    message: Box::new((*inbound.message).clone()),
+                                    info: (*inbound.info).clone(),
+                                    client: client.clone(),
                                 };
 
-                                let mut reaction_message = wa::message::ReactionMessage::default();
-                                reaction_message.key = message_key.into();
-                                reaction_message.text = Some(REACTION_EMOJI.to_string());
-                                reaction_message.sender_timestamp_ms =
-                                    Some(Utc::now().timestamp_millis());
-
-                                let mut final_message_to_send = wa::Message::default();
-                                final_message_to_send.reaction_message = reaction_message.into();
-
-                                if let Err(e) = ctx.send_message(final_message_to_send).await {
-                                    error!("Failed to send reaction: {}", e);
+                                if let Some(media_ping_request) = get_pingable_media(&ctx.message) {
+                                    handle_media_ping(&ctx, media_ping_request).await;
                                 }
 
-                                let start = std::time::Instant::now();
-
-                                let context_info = ctx.build_quote_context();
-
-                                let mut reply_text = wa::message::ExtendedTextMessage::default();
-                                reply_text.text = Some(PONG_TEXT.to_string());
-                                reply_text.context_info = context_info.clone().into();
-                                let mut reply_message = wa::Message::default();
-                                reply_message.extended_text_message = reply_text.into();
-
-                                let sent_msg_id = match ctx.send_message(reply_message).await {
-                                    Ok(id) => id,
-                                    Err(e) => {
-                                        error!("Failed to send initial pong message: {}", e);
-                                        return;
-                                    }
-                                };
-
-                                let duration = start.elapsed();
-                                let duration_str = format!("{:.2?}", duration);
-
-                                info!(
-                                    "Send took {}. Editing message {}...",
-                                    duration_str, &sent_msg_id
-                                );
-
-                                let mut updated_text = wa::message::ExtendedTextMessage::default();
-                                updated_text.text =
-                                    Some(format!("{}\n`{}`", PONG_TEXT, duration_str));
-                                updated_text.context_info = context_info.into();
-                                let mut updated_content = wa::Message::default();
-                                updated_content.extended_text_message = updated_text.into();
-
-                                if let Err(e) =
-                                    ctx.edit_message(sent_msg_id.clone(), updated_content).await
+                                if let Some(text) = ctx.message.text_content()
+                                    && text == PING_TRIGGER
                                 {
-                                    error!("Failed to edit message {}: {}", sent_msg_id, e);
-                                } else {
-                                    info!("Successfully sent edit for message {}.", sent_msg_id);
+                                    info!("Received text ping, sending pong...");
+
+                                    let mut message_key = wa::MessageKey::default();
+                                    message_key.remote_jid = Some(ctx.info.source.chat.to_string());
+                                    message_key.id = Some(ctx.info.id.clone());
+                                    message_key.from_me = Some(ctx.info.source.is_from_me);
+                                    message_key.participant = if ctx.info.source.is_group {
+                                        Some(ctx.info.source.sender.to_string())
+                                    } else {
+                                        None
+                                    };
+
+                                    let mut reaction_message =
+                                        wa::message::ReactionMessage::default();
+                                    reaction_message.key = message_key.into();
+                                    reaction_message.text = Some(REACTION_EMOJI.to_string());
+                                    reaction_message.sender_timestamp_ms =
+                                        Some(Utc::now().timestamp_millis());
+
+                                    let mut final_message_to_send = wa::Message::default();
+                                    final_message_to_send.reaction_message =
+                                        reaction_message.into();
+
+                                    if let Err(e) = ctx.send_message(final_message_to_send).await {
+                                        error!("Failed to send reaction: {}", e);
+                                    }
+
+                                    let start = std::time::Instant::now();
+
+                                    let context_info = ctx.build_quote_context();
+
+                                    let mut reply_text =
+                                        wa::message::ExtendedTextMessage::default();
+                                    reply_text.text = Some(PONG_TEXT.to_string());
+                                    reply_text.context_info = context_info.clone().into();
+                                    let mut reply_message = wa::Message::default();
+                                    reply_message.extended_text_message = reply_text.into();
+
+                                    let sent_msg_id = match ctx.send_message(reply_message).await {
+                                        Ok(id) => id,
+                                        Err(e) => {
+                                            error!("Failed to send initial pong message: {}", e);
+                                            return;
+                                        }
+                                    };
+
+                                    let duration = start.elapsed();
+                                    let duration_str = format!("{:.2?}", duration);
+
+                                    info!(
+                                        "Send took {}. Editing message {}...",
+                                        duration_str, &sent_msg_id
+                                    );
+
+                                    let mut updated_text =
+                                        wa::message::ExtendedTextMessage::default();
+                                    updated_text.text =
+                                        Some(format!("{}\n`{}`", PONG_TEXT, duration_str));
+                                    updated_text.context_info = context_info.into();
+                                    let mut updated_content = wa::Message::default();
+                                    updated_content.extended_text_message = updated_text.into();
+
+                                    if let Err(e) =
+                                        ctx.edit_message(sent_msg_id.clone(), updated_content).await
+                                    {
+                                        error!("Failed to edit message {}: {}", sent_msg_id, e);
+                                    } else {
+                                        info!(
+                                            "Successfully sent edit for message {}.",
+                                            sent_msg_id
+                                        );
+                                    }
                                 }
                             }
                         }

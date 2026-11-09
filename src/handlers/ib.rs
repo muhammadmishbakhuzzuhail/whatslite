@@ -99,16 +99,17 @@ async fn handle_ib_impl(client: Arc<Client>, node: &Node) {
                     total, messages, notifications, receipts, app_data_changes,
                 );
 
-                client
-                    .core
-                    .event_bus
-                    .dispatch(&Event::OfflineSyncPreview(OfflineSyncPreview {
-                        total,
-                        app_data_changes,
-                        messages,
-                        notifications,
-                        receipts,
-                    }));
+                client.core.event_bus.dispatch(Event::OfflineSyncPreview(
+                    OfflineSyncPreview::builder()
+                        .total(total)
+                        .app_data_changes(app_data_changes)
+                        .messages(messages)
+                        .notifications(notifications)
+                        .receipts(receipts)
+                        .calls(0)
+                        .statuses(0)
+                        .build(),
+                ));
             }
             "offline" => {
                 let mut attrs = child.attrs();
@@ -124,10 +125,9 @@ async fn handle_ib_impl(client: Arc<Client>, node: &Node) {
                 // BEFORE offline messages arrive (see client.rs post-login task).
                 // This ensures PDO can send immediately when decryption fails.
 
-                client
-                    .core
-                    .event_bus
-                    .dispatch(&Event::OfflineSyncCompleted(OfflineSyncCompleted { count }));
+                client.core.event_bus.dispatch(Event::OfflineSyncCompleted(
+                    OfflineSyncCompleted::builder().count(count).build(),
+                ));
             }
             "thread_metadata" => {
                 // Present in some sessions; safe to ignore for now until feature implemented.

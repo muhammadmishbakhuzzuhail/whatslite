@@ -109,7 +109,7 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             client
                 .core
                 .event_bus
-                .dispatch(&Event::Notification(node.clone()));
+                .dispatch(Event::Notification(std::sync::Arc::new(node.clone())));
         }
     }
 }
@@ -157,22 +157,27 @@ async fn handle_devices_notification(client: &Arc<Client>, node: &Node) {
     client.invalidate_device_cache(notification.user()).await;
 
     // Dispatch event to notify application layer
-    let event = Event::DeviceListUpdate(DeviceListUpdate {
-        user: notification.from.clone(),
-        lid_user: notification.lid_user.clone(),
-        update_type: op.operation_type.into(),
-        devices: op
-            .devices
-            .iter()
-            .map(|d| DeviceNotificationInfo {
-                device_id: d.device_id(),
-                key_index: d.key_index,
-            })
-            .collect(),
-        key_index: op.key_index.clone(),
-        contact_hash: op.contact_hash.clone(),
-    });
-    client.core.event_bus.dispatch(&event);
+    let event = Event::DeviceListUpdate(
+        DeviceListUpdate::builder()
+            .user(notification.from.clone())
+            .maybe_lid_user(notification.lid_user.clone())
+            .update_type(op.operation_type.into())
+            .devices(
+                op.devices
+                    .iter()
+                    .map(|d| {
+                        DeviceNotificationInfo::builder()
+                            .device_id(d.device_id())
+                            .maybe_key_index(d.key_index)
+                            .build()
+                    })
+                    .collect(),
+            )
+            .maybe_key_index(op.key_index.clone())
+            .maybe_contact_hash(op.contact_hash.clone())
+            .build(),
+    );
+    client.core.event_bus.dispatch(event);
 }
 
 /// Parsed device info from account_sync notification
@@ -454,17 +459,22 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
         .as_ref()
         .and_then(|vn| vn.name.clone());
 
-    let event = Event::BusinessStatusUpdate(BusinessStatusUpdate {
-        jid: notification.from.clone(),
-        update_type,
-        timestamp: notification.timestamp,
-        target_jid: notification.jid.clone(),
-        hash: notification.hash.clone(),
-        verified_name,
-        product_ids: notification.product_ids.clone(),
-        collection_ids: notification.collection_ids.clone(),
-        subscriptions: notification.subscriptions.clone(),
-    });
+    let event = Event::BusinessStatusUpdate(Box::new(
+        BusinessStatusUpdate::builder()
+            .jid(notification.from.clone())
+            .update_type(update_type)
+            .timestamp(
+                chrono::DateTime::<chrono::Utc>::from_timestamp(notification.timestamp, 0)
+                    .unwrap_or_default(),
+            )
+            .maybe_target_jid(notification.jid.clone())
+            .maybe_hash(notification.hash.clone())
+            .maybe_verified_name(verified_name)
+            .product_ids(notification.product_ids.clone())
+            .collection_ids(notification.collection_ids.clone())
+            .subscriptions(notification.subscriptions.clone())
+            .build(),
+    ));
 
     match notification.notification_type {
         wacore::stanza::business::BusinessNotificationType::RemoveJid
@@ -502,7 +512,7 @@ async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
         _ => {}
     }
 
-    client.core.event_bus.dispatch(&event);
+    client.core.event_bus.dispatch(event);
 }
 
 #[cfg(test)]

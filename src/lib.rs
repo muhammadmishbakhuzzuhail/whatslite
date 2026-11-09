@@ -58,5 +58,5 @@ pub mod version;
 
 pub use spam_report::{SpamFlow, SpamReportRequest, SpamReportResult};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "sqlite-storage"))]
 pub mod test_utils;

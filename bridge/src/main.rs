@@ -342,13 +342,14 @@ async fn main() {
                     }
                 }
                 match event {
-                    Event::PairingQrCode { code, timeout } => {
-                        log::info!("pairing QR available (valid {}s)", timeout.as_secs());
-                        *state.qr.write().await = Some((code, expires_in(timeout)));
+                    Event::PairingQrCode(qr) => {
+                        log::info!("pairing QR available (valid {}s)", qr.timeout.as_secs());
+                        *state.qr.write().await = Some((qr.code, expires_in(qr.timeout)));
                     }
-                    Event::PairingCode { code, timeout } => {
-                        log::info!("pair code available: {code}");
-                        *state.pair_code.write().await = Some((code, expires_in(timeout)));
+                    Event::PairingCode(pair_code) => {
+                        log::info!("pair code available: {}", pair_code.code);
+                        *state.pair_code.write().await =
+                            Some((pair_code.code, expires_in(pair_code.timeout)));
                     }
                     Event::PairSuccess(success) => {
                         log::info!("paired as {} (lid {})", success.id, success.lid);
@@ -390,9 +391,15 @@ async fn main() {
                         *state.connected.write().await = false;
                         *state.jid.write().await = None;
                     }
-                    Event::Message(msg, info) => {
-                        let ctx = MessageContext { message: msg, info, client };
-                        handle_message(&state, ctx).await;
+                    Event::Messages(batch) => {
+                        for inbound in batch.iter() {
+                            let ctx = MessageContext {
+                                message: Box::new((*inbound.message).clone()),
+                                info: (*inbound.info).clone(),
+                                client: client.clone(),
+                            };
+                            handle_message(&state, ctx).await;
+                        }
                     }
                     _ => {}
                 }

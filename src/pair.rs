@@ -84,10 +84,12 @@ pub async fn handle_iq(client: &Arc<Client>, node: &Node) -> bool {
                             };
 
                             // Dispatch the new, simple event for each code
-                            client_clone
-                                .core
-                                .event_bus
-                                .dispatch(&Event::PairingQrCode { code, timeout });
+                            client_clone.core.event_bus.dispatch(Event::PairingQrCode(
+                                crate::types::events::PairingQrCode::builder()
+                                    .code(code)
+                                    .timeout(timeout)
+                                    .build(),
+                            ));
 
                             // Wait for the timeout OR a stop signal
                             tokio::select! {
@@ -105,7 +107,7 @@ pub async fn handle_iq(client: &Arc<Client>, node: &Node) -> bool {
                     *client.pairing_cancellation_tx.lock().await = Some(stop_tx);
 
                     // We no longer dispatch the raw Event::Qr
-                    // client.core.event_bus.dispatch(&Event::Qr(Qr { codes }));
+                    // client.core.event_bus.dispatch(Event::Qr(Qr { codes }));
                     true
                 }
                 "pair-success" => {
@@ -203,13 +205,17 @@ async fn handle_pair_success(client: &Arc<Client>, request_node: &Node, success_
                     error!(
                         "FATAL: Failed to re-decode self-signed identity for event, pairing cannot complete: {e}"
                     );
-                    client.core.event_bus.dispatch(&Event::PairError(PairError {
-                        id: jid.clone(),
-                        lid: lid.clone(),
-                        business_name: business_name.clone(),
-                        platform: platform.clone(),
-                        error: format!("internal error: failed to decode identity for event: {e}"),
-                    }));
+                    client.core.event_bus.dispatch(Event::PairError(
+                        PairError::builder()
+                            .id(jid.clone())
+                            .lid(lid.clone())
+                            .business_name(business_name.clone())
+                            .platform(platform.clone())
+                            .error(format!(
+                                "internal error: failed to decode identity for event: {e}"
+                            ))
+                            .build(),
+                    ));
                     return;
                 }
             };
@@ -294,16 +300,16 @@ async fn handle_pair_success(client: &Arc<Client>, request_node: &Node, success_
 
             info!("Successfully paired {jid}");
 
-            let success_event = PairSuccess {
-                id: jid,
-                lid,
-                business_name,
-                platform,
-            };
+            let success_event = PairSuccess::builder()
+                .id(jid)
+                .lid(lid)
+                .business_name(business_name)
+                .platform(platform)
+                .build();
             client
                 .core
                 .event_bus
-                .dispatch(&Event::PairSuccess(success_event));
+                .dispatch(Event::PairSuccess(success_event));
         }
         Err(e) => {
             error!("Pairing crypto failed: {e}");
@@ -312,17 +318,17 @@ async fn handle_pair_success(client: &Arc<Client>, request_node: &Node, success_
                 error!("Failed to send pair error node: {send_err}");
             }
 
-            let pair_error_event = crate::types::events::PairError {
-                id: jid,
-                lid,
-                business_name,
-                platform,
-                error: e.to_string(),
-            };
+            let pair_error_event = crate::types::events::PairError::builder()
+                .id(jid)
+                .lid(lid)
+                .business_name(business_name)
+                .platform(platform)
+                .error(e.to_string())
+                .build();
             client
                 .core
                 .event_bus
-                .dispatch(&Event::PairError(pair_error_event));
+                .dispatch(Event::PairError(pair_error_event));
         }
     }
 }

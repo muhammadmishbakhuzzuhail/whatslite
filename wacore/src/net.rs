@@ -114,3 +114,15 @@ pub trait HttpClient: Send + Sync {
         ))
     }
 }
+
+/// Why a connection ended, for the `Event::Disconnected` payload.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum DisconnectReason {
+    ServerClose { code: Option<u16>, reason: String },
+    StreamEnded,
+    ReadError(String),
+    PrimaryAppStateInitializationFailed,
+    Unknown,
+}

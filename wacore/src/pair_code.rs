@@ -860,3 +860,55 @@ mod tests {
         assert_eq!(encoded.chars().last().unwrap(), '2');
     }
 }
+
+/// Reason a companion pair-code request was rejected by the server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::WireEnum)]
+#[wire(kind = "int")]
+pub enum PairCodeRejection {
+    #[wire = 400]
+    BadRequest,
+    #[wire = 403]
+    Forbidden,
+    #[wire = 429]
+    RateOverlimit,
+    #[wire = 452]
+    FeatureNotAvailable,
+    #[wire = 500]
+    InternalServerError,
+    #[wire_fallback]
+    Unknown(i32),
+}
+
+impl PairCodeRejection {
+    pub fn is_throttled(self) -> bool {
+        matches!(self, Self::RateOverlimit | Self::BadRequest)
+    }
+
+    pub fn text(self) -> Option<&'static str> {
+        Some(match self {
+            Self::BadRequest => "bad-request",
+            Self::Forbidden => "forbidden",
+            Self::RateOverlimit => "rate-overlimit",
+            Self::FeatureNotAvailable => "feature-not-available",
+            Self::InternalServerError => "internal-server-error",
+            Self::Unknown(_) => return None,
+        })
+    }
+
+    pub fn from_server(code: u16, text: &str) -> Option<Self> {
+        let by_code = Self::from(i32::from(code));
+        match by_code.text() {
+            Some(expected) if !text.is_empty() && text != expected => None,
+            _ => Some(by_code),
+        }
+    }
+}
+
+impl core::fmt::Display for PairCodeRejection {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.text() {
+            Some(text) => write!(f, "{text} ({})", self.code()),
+            None => write!(f, "unknown ({})", self.code()),
+        }
+    }
+}

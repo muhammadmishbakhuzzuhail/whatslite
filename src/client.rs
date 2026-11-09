@@ -495,6 +495,14 @@ impl Client {
         self.core.event_bus.add_handler(handler);
     }
 
+    /// Registers an event handler and returns a removal token.
+    pub fn subscribe_handler(
+        &self,
+        handler: Arc<dyn wacore::types::events::EventHandler>,
+    ) -> wacore::types::events::Subscription {
+        self.core.event_bus.subscribe_handler(handler)
+    }
+
     /// Register a chatstate handler which will be invoked when a `<chatstate>` stanza is received.
     ///
     /// The handler receives a `ChatStateEvent` with the parsed chat state information.
@@ -740,7 +748,11 @@ impl Client {
                             Ok(crate::transport::TransportEvent::Disconnected) | Err(_) => {
                                 self.cleanup_connection_state().await;
                                  if !self.expected_disconnect.load(Ordering::Relaxed) {
-                                    self.core.event_bus.dispatch(&Event::Disconnected(crate::types::events::Disconnected));
+                                    self.core.event_bus.dispatch(Event::Disconnected(
+                                        crate::types::events::Disconnected::builder()
+                                            .reason(wacore::net::DisconnectReason::Unknown)
+                                            .build(),
+                                    ));
                                     debug!("Transport disconnected unexpectedly.");
                                     return Err(anyhow::anyhow!("Transport disconnected unexpectedly"));
                                 } else {
@@ -1308,10 +1320,9 @@ impl Client {
                 }
             });
 
-            client_clone
-                .core
-                .event_bus
-                .dispatch(&Event::Connected(crate::types::events::Connected));
+            client_clone.core.event_bus.dispatch(Event::Connected(
+                crate::types::events::Connected::builder().build(),
+            ));
             client_clone.connected_state.send_replace(true);
 
             check_generation!();
@@ -1675,12 +1686,12 @@ impl Client {
                         self.persistence_manager
                             .process_command(DeviceCommand::SetPushName(new_name.clone()))
                             .await;
-                        bus.dispatch(&Event::SelfPushNameUpdated(
-                            crate::types::events::SelfPushNameUpdated {
-                                from_server: true,
-                                old_name: old.clone(),
-                                new_name: new_name.clone(),
-                            },
+                        bus.dispatch(Event::SelfPushNameUpdated(
+                            crate::types::events::SelfPushNameUpdated::builder()
+                                .from_server(true)
+                                .old_name(old.clone())
+                                .new_name(new_name.clone())
+                                .build(),
                         ));
 
                         // WhatsApp Web sends presence immediately when receiving pushname from
@@ -1699,65 +1710,69 @@ impl Client {
                 if let Some(val) = &m.action_value
                     && let Some(act) = val.mute_action.as_option()
                 {
-                    self.core.event_bus.dispatch(&Event::MuteUpdate(MuteUpdate {
-                        jid,
-                        timestamp: time,
-                        action: Box::new(act.clone()),
-                        from_full_sync: full_sync,
-                    }));
+                    self.core.event_bus.dispatch(Event::MuteUpdate(
+                        MuteUpdate::builder()
+                            .jid(jid)
+                            .timestamp(time)
+                            .action(Box::new(act.clone()))
+                            .from_full_sync(full_sync)
+                            .build(),
+                    ));
                 }
             }
             "pin" | "pin_v1" => {
                 if let Some(val) = &m.action_value
                     && let Some(act) = val.pin_action.as_option()
                 {
-                    self.core.event_bus.dispatch(&Event::PinUpdate(PinUpdate {
-                        jid,
-                        timestamp: time,
-                        action: Box::new(act.clone()),
-                        from_full_sync: full_sync,
-                    }));
+                    self.core.event_bus.dispatch(Event::PinUpdate(
+                        PinUpdate::builder()
+                            .jid(jid)
+                            .timestamp(time)
+                            .action(Box::new(act.clone()))
+                            .from_full_sync(full_sync)
+                            .build(),
+                    ));
                 }
             }
             "archive" => {
                 if let Some(val) = &m.action_value
                     && let Some(act) = val.archive_chat_action.as_option()
                 {
-                    self.core
-                        .event_bus
-                        .dispatch(&Event::ArchiveUpdate(ArchiveUpdate {
-                            jid,
-                            timestamp: time,
-                            action: Box::new(act.clone()),
-                            from_full_sync: full_sync,
-                        }));
+                    self.core.event_bus.dispatch(Event::ArchiveUpdate(
+                        ArchiveUpdate::builder()
+                            .jid(jid)
+                            .timestamp(time)
+                            .action(Box::new(act.clone()))
+                            .from_full_sync(full_sync)
+                            .build(),
+                    ));
                 }
             }
             "contact" => {
                 if let Some(val) = &m.action_value
                     && let Some(act) = val.contact_action.as_option()
                 {
-                    self.core
-                        .event_bus
-                        .dispatch(&Event::ContactUpdate(ContactUpdate {
-                            jid,
-                            timestamp: time,
-                            action: Box::new(act.clone()),
-                            from_full_sync: full_sync,
-                        }));
+                    self.core.event_bus.dispatch(Event::ContactUpdate(
+                        ContactUpdate::builder()
+                            .jid(jid)
+                            .timestamp(time)
+                            .action(Box::new(act.clone()))
+                            .from_full_sync(full_sync)
+                            .build(),
+                    ));
                 }
             }
             "mark_chat_as_read" | "markChatAsRead" => {
                 if let Some(val) = &m.action_value
                     && let Some(act) = val.mark_chat_as_read_action.as_option()
                 {
-                    self.core.event_bus.dispatch(&Event::MarkChatAsReadUpdate(
-                        MarkChatAsReadUpdate {
-                            jid,
-                            timestamp: time,
-                            action: Box::new(act.clone()),
-                            from_full_sync: full_sync,
-                        },
+                    self.core.event_bus.dispatch(Event::MarkChatAsReadUpdate(
+                        MarkChatAsReadUpdate::builder()
+                            .jid(jid)
+                            .timestamp(time)
+                            .action(Box::new(act.clone()))
+                            .from_full_sync(full_sync)
+                            .build(),
                     ));
                 }
             }
@@ -1788,14 +1803,16 @@ impl Client {
             self.enable_auto_reconnect.store(false, Ordering::Relaxed);
 
             let event = if conflict_type == "replaced" {
-                Event::StreamReplaced(crate::types::events::StreamReplaced)
+                Event::StreamReplaced(crate::types::events::StreamReplaced::builder().build())
             } else {
-                Event::LoggedOut(crate::types::events::LoggedOut {
-                    on_connect: false,
-                    reason: ConnectFailureReason::LoggedOut,
-                })
+                Event::LoggedOut(Box::new(
+                    crate::types::events::LoggedOut::builder()
+                        .on_connect(false)
+                        .reason(ConnectFailureReason::LoggedOut)
+                        .build(),
+                ))
             };
-            self.core.event_bus.dispatch(&event);
+            self.core.event_bus.dispatch(event);
 
             let transport_opt = self.transport.lock().await.clone();
             if let Some(transport) = transport_opt {
@@ -1827,12 +1844,12 @@ impl Client {
                     info!("Got 516 stream error (device removed). Logging out.");
                     self.expect_disconnect().await;
                     self.enable_auto_reconnect.store(false, Ordering::Relaxed);
-                    self.core.event_bus.dispatch(&Event::LoggedOut(
-                        crate::types::events::LoggedOut {
-                            on_connect: false,
-                            reason: ConnectFailureReason::LoggedOut,
-                        },
-                    ));
+                    self.core.event_bus.dispatch(Event::LoggedOut(Box::new(
+                        crate::types::events::LoggedOut::builder()
+                            .on_connect(false)
+                            .reason(ConnectFailureReason::LoggedOut)
+                            .build(),
+                    )));
 
                     let transport_opt = self.transport.lock().await.clone();
                     if let Some(transport) = transport_opt {
@@ -1848,11 +1865,11 @@ impl Client {
                 _ => {
                     error!("Unknown stream error: {}", DisplayableNode(node));
                     self.expect_disconnect().await;
-                    self.core.event_bus.dispatch(&Event::StreamError(
-                        crate::types::events::StreamError {
-                            code: code.to_string(),
-                            raw: Some(node.clone()),
-                        },
+                    self.core.event_bus.dispatch(Event::StreamError(
+                        crate::types::events::StreamError::builder()
+                            .code(code.to_string())
+                            .maybe_raw(Some(node.clone()))
+                            .build(),
                     ));
                 }
             }
@@ -1880,37 +1897,39 @@ impl Client {
             info!("Got {reason:?} connect failure, logging out.");
             self.core
                 .event_bus
-                .dispatch(&wacore::types::events::Event::LoggedOut(
-                    crate::types::events::LoggedOut {
-                        on_connect: true,
-                        reason,
-                    },
-                ));
+                .dispatch(wacore::types::events::Event::LoggedOut(Box::new(
+                    crate::types::events::LoggedOut::builder()
+                        .on_connect(true)
+                        .reason(reason)
+                        .build(),
+                )));
         } else if let ConnectFailureReason::TempBanned = reason {
             let ban_code = attrs.optional_u64("code").unwrap_or(0) as i32;
             let expire_secs = attrs.optional_u64("expire").unwrap_or(0);
             let expire_duration =
                 chrono::Duration::try_seconds(expire_secs as i64).unwrap_or_default();
             warn!("Temporary ban connect failure: {}", DisplayableNode(node));
-            self.core.event_bus.dispatch(&Event::TemporaryBan(
-                crate::types::events::TemporaryBan {
-                    code: crate::types::events::TempBanReason::from(ban_code),
-                    expire: expire_duration,
-                },
-            ));
+            self.core.event_bus.dispatch(Event::TemporaryBan(Box::new(
+                crate::types::events::TemporaryBan::builder()
+                    .code(crate::types::events::TempBanReason::from(ban_code))
+                    .expire(expire_duration)
+                    .build(),
+            )));
         } else if let ConnectFailureReason::ClientOutdated = reason {
             error!("Client is outdated and was rejected by server.");
-            self.core
-                .event_bus
-                .dispatch(&Event::ClientOutdated(crate::types::events::ClientOutdated));
+            self.core.event_bus.dispatch(Event::ClientOutdated(
+                crate::types::events::ClientOutdated::builder()
+                    .maybe_raw(Some(node.clone()))
+                    .build(),
+            ));
         } else {
             warn!("Unknown connect failure: {}", DisplayableNode(node));
-            self.core.event_bus.dispatch(&Event::ConnectFailure(
-                crate::types::events::ConnectFailure {
-                    reason,
-                    message: attrs.optional_string("message").unwrap_or("").to_string(),
-                    raw: Some(node.clone()),
-                },
+            self.core.event_bus.dispatch(Event::ConnectFailure(
+                crate::types::events::ConnectFailure::builder()
+                    .reason(reason)
+                    .maybe_message(attrs.optional_string("message").map(str::to_string))
+                    .maybe_raw(Some(node.clone()))
+                    .build(),
             ));
         }
     }
@@ -2160,12 +2179,12 @@ impl Client {
             .process_command(DeviceCommand::SetPushName(new_name.clone()))
             .await;
 
-        self.core.event_bus.dispatch(&Event::SelfPushNameUpdated(
-            crate::types::events::SelfPushNameUpdated {
-                from_server: true,
-                old_name,
-                new_name: new_name.clone(),
-            },
+        self.core.event_bus.dispatch(Event::SelfPushNameUpdated(
+            crate::types::events::SelfPushNameUpdated::builder()
+                .from_server(true)
+                .old_name(old_name)
+                .new_name(new_name.clone())
+                .build(),
         ));
 
         let client_clone = self.clone();

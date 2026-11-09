@@ -7,7 +7,7 @@ pub use wa_rs_tokio_transport::{TokioWebSocketTransport, TokioWebSocketTransport
 #[cfg(feature = "ureq-client")]
 pub use wa_rs_ureq_http::UreqHttpClient;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "sqlite-storage"))]
 pub mod mock {
     use super::*;
     use async_trait::async_trait;

@@ -30,6 +30,7 @@ async-channel = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 buffa = { workspace = true }
+bon = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true, features = ["now", "serde"] }
 ctr = { workspace = true }
@@ -51,6 +52,7 @@ rand_core = { workspace = true }
 serde = { workspace = true }
 serde-big-array = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
+smallvec = { workspace = true, features = ["union"] }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { version = "0.1", default-features = false, features = ["attributes"], optional = true }
@@ -65,6 +67,7 @@ waproto = { workspace = true, features = ["serde-deserialize"] }
 
 [dev-dependencies]
 iai-callgrind = { workspace = true }
+ciborium = "0.2.2"
 futures = { workspace = true, features = ["std", "executor"] }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
 

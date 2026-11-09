@@ -128,7 +128,23 @@ impl Client {
                 // Wrap Bytes in LazyConversation using from_bytes (true zero-copy)
                 // Parsing only happens if the event handler calls .conversation() or .get()
                 let lazy_conv = LazyConversation::from_bytes(raw_bytes);
-                self.core.event_bus.dispatch(&Event::JoinedGroup(lazy_conv));
+                if let Some(conv) = lazy_conv.conversation()
+                    && let Ok(group_jid) = conv.id.parse()
+                {
+                    let update = wacore::types::events::GroupUpdate::builder()
+                        .group_jid(group_jid)
+                        .timestamp(chrono::Utc::now())
+                        .is_lid_addressing_mode(false)
+                        .action(Box::new(
+                            wacore::stanza::groups::GroupNotificationAction::Other(
+                                "joined_group".to_string(),
+                            ),
+                        ))
+                        .build();
+                    self.core
+                        .event_bus
+                        .dispatch(Event::GroupUpdate(Box::new(update)));
+                }
             }
 
             // Wait for parsing to complete

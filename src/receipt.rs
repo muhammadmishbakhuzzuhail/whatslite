@@ -38,17 +38,17 @@ impl Client {
             from.clone()
         };
 
-        let receipt = Receipt {
-            message_ids: vec![id.clone()],
-            source: crate::types::message::MessageSource {
+        let receipt = Receipt::builder()
+            .message_ids(vec![id.clone()])
+            .source(crate::types::message::MessageSource {
                 chat: from.clone(),
                 sender: sender.clone(),
                 ..Default::default()
-            },
-            timestamp: chrono::Utc::now(),
-            r#type: receipt_type.clone(),
-            message_sender: sender.clone(),
-        };
+            })
+            .timestamp(chrono::Utc::now())
+            .r#type(receipt_type.clone())
+            .offline(false)
+            .build();
 
         if receipt_type == ReceiptType::Retry {
             let client_clone = Arc::clone(self);
@@ -67,7 +67,9 @@ impl Client {
                 }
             });
         } else {
-            self.core.event_bus.dispatch(&Event::Receipt(receipt));
+            self.core
+                .event_bus
+                .dispatch(Event::Receipt(Box::new(receipt)));
         }
     }
 

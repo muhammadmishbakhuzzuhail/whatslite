@@ -97,3 +97,23 @@ mod tests {
         );
     }
 }
+
+/// Global online/offline availability (upstream-compatible event payload).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum PresenceStatus {
+    Available,
+    Unavailable,
+}
+
+/// Activity within one chat, independently of global availability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum ChatActivity {
+    Typing,
+    RecordingAudio,
+    #[default]
+    Idle,
+}

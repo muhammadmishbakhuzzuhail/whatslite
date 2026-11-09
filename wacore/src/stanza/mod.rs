@@ -4,6 +4,7 @@
 
 pub mod business;
 pub mod devices;
+pub mod groups;
 pub mod message;
 
 pub use business::*;

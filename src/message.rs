@@ -76,7 +76,7 @@ impl Client {
         // Dispatch to event bus
         self.core
             .event_bus
-            .dispatch(&Event::Message(Box::new(msg), info.clone()));
+            .dispatch(Event::message(Box::new(msg), info.clone()));
     }
 
     /// Handles a newsletter plaintext message.
@@ -122,13 +122,13 @@ impl Client {
         info: &MessageInfo,
         decrypt_fail_mode: crate::types::events::DecryptFailMode,
     ) {
-        self.core.event_bus.dispatch(&Event::UndecryptableMessage(
-            crate::types::events::UndecryptableMessage {
-                info: info.clone(),
-                is_unavailable: false,
-                unavailable_type: crate::types::events::UnavailableType::Unknown,
-                decrypt_fail_mode,
-            },
+        self.core.event_bus.dispatch(Event::UndecryptableMessage(
+            crate::types::events::UndecryptableMessage::builder()
+                .info(std::sync::Arc::new(info.clone()))
+                .is_unavailable(false)
+                .unavailable_type(crate::types::events::UnavailableType::Unknown)
+                .decrypt_fail_mode(decrypt_fail_mode)
+                .build(),
         ));
     }
 

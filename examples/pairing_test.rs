@@ -143,8 +143,8 @@ async fn main() {
             let db_path_for_banner = db_path_for_banner.clone();
             async move {
                 match event {
-                    Event::PairingQrCode { code, timeout } => {
-                        print_qr(&code, timeout.as_secs());
+                    Event::PairingQrCode(qr) => {
+                        print_qr(&qr.code, qr.timeout.as_secs());
                     }
                     Event::Connected(_) => {
                         println!();
@@ -154,8 +154,10 @@ async fn main() {
                         println!("   Re-run without --fresh to test the IK reconnect path.");
                         println!();
                     }
-                    Event::Message(msg, info) => {
-                        print_inbound(&msg, &info);
+                    Event::Messages(batch) => {
+                        for inbound in batch.iter() {
+                            print_inbound(&inbound.message, &inbound.info);
+                        }
                     }
                     Event::PairError(e) => {
                         println!("❌ PAIR ERROR: {} — {}", e.error, e.platform);

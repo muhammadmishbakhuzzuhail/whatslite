@@ -8,7 +8,8 @@ use wacore_binary::node::{Node, NodeContent};
 pub const DIRTY_NAMESPACE: &str = "urn:xmpp:whatsapp:dirty";
 
 /// Known dirty bit types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DirtyType {
     AccountSync,
     Groups,

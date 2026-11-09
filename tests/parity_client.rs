@@ -271,3 +271,29 @@ async fn skip_history_sync_toggle_round_trips() {
     client.set_skip_history_sync(false);
     assert!(!client.skip_history_sync_enabled());
 }
+
+/// The stanza interceptor lives under `client::interceptor` because the root
+/// `Interception` name belongs to the plugin IQ-reply type.
+#[test]
+fn stanza_interceptor_surface_is_reachable_without_shadowing_the_plugin_type() {
+    use wa_rs::client::interceptor::Interception;
+    use wa_rs::{InterceptorHandle, StanzaInterceptor as RootStanzaInterceptor};
+    use wacore_binary::node::Node;
+
+    fn takes(_: impl RootStanzaInterceptor) {}
+
+    takes(|node: &Node| {
+        if node.tag == "vendor:thing" {
+            Interception::Handled
+        } else {
+            Interception::Pass
+        }
+    });
+
+    // The handle is what keeps a registration alive; it is only handed out by
+    // the client once registration is wired to it.
+    let _handle_slot: fn(Option<InterceptorHandle>) = |_handle| {};
+
+    assert_eq!(Interception::default(), Interception::Pass);
+    assert!(Interception::Handled.is_handled());
+}

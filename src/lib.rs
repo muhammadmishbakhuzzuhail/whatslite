@@ -28,6 +28,7 @@ pub use client::device_memo_stats::{
 };
 #[cfg(feature = "client-lifecycle")]
 pub use client::extension_lifecycle::{ClientLifecycle, ConnectionScope, ConnectionScopeState};
+pub use client::interceptor::{InterceptorHandle, StanzaInterceptor};
 pub use client::lifecycle::{ConnectError, ConnectStage};
 pub use client::node_io::{NodeFilter, NodeWaiter};
 #[cfg(feature = "tracing")]

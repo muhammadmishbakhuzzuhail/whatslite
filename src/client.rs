@@ -5,12 +5,20 @@ pub mod device_memo_stats;
 mod device_registry;
 #[cfg(feature = "client-lifecycle")]
 pub mod extension_lifecycle;
+pub mod interceptor;
 pub mod iq_ops;
 mod lid_pn;
 pub mod lifecycle;
 pub mod node_io;
+mod notification_scope;
+#[allow(
+    unused_imports,
+    reason = "the notification dispatcher names this once it is wired"
+)]
+pub(crate) use notification_scope::NotificationScope;
 mod sender_keys;
 mod sessions;
+pub(crate) mod subsystem;
 
 use crate::handshake;
 use crate::lid_pn_cache::LidPnCache;

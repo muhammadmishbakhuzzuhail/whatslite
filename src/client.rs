@@ -4,6 +4,7 @@ pub mod device_memo_stats;
 mod device_registry;
 #[cfg(feature = "client-lifecycle")]
 pub mod extension_lifecycle;
+pub mod iq_ops;
 mod lid_pn;
 pub mod lifecycle;
 pub mod node_io;
@@ -1045,11 +1046,6 @@ impl Client {
         warn!("TODO: Implement handler for <{tag}>");
     }
 
-    pub async fn set_passive(&self, passive: bool) -> Result<(), crate::request::IqError> {
-        use wacore::iq::passive::PassiveModeSpec;
-        self.execute(PassiveModeSpec::new(passive)).await
-    }
-
     pub async fn clean_dirty_bits(
         &self,
         type_: &str,
@@ -1059,70 +1055,6 @@ impl Client {
 
         let spec = CleanDirtyBitsSpec::single(type_, timestamp)?;
         self.execute(spec).await
-    }
-
-    pub async fn fetch_props(&self) -> Result<(), crate::request::IqError> {
-        use wacore::iq::props::PropsSpec;
-        use wacore::store::commands::DeviceCommand;
-
-        let stored_hash = self
-            .persistence_manager
-            .get_device_snapshot()
-            .await
-            .props_hash
-            .clone();
-
-        let spec = match &stored_hash {
-            Some(hash) => {
-                debug!("Fetching props with hash for delta update...");
-                PropsSpec::with_hash(hash)
-            }
-            None => {
-                debug!("Fetching props (full, no stored hash)...");
-                PropsSpec::new()
-            }
-        };
-
-        let response = self.execute(spec).await?;
-
-        if response.delta_update {
-            debug!(
-                "Props delta update received ({} changed props)",
-                response.props.len()
-            );
-        } else {
-            debug!(
-                "Props full update received ({} props, hash={:?})",
-                response.props.len(),
-                response.hash
-            );
-        }
-
-        if let Some(new_hash) = response.hash {
-            self.persistence_manager
-                .process_command(DeviceCommand::SetPropsHash(Some(new_hash)))
-                .await;
-        }
-
-        Ok(())
-    }
-
-    pub async fn fetch_privacy_settings(
-        &self,
-    ) -> Result<wacore::iq::privacy::PrivacySettingsResponse, crate::request::IqError> {
-        use wacore::iq::privacy::PrivacySettingsSpec;
-
-        debug!("Fetching privacy settings...");
-
-        self.execute(PrivacySettingsSpec::new()).await
-    }
-
-    pub async fn send_digest_key_bundle(&self) -> Result<(), crate::request::IqError> {
-        use wacore::iq::prekeys::DigestKeyBundleSpec;
-
-        debug!("Sending digest key bundle...");
-
-        self.execute(DigestKeyBundleSpec::new()).await.map(|_| ())
     }
 
     pub(crate) async fn handle_success(self: &Arc<Self>, node: &wacore_binary::node::Node) {

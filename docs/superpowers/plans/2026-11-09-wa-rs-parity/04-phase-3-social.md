@@ -394,18 +394,18 @@ cargo check -p wa-rs-bridge
 
 ### Phase 3 Gate
 
-- [ ] `cargo test -p wa-rs --test parity_social_foundations --test parity_groups --test parity_chat_actions`
-- [ ] `cargo test -p wa-rs --test parity_groups_membership --test parity_group_history --test label_sublist_public_api --test label_timestamp_public_api`
-- [ ] `cargo test -p wa-rs --test parity_community --test parity_newsletter --test parity_status_polls_events`
-- [ ] `cargo test -p wa-rs --test parity_social_misc --test parity_appstate --test parity_handlers`
-- [ ] `cargo test -p wa-rs-core --test parity_iq_social --test abprops_retained --test props_stream_memory --test iq_pilots --test mex_retained`
-- [ ] `cargo test -p wa-rs`
-- [ ] `cargo test -p wa-rs-core`
-- [ ] `cargo check -p wa-rs --features parity-social`
-- [ ] `cargo test -p wa-rs-bridge`
-- [ ] `cargo test -p whatslite-desktop`
-- [ ] `cargo build -p whatslite-desktop`
-- [ ] Event surface test: 80 `EventKind` and 80 `Event` variants
+- [x] `cargo test -p wa-rs --test parity_social_foundations --test parity_groups --test parity_chat_actions`
+- [x] `cargo test -p wa-rs --test parity_groups_membership --test parity_group_history --test label_sublist_public_api --test label_timestamp_public_api`
+- [x] `cargo test -p wa-rs --test parity_community --test parity_newsletter --test parity_status_polls_events`
+- [x] `cargo test -p wa-rs --test parity_social_misc --test parity_appstate --test parity_handlers`
+- [x] `cargo test -p wa-rs-core --test parity_iq_social --test abprops_retained --test props_stream_memory --test iq_pilots --test mex_retained`
+- [x] `cargo test -p wa-rs`
+- [x] `cargo test -p wa-rs-core`
+- [x] `cargo check -p wa-rs --features parity-social`
+- [x] `cargo test -p wa-rs-bridge`
+- [x] `cargo test -p whatslite-desktop`
+- [x] `cargo build -p whatslite-desktop`
+- [x] Event surface test: 80 `EventKind` and 80 `Event` variants (covered by `parity_events` and `parity_handlers`).
 
 ---
 

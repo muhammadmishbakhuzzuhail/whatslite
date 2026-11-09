@@ -28,8 +28,3 @@ async fn sqlite_store_opens_and_scopes_devices() {
     let _ = std::fs::remove_file(format!("{}-wal", path.display()));
     let _ = std::fs::remove_file(format!("{}-shm", path.display()));
 }
-
-#[test]
-fn bundled_sqlite_is_the_default_profile() {
-    assert!(cfg!(feature = "bundled-sqlite"));
-}

@@ -1,3 +1,4 @@
+pub mod accessors;
 pub mod builder;
 mod context_impl;
 pub mod device_memo_stats;
@@ -273,19 +274,6 @@ impl Client {
     /// Upstream-style builder while `Client::new` remains the compatibility constructor.
     pub fn builder() -> crate::client::builder::ClientBuilder {
         crate::client::builder::ClientBuilder::new()
-    }
-
-    /// Enable or disable skipping of history sync notifications at runtime.
-    ///
-    /// When enabled, the client will acknowledge incoming history sync
-    /// notifications but will not download or process the data.
-    pub fn set_skip_history_sync(&self, enabled: bool) {
-        self.skip_history_sync.store(enabled, Ordering::Relaxed);
-    }
-
-    /// Returns `true` if history sync notifications are currently being skipped.
-    pub fn skip_history_sync_enabled(&self) -> bool {
-        self.skip_history_sync.load(Ordering::Relaxed)
     }
 
     pub async fn new(

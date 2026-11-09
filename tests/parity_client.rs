@@ -196,3 +196,78 @@ fn client_iq_operations_are_exposed() {
     assert!(PrivacyCategory::Last.supports_disallowed_list());
     assert_eq!(update.users.len(), 0);
 }
+
+// ---------------------------------------------------------------------------
+// Config accessors: pure local state, no network involved.
+// ---------------------------------------------------------------------------
+
+/// Custom payload handler used to prove `has_enc_handler` reports the types the
+/// client actually holds.
+struct ParityEncHandler;
+
+#[async_trait::async_trait]
+impl wa_rs::types::enc_handler::EncHandler for ParityEncHandler {
+    async fn handle(
+        &self,
+        _client: Arc<Client>,
+        _enc_node: &wacore_binary::node::Node,
+        _info: &wa_rs::types::message::MessageInfo,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+async fn config_client(http: Arc<dyn wa_rs::http::HttpClient>) -> Arc<Client> {
+    let persistence = persistence().await;
+    let build = Client::builder()
+        .with_persistence_manager(persistence)
+        .with_transport_factory(MockTransportFactory::new())
+        .with_http_client_arc(http)
+        .with_version_override((2, 3000, 1))
+        .build()
+        .await
+        .expect("builder");
+    build.into_parts().0
+}
+
+#[tokio::test]
+async fn http_client_accessor_returns_the_injected_service() {
+    let injected: Arc<dyn wa_rs::http::HttpClient> = Arc::new(MockHttpClient);
+    let client = config_client(injected.clone()).await;
+
+    assert!(Arc::ptr_eq(client.http_client(), &injected));
+}
+
+#[tokio::test]
+async fn auto_reconnect_toggle_round_trips() {
+    let client = config_client(Arc::new(MockHttpClient)).await;
+
+    assert!(client.auto_reconnect_enabled(), "enabled by default");
+    client.set_auto_reconnect(false);
+    assert!(!client.auto_reconnect_enabled());
+    client.set_auto_reconnect(true);
+    assert!(client.auto_reconnect_enabled());
+}
+
+#[tokio::test]
+async fn enc_handler_detection_tracks_registered_payload_types() {
+    let client = config_client(Arc::new(MockHttpClient)).await;
+
+    assert!(!client.has_enc_handler("frskmsg"));
+    client
+        .custom_enc_handlers
+        .insert("frskmsg".to_string(), Arc::new(ParityEncHandler));
+    assert!(client.has_enc_handler("frskmsg"));
+    assert!(!client.has_enc_handler("other"));
+}
+
+#[tokio::test]
+async fn skip_history_sync_toggle_round_trips() {
+    let client = config_client(Arc::new(MockHttpClient)).await;
+
+    assert!(!client.skip_history_sync_enabled(), "processed by default");
+    client.set_skip_history_sync(true);
+    assert!(client.skip_history_sync_enabled());
+    client.set_skip_history_sync(false);
+    assert!(!client.skip_history_sync_enabled());
+}

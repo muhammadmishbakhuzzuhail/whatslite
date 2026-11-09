@@ -94,6 +94,10 @@ pub mod receipt;
 pub mod retry;
 pub mod unified_session;
 
+/// Declared syncd action names for log gating (generated, no `Schema` records).
+/// Consumed by the AppState log gate; until that lands the matcher is unused.
+#[allow(dead_code)]
+pub(crate) mod appstate_known_verbs;
 pub mod appstate_sync;
 pub mod flush_scope;
 pub mod history_sync;

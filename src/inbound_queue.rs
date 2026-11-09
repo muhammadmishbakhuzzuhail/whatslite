@@ -4,6 +4,11 @@
 
 use std::collections::{HashMap, VecDeque};
 
+/// Items one chat lane may hold, mirroring WA Web's per-chat budget. Two pulled
+/// offline batches (2 × 200) must fit one lane, which
+/// `client::offline_resume` asserts at compile time.
+pub(crate) const CHAT_QUEUE_ITEMS: usize = 512;
+
 /// One queued inbound item, tagged with its chat lane.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueuedInbound<T> {

@@ -4,6 +4,7 @@ mod context_impl;
 pub mod device_memo_stats;
 mod device_registry;
 pub(crate) mod device_topology;
+pub(crate) mod durability_probe_id;
 #[cfg(feature = "client-lifecycle")]
 pub mod extension_lifecycle;
 pub mod interceptor;
@@ -18,6 +19,7 @@ mod notification_scope;
     reason = "the notification dispatcher names this once it is wired"
 )]
 pub(crate) use notification_scope::NotificationScope;
+pub(crate) mod offline_resume;
 mod sender_keys;
 mod sessions;
 pub(crate) mod subsystem;

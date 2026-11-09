@@ -3,7 +3,7 @@ pub mod builder;
 mod context_impl;
 pub mod device_memo_stats;
 mod device_registry;
-mod device_topology;
+pub(crate) mod device_topology;
 #[cfg(feature = "client-lifecycle")]
 pub mod extension_lifecycle;
 pub mod interceptor;

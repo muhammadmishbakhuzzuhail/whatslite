@@ -562,6 +562,39 @@ cargo check -p wa-rs-sqlite-storage --target wasm32-unknown-unknown --no-default
 
 ---
 
+## Execution Progress (2026-11-10)
+
+Completed sub-tasks (reviewed, committed):
+
+| Sub-task | Commit(s) | Result |
+|---|---|---|
+| G1 serde/message refs/context info | `5322027` | Approved; 2+4+7 tests |
+| G2a client IQ ops | `ca3a05a` | Approved; 10+10+2 tests |
+| G2b config accessors | `557ef39`, `ea2f80a` | Approved after 1 fix; 11 tests |
+| G2e-1 subsystem/interceptor/notification scope | `255c69e` | Approved; 74+12 tests |
+| G2e-2a member index | `14d8df9` | Approved; 12 tests |
+| G2e-3 device topology | `bf0d3d7`, `7c346fc` | Approved after 1 fix; 9 tests |
+| G2d-1 offline batch coordinator | `f4bb493` | Approved; 21 tests |
+| G8a join_shapes/community_create/profile/devices | `32295b2` | Approved; 9 tests |
+| G8b targets/pilots | `91ad36b` | Approved; 6 tests |
+| G8c poll primitives | `3578471` | Approved; 19 tests |
+| G8d newsletter IQ | `5599459` | Approved; 9 tests |
+| G8e bot directory IQ | `2d04338` | Approved; 16 tests |
+| G8f business profile IQ | `17b6afe` | Approved; 23 tests |
+| G8g contextual IQ catalog | `4f98807` | Approved; 8 tests |
+| G9a appstate known verbs | `6ecd2b8` | Approved; 4 tests |
+
+Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
+
+| Sub-task | Blocker |
+|---|---|
+| G2c adapters | `signal_cache`, `message_semaphore_generation`, `session_lock_for`, `flush_signal_cache` absent |
+| G2e-2b group_notifications | `wacore::stanza::groups` normalized parser absent |
+| G2d-2 session_state | needs `Client` session-state field/wiring |
+| G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
+
+Remaining workstreams: G3–G7, G9b–G16. This is a multi-session effort; the plan is still authoritative.
+
 ## Execution Order
 
 G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G9 → G10 → G11 → G12 → G13 → G14 → G15 → G16.

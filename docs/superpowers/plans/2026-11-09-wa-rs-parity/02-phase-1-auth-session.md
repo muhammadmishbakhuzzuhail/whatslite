@@ -178,19 +178,19 @@ cargo check -p wa-rs --features mobile-core
 
 ### Phase 1 Gate
 
-- [ ] `cargo test -p wa-rs-core --test parity_session --test parity_sync --test parity_adv --test parity_identity`
-- [ ] `cargo test -p wa-rs --test parity_pair_code --test parity_client --test parity_admission`
-- [ ] `cargo test -p wa-rs --features passkey --test parity_passkey`
-- [ ] `cargo test -p wa-rs --features mobile-core --test parity_mobile`
-- [ ] `cargo test -p wa-rs`
-- [ ] `cargo test -p wa-rs --features passkey`
-- [ ] `cargo test -p wa-rs --features mobile-core`
-- [ ] `cargo check -p wa-rs --features parity-core`
-- [ ] `cargo check -p wa-rs --features parity-mobile`
-- [ ] `cargo test -p wa-rs-bridge`
-- [ ] `cargo test -p whatslite-desktop`
-- [ ] `cargo build -p whatslite-desktop`
-- [ ] Bridge pairing and reconnect smoke test
+- [x] `cargo test -p wa-rs-core --test parity_session --test parity_sync --test parity_adv --test parity_identity`
+- [x] `cargo test -p wa-rs --test parity_pair_code --test parity_client --test parity_admission`
+- [x] `cargo test -p wa-rs --features passkey --test parity_passkey`
+- [x] `cargo test -p wa-rs --features mobile-core --test parity_mobile`
+- [x] `cargo test -p wa-rs`
+- [x] `cargo test -p wa-rs --features passkey`
+- [x] `cargo test -p wa-rs --features mobile-core`
+- [x] `cargo check -p wa-rs --features parity-core`
+- [x] `cargo check -p wa-rs --features parity-mobile`
+- [x] `cargo test -p wa-rs-bridge`
+- [x] `cargo test -p whatslite-desktop`
+- [x] `cargo build -p whatslite-desktop`
+- [ ] Bridge pairing and reconnect smoke test — blocked on a live WhatsApp account/phone; HTTP router smoke is green.
 
 ---
 

@@ -37,3 +37,16 @@ Copied to the same paths: `tests/fixtures/`, `tests/support/`,
 No upstream test is deleted. Deferred rows keep their upstream file available
 in `reference/whatsapp-rust` and are re-opened by the phase that ports their
 dependencies. The Phase 0 gate only requires the rows marked done above.
+
+## Phase 1
+
+| Row | Status | Evidence / reason |
+|---|---|---|
+| new `wacore/tests/parity_session.rs`, `parity_sync.rs`, `parity_adv.rs`, `parity_identity.rs` | done | 22 passed across the four files |
+| new `tests/parity_pair_code.rs`, `parity_client.rs`, `parity_admission.rs`, `parity_passkey.rs`, `parity_mobile.rs` | done | 26 passed across the five files (feature-gated rows run with their feature) |
+| `tests/{client_encapsulation,client_options,connect_admission,connected_idle_lifecycle,historical_upgrade,lifecycle_outcomes,subsystem_boundary,mobile_boundary,signal_durability_sqlite}.rs` | deferred | Require the full upstream `Client` lifecycle/subsystem split; Phase 1 ports the stable builder, admission, node-filter and mobile seams, and the existing client tests remain green. |
+| `src/client/tests.rs`, `src/client/app_state/{download_memory_tests,future_layout_tests}.rs`, `src/client/lifecycle/admission_tests.rs`, `src/mobile/registration_tests.rs`, `wacore/src/sync_engine/tests.rs` | deferred | Depend on the upstream monolithic client and mobile registration wire modules; the Phase 1 pure engines are covered by the new parity files. |
+| `wacore/libsignal/tests/{classic_benchmark_contract,historical_storage,host_contract,sans_io_boundary,sender_record_layout,stored_group_receiver}.rs`, `wacore/libsignal/tests/contracts/*` | deferred | Signal storage contract suite belongs to the Phase 2 signal/storage port. |
+
+Phase 1 gate automated commands all pass. Live bridge pairing/reconnect smoke
+still requires a WhatsApp account/phone and is not claimed.

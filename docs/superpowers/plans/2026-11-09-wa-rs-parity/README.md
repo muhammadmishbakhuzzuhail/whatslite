@@ -22,6 +22,7 @@ the functional-parity contract for every phase.
 - [Phase 3 — Social features](04-phase-3-social.md)
 - [Phase 4 — Calls and VoIP](05-phase-4-voip.md)
 - [Phase 5 — Platform and observability](06-phase-5-platform.md)
+- [Gap Closure Plan (2026-11-10)](../2026-11-10-wa-rs-parity-gap-closure.md)
 - [Design spec](../../specs/2026-11-09-wa-rs-parity-design.md)
 
 

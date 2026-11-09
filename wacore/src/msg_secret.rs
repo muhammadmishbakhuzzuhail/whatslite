@@ -1,3 +1,5 @@
+#![allow(clippy::double_must_use)]
+
 //! Retention policy for the per-message `messageSecret` store.
 //!
 //! This client is headless and keeps no message store, so it must persist a

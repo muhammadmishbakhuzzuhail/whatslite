@@ -31,6 +31,12 @@ pub struct ZipWriter {
     entries: Vec<Entry>,
 }
 
+impl Default for ZipWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZipWriter {
     pub fn new() -> Self {
         Self {

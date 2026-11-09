@@ -5,6 +5,10 @@ edition = "2024"
 license = "MIT"
 description = "Local HTTP sidecar bridging wa-rs to the Homun engine channel gateway"
 
+[lib]
+name = "wa_rs_bridge"
+path = "src/lib.rs"
+
 [dependencies]
 wa-rs = { path = ".." }
 wacore = { package = "wa-rs-core", path = "../wacore" }
@@ -21,6 +25,13 @@ tokio = { version = "1.48", default-features = false, features = ["rt-multi-thre
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 ureq = { version = "3", default-features = false, features = ["json"] }
 env_logger = "0.11"
+
+[dev-dependencies]
+assert_cmd = "2"
+http-body-util = "0.1"
+predicates = "3"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
 
 [[bin]]
 name = "wa-rs-bridge"

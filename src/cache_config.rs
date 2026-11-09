@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// Per-cache entry timeout and capacity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CacheEntryConfig {
     pub timeout: Option<Duration>,
     pub capacity: u64,
@@ -13,15 +13,6 @@ pub struct CacheEntryConfig {
 impl CacheEntryConfig {
     pub fn new(timeout: Option<Duration>, capacity: u64) -> Self {
         Self { timeout, capacity }
-    }
-}
-
-impl Default for CacheEntryConfig {
-    fn default() -> Self {
-        Self {
-            timeout: Some(Duration::from_secs(300)),
-            capacity: 10_000,
-        }
     }
 }
 

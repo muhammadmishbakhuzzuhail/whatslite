@@ -18,11 +18,11 @@ use crate::client::Client;
 use crate::types::message::MessageInfo;
 use log::{debug, info, warn};
 use moka::future::Cache;
-use prost::Message;
 use std::sync::Arc;
 use std::time::Duration;
 use wacore::types::message::{EditAttribute, MessageSource, MsgMetaInfo};
 use wacore_binary::jid::{Jid, JidExt};
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 /// Cache entry for pending PDO requests.
@@ -103,39 +103,29 @@ impl Client {
         }
 
         // Build the message key for the placeholder resend request
-        let message_key = wa::MessageKey {
-            remote_jid: Some(remote_jid.to_string()),
-            from_me: Some(info.source.is_from_me),
-            id: Some(info.id.clone()),
-            participant: participant.map(|p| p.to_string()),
-        };
+        let mut message_key = wa::MessageKey::default();
+        message_key.remote_jid = Some(remote_jid.to_string());
+        message_key.from_me = Some(info.source.is_from_me);
+        message_key.id = Some(info.id.clone());
+        message_key.participant = participant.map(|p| p.to_string());
 
         // Build the PDO request message
-        let pdo_request = wa::message::PeerDataOperationRequestMessage {
-            peer_data_operation_request_type: Some(
-                wa::message::PeerDataOperationRequestType::PlaceholderMessageResend as i32,
-            ),
-            placeholder_message_resend_request: vec![
-                wa::message::peer_data_operation_request_message::PlaceholderMessageResendRequest {
-                    message_key: Some(message_key),
-                },
-            ],
-            ..Default::default()
-        };
+        let mut resend_request =
+            wa::message::peer_data_operation_request_message::PlaceholderMessageResendRequest::default();
+        resend_request.message_key = message_key.into();
+        let mut pdo_request = wa::message::PeerDataOperationRequestMessage::default();
+        pdo_request.peer_data_operation_request_type =
+            Some(wa::message::PeerDataOperationRequestType::PLACEHOLDER_MESSAGE_RESEND);
+        pdo_request.placeholder_message_resend_request = vec![resend_request];
 
         // Wrap it in a protocol message
-        let protocol_message = wa::message::ProtocolMessage {
-            r#type: Some(
-                wa::message::protocol_message::Type::PeerDataOperationRequestMessage as i32,
-            ),
-            peer_data_operation_request_message: Some(pdo_request),
-            ..Default::default()
-        };
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.r#type =
+            Some(wa::message::protocol_message::Type::PEER_DATA_OPERATION_REQUEST_MESSAGE);
+        protocol_message.peer_data_operation_request_message = pdo_request.into();
 
-        let msg = wa::Message {
-            protocol_message: Some(Box::new(protocol_message)),
-            ..Default::default()
-        };
+        let mut msg = wa::Message::default();
+        msg.protocol_message = protocol_message.into();
 
         info!(
             "Sending PDO placeholder resend request for message {} from {} in {} to primary phone {}",
@@ -205,7 +195,9 @@ impl Client {
         );
 
         for result in &response.peer_data_operation_result {
-            if let Some(placeholder_response) = &result.placeholder_message_resend_response {
+            if let Some(placeholder_response) =
+                result.placeholder_message_resend_response.as_option()
+            {
                 self.handle_placeholder_resend_response(placeholder_response)
                     .await;
             }
@@ -223,13 +215,14 @@ impl Client {
         };
 
         // Decode the WebMessageInfo
-        let web_msg_info = match wa::WebMessageInfo::decode(web_message_info_bytes.as_slice()) {
-            Ok(info) => info,
-            Err(e) => {
-                warn!("Failed to decode WebMessageInfo from PDO response: {:?}", e);
-                return;
-            }
-        };
+        let web_msg_info =
+            match wa::WebMessageInfo::decode_from_slice(web_message_info_bytes.as_slice()) {
+                Ok(info) => info,
+                Err(e) => {
+                    warn!("Failed to decode WebMessageInfo from PDO response: {:?}", e);
+                    return;
+                }
+            };
 
         // Extract message key to find the original pending request
         let key = &web_msg_info.key;
@@ -269,7 +262,7 @@ impl Client {
         };
 
         // Extract the actual message content
-        let Some(message) = web_msg_info.message else {
+        let Some(message) = web_msg_info.message.into_option() else {
             warn!("PDO response WebMessageInfo missing message content");
             return;
         };

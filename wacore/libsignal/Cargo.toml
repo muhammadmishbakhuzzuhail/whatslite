@@ -24,7 +24,7 @@ hkdf = { workspace = true }
 hmac = { workspace = true }
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 log = { workspace = true }
-prost = { workspace = true }
+prost = { workspace = true, features = ["derive"] }
 rand = { workspace = true }
 serde = { workspace = true, features = ["alloc"] }
 sha1 = { version = "0.10.6", default-features = false }

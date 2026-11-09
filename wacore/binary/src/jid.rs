@@ -270,6 +270,10 @@ pub trait JidExt {
     fn is_same_user_as(&self, other: &impl JidExt) -> bool {
         self.user() == other.user()
     }
+
+    fn is_same_chat_as(&self, other: &impl JidExt) -> bool {
+        self.user() == other.user() && self.server() == other.server()
+    }
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

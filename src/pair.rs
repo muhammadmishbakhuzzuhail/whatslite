@@ -2,7 +2,6 @@ use crate::client::Client;
 use crate::lid_pn_cache::LearningSource;
 use crate::types::events::{Event, PairError, PairSuccess};
 use log::{error, info, warn};
-use prost::Message;
 use rand::TryRngCore;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -10,6 +9,7 @@ use wacore::companion_reg::companion_web_client_type_for_props;
 use wacore::libsignal::protocol::KeyPair;
 use wacore_binary::jid::{Jid, SERVER_JID};
 use wacore_binary::node::{Node, NodeContent};
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 pub use wacore::pair::{DeviceState, PairCryptoError, PairUtils};
@@ -195,7 +195,7 @@ async fn handle_pair_success(client: &Arc<Client>, request_node: &Node, success_
 
     match result {
         Ok((self_signed_identity_bytes, key_index)) => {
-            let signed_identity_for_event = match wa::AdvSignedDeviceIdentity::decode(
+            let signed_identity_for_event = match wa::ADVSignedDeviceIdentity::decode_from_slice(
                 self_signed_identity_bytes.as_slice(),
             ) {
                 Ok(identity) => identity,

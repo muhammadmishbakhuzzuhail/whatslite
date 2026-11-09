@@ -2,7 +2,6 @@ use crate::socket::NoiseSocket;
 use crate::store::persistence_manager::PersistenceManager;
 use crate::transport::{Transport, TransportEvent};
 use log::{debug, info, warn};
-use prost::Message;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use thiserror::Error;
@@ -14,6 +13,7 @@ use wacore::handshake::{
 use wacore::noise::NoiseCipher;
 use wacore::store::DeviceCommand;
 use wacore_binary::consts::WA_CONN_HEADER;
+use waproto::buffa::Message as _;
 
 const NOISE_HANDSHAKE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(20);
 

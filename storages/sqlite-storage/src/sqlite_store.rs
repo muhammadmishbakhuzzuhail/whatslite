@@ -7,7 +7,6 @@ use diesel::sqlite::SqliteConnection;
 use diesel::upsert::excluded;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use log::warn;
-use prost::Message;
 use std::sync::Arc;
 use wacore::appstate::hash::HashState;
 use wacore::appstate::processor::AppStateMutationMAC;
@@ -16,6 +15,7 @@ use wacore::store::Device as CoreDevice;
 use wacore::store::error::{Result, StoreError};
 use wacore::store::traits::*;
 use wacore_binary::jid::Jid;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
@@ -467,7 +467,7 @@ impl SqliteStore {
 
             let account = account_data
                 .map(|data| {
-                    wa::AdvSignedDeviceIdentity::decode(&data[..])
+                    wa::ADVSignedDeviceIdentity::decode_from_slice(&data[..])
                         .map_err(|e| StoreError::Serialization(e.to_string()))
                 })
                 .transpose()?;

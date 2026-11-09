@@ -49,9 +49,9 @@ impl HashState {
 
         for (i, mutation) in mutations.iter().enumerate() {
             let op = mutation.operation.unwrap_or_default();
-            if op == wa::syncd_mutation::SyncdOperation::Set as i32
-                && let Some(record) = &mutation.record
-                && let Some(value) = &record.value
+            if op == wa::syncd_mutation::SyncdOperation::Set
+                && let Some(record) = mutation.record.as_option()
+                && let Some(value) = record.value.as_option()
                 && let Some(blob) = &value.blob
                 && blob.len() >= 32
             {
@@ -59,14 +59,14 @@ impl HashState {
             }
             let index_mac_opt = mutation
                 .record
-                .as_ref()
-                .and_then(|r| r.index.as_ref())
+                .as_option()
+                .and_then(|r| r.index.as_option())
                 .and_then(|idx| idx.blob.as_ref());
             if let Some(index_mac) = index_mac_opt {
                 match get_prev_set_value_mac(index_mac, i) {
                     Ok(Some(prev)) => removed.push(prev),
                     Ok(None) => {
-                        if op == wa::syncd_mutation::SyncdOperation::Remove as i32 {
+                        if op == wa::syncd_mutation::SyncdOperation::Remove {
                             result.has_missing_remove = true;
                             log::trace!(
                                 target: "AppState",
@@ -93,7 +93,7 @@ impl HashState {
             .filter_map(|record| {
                 record
                     .value
-                    .as_ref()
+                    .as_option()
                     .and_then(|v| v.blob.as_ref())
                     .filter(|blob| blob.len() >= 32)
                     .map(|blob| blob[blob.len() - 32..].to_vec())
@@ -120,8 +120,8 @@ pub fn generate_patch_mac(patch: &wa::SyncdPatch, name: &str, key: &[u8], versio
         parts.push(sm.clone());
     }
     for m in &patch.mutations {
-        if let Some(record) = &m.record
-            && let Some(val) = &record.value
+        if let Some(record) = m.record.as_option()
+            && let Some(val) = record.value.as_option()
             && let Some(blob) = &val.blob
             && blob.len() >= 32
         {
@@ -195,18 +195,24 @@ mod tests {
             blob
         });
 
-        wa::SyncdMutation {
-            operation: Some(operation as i32),
-            record: Some(wa::SyncdRecord {
-                index: Some(wa::SyncdIndex {
-                    blob: Some(index_mac),
-                }),
-                value: value_blob.map(|b| wa::SyncdValue { blob: Some(b) }),
-                key_id: Some(wa::KeyId {
-                    id: Some(b"test_key_id".to_vec()),
-                }),
-            }),
+        let mut index = wa::SyncdIndex::default();
+        index.blob = Some(index_mac);
+        let mut key_id = wa::KeyId::default();
+        key_id.id = Some(b"test_key_id".to_vec());
+
+        let mut record = wa::SyncdRecord::default();
+        record.index = index.into();
+        if let Some(blob) = value_blob {
+            let mut value = wa::SyncdValue::default();
+            value.blob = Some(blob);
+            record.value = value.into();
         }
+        record.key_id = key_id.into();
+
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.operation = Some(operation.into());
+        mutation.record = record.into();
+        mutation
     }
 
     #[test]

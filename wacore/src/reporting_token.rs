@@ -20,11 +20,11 @@
 use anyhow::{Result, anyhow};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
-use prost::Message;
 use sha2::Sha256;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::Jid;
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 /// Wire type constants for protobuf parsing
@@ -500,10 +500,10 @@ pub fn extract_reporting_token_content(
 
 /// Check if reporting token should be included for this message type.
 pub fn should_include_reporting_token(message: &wa::Message) -> bool {
-    message.reaction_message.is_none()
-        && message.enc_reaction_message.is_none()
-        && message.poll_update_message.is_none()
-        && message.keep_in_chat_message.is_none()
+    message.reaction_message.is_unset()
+        && message.enc_reaction_message.is_unset()
+        && message.poll_update_message.is_unset()
+        && message.keep_in_chat_message.is_unset()
 }
 
 /// Generate reporting token content by extracting whitelisted protobuf fields.
@@ -599,7 +599,7 @@ pub fn prepare_message_with_context(
     let mut context_info = new_message.message_context_info.take().unwrap_or_default();
     context_info.message_secret = Some(message_secret.to_vec());
     context_info.reporting_token_version = Some(REPORTING_TOKEN_VERSION);
-    new_message.message_context_info = Some(context_info);
+    new_message.message_context_info = context_info.into();
     new_message
 }
 
@@ -607,7 +607,7 @@ pub fn prepare_message_with_context(
 pub fn extract_message_secret(message: &wa::Message) -> Option<&[u8]> {
     message
         .message_context_info
-        .as_ref()
+        .as_option()
         .and_then(|ctx| ctx.message_secret.as_deref())
 }
 
@@ -615,6 +615,46 @@ pub fn extract_message_secret(message: &wa::Message) -> Option<&[u8]> {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+
+    fn text_message(text: impl Into<String>) -> wa::Message {
+        let mut message = wa::Message::default();
+        message.conversation = Some(text.into());
+        message
+    }
+
+    fn extended_text_message(text: impl Into<String>) -> wa::Message {
+        let mut extended = wa::message::ExtendedTextMessage::default();
+        extended.text = Some(text.into());
+        let mut message = wa::Message::default();
+        message.extended_text_message = extended.into();
+        message
+    }
+
+    fn extended_text_with_context(
+        text: impl Into<String>,
+        context: wa::ContextInfo,
+    ) -> wa::Message {
+        let mut extended = wa::message::ExtendedTextMessage::default();
+        extended.text = Some(text.into());
+        extended.context_info = context.into();
+        let mut message = wa::Message::default();
+        message.extended_text_message = extended.into();
+        message
+    }
+
+    fn reaction_message(text: impl Into<String>) -> wa::Message {
+        let mut reaction = wa::message::ReactionMessage::default();
+        reaction.text = Some(text.into());
+        let mut message = wa::Message::default();
+        message.reaction_message = reaction.into();
+        message
+    }
+
+    fn poll_update_message() -> wa::Message {
+        let mut message = wa::Message::default();
+        message.poll_update_message = wa::message::PollUpdateMessage::default().into();
+        message
+    }
 
     #[test]
     fn test_generate_message_secret() {
@@ -684,10 +724,7 @@ mod tests {
 
     #[test]
     fn test_generate_reporting_token_content_text() {
-        let message = wa::Message {
-            conversation: Some("Hello, World!".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Hello, World!".to_string());
 
         let content = generate_reporting_token_content(&message);
         assert!(content.is_some());
@@ -704,13 +741,7 @@ mod tests {
 
     #[test]
     fn test_generate_reporting_token_content_extended_text() {
-        let message = wa::Message {
-            extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-                text: Some("Extended text message".to_string()),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let message = extended_text_message("Extended text message".to_string());
 
         let content = generate_reporting_token_content(&message);
         assert!(content.is_some());
@@ -727,38 +758,22 @@ mod tests {
     #[test]
     fn test_should_include_reporting_token() {
         // Normal message should include token
-        let normal_message = wa::Message {
-            conversation: Some("Hello".to_string()),
-            ..Default::default()
-        };
+        let normal_message = text_message("Hello".to_string());
         assert!(should_include_reporting_token(&normal_message));
 
         // Reaction message should NOT include token
-        let reaction_message = wa::Message {
-            reaction_message: Some(wa::message::ReactionMessage {
-                key: None,
-                text: Some("👍".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let reaction_message = reaction_message("👍");
         assert!(!should_include_reporting_token(&reaction_message));
 
         // Poll update should NOT include token
-        let poll_update = wa::Message {
-            poll_update_message: Some(wa::message::PollUpdateMessage::default()),
-            ..Default::default()
-        };
+        let poll_update = poll_update_message();
         assert!(!should_include_reporting_token(&poll_update));
     }
 
     #[test]
     fn test_extract_reporting_token_content_simple() {
         // Test with a simple conversation message
-        let message = wa::Message {
-            conversation: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test".to_string());
 
         let message_bytes = message.encode_to_vec();
         let extracted = extract_reporting_token_content(&message_bytes, REPORTING_FIELDS);
@@ -774,18 +789,10 @@ mod tests {
     #[test]
     fn test_extract_filters_non_whitelisted_fields() {
         // Create an extended text message with contextInfo that has non-whitelisted fields
-        let message = wa::Message {
-            extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-                text: Some("Hello".to_string()),
-                context_info: Some(Box::new(wa::ContextInfo {
-                    stanza_id: Some("should-be-excluded".to_string()), // Field 1 - NOT in whitelist
-                    is_forwarded: Some(true),                          // Field 22 - in whitelist
-                    ..Default::default()
-                })),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut context_info = wa::ContextInfo::default();
+        context_info.stanza_id = Some("should-be-excluded".to_string());
+        context_info.is_forwarded = Some(true);
+        let message = extended_text_with_context("Hello", context_info);
 
         let content = generate_reporting_token_content(&message);
         assert!(content.is_some());
@@ -818,10 +825,7 @@ mod tests {
 
     #[test]
     fn test_generate_reporting_token_full() {
-        let message = wa::Message {
-            conversation: Some("Test message".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test message".to_string());
 
         let sender = Jid::pn("5511999887766");
         let remote = Jid::pn("5511888776655");
@@ -835,10 +839,7 @@ mod tests {
 
     #[test]
     fn test_generate_reporting_token_with_existing_secret() {
-        let message = wa::Message {
-            conversation: Some("Test message".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test message".to_string());
 
         let sender = Jid::pn("5511999887766");
         let remote = Jid::pn("5511888776655");
@@ -906,10 +907,7 @@ mod tests {
 
     #[test]
     fn test_prepare_message_with_context() {
-        let message = wa::Message {
-            conversation: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test".to_string());
 
         let secret = [0x42u8; MESSAGE_SECRET_SIZE];
         let prepared = prepare_message_with_context(&message, &secret);
@@ -924,13 +922,10 @@ mod tests {
     #[test]
     fn test_extract_message_secret() {
         let secret = vec![0x55u8; MESSAGE_SECRET_SIZE];
-        let message = wa::Message {
-            message_context_info: Some(wa::MessageContextInfo {
-                message_secret: Some(secret.clone()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let mut context_info = wa::MessageContextInfo::default();
+        context_info.message_secret = Some(secret.clone());
+        let mut message = wa::Message::default();
+        message.message_context_info = context_info.into();
 
         let extracted = extract_message_secret(&message);
         assert!(extracted.is_some());
@@ -943,9 +938,7 @@ mod tests {
     #[test]
     fn test_unsupported_message_type_returns_none() {
         // A message with no supported content type
-        let message = wa::Message {
-            ..Default::default()
-        };
+        let message = wa::Message::default();
 
         let sender = Jid::pn("5511999887766");
         let remote = Jid::pn("5511888776655");
@@ -1007,10 +1000,7 @@ mod tests {
     #[test]
     fn test_golden_conversation_content_extraction() {
         // Golden test: conversation message content extraction
-        let message = wa::Message {
-            conversation: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test".to_string());
 
         let content = generate_reporting_token_content(&message)
             .expect("conversation message should generate content for golden test");
@@ -1027,13 +1017,7 @@ mod tests {
     #[test]
     fn test_golden_extended_text_content_extraction() {
         // Golden test: extended text message content extraction
-        let message = wa::Message {
-            extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-                text: Some("Hi".to_string()),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let message = extended_text_message("Hi".to_string());
 
         let content = generate_reporting_token_content(&message)
             .expect("conversation message should generate content for golden test");
@@ -1052,10 +1036,7 @@ mod tests {
     #[test]
     fn test_golden_full_token_generation() {
         // Golden test: complete token generation with fixed secret
-        let message = wa::Message {
-            conversation: Some("Hello".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Hello".to_string());
 
         let secret = [0xAA; MESSAGE_SECRET_SIZE];
         let sender = test_jid("sender");
@@ -1092,20 +1073,12 @@ mod tests {
     #[test]
     fn test_context_info_filtering_only_extracts_whitelisted() {
         // Verify that contextInfo only extracts fields 21 (forwardingScore) and 22 (isForwarded)
-        let message = wa::Message {
-            extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-                text: Some("Test".to_string()),
-                context_info: Some(Box::new(wa::ContextInfo {
-                    stanza_id: Some("SHOULD_BE_EXCLUDED".to_string()), // Field 1
-                    participant: Some("ALSO_EXCLUDED".to_string()),    // Field 2
-                    is_forwarded: Some(true),                          // Field 22 - INCLUDED
-                    forwarding_score: Some(5),                         // Field 21 - INCLUDED
-                    ..Default::default()
-                })),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut context_info = wa::ContextInfo::default();
+        context_info.stanza_id = Some("SHOULD_BE_EXCLUDED".to_string());
+        context_info.participant = Some("ALSO_EXCLUDED".to_string());
+        context_info.is_forwarded = Some(true);
+        context_info.forwarding_score = Some(5);
+        let message = extended_text_with_context("Test", context_info);
 
         let content = generate_reporting_token_content(&message)
             .expect("conversation message should generate content for golden test");
@@ -1128,10 +1101,7 @@ mod tests {
     #[test]
     fn test_field_extraction_order_is_deterministic() {
         // Verify that fields are always sorted by field number
-        let message = wa::Message {
-            conversation: Some("Text".to_string()), // Field 1
-            ..Default::default()
-        };
+        let message = text_message("Text"); // Field 1
 
         // Generate multiple times and verify same output
         let content1 = generate_reporting_token_content(&message)
@@ -1185,14 +1155,7 @@ mod tests {
     #[test]
     fn test_extraction_handles_empty_nested_message() {
         // An extended text message with empty contextInfo should still extract the text
-        let message = wa::Message {
-            extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-                text: Some("Content".to_string()),
-                context_info: Some(Box::new(wa::ContextInfo::default())), // Empty
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let message = extended_text_with_context("Content", wa::ContextInfo::default());
 
         let content = generate_reporting_token_content(&message);
         assert!(
@@ -1262,32 +1225,19 @@ mod tests {
     fn test_excluded_message_types() {
         // Verify all excluded message types return None/false
 
-        let reaction = wa::Message {
-            reaction_message: Some(wa::message::ReactionMessage {
-                text: Some("👍".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let reaction = reaction_message("👍");
         assert!(!should_include_reporting_token(&reaction));
         assert!(generate_reporting_token_content(&reaction).is_none());
 
-        let enc_reaction = wa::Message {
-            enc_reaction_message: Some(wa::message::EncReactionMessage::default()),
-            ..Default::default()
-        };
+        let mut enc_reaction = wa::Message::default();
+        enc_reaction.enc_reaction_message = wa::message::EncReactionMessage::default().into();
         assert!(!should_include_reporting_token(&enc_reaction));
 
-        let poll_update = wa::Message {
-            poll_update_message: Some(wa::message::PollUpdateMessage::default()),
-            ..Default::default()
-        };
+        let poll_update = poll_update_message();
         assert!(!should_include_reporting_token(&poll_update));
 
-        let keep_in_chat = wa::Message {
-            keep_in_chat_message: Some(wa::message::KeepInChatMessage::default()),
-            ..Default::default()
-        };
+        let mut keep_in_chat = wa::Message::default();
+        keep_in_chat.keep_in_chat_message = wa::message::KeepInChatMessage::default().into();
         assert!(!should_include_reporting_token(&keep_in_chat));
     }
 
@@ -1307,10 +1257,7 @@ mod tests {
     #[test]
     fn test_message_secret_in_prepared_message() {
         // Verify prepare_message_with_context correctly adds MessageContextInfo
-        let original = wa::Message {
-            conversation: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let original = text_message("Test".to_string());
 
         let secret = [0x12u8; MESSAGE_SECRET_SIZE];
         let prepared = prepare_message_with_context(&original, &secret);
@@ -1321,7 +1268,7 @@ mod tests {
         // MessageContextInfo added with correct values
         let ctx = prepared
             .message_context_info
-            .as_ref()
+            .as_option()
             .expect("prepared message should have context info");
         assert_eq!(
             ctx.message_secret
@@ -1335,21 +1282,17 @@ mod tests {
     #[test]
     fn test_prepare_message_preserves_existing_context_info() {
         // If message already has MessageContextInfo, we should update it, not replace
-        let original = wa::Message {
-            conversation: Some("Test".to_string()),
-            message_context_info: Some(wa::MessageContextInfo {
-                device_list_metadata_version: Some(42), // Some existing field
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let mut context_info = wa::MessageContextInfo::default();
+        context_info.device_list_metadata_version = Some(42); // Some existing field
+        let mut original = text_message("Test");
+        original.message_context_info = context_info.into();
 
         let secret = [0x12u8; MESSAGE_SECRET_SIZE];
         let prepared = prepare_message_with_context(&original, &secret);
 
         let ctx = prepared
             .message_context_info
-            .as_ref()
+            .as_option()
             .expect("prepared message should have existing context info preserved");
         assert_eq!(
             ctx.message_secret
@@ -1363,10 +1306,7 @@ mod tests {
 
     #[test]
     fn test_invalid_secret_size_generates_new() {
-        let message = wa::Message {
-            conversation: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let message = text_message("Test".to_string());
 
         let invalid_secret = [0u8; 16]; // Wrong size (16 instead of 32)
         let sender = test_jid("sender");

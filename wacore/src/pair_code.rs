@@ -520,6 +520,13 @@ pub enum PairCodeError {
 mod tests {
     use super::*;
 
+    fn device_props(platform: wa::device_props::PlatformType, os: &str) -> wa::DeviceProps {
+        let mut props = wa::DeviceProps::default();
+        props.platform_type = Some(platform);
+        props.os = Some(os.to_string());
+        props
+    }
+
     #[test]
     fn test_generate_code() {
         let code = PairCodeUtils::generate_code();
@@ -618,11 +625,7 @@ mod tests {
 
     #[test]
     fn test_derive_companion_platform_from_props() {
-        let p = wa::DeviceProps {
-            platform_type: Some(wa::device_props::PlatformType::Chrome as i32),
-            os: Some("rust".to_string()),
-            ..Default::default()
-        };
+        let p = device_props(wa::device_props::PlatformType::CHROME, "rust");
         assert_eq!(
             derive_companion_platform(&p),
             (CompanionWebClientType::Chrome, "Chrome (Linux)".to_string())
@@ -630,21 +633,13 @@ mod tests {
 
         // Wire ids follow WAWebCompanionRegClientUtils.DEVICE_PLATFORM, NOT
         // the PlatformType proto numbering (oxidezap #592/#593).
-        let p = wa::DeviceProps {
-            platform_type: Some(wa::device_props::PlatformType::Firefox as i32),
-            os: Some("Ubuntu".to_string()),
-            ..Default::default()
-        };
+        let p = device_props(wa::device_props::PlatformType::FIREFOX, "Ubuntu");
         let (id, display) = derive_companion_platform(&p);
         assert_eq!(id, CompanionWebClientType::Firefox);
         assert_eq!(id.wire_byte(), b'3');
         assert_eq!(display, "Firefox (Linux)");
 
-        let p = wa::DeviceProps {
-            platform_type: Some(wa::device_props::PlatformType::Edge as i32),
-            os: Some("Windows 11".to_string()),
-            ..Default::default()
-        };
+        let p = device_props(wa::device_props::PlatformType::EDGE, "Windows 11");
         let (id, display) = derive_companion_platform(&p);
         assert_eq!(id.wire_byte(), b'2');
         assert_eq!(display, "Edge (Windows)");
@@ -652,11 +647,7 @@ mod tests {
 
     #[test]
     fn test_resolve_companion_platform_overrides() {
-        let props = wa::DeviceProps {
-            platform_type: Some(wa::device_props::PlatformType::Chrome as i32),
-            os: Some("rust".to_string()),
-            ..Default::default()
-        };
+        let props = device_props(wa::device_props::PlatformType::CHROME, "rust");
         // Default: derive both from props.
         assert_eq!(
             resolve_companion_platform(&PairCodeOptions::default(), &props),

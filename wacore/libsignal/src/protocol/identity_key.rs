@@ -7,8 +7,8 @@
 
 #![warn(missing_docs)]
 
-use prost::Message;
 use rand::{CryptoRng, Rng};
+use waproto::buffa::Message as _;
 
 use crate::protocol::{
     KeyPair, PrivateKey, PublicKey, Result, SignalProtocolError, stores::IdentityKeyPairStructure,
@@ -124,10 +124,9 @@ impl IdentityKeyPair {
 
     /// Return a byte slice which can later be deserialized with [`Self::try_from`].
     pub fn serialize(&self) -> Box<[u8]> {
-        let structure = IdentityKeyPairStructure {
-            public_key: Some(self.identity_key.serialize().to_vec()),
-            private_key: Some(self.private_key.serialize().to_vec()),
-        };
+        let mut structure = IdentityKeyPairStructure::default();
+        structure.public_key = Some(self.identity_key.serialize().to_vec());
+        structure.private_key = Some(self.private_key.serialize().to_vec());
 
         let result = structure.encode_to_vec();
         result.into_boxed_slice()
@@ -154,7 +153,7 @@ impl TryFrom<&[u8]> for IdentityKeyPair {
     type Error = SignalProtocolError;
 
     fn try_from(value: &[u8]) -> Result<Self> {
-        let structure = IdentityKeyPairStructure::decode(value)
+        let structure = IdentityKeyPairStructure::decode_from_slice(value)
             .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
         Ok(Self {
             identity_key: IdentityKey::try_from(

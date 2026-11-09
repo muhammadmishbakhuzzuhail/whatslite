@@ -117,6 +117,100 @@ impl EditAttribute {
             Self::Unknown(_) => "",
         }
     }
+
+    /// Wire `edit` value derived from a fully-constructed message body.
+    /// Mirrors WAWebSendMsgCommonApi.editAttribute.
+    pub fn infer_from_message(msg: &wa::Message) -> Option<Self> {
+        use wa::KeepType;
+        use wa::message::protocol_message::Type as ProtocolType;
+        use wa::message::secret_encrypted_message::SecretEncType;
+
+        let msg = unwrap_message(msg);
+
+        if msg.pin_in_chat_message.is_set() {
+            return Some(Self::PinInChat);
+        }
+        if msg.edited_message.is_set() {
+            return Some(Self::MessageEdit);
+        }
+        if let Some(pm) = msg.protocol_message.as_option() {
+            if pm.r#type == Some(ProtocolType::REVOKE) {
+                let from_me = pm.key.as_option().and_then(|k| k.from_me).unwrap_or(false);
+                return Some(if from_me {
+                    Self::SenderRevoke
+                } else {
+                    Self::AdminRevoke
+                });
+            }
+            if pm.r#type == Some(ProtocolType::MESSAGE_EDIT) || pm.edited_message.is_set() {
+                return Some(Self::MessageEdit);
+            }
+        }
+        if let Some(sec) = msg.secret_encrypted_message.as_option()
+            && let Some(enc_type) = sec.secret_enc_type
+            && (enc_type == SecretEncType::MESSAGE_EDIT || enc_type == SecretEncType::EVENT_EDIT)
+        {
+            return Some(Self::MessageEdit);
+        }
+        // Reaction with empty text == sender-revoke of a previous reaction.
+        if let Some(react) = msg.reaction_message.as_option()
+            && react.text.as_deref() == Some("")
+        {
+            return Some(Self::SenderRevoke);
+        }
+        // KeepInChat UNDO_KEEP_FOR_ALL is a sender-revoke at the wire level.
+        if let Some(keep) = msg.keep_in_chat_message.as_option()
+            && keep.key.as_option().and_then(|k| k.from_me) == Some(true)
+            && keep.keep_type == Some(KeepType::UNDO_KEEP_FOR_ALL)
+        {
+            return Some(Self::SenderRevoke);
+        }
+        None
+    }
+}
+
+/// Unwrap wrapper message types to reach the inner message. Does not unwrap
+/// `edited_message`; that field is itself a signal callers may need.
+fn unwrap_message(msg: &wa::Message) -> &wa::Message {
+    macro_rules! try_unwrap_one {
+        ($field:ident) => {
+            if let Some(wrapper) = msg.$field.as_option()
+                && let Some(inner) = wrapper.message.as_option()
+            {
+                return unwrap_message(inner);
+            }
+        };
+    }
+    try_unwrap_one!(ephemeral_message);
+    try_unwrap_one!(view_once_message);
+    try_unwrap_one!(view_once_message_v2);
+    try_unwrap_one!(view_once_message_v2_extension);
+    try_unwrap_one!(document_with_caption_message);
+    try_unwrap_one!(group_mentioned_message);
+    try_unwrap_one!(bot_invoke_message);
+    try_unwrap_one!(associated_child_message);
+    try_unwrap_one!(poll_creation_option_image_message);
+    try_unwrap_one!(event_cover_image);
+    try_unwrap_one!(group_status_message);
+    try_unwrap_one!(group_status_message_v2);
+    try_unwrap_one!(group_status_mention_message);
+    try_unwrap_one!(status_add_yours);
+    try_unwrap_one!(status_mention_message);
+    try_unwrap_one!(question_message);
+    try_unwrap_one!(question_reply_message);
+    try_unwrap_one!(spoiler_message);
+    try_unwrap_one!(lottie_sticker_message);
+    try_unwrap_one!(limit_sharing_message);
+    try_unwrap_one!(newsletter_admin_profile_message);
+    try_unwrap_one!(newsletter_admin_profile_message_v2);
+    try_unwrap_one!(poll_creation_message_v4);
+    try_unwrap_one!(bot_forwarded_message);
+    if let Some(dsm) = msg.device_sent_message.as_option()
+        && let Some(inner) = dsm.message.as_option()
+    {
+        return unwrap_message(inner);
+    }
+    msg
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

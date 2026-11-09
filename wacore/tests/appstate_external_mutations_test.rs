@@ -4,12 +4,18 @@
 //! 1. Patches have external_mutations that need to be downloaded
 //! 2. REMOVE mutations reference entries we don't have locally (hasMissingRemove)
 
-use prost::Message;
 use wa_rs_core::appstate::WAPATCH_INTEGRITY;
 use wa_rs_core::appstate::hash::{HashState, generate_content_mac};
 use wa_rs_core::appstate::keys::expand_app_state_keys;
 use wa_rs_core::appstate::processor::validate_patch_macs;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
+
+fn make_key_id(id: &[u8]) -> wa::KeyId {
+    let mut key_id = wa::KeyId::default();
+    key_id.id = Some(id.to_vec());
+    key_id
+}
 
 fn make_mutation(
     op: wa::syncd_mutation::SyncdOperation,
@@ -17,18 +23,21 @@ fn make_mutation(
     index_mac: Vec<u8>,
     value_blob: Option<Vec<u8>>,
 ) -> wa::SyncdMutation {
-    wa::SyncdMutation {
-        operation: Some(op as i32),
-        record: Some(wa::SyncdRecord {
-            index: Some(wa::SyncdIndex {
-                blob: Some(index_mac),
-            }),
-            value: value_blob.map(|b| wa::SyncdValue { blob: Some(b) }),
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.to_vec()),
-            }),
-        }),
+    let mut index = wa::SyncdIndex::default();
+    index.blob = Some(index_mac);
+    let mut record = wa::SyncdRecord::default();
+    record.index = index.into();
+    if let Some(blob) = value_blob {
+        let mut value = wa::SyncdValue::default();
+        value.blob = Some(blob);
+        record.value = value.into();
     }
+    record.key_id = make_key_id(key_id).into();
+
+    let mut mutation = wa::SyncdMutation::default();
+    mutation.operation = Some(op.into());
+    mutation.record = record.into();
+    mutation
 }
 
 fn create_value_blob(
@@ -206,23 +215,22 @@ fn test_external_mutations_decode_from_syncd_mutations() {
     );
 
     // Encode as SyncdMutations (what external_mutations downloads return)
-    let syncd_mutations = wa::SyncdMutations {
-        mutations: vec![mutation1, mutation2],
-    };
+    let mut syncd_mutations = wa::SyncdMutations::default();
+    syncd_mutations.mutations = vec![mutation1, mutation2];
 
     let encoded = syncd_mutations.encode_to_vec();
 
     // Decode back
-    let decoded = wa::SyncdMutations::decode(encoded.as_slice()).expect("should decode");
+    let decoded = wa::SyncdMutations::decode_from_slice(encoded.as_slice()).expect("should decode");
 
     assert_eq!(decoded.mutations.len(), 2);
     assert_eq!(
         decoded.mutations[0].operation,
-        Some(wa::syncd_mutation::SyncdOperation::Set as i32)
+        Some(wa::syncd_mutation::SyncdOperation::Set.into())
     );
     assert_eq!(
         decoded.mutations[1].operation,
-        Some(wa::syncd_mutation::SyncdOperation::Remove as i32)
+        Some(wa::syncd_mutation::SyncdOperation::Remove.into())
     );
 }
 
@@ -243,19 +251,12 @@ fn test_validate_patch_macs_skips_on_has_missing_remove() {
     };
 
     // Create a patch with a snapshot_mac that won't match our state
-    let patch = wa::SyncdPatch {
-        version: Some(wa::SyncdVersion { version: Some(2) }),
-        mutations: vec![],
-        external_mutations: None,
-        snapshot_mac: Some(vec![0u8; 32]), // This won't match our computed MAC
-        patch_mac: None,
-        key_id: Some(wa::KeyId {
-            id: Some(key_id.to_vec()),
-        }),
-        exit_code: None,
-        device_index: None,
-        client_debug_data: None,
-    };
+    let mut version = wa::SyncdVersion::default();
+    version.version = Some(2);
+    let mut patch = wa::SyncdPatch::default();
+    patch.version = version.into();
+    patch.snapshot_mac = Some(vec![0u8; 32]); // This won't match our computed MAC
+    patch.key_id = make_key_id(key_id).into();
 
     // Without has_missing_remove, this would fail
     let result_without_flag =

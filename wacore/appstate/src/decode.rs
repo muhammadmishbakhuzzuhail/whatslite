@@ -1,8 +1,8 @@
 use crate::AppStateError;
 use crate::hash::{generate_content_mac, validate_index_mac};
 use crate::keys::ExpandedAppStateKeys;
-use prost::Message;
 use wacore_libsignal::crypto::aes_256_cbc_decrypt_into;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 /// A decoded mutation from an app state record.
@@ -43,7 +43,7 @@ pub fn decode_record(
 ) -> Result<Mutation, AppStateError> {
     let value_blob = record
         .value
-        .as_ref()
+        .as_option()
         .and_then(|v| v.blob.as_ref())
         .ok_or(AppStateError::MissingValueBlob)?;
 
@@ -70,7 +70,7 @@ pub fn decode_record(
     aes_256_cbc_decrypt_into(ciphertext, &keys.value_encryption, iv, &mut plaintext)
         .map_err(|_| AppStateError::DecryptionFailed)?;
 
-    let action = wa::SyncActionData::decode(plaintext.as_slice())
+    let action = wa::SyncActionData::decode_from_slice(plaintext.as_slice())
         .map_err(|_| AppStateError::DecodeFailed)?;
 
     let mut index_list: Vec<String> = Vec::new();
@@ -78,7 +78,7 @@ pub fn decode_record(
         if validate_macs {
             let stored = record
                 .index
-                .as_ref()
+                .as_option()
                 .and_then(|i| i.blob.as_ref())
                 .ok_or(AppStateError::MissingIndexMAC)?;
             validate_index_mac(idx_bytes, stored, &keys.index)?;
@@ -89,10 +89,10 @@ pub fn decode_record(
     }
 
     Ok(Mutation {
-        action_value: action.value.clone(),
+        action_value: action.value.as_option().cloned(),
         index_mac: record
             .index
-            .as_ref()
+            .as_option()
             .and_then(|i| i.blob.clone())
             .unwrap_or_default(),
         value_mac: value_mac.to_vec(),
@@ -123,17 +123,17 @@ pub fn collect_key_ids_from_patch_list(
     };
 
     if let Some(snapshot) = snapshot {
-        check(snapshot.key_id.as_ref().and_then(|k| k.id.as_ref()));
+        check(snapshot.key_id.as_option().and_then(|k| k.id.as_ref()));
         for rec in &snapshot.records {
-            check(rec.key_id.as_ref().and_then(|k| k.id.as_ref()));
+            check(rec.key_id.as_option().and_then(|k| k.id.as_ref()));
         }
     }
 
     for patch in patches {
-        check(patch.key_id.as_ref().and_then(|k| k.id.as_ref()));
+        check(patch.key_id.as_option().and_then(|k| k.id.as_ref()));
         for mutation in &patch.mutations {
-            if let Some(record) = &mutation.record {
-                check(record.key_id.as_ref().and_then(|k| k.id.as_ref()));
+            if let Some(record) = mutation.record.as_option() {
+                check(record.key_id.as_option().and_then(|k| k.id.as_ref()));
             }
         }
     }
@@ -146,8 +146,13 @@ mod tests {
     use super::*;
     use crate::hash::generate_content_mac;
     use crate::keys::expand_app_state_keys;
-    use prost::Message;
     use wacore_libsignal::crypto::aes_256_cbc_encrypt_into;
+
+    fn make_key_id(id: Vec<u8>) -> wa::KeyId {
+        let mut key_id = wa::KeyId::default();
+        key_id.id = Some(id);
+        key_id
+    }
 
     fn create_test_record(
         op: wa::syncd_mutation::SyncdOperation,
@@ -167,17 +172,24 @@ mod tests {
         let mut value_blob = value_with_iv;
         value_blob.extend_from_slice(&value_mac);
 
-        wa::SyncdRecord {
-            index: Some(wa::SyncdIndex {
-                blob: Some(vec![1; 32]),
-            }),
-            value: Some(wa::SyncdValue {
-                blob: Some(value_blob),
-            }),
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.to_vec()),
-            }),
-        }
+        let mut index = wa::SyncdIndex::default();
+        index.blob = Some(vec![1; 32]);
+        let mut value = wa::SyncdValue::default();
+        value.blob = Some(value_blob);
+
+        let mut record = wa::SyncdRecord::default();
+        record.index = index.into();
+        record.value = value.into();
+        record.key_id = make_key_id(key_id.to_vec()).into();
+        record
+    }
+
+    fn make_action_data(timestamp: i64) -> wa::SyncActionData {
+        let mut value = wa::SyncActionValue::default();
+        value.timestamp = Some(timestamp);
+        let mut action_data = wa::SyncActionData::default();
+        action_data.value = value.into();
+        action_data
     }
 
     #[test]
@@ -186,13 +198,7 @@ mod tests {
         let keys = expand_app_state_keys(&master_key);
         let key_id = b"test_key_id".to_vec();
 
-        let action_data = wa::SyncActionData {
-            value: Some(wa::SyncActionValue {
-                timestamp: Some(1234567890),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let action_data = make_action_data(1234567890);
 
         let record = create_test_record(
             wa::syncd_mutation::SyncdOperation::Set,
@@ -223,13 +229,7 @@ mod tests {
         let keys = expand_app_state_keys(&master_key);
         let key_id = b"test_key_id".to_vec();
 
-        let action_data = wa::SyncActionData {
-            value: Some(wa::SyncActionValue {
-                timestamp: Some(1234567890),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let action_data = make_action_data(1234567890);
 
         let record = create_test_record(
             wa::syncd_mutation::SyncdOperation::Set,
@@ -256,34 +256,20 @@ mod tests {
         let key_id_3 = vec![7, 8, 9];
         let key_id_4 = vec![10, 11, 12];
 
-        let snapshot = wa::SyncdSnapshot {
-            key_id: Some(wa::KeyId {
-                id: Some(key_id_1.clone()),
-            }),
-            records: vec![wa::SyncdRecord {
-                key_id: Some(wa::KeyId {
-                    id: Some(key_id_2.clone()),
-                }),
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
+        let mut snapshot_record = wa::SyncdRecord::default();
+        snapshot_record.key_id = make_key_id(key_id_2.clone()).into();
+        let mut snapshot = wa::SyncdSnapshot::default();
+        snapshot.key_id = make_key_id(key_id_1.clone()).into();
+        snapshot.records = vec![snapshot_record];
 
-        let patches = vec![wa::SyncdPatch {
-            key_id: Some(wa::KeyId {
-                id: Some(key_id_3.clone()),
-            }),
-            mutations: vec![wa::SyncdMutation {
-                record: Some(wa::SyncdRecord {
-                    key_id: Some(wa::KeyId {
-                        id: Some(key_id_4.clone()),
-                    }),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }],
-            ..Default::default()
-        }];
+        let mut mutation_record = wa::SyncdRecord::default();
+        mutation_record.key_id = make_key_id(key_id_4.clone()).into();
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.record = mutation_record.into();
+        let mut patch = wa::SyncdPatch::default();
+        patch.key_id = make_key_id(key_id_3.clone()).into();
+        patch.mutations = vec![mutation];
+        let patches = vec![patch];
 
         let key_ids = collect_key_ids_from_patch_list(Some(&snapshot), &patches);
 
@@ -298,25 +284,15 @@ mod tests {
     fn test_collect_key_ids_deduplicates() {
         let key_id = vec![1, 2, 3];
 
-        let snapshot = wa::SyncdSnapshot {
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            records: vec![wa::SyncdRecord {
-                key_id: Some(wa::KeyId {
-                    id: Some(key_id.clone()),
-                }),
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
+        let mut snapshot_record = wa::SyncdRecord::default();
+        snapshot_record.key_id = make_key_id(key_id.clone()).into();
+        let mut snapshot = wa::SyncdSnapshot::default();
+        snapshot.key_id = make_key_id(key_id.clone()).into();
+        snapshot.records = vec![snapshot_record];
 
-        let patches = vec![wa::SyncdPatch {
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            ..Default::default()
-        }];
+        let mut patch = wa::SyncdPatch::default();
+        patch.key_id = make_key_id(key_id.clone()).into();
+        let patches = vec![patch];
 
         let key_ids = collect_key_ids_from_patch_list(Some(&snapshot), &patches);
 

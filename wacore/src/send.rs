@@ -11,13 +11,13 @@ use crate::reporting_token::{
 };
 use crate::types::jid::JidExt;
 use anyhow::{Result, anyhow};
-use prost::Message as ProtoMessage;
 use rand::{CryptoRng, Rng, TryRngCore as _};
 use std::collections::HashSet;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::{Jid, JidExt as _};
 use wacore_binary::node::{Attrs, Node};
 use wacore_libsignal::crypto::aes_256_cbc_encrypt_into;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 use waproto::whatsapp::message::DeviceSentMessage;
 
@@ -390,7 +390,7 @@ pub async fn prepare_dm_stanza<
     stores: &mut SignalStores<'a, S, I, P, SP>,
     resolver: &dyn SendContextResolver,
     own_jid: &Jid,
-    account: Option<&wa::AdvSignedDeviceIdentity>,
+    account: Option<&wa::ADVSignedDeviceIdentity>,
     to_jid: Jid,
     message: &wa::Message,
     request_id: String,
@@ -410,14 +410,12 @@ pub async fn prepare_dm_stanza<
 
     let recipient_plaintext = MessageUtils::pad_message_v2(message_for_encryption.encode_to_vec());
 
-    let dsm = wa::Message {
-        device_sent_message: Some(Box::new(DeviceSentMessage {
-            destination_jid: Some(to_jid.to_string()),
-            message: Some(Box::new(message_for_encryption.clone())),
-            phash: Some("".to_string()),
-        })),
-        ..Default::default()
-    };
+    let mut device_sent = DeviceSentMessage::default();
+    device_sent.destination_jid = Some(to_jid.to_string());
+    device_sent.message = message_for_encryption.clone().into();
+    device_sent.phash = Some("".to_string());
+    let mut dsm = wa::Message::default();
+    dsm.device_sent_message = device_sent.into();
 
     let own_devices_plaintext = MessageUtils::pad_message_v2(dsm.encode_to_vec());
 
@@ -574,7 +572,7 @@ pub async fn prepare_group_stanza<
     group_info: &mut GroupInfo,
     own_jid: &Jid,
     own_lid: &Jid,
-    account: Option<&wa::AdvSignedDeviceIdentity>,
+    account: Option<&wa::ADVSignedDeviceIdentity>,
     to_jid: Jid,
     message: &wa::Message,
     request_id: String,
@@ -739,13 +737,11 @@ pub async fn prepare_group_stanza<
         )
         .await?;
 
-        let skdm_wrapper_msg = wa::Message {
-            sender_key_distribution_message: Some(wa::message::SenderKeyDistributionMessage {
-                group_id: Some(to_jid.to_string()),
-                axolotl_sender_key_distribution_message: Some(axolotl_skdm_bytes),
-            }),
-            ..Default::default()
-        };
+        let mut skdm = wa::message::SenderKeyDistributionMessage::default();
+        skdm.group_id = Some(to_jid.to_string());
+        skdm.axolotl_sender_key_distribution_message = Some(axolotl_skdm_bytes);
+        let mut skdm_wrapper_msg = wa::Message::default();
+        skdm_wrapper_msg.sender_key_distribution_message = skdm.into();
         let skdm_plaintext_to_encrypt =
             MessageUtils::pad_message_v2(skdm_wrapper_msg.encode_to_vec());
 

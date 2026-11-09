@@ -130,28 +130,24 @@ fn main() {
                             {
                                 info!("Received text ping, sending pong...");
 
-                                let message_key = wa::MessageKey {
-                                    remote_jid: Some(ctx.info.source.chat.to_string()),
-                                    id: Some(ctx.info.id.clone()),
-                                    from_me: Some(ctx.info.source.is_from_me),
-                                    participant: if ctx.info.source.is_group {
-                                        Some(ctx.info.source.sender.to_string())
-                                    } else {
-                                        None
-                                    },
+                                let mut message_key = wa::MessageKey::default();
+                                message_key.remote_jid = Some(ctx.info.source.chat.to_string());
+                                message_key.id = Some(ctx.info.id.clone());
+                                message_key.from_me = Some(ctx.info.source.is_from_me);
+                                message_key.participant = if ctx.info.source.is_group {
+                                    Some(ctx.info.source.sender.to_string())
+                                } else {
+                                    None
                                 };
 
-                                let reaction_message = wa::message::ReactionMessage {
-                                    key: Some(message_key),
-                                    text: Some(REACTION_EMOJI.to_string()),
-                                    sender_timestamp_ms: Some(Utc::now().timestamp_millis()),
-                                    ..Default::default()
-                                };
+                                let mut reaction_message = wa::message::ReactionMessage::default();
+                                reaction_message.key = message_key.into();
+                                reaction_message.text = Some(REACTION_EMOJI.to_string());
+                                reaction_message.sender_timestamp_ms =
+                                    Some(Utc::now().timestamp_millis());
 
-                                let final_message_to_send = wa::Message {
-                                    reaction_message: Some(reaction_message),
-                                    ..Default::default()
-                                };
+                                let mut final_message_to_send = wa::Message::default();
+                                final_message_to_send.reaction_message = reaction_message.into();
 
                                 if let Err(e) = ctx.send_message(final_message_to_send).await {
                                     error!("Failed to send reaction: {}", e);
@@ -161,16 +157,11 @@ fn main() {
 
                                 let context_info = ctx.build_quote_context();
 
-                                let reply_message = wa::Message {
-                                    extended_text_message: Some(Box::new(
-                                        wa::message::ExtendedTextMessage {
-                                            text: Some(PONG_TEXT.to_string()),
-                                            context_info: Some(Box::new(context_info.clone())),
-                                            ..Default::default()
-                                        },
-                                    )),
-                                    ..Default::default()
-                                };
+                                let mut reply_text = wa::message::ExtendedTextMessage::default();
+                                reply_text.text = Some(PONG_TEXT.to_string());
+                                reply_text.context_info = context_info.clone().into();
+                                let mut reply_message = wa::Message::default();
+                                reply_message.extended_text_message = reply_text.into();
 
                                 let sent_msg_id = match ctx.send_message(reply_message).await {
                                     Ok(id) => id,
@@ -188,19 +179,12 @@ fn main() {
                                     duration_str, &sent_msg_id
                                 );
 
-                                let updated_content = wa::Message {
-                                    extended_text_message: Some(Box::new(
-                                        wa::message::ExtendedTextMessage {
-                                            text: Some(format!(
-                                                "{}\n`{}`",
-                                                PONG_TEXT, duration_str
-                                            )),
-                                            context_info: Some(Box::new(context_info)),
-                                            ..Default::default()
-                                        },
-                                    )),
-                                    ..Default::default()
-                                };
+                                let mut updated_text = wa::message::ExtendedTextMessage::default();
+                                updated_text.text =
+                                    Some(format!("{}\n`{}`", PONG_TEXT, duration_str));
+                                updated_text.context_info = context_info.into();
+                                let mut updated_content = wa::Message::default();
+                                updated_content.extended_text_message = updated_text.into();
 
                                 if let Err(e) =
                                     ctx.edit_message(sent_msg_id.clone(), updated_content).await
@@ -262,20 +246,18 @@ impl MediaPing for wa::message::ImageMessage {
     }
 
     fn build_pong_reply(&self, upload: UploadResponse) -> wa::Message {
-        wa::Message {
-            image_message: Some(Box::new(wa::message::ImageMessage {
-                mimetype: self.mimetype.clone(),
-                caption: Some(MEDIA_PONG_TEXT.to_string()),
-                url: Some(upload.url),
-                direct_path: Some(upload.direct_path),
-                media_key: Some(upload.media_key),
-                file_enc_sha256: Some(upload.file_enc_sha256),
-                file_sha256: Some(upload.file_sha256),
-                file_length: Some(upload.file_length),
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
+        let mut image = wa::message::ImageMessage::default();
+        image.mimetype = self.mimetype.clone();
+        image.caption = Some(MEDIA_PONG_TEXT.to_string());
+        image.url = Some(upload.url);
+        image.direct_path = Some(upload.direct_path);
+        image.media_key = Some(upload.media_key);
+        image.file_enc_sha256 = Some(upload.file_enc_sha256);
+        image.file_sha256 = Some(upload.file_sha256);
+        image.file_length = Some(upload.file_length);
+        let mut message = wa::Message::default();
+        message.image_message = image.into();
+        message
     }
 }
 
@@ -285,40 +267,38 @@ impl MediaPing for wa::message::VideoMessage {
     }
 
     fn build_pong_reply(&self, upload: UploadResponse) -> wa::Message {
-        wa::Message {
-            video_message: Some(Box::new(wa::message::VideoMessage {
-                mimetype: self.mimetype.clone(),
-                caption: Some(MEDIA_PONG_TEXT.to_string()),
-                url: Some(upload.url),
-                direct_path: Some(upload.direct_path),
-                media_key: Some(upload.media_key),
-                file_enc_sha256: Some(upload.file_enc_sha256),
-                file_sha256: Some(upload.file_sha256),
-                file_length: Some(upload.file_length),
-                gif_playback: self.gif_playback,
-                height: self.height,
-                width: self.width,
-                seconds: self.seconds,
-                gif_attribution: self.gif_attribution,
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
+        let mut video = wa::message::VideoMessage::default();
+        video.mimetype = self.mimetype.clone();
+        video.caption = Some(MEDIA_PONG_TEXT.to_string());
+        video.url = Some(upload.url);
+        video.direct_path = Some(upload.direct_path);
+        video.media_key = Some(upload.media_key);
+        video.file_enc_sha256 = Some(upload.file_enc_sha256);
+        video.file_sha256 = Some(upload.file_sha256);
+        video.file_length = Some(upload.file_length);
+        video.gif_playback = self.gif_playback;
+        video.height = self.height;
+        video.width = self.width;
+        video.seconds = self.seconds;
+        video.gif_attribution = self.gif_attribution;
+        let mut message = wa::Message::default();
+        message.video_message = video.into();
+        message
     }
 }
 
 fn get_pingable_media<'a>(message: &'a wa::Message) -> Option<&'a (dyn MediaPing + 'a)> {
     let base_message = message.get_base_message();
 
-    if let Some(msg) = &base_message.image_message
+    if let Some(msg) = base_message.image_message.as_option()
         && msg.caption.as_deref() == Some(MEDIA_PING_TRIGGER)
     {
-        return Some(&**msg);
+        return Some(msg);
     }
-    if let Some(msg) = &base_message.video_message
+    if let Some(msg) = base_message.video_message.as_option()
         && msg.caption.as_deref() == Some(MEDIA_PING_TRIGGER)
     {
-        return Some(&**msg);
+        return Some(msg);
     }
 
     None
@@ -334,12 +314,9 @@ async fn handle_media_ping(ctx: &MessageContext, media: &(dyn MediaPing + '_)) {
     let mut data_buffer = Cursor::new(Vec::new());
     if let Err(e) = ctx.client.download_to_file(media, &mut data_buffer).await {
         error!("Failed to download media: {}", e);
-        let _ = ctx
-            .send_message(wa::Message {
-                conversation: Some("Failed to download your media.".to_string()),
-                ..Default::default()
-            })
-            .await;
+        let mut error_message = wa::Message::default();
+        error_message.conversation = Some("Failed to download your media.".to_string());
+        let _ = ctx.send_message(error_message).await;
         return;
     }
 
@@ -352,12 +329,9 @@ async fn handle_media_ping(ctx: &MessageContext, media: &(dyn MediaPing + '_)) {
         Ok(resp) => resp,
         Err(e) => {
             error!("Failed to upload media: {}", e);
-            let _ = ctx
-                .send_message(wa::Message {
-                    conversation: Some("Failed to re-upload the media.".to_string()),
-                    ..Default::default()
-                })
-                .await;
+            let mut error_message = wa::Message::default();
+            error_message.conversation = Some("Failed to re-upload the media.".to_string());
+            let _ = ctx.send_message(error_message).await;
             return;
         }
     };

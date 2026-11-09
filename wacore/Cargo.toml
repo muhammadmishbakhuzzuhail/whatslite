@@ -29,6 +29,7 @@ anyhow = { workspace = true }
 async-channel = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
+buffa = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true, features = ["now", "serde"] }
 ctr = { workspace = true }
@@ -60,7 +61,7 @@ wacore_binary = { workspace = true, features = ["serde"] }
 wacore_derive = { workspace = true }
 wacore_libsignal = { workspace = true }
 wacore_noise = { workspace = true }
-waproto = { workspace = true }
+waproto = { workspace = true, features = ["serde-deserialize"] }
 
 [dev-dependencies]
 iai-callgrind = { workspace = true }

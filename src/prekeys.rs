@@ -10,6 +10,7 @@ use wacore::iq::prekeys::{PreKeyCountSpec, PreKeyFetchSpec, PreKeyUploadSpec};
 use wacore::libsignal::protocol::{KeyPair, PreKeyBundle, PublicKey};
 use wacore::libsignal::store::record_helpers::new_pre_key_record;
 use wacore_binary::jid::Jid;
+use waproto::buffa::Message as _;
 
 const WANTED_PRE_KEY_COUNT: usize = 50;
 const MIN_PRE_KEY_COUNT: usize = 5;
@@ -123,7 +124,6 @@ impl Client {
         // Step 5: Store the new pre-keys using existing backend interface
         for (id, record) in keys_to_upload {
             // Mark as uploaded since the IQ was successful
-            use prost::Message;
             let record_bytes = record.encode_to_vec();
             if let Err(e) = backend.store_prekey(id, &record_bytes, true).await {
                 log::warn!("Failed to store prekey id {}: {:?}", id, e);

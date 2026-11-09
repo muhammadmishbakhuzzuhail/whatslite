@@ -68,7 +68,7 @@ where
 {
     let version = snapshot
         .version
-        .as_ref()
+        .as_option()
         .and_then(|v| v.version)
         .unwrap_or(0);
     initial_state.version = version;
@@ -89,7 +89,7 @@ where
     if validate_macs
         && let (Some(mac_expected), Some(key_id)) = (
             snapshot.mac.as_ref(),
-            snapshot.key_id.as_ref().and_then(|k| k.id.as_ref()),
+            snapshot.key_id.as_option().and_then(|k| k.id.as_ref()),
         )
     {
         let keys = get_keys(key_id)?;
@@ -114,7 +114,7 @@ where
     for rec in &snapshot.records {
         let key_id = rec
             .key_id
-            .as_ref()
+            .as_option()
             .and_then(|k| k.id.as_ref())
             .ok_or(AppStateError::MissingKeyId)?;
         let keys = get_keys(key_id)?;
@@ -177,17 +177,21 @@ where
     let original_hash_is_empty = state.hash == [0u8; 128];
     let had_no_prior_state = original_version == 0 && original_hash_is_empty;
 
-    state.version = patch.version.as_ref().and_then(|v| v.version).unwrap_or(0);
+    state.version = patch
+        .version
+        .as_option()
+        .and_then(|v| v.version)
+        .unwrap_or(0);
 
     // Update hash state - the closure handles finding previous values
     let (hash_update_result, result) = state.update_hash(&patch.mutations, |index_mac, idx| {
         // First check previous mutations in this patch (for overwrites within same patch)
         for prev in patch.mutations[..idx].iter().rev() {
-            if let Some(rec) = &prev.record
-                && let Some(ind) = &rec.index
+            if let Some(rec) = prev.record.as_option()
+                && let Some(ind) = rec.index.as_option()
                 && let Some(b) = &ind.blob
                 && b == index_mac
-                && let Some(val) = &rec.value
+                && let Some(val) = rec.value.as_option()
                 && let Some(vb) = &val.blob
                 && vb.len() >= 32
             {
@@ -210,7 +214,7 @@ where
     );
 
     // Validate MACs if requested
-    if validate_macs && let Some(key_id) = patch.key_id.as_ref().and_then(|k| k.id.as_ref()) {
+    if validate_macs && let Some(key_id) = patch.key_id.as_option().and_then(|k| k.id.as_ref()) {
         let keys = get_keys(key_id)?;
         validate_patch_macs(
             patch,
@@ -228,13 +232,15 @@ where
     let mut removed_index_macs = Vec::new();
 
     for m in &patch.mutations {
-        if let Some(rec) = &m.record {
-            let op = wa::syncd_mutation::SyncdOperation::try_from(m.operation.unwrap_or(0))
+        if let Some(rec) = m.record.as_option() {
+            let op = m
+                .operation
+                .and_then(|operation| operation.as_known())
                 .unwrap_or(wa::syncd_mutation::SyncdOperation::Set);
 
             let key_id = rec
                 .key_id
-                .as_ref()
+                .as_option()
                 .and_then(|k| k.id.as_ref())
                 .ok_or(AppStateError::MissingKeyId)?;
             let keys = get_keys(key_id)?;
@@ -251,6 +257,7 @@ where
                 wa::syncd_mutation::SyncdOperation::Remove => {
                     removed_index_macs.push(mutation.index_mac.clone());
                 }
+                _ => {}
             }
 
             mutations.push(mutation);
@@ -335,7 +342,11 @@ pub fn validate_patch_macs(
     }
 
     if let Some(patch_mac) = patch.patch_mac.as_ref() {
-        let version = patch.version.as_ref().and_then(|v| v.version).unwrap_or(0);
+        let version = patch
+            .version
+            .as_option()
+            .and_then(|v| v.version)
+            .unwrap_or(0);
         let computed_patch = generate_patch_mac(patch, collection_name, &keys.patch_mac, version);
         if computed_patch != *patch_mac {
             // Also skip patchMac validation if hasMissingRemove, since snapshotMac is part of it
@@ -379,8 +390,20 @@ mod tests {
     use crate::hash::generate_content_mac;
     use crate::keys::expand_app_state_keys;
     use crate::lthash::WAPATCH_INTEGRITY;
-    use prost::Message;
     use wacore_libsignal::crypto::aes_256_cbc_encrypt_into;
+    use waproto::buffa::Message as _;
+
+    fn make_key_id(id: Vec<u8>) -> wa::KeyId {
+        let mut key_id = wa::KeyId::default();
+        key_id.id = Some(id);
+        key_id
+    }
+
+    fn make_version(version: u64) -> wa::SyncdVersion {
+        let mut value = wa::SyncdVersion::default();
+        value.version = Some(version);
+        value
+    }
 
     fn create_encrypted_record(
         op: wa::syncd_mutation::SyncdOperation,
@@ -389,13 +412,10 @@ mod tests {
         key_id: &[u8],
         timestamp: i64,
     ) -> wa::SyncdRecord {
-        let action_data = wa::SyncActionData {
-            value: Some(wa::SyncActionValue {
-                timestamp: Some(timestamp),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let mut action_value = wa::SyncActionValue::default();
+        action_value.timestamp = Some(timestamp);
+        let mut action_data = wa::SyncActionData::default();
+        action_data.value = action_value.into();
         let plaintext = action_data.encode_to_vec();
 
         let iv = vec![0u8; 16];
@@ -409,17 +429,16 @@ mod tests {
         let mut value_blob = value_with_iv;
         value_blob.extend_from_slice(&value_mac);
 
-        wa::SyncdRecord {
-            index: Some(wa::SyncdIndex {
-                blob: Some(index_mac.to_vec()),
-            }),
-            value: Some(wa::SyncdValue {
-                blob: Some(value_blob),
-            }),
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.to_vec()),
-            }),
-        }
+        let mut index = wa::SyncdIndex::default();
+        index.blob = Some(index_mac.to_vec());
+        let mut value = wa::SyncdValue::default();
+        value.blob = Some(value_blob);
+
+        let mut record = wa::SyncdRecord::default();
+        record.index = index.into();
+        record.value = value.into();
+        record.key_id = make_key_id(key_id.to_vec()).into();
+        record
     }
 
     #[test]
@@ -437,14 +456,10 @@ mod tests {
             1234567890,
         );
 
-        let snapshot = wa::SyncdSnapshot {
-            version: Some(wa::SyncdVersion { version: Some(1) }),
-            records: vec![record],
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            ..Default::default()
-        };
+        let mut snapshot = wa::SyncdSnapshot::default();
+        snapshot.version = make_version(1).into();
+        snapshot.records = vec![record];
+        snapshot.key_id = make_key_id(key_id.clone()).into();
 
         let get_keys = |_: &[u8]| Ok(keys.clone());
 
@@ -479,17 +494,13 @@ mod tests {
             1234567890,
         );
 
-        let patch = wa::SyncdPatch {
-            version: Some(wa::SyncdVersion { version: Some(2) }),
-            mutations: vec![wa::SyncdMutation {
-                operation: Some(wa::syncd_mutation::SyncdOperation::Set as i32),
-                record: Some(record),
-            }],
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            ..Default::default()
-        };
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.operation = Some(wa::syncd_mutation::SyncdOperation::Set.into());
+        mutation.record = record.into();
+        let mut patch = wa::SyncdPatch::default();
+        patch.version = make_version(2).into();
+        patch.mutations = vec![mutation];
+        patch.key_id = make_key_id(key_id.clone()).into();
 
         let get_keys = |_: &[u8]| Ok(keys.clone());
         let get_prev = |_: &[u8]| Ok(None);
@@ -521,7 +532,7 @@ mod tests {
         );
         let initial_value_blob = initial_record
             .value
-            .as_ref()
+            .as_option()
             .expect("test data should be valid")
             .blob
             .as_ref()
@@ -529,14 +540,10 @@ mod tests {
         let initial_value_mac = initial_value_blob[initial_value_blob.len() - 32..].to_vec();
 
         // Process initial snapshot to get starting state
-        let snapshot = wa::SyncdSnapshot {
-            version: Some(wa::SyncdVersion { version: Some(1) }),
-            records: vec![initial_record],
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            ..Default::default()
-        };
+        let mut snapshot = wa::SyncdSnapshot::default();
+        snapshot.version = make_version(1).into();
+        snapshot.records = vec![initial_record];
+        snapshot.key_id = make_key_id(key_id.clone()).into();
 
         let get_keys = |_: &[u8]| Ok(keys.clone());
         let mut snapshot_state = HashState::default();
@@ -553,17 +560,13 @@ mod tests {
             2000,
         );
 
-        let patch = wa::SyncdPatch {
-            version: Some(wa::SyncdVersion { version: Some(2) }),
-            mutations: vec![wa::SyncdMutation {
-                operation: Some(wa::syncd_mutation::SyncdOperation::Set as i32),
-                record: Some(overwrite_record.clone()),
-            }],
-            key_id: Some(wa::KeyId {
-                id: Some(key_id.clone()),
-            }),
-            ..Default::default()
-        };
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.operation = Some(wa::syncd_mutation::SyncdOperation::Set.into());
+        mutation.record = overwrite_record.clone().into();
+        let mut patch = wa::SyncdPatch::default();
+        patch.version = make_version(2).into();
+        patch.mutations = vec![mutation];
+        patch.key_id = make_key_id(key_id.clone()).into();
 
         let get_keys = |_: &[u8]| Ok(keys.clone());
         // Return the previous value MAC when asked
@@ -599,6 +602,7 @@ mod tests {
         // Verify the hash was updated correctly (old value removed, new added)
         let new_value_blob = overwrite_record
             .value
+            .into_option()
             .expect("test data should be valid")
             .blob
             .expect("test data should be valid");

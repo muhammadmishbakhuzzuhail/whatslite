@@ -1501,11 +1501,14 @@ impl Client {
 
                 // Download external mutations for each patch that has them
                 for patch in &pl.patches {
-                    if let Some(ext) = &patch.external_mutations
+                    if let Some(ext) = patch.external_mutations.as_option()
                         && let Some(path) = &ext.direct_path
                     {
-                        let patch_version =
-                            patch.version.as_ref().and_then(|v| v.version).unwrap_or(0);
+                        let patch_version = patch
+                            .version
+                            .as_option()
+                            .and_then(|v| v.version)
+                            .unwrap_or(0);
                         match self.download(ext).await {
                             Ok(bytes) => {
                                 debug!(target: "Client/AppState", "Downloaded external mutations for patch v{} ({} bytes)", patch_version, bytes.len());
@@ -1600,18 +1603,20 @@ impl Client {
         };
         let key_ids: Vec<wa::message::AppStateSyncKeyId> = raw_key_ids
             .iter()
-            .map(|k| wa::message::AppStateSyncKeyId {
-                key_id: Some(k.clone()),
+            .map(|k| {
+                let mut id = wa::message::AppStateSyncKeyId::default();
+                id.key_id = Some(k.clone());
+                id
             })
             .collect();
-        let msg = wa::Message {
-            protocol_message: Some(Box::new(wa::message::ProtocolMessage {
-                r#type: Some(wa::message::protocol_message::Type::AppStateSyncKeyRequest as i32),
-                app_state_sync_key_request: Some(wa::message::AppStateSyncKeyRequest { key_ids }),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut key_request = wa::message::AppStateSyncKeyRequest::default();
+        key_request.key_ids = key_ids;
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.r#type =
+            Some(wa::message::protocol_message::Type::APP_STATE_SYNC_KEY_REQUEST);
+        protocol_message.app_state_sync_key_request = key_request.into();
+        let mut msg = wa::Message::default();
+        msg.protocol_message = protocol_message.into();
         if let Err(e) = self
             .send_message_impl(
                 own_jid,
@@ -1657,7 +1662,7 @@ impl Client {
         match kind.as_str() {
             "setting_pushName" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.push_name_setting
+                    && let Some(act) = val.push_name_setting.as_option()
                     && let Some(new_name) = &act.name
                 {
                     let new_name = new_name.clone();
@@ -1692,31 +1697,31 @@ impl Client {
             }
             "mute" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.mute_action
+                    && let Some(act) = val.mute_action.as_option()
                 {
                     self.core.event_bus.dispatch(&Event::MuteUpdate(MuteUpdate {
                         jid,
                         timestamp: time,
-                        action: Box::new(*act),
+                        action: Box::new(act.clone()),
                         from_full_sync: full_sync,
                     }));
                 }
             }
             "pin" | "pin_v1" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.pin_action
+                    && let Some(act) = val.pin_action.as_option()
                 {
                     self.core.event_bus.dispatch(&Event::PinUpdate(PinUpdate {
                         jid,
                         timestamp: time,
-                        action: Box::new(*act),
+                        action: Box::new(act.clone()),
                         from_full_sync: full_sync,
                     }));
                 }
             }
             "archive" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.archive_chat_action
+                    && let Some(act) = val.archive_chat_action.as_option()
                 {
                     self.core
                         .event_bus
@@ -1730,7 +1735,7 @@ impl Client {
             }
             "contact" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.contact_action
+                    && let Some(act) = val.contact_action.as_option()
                 {
                     self.core
                         .event_bus
@@ -1744,7 +1749,7 @@ impl Client {
             }
             "mark_chat_as_read" | "markChatAsRead" => {
                 if let Some(val) = &m.action_value
-                    && let Some(act) = &val.mark_chat_as_read_action
+                    && let Some(act) = val.mark_chat_as_read_action.as_option()
                 {
                     self.core.event_bus.dispatch(&Event::MarkChatAsReadUpdate(
                         MarkChatAsReadUpdate {
@@ -2048,30 +2053,30 @@ impl Client {
             .await
             .ok_or_else(|| anyhow!("Not logged in"))?;
 
-        let edit_container_message = wa::Message {
-            edited_message: Some(Box::new(wa::message::FutureProofMessage {
-                message: Some(Box::new(wa::Message {
-                    protocol_message: Some(Box::new(wa::message::ProtocolMessage {
-                        key: Some(wa::MessageKey {
-                            remote_jid: Some(to.to_string()),
-                            from_me: Some(true),
-                            id: Some(original_id.clone()),
-                            participant: if to.is_group() {
-                                Some(own_jid.to_non_ad().to_string())
-                            } else {
-                                None
-                            },
-                        }),
-                        r#type: Some(wa::message::protocol_message::Type::MessageEdit as i32),
-                        edited_message: Some(Box::new(new_content)),
-                        timestamp_ms: Some(chrono::Utc::now().timestamp_millis()),
-                        ..Default::default()
-                    })),
-                    ..Default::default()
-                })),
-            })),
-            ..Default::default()
+        let mut key = wa::MessageKey::default();
+        key.remote_jid = Some(to.to_string());
+        key.from_me = Some(true);
+        key.id = Some(original_id.clone());
+        key.participant = if to.is_group() {
+            Some(own_jid.to_non_ad().to_string())
+        } else {
+            None
         };
+
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.key = key.into();
+        protocol_message.r#type = Some(wa::message::protocol_message::Type::MESSAGE_EDIT);
+        protocol_message.edited_message = new_content.into();
+        protocol_message.timestamp_ms = Some(chrono::Utc::now().timestamp_millis());
+
+        let mut inner_message = wa::Message::default();
+        inner_message.protocol_message = protocol_message.into();
+
+        let mut future_proof = wa::message::FutureProofMessage::default();
+        future_proof.message = inner_message.into();
+
+        let mut edit_container_message = wa::Message::default();
+        edit_container_message.edited_message = future_proof.into();
 
         self.send_message_impl(
             to,

@@ -6,14 +6,14 @@ use base64::Engine as _;
 use base64::prelude::*;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
-use prost::Message;
 use rand::TryRngCore;
 use sha2::Sha256;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::{Jid, SERVER_JID};
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
-use waproto::whatsapp::AdvEncryptionType;
+use waproto::whatsapp::ADVEncryptionType;
 
 // Prefixes from whatsmeow/pair.go, crucial for signature verification
 const ADV_PREFIX_ACCOUNT_SIGNATURE: &[u8] = &[6, 0];
@@ -111,16 +111,17 @@ impl PairUtils {
         device_identity_bytes: &[u8],
     ) -> Result<(Vec<u8>, u32), PairCryptoError> {
         // 1. Unmarshal HMAC container and verify HMAC
-        let hmac_container = wa::AdvSignedDeviceIdentityHmac::decode(device_identity_bytes)
-            .map_err(|e| PairCryptoError {
-                code: 500,
-                text: "internal-error",
-                source: e.into(),
-            })?;
+        let hmac_container = wa::ADVSignedDeviceIdentityHMAC::decode_from_slice(
+            device_identity_bytes,
+        )
+        .map_err(|e| PairCryptoError {
+            code: 500,
+            text: "internal-error",
+            source: e.into(),
+        })?;
 
         // Determine if this is a hosted account
-        let is_hosted_account = hmac_container.account_type.is_some()
-            && hmac_container.account_type() == AdvEncryptionType::Hosted;
+        let is_hosted_account = hmac_container.account_type == Some(ADVEncryptionType::HOSTED);
 
         let mut mac =
             <HmacSha256 as Mac>::new_from_slice(&device_state.adv_secret_key).map_err(|e| {
@@ -163,29 +164,44 @@ impl PairUtils {
         })?;
 
         // 2. Unmarshal inner container and verify account signature
-        let mut signed_identity =
-            wa::AdvSignedDeviceIdentity::decode(details_bytes).map_err(|e| PairCryptoError {
+        let mut signed_identity = wa::ADVSignedDeviceIdentity::decode_from_slice(details_bytes)
+            .map_err(|e| PairCryptoError {
                 code: 500,
                 text: "internal-error",
                 source: e.into(),
             })?;
 
-        let account_sig_key_bytes = signed_identity.account_signature_key();
-        let account_sig_bytes = signed_identity.account_signature();
-        let inner_details_bytes = signed_identity.details().to_vec();
+        let account_sig_key_bytes = signed_identity
+            .account_signature_key
+            .as_deref()
+            .unwrap_or_default();
+        let account_sig_bytes = signed_identity
+            .account_signature
+            .as_deref()
+            .unwrap_or_default();
+        let inner_details_bytes = signed_identity
+            .details
+            .as_deref()
+            .ok_or_else(|| PairCryptoError {
+                code: 500,
+                text: "internal-error",
+                source: anyhow::anyhow!("ADVSignedDeviceIdentity missing details"),
+            })?
+            .to_vec();
 
         // The signed inner ADVDeviceIdentity drives the account-signature
         // prefix: WA Web keys it off the signed deviceType, independently of
         // the outer (HMAC container) accountType. Mixed hosted-account /
         // regular-device chains exist and must verify with the prefixes of
         // their own fields (oxidezap #1440).
-        let identity_details =
-            wa::AdvDeviceIdentity::decode(&*inner_details_bytes).map_err(|e| PairCryptoError {
+        let identity_details = wa::ADVDeviceIdentity::decode_from_slice(&inner_details_bytes)
+            .map_err(|e| PairCryptoError {
                 code: 500,
                 text: "internal-error",
                 source: e.into(),
             })?;
-        let account_sig_prefix = if identity_details.device_type() == AdvEncryptionType::Hosted {
+        let account_sig_prefix = if identity_details.device_type == Some(ADVEncryptionType::HOSTED)
+        {
             ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE
         } else {
             ADV_PREFIX_ACCOUNT_SIGNATURE
@@ -232,7 +248,11 @@ impl PairUtils {
             })?;
         signed_identity.device_signature = Some(device_signature.to_vec());
 
-        let key_index = identity_details.key_index();
+        let key_index = identity_details.key_index.ok_or_else(|| PairCryptoError {
+            code: 500,
+            text: "internal-error",
+            source: anyhow::anyhow!("ADVDeviceIdentity missing key_index"),
+        })?;
 
         // 5. Marshal the modified signed_identity to send back
         let self_signed_identity_bytes = signed_identity.encode_to_vec();
@@ -443,15 +463,26 @@ mod tests {
         use rand::TryRngCore;
         let mut rng = rand::rngs::OsRng.unwrap_err();
         let account_kp = KeyPair::generate(&mut rng);
-        let outer_account_type: i32 = if hosted_account { 1 } else { 0 };
-        let inner = wa::AdvDeviceIdentity {
-            raw_id: Some(1),
-            timestamp: Some(0),
-            key_index: Some(0),
-            account_type: Some(if hosted_account { 1 } else { 0 }),
-            device_type: Some(if hosted_device { 1 } else { 0 }),
-        }
-        .encode_to_vec();
+        let outer_account_type = if hosted_account {
+            ADVEncryptionType::HOSTED
+        } else {
+            ADVEncryptionType::E2EE
+        };
+        let mut inner = wa::ADVDeviceIdentity::default();
+        inner.raw_id = Some(1);
+        inner.timestamp = Some(0);
+        inner.key_index = Some(0);
+        inner.account_type = Some(if hosted_account {
+            ADVEncryptionType::HOSTED
+        } else {
+            ADVEncryptionType::E2EE
+        });
+        inner.device_type = Some(if hosted_device {
+            ADVEncryptionType::HOSTED
+        } else {
+            ADVEncryptionType::E2EE
+        });
+        let inner = inner.encode_to_vec();
         let account_sig_prefix: &[u8] = if hosted_device {
             ADV_HOSTED_PREFIX_ACCOUNT_SIGNATURE
         } else {
@@ -465,13 +496,11 @@ mod tests {
             .private_key
             .calculate_signature(&to_sign, &mut rng)
             .expect("signing must succeed");
-        let signed = wa::AdvSignedDeviceIdentity {
-            details: Some(inner),
-            account_signature_key: Some(account_kp.public_key.public_key_bytes().to_vec()),
-            account_signature: Some(sig.to_vec()),
-            device_signature: None,
-        }
-        .encode_to_vec();
+        let mut signed = wa::ADVSignedDeviceIdentity::default();
+        signed.details = Some(inner);
+        signed.account_signature_key = Some(account_kp.public_key.public_key_bytes().to_vec());
+        signed.account_signature = Some(sig.to_vec());
+        let signed = signed.encode_to_vec();
         let mut mac = <HmacSha256 as Mac>::new_from_slice(adv_secret_for_hmac)
             .expect("HMAC accepts any key length");
         if hosted_account {
@@ -479,12 +508,11 @@ mod tests {
         }
         mac.update(&signed);
         let hmac_bytes = mac.finalize().into_bytes().to_vec();
-        wa::AdvSignedDeviceIdentityHmac {
-            details: Some(signed),
-            hmac: Some(hmac_bytes),
-            account_type: Some(outer_account_type),
-        }
-        .encode_to_vec()
+        let mut container = wa::ADVSignedDeviceIdentityHMAC::default();
+        container.details = Some(signed);
+        container.hmac = Some(hmac_bytes);
+        container.account_type = Some(outer_account_type);
+        container.encode_to_vec()
     }
 
     #[test]

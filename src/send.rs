@@ -109,19 +109,16 @@ impl Client {
             }
         };
 
-        let revoke_message = wa::Message {
-            protocol_message: Some(Box::new(wa::message::ProtocolMessage {
-                key: Some(wa::MessageKey {
-                    remote_jid: Some(to.to_string()),
-                    from_me: Some(from_me),
-                    id: Some(message_id.clone()),
-                    participant,
-                }),
-                r#type: Some(wa::message::protocol_message::Type::Revoke as i32),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut key = wa::MessageKey::default();
+        key.remote_jid = Some(to.to_string());
+        key.from_me = Some(from_me);
+        key.id = Some(message_id.clone());
+        key.participant = participant;
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.key = key.into();
+        protocol_message.r#type = Some(wa::message::protocol_message::Type::REVOKE);
+        let mut revoke_message = wa::Message::default();
+        revoke_message.protocol_message = protocol_message.into();
 
         // The revoke message stanza needs a NEW unique ID, not the message ID being revoked
         // The message_id being revoked is already in protocolMessage.key.id
@@ -697,19 +694,16 @@ mod tests {
         );
         assert_eq!(edit_attr.to_string_val(), "7");
 
-        let revoke_message = wa::Message {
-            protocol_message: Some(Box::new(wa::message::ProtocolMessage {
-                key: Some(wa::MessageKey {
-                    remote_jid: Some(to.to_string()),
-                    from_me: Some(from_me),
-                    id: Some(message_id.clone()),
-                    participant,
-                }),
-                r#type: Some(wa::message::protocol_message::Type::Revoke as i32),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut key = wa::MessageKey::default();
+        key.remote_jid = Some(to.to_string());
+        key.from_me = Some(from_me);
+        key.id = Some(message_id.clone());
+        key.participant = participant;
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.key = key.into();
+        protocol_message.r#type = Some(wa::message::protocol_message::Type::REVOKE);
+        let mut revoke_message = wa::Message::default();
+        revoke_message.protocol_message = protocol_message.into();
 
         let proto_msg = revoke_message.protocol_message.unwrap();
         let key = proto_msg.key.unwrap();
@@ -749,19 +743,16 @@ mod tests {
         );
         assert_eq!(edit_attr.to_string_val(), "8");
 
-        let revoke_message = wa::Message {
-            protocol_message: Some(Box::new(wa::message::ProtocolMessage {
-                key: Some(wa::MessageKey {
-                    remote_jid: Some(to.to_string()),
-                    from_me: Some(from_me),
-                    id: Some(message_id.clone()),
-                    participant: participant.clone(),
-                }),
-                r#type: Some(wa::message::protocol_message::Type::Revoke as i32),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
+        let mut key = wa::MessageKey::default();
+        key.remote_jid = Some(to.to_string());
+        key.from_me = Some(from_me);
+        key.id = Some(message_id.clone());
+        key.participant = participant.clone();
+        let mut protocol_message = wa::message::ProtocolMessage::default();
+        protocol_message.key = key.into();
+        protocol_message.r#type = Some(wa::message::protocol_message::Type::REVOKE);
+        let mut revoke_message = wa::Message::default();
+        revoke_message.protocol_message = protocol_message.into();
 
         let proto_msg = revoke_message.protocol_message.unwrap();
         let key = proto_msg.key.unwrap();

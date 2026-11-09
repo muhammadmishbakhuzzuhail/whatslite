@@ -1,9 +1,9 @@
 use crate::libsignal::protocol::{IdentityKeyPair, KeyPair};
 use once_cell::sync::Lazy;
-use prost::Message;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use wacore_binary::jid::Jid;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 pub mod key_pair_serde {
@@ -44,29 +44,28 @@ pub mod key_pair_serde {
 fn build_base_client_payload(
     app_version: wa::client_payload::user_agent::AppVersion,
 ) -> wa::ClientPayload {
-    wa::ClientPayload {
-        user_agent: Some(wa::client_payload::UserAgent {
-            platform: Some(wa::client_payload::user_agent::Platform::Web as i32),
-            release_channel: Some(wa::client_payload::user_agent::ReleaseChannel::Release as i32),
-            app_version: Some(app_version),
-            mcc: Some("000".to_string()),
-            mnc: Some("000".to_string()),
-            os_version: Some("0.1.0".to_string()),
-            manufacturer: Some("".to_string()),
-            device: Some("Desktop".to_string()),
-            os_build_number: Some("0.1.0".to_string()),
-            locale_language_iso6391: Some("en".to_string()),
-            locale_country_iso31661_alpha2: Some("en".to_string()),
-            ..Default::default()
-        }),
-        web_info: Some(wa::client_payload::WebInfo {
-            web_sub_platform: Some(wa::client_payload::web_info::WebSubPlatform::WebBrowser as i32),
-            ..Default::default()
-        }),
-        connect_type: Some(wa::client_payload::ConnectType::WifiUnknown as i32),
-        connect_reason: Some(wa::client_payload::ConnectReason::UserActivated as i32),
-        ..Default::default()
-    }
+    let mut user_agent = wa::client_payload::UserAgent::default();
+    user_agent.platform = Some(wa::client_payload::user_agent::Platform::WEB);
+    user_agent.release_channel = Some(wa::client_payload::user_agent::ReleaseChannel::RELEASE);
+    user_agent.app_version = app_version.into();
+    user_agent.mcc = Some("000".to_string());
+    user_agent.mnc = Some("000".to_string());
+    user_agent.os_version = Some("0.1.0".to_string());
+    user_agent.manufacturer = Some("".to_string());
+    user_agent.device = Some("Desktop".to_string());
+    user_agent.os_build_number = Some("0.1.0".to_string());
+    user_agent.locale_language_iso6391 = Some("en".to_string());
+    user_agent.locale_country_iso31661_alpha2 = Some("en".to_string());
+
+    let mut web_info = wa::client_payload::WebInfo::default();
+    web_info.web_sub_platform = Some(wa::client_payload::web_info::WebSubPlatform::WEB_BROWSER);
+
+    let mut payload = wa::ClientPayload::default();
+    payload.user_agent = user_agent.into();
+    payload.web_info = web_info.into();
+    payload.connect_type = Some(wa::client_payload::ConnectType::WIFI_UNKNOWN);
+    payload.connect_reason = Some(wa::client_payload::ConnectReason::USER_ACTIVATED);
+    payload
 }
 
 /// Override for selected `DeviceProps` fields before pairing. `None` fields
@@ -124,31 +123,32 @@ impl DevicePropsOverride {
 /// [`DevicePropsOverride::with_history_sync_config`] without fighting stale
 /// hardcoded values (oxidezap #586).
 pub fn default_history_sync_config() -> wa::device_props::HistorySyncConfig {
-    wa::device_props::HistorySyncConfig {
-        full_sync_days_limit: Some(30),
-        inline_initial_payload_in_e2_ee_msg: Some(true),
-        support_bot_user_agent_chat_history: Some(true),
-        support_cag_reactions_and_polls: Some(true),
-        support_recent_sync_chunk_message_count_tuning: Some(true),
-        support_hosted_group_msg: Some(true),
-        support_biz_hosted_msg: Some(true),
-        support_fbid_bot_chat_history: Some(true),
-        support_message_association: Some(true),
-        ..Default::default()
-    }
+    let mut config = wa::device_props::HistorySyncConfig::default();
+    config.full_sync_days_limit = Some(30);
+    config.inline_initial_payload_in_e2_ee_msg = Some(true);
+    config.support_bot_user_agent_chat_history = Some(true);
+    config.support_cag_reactions_and_polls = Some(true);
+    config.support_recent_sync_chunk_message_count_tuning = Some(true);
+    config.support_hosted_group_msg = Some(true);
+    config.support_biz_hosted_msg = Some(true);
+    config.support_fbid_bot_chat_history = Some(true);
+    config.support_message_association = Some(true);
+    config
 }
 
-pub static DEVICE_PROPS: Lazy<wa::DeviceProps> = Lazy::new(|| wa::DeviceProps {
-    os: Some("rust".to_string()),
-    version: Some(wa::device_props::AppVersion {
-        primary: Some(0),
-        secondary: Some(1),
-        tertiary: Some(0),
-        ..Default::default()
-    }),
-    platform_type: Some(wa::device_props::PlatformType::Unknown as i32),
-    require_full_sync: Some(true),
-    history_sync_config: Some(default_history_sync_config()),
+pub static DEVICE_PROPS: Lazy<wa::DeviceProps> = Lazy::new(|| {
+    let mut version = wa::device_props::AppVersion::default();
+    version.primary = Some(0);
+    version.secondary = Some(1);
+    version.tertiary = Some(0);
+
+    let mut props = wa::DeviceProps::default();
+    props.os = Some("rust".to_string());
+    props.version = version.into();
+    props.platform_type = Some(wa::device_props::PlatformType::UNKNOWN);
+    props.require_full_sync = Some(true);
+    props.history_sync_config = default_history_sync_config().into();
+    props
 });
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -166,7 +166,7 @@ pub struct Device {
     #[serde(with = "BigArray")]
     pub signed_pre_key_signature: [u8; 64],
     pub adv_secret_key: [u8; 32],
-    pub account: Option<wa::AdvSignedDeviceIdentity>,
+    pub account: Option<wa::ADVSignedDeviceIdentity>,
     pub push_name: String,
     pub app_version_primary: u32,
     pub app_version_secondary: u32,
@@ -289,12 +289,11 @@ impl Device {
 
     /// Returns the default device props version
     pub fn default_device_props_version() -> wa::device_props::AppVersion {
-        wa::device_props::AppVersion {
-            primary: Some(0),
-            secondary: Some(1),
-            tertiary: Some(0),
-            ..Default::default()
-        }
+        let mut version = wa::device_props::AppVersion::default();
+        version.primary = Some(0);
+        version.secondary = Some(1);
+        version.tertiary = Some(0);
+        version
     }
 
     pub fn is_ready_for_presence(&self) -> bool {
@@ -312,13 +311,13 @@ impl Device {
             self.device_props.os = Some(os);
         }
         if let Some(version) = o.version {
-            self.device_props.version = Some(version);
+            self.device_props.version = version.into();
         }
         if let Some(platform_type) = o.platform_type {
-            self.device_props.platform_type = Some(platform_type as i32);
+            self.device_props.platform_type = Some(platform_type);
         }
         if let Some(history_sync_config) = o.history_sync_config {
-            self.device_props.history_sync_config = Some(history_sync_config);
+            self.device_props.history_sync_config = history_sync_config.into();
         }
     }
 
@@ -330,12 +329,10 @@ impl Device {
     }
 
     fn get_login_payload(&self, jid: &Jid) -> wa::ClientPayload {
-        let app_version = wa::client_payload::user_agent::AppVersion {
-            primary: Some(self.app_version_primary),
-            secondary: Some(self.app_version_secondary),
-            tertiary: Some(self.app_version_tertiary),
-            ..Default::default()
-        };
+        let mut app_version = wa::client_payload::user_agent::AppVersion::default();
+        app_version.primary = Some(self.app_version_primary);
+        app_version.secondary = Some(self.app_version_secondary);
+        app_version.tertiary = Some(self.app_version_tertiary);
         let mut payload = build_base_client_payload(app_version);
         payload.username = jid.user.parse::<u64>().ok();
         payload.device = Some(jid.device as u32);
@@ -344,43 +341,40 @@ impl Device {
     }
 
     fn get_registration_payload(&self) -> wa::ClientPayload {
-        let app_version = wa::client_payload::user_agent::AppVersion {
-            primary: Some(self.app_version_primary),
-            secondary: Some(self.app_version_secondary),
-            tertiary: Some(self.app_version_tertiary),
-            ..Default::default()
-        };
+        let mut app_version = wa::client_payload::user_agent::AppVersion::default();
+        app_version.primary = Some(self.app_version_primary);
+        app_version.secondary = Some(self.app_version_secondary);
+        app_version.tertiary = Some(self.app_version_tertiary);
         let mut payload = build_base_client_payload(app_version);
 
         let device_props_bytes = self.device_props.encode_to_vec();
 
         let version = payload
             .user_agent
-            .as_ref()
+            .as_option()
             .expect("payload should have user_agent")
             .app_version
-            .as_ref()
+            .as_option()
             .expect("user_agent should have app_version");
         let version_str = format!(
             "{}.{}.{}",
-            version.primary(),
-            version.secondary(),
-            version.tertiary()
+            version.primary.unwrap_or(0),
+            version.secondary.unwrap_or(0),
+            version.tertiary.unwrap_or(0)
         );
         let build_hash: [u8; 16] = md5::compute(version_str.as_bytes()).into();
 
-        let reg_data = wa::client_payload::DevicePairingRegistrationData {
-            e_regid: Some(self.registration_id.to_be_bytes().to_vec()),
-            e_keytype: Some(vec![5]),
-            e_ident: Some(self.identity_key.public_key.public_key_bytes().to_vec()),
-            e_skey_id: Some(self.signed_pre_key_id.to_be_bytes()[1..].to_vec()),
-            e_skey_val: Some(self.signed_pre_key.public_key.public_key_bytes().to_vec()),
-            e_skey_sig: Some(self.signed_pre_key_signature.to_vec()),
-            build_hash: Some(build_hash.to_vec()),
-            device_props: Some(device_props_bytes),
-        };
+        let mut reg_data = wa::client_payload::DevicePairingRegistrationData::default();
+        reg_data.e_regid = Some(self.registration_id.to_be_bytes().to_vec());
+        reg_data.e_keytype = Some(vec![5]);
+        reg_data.e_ident = Some(self.identity_key.public_key.public_key_bytes().to_vec());
+        reg_data.e_skey_id = Some(self.signed_pre_key_id.to_be_bytes()[1..].to_vec());
+        reg_data.e_skey_val = Some(self.signed_pre_key.public_key.public_key_bytes().to_vec());
+        reg_data.e_skey_sig = Some(self.signed_pre_key_signature.to_vec());
+        reg_data.build_hash = Some(build_hash.to_vec());
+        reg_data.device_props = Some(device_props_bytes);
 
-        payload.device_pairing_data = Some(reg_data);
+        payload.device_pairing_data = reg_data.into();
         payload.passive = Some(false);
         payload.pull = Some(false);
         payload
@@ -404,7 +398,7 @@ mod tests {
     /// `None` fields preserve the prior value (oxidezap #586).
     #[test]
     fn set_device_props_override_reaches_registration_payload() {
-        use prost::Message;
+        use waproto::buffa::Message as _;
         let mut device = Device::new();
         assert!(device.pn.is_none());
 
@@ -421,12 +415,13 @@ mod tests {
         let bytes = reg
             .device_props
             .expect("device_pairing_data must carry device_props");
-        let props = wa::DeviceProps::decode(bytes.as_slice()).expect("device_props must decode");
+        let props =
+            wa::DeviceProps::decode_from_slice(bytes.as_slice()).expect("device_props must decode");
 
         assert_eq!(props.os.as_deref(), Some("Android 14"));
         assert_eq!(
             props.platform_type,
-            Some(wa::device_props::PlatformType::Chrome as i32)
+            Some(wa::device_props::PlatformType::Chrome)
         );
     }
 

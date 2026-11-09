@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use prost::Message;
 use tokio::sync::Mutex;
 use wacore::appstate::hash::HashState;
 use wacore::appstate::keys::ExpandedAppStateKeys;
@@ -13,6 +12,7 @@ use wacore::appstate::{
 };
 use wacore::store::traits::Backend;
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 // Re-export Mutation from wacore for backwards compatibility
@@ -72,7 +72,7 @@ impl AppStateProcessor {
             && let Some(ext) = &pl.snapshot_ref
         {
             match download(ext) {
-                Ok(data) => match wa::SyncdSnapshot::decode(data.as_slice()) {
+                Ok(data) => match wa::SyncdSnapshot::decode_from_slice(data.as_slice()) {
                     Ok(snapshot) => pl.snapshot = Some(snapshot),
                     Err(e) => {
                         log::warn!(target: "AppState", "Failed to decode external snapshot: {}", e)
@@ -87,10 +87,14 @@ impl AppStateProcessor {
         // Download external mutations for each patch (matches WhatsApp Web behavior)
         // WhatsApp Web: if (r.externalMutations) { n = yield downloadExternalPatch(e, r) }
         for patch in &mut pl.patches {
-            if let Some(ext) = &patch.external_mutations {
-                let patch_version = patch.version.as_ref().and_then(|v| v.version).unwrap_or(0);
+            if let Some(ext) = patch.external_mutations.as_option() {
+                let patch_version = patch
+                    .version
+                    .as_option()
+                    .and_then(|v| v.version)
+                    .unwrap_or(0);
                 match download(ext) {
-                    Ok(data) => match wa::SyncdMutations::decode(data.as_slice()) {
+                    Ok(data) => match wa::SyncdMutations::decode_from_slice(data.as_slice()) {
                         Ok(ext_mutations) => {
                             log::trace!(
                                 target: "AppState",
@@ -201,8 +205,8 @@ impl AppStateProcessor {
             // Collect index MACs we need to look up (pre-allocate with upper bound)
             let mut need_db_lookup: Vec<Vec<u8>> = Vec::with_capacity(patch.mutations.len());
             for m in &patch.mutations {
-                if let Some(rec) = &m.record
-                    && let Some(ind) = &rec.index
+                if let Some(rec) = m.record.as_option()
+                    && let Some(ind) = rec.index.as_option()
                     && let Some(index_mac) = &ind.blob
                     && !need_db_lookup.iter().any(|v| v == index_mac)
                 {
@@ -339,7 +343,6 @@ pub trait AppStateSyncDriver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use prost::Message;
     use std::collections::HashMap;
     use wacore::appstate::WAPATCH_INTEGRITY;
     use wacore::appstate::hash::HashState;
@@ -575,20 +578,33 @@ mod tests {
         let mut value_blob = value_with_iv;
         value_blob.extend_from_slice(&value_mac);
 
-        wa::SyncdMutation {
-            operation: Some(op as i32),
-            record: Some(wa::SyncdRecord {
-                index: Some(wa::SyncdIndex {
-                    blob: Some(index_mac.to_vec()),
-                }),
-                value: Some(wa::SyncdValue {
-                    blob: Some(value_blob),
-                }),
-                key_id: Some(wa::KeyId {
-                    id: Some(key_id_bytes.to_vec()),
-                }),
-            }),
-        }
+        let mut index = wa::SyncdIndex::default();
+        index.blob = Some(index_mac.to_vec());
+        let mut value = wa::SyncdValue::default();
+        value.blob = Some(value_blob);
+        let mut record = wa::SyncdRecord::default();
+        record.index = index.into();
+        record.value = value.into();
+        record.key_id = make_key_id(key_id_bytes).into();
+
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.operation = Some(op.into());
+        mutation.record = record.into();
+        mutation
+    }
+
+    fn make_key_id(id: &[u8]) -> wa::KeyId {
+        let mut key_id = wa::KeyId::default();
+        key_id.id = Some(id.to_vec());
+        key_id
+    }
+
+    fn make_action_data(timestamp: i64) -> wa::SyncActionData {
+        let mut value = wa::SyncActionValue::default();
+        value.timestamp = Some(timestamp);
+        let mut action_data = wa::SyncActionData::default();
+        action_data.value = value.into();
+        action_data
     }
 
     #[tokio::test]
@@ -610,14 +626,7 @@ mod tests {
             .await
             .expect("test backend should accept sync key");
 
-        let original_plaintext = wa::SyncActionData {
-            value: Some(wa::SyncActionValue {
-                timestamp: Some(1000),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }
-        .encode_to_vec();
+        let original_plaintext = make_action_data(1000).encode_to_vec();
         let original_mutation = create_encrypted_mutation(
             wa::syncd_mutation::SyncdOperation::Set,
             &index_mac,
@@ -658,14 +667,7 @@ mod tests {
             .await
             .expect("test backend should accept mutation MACs");
 
-        let new_plaintext = wa::SyncActionData {
-            value: Some(wa::SyncActionValue {
-                timestamp: Some(2000),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }
-        .encode_to_vec();
+        let new_plaintext = make_action_data(2000).encode_to_vec();
         let overwrite_mutation = create_encrypted_mutation(
             wa::syncd_mutation::SyncdOperation::Set,
             &index_mac,
@@ -677,13 +679,14 @@ mod tests {
         let patch_list = PatchList {
             name: collection_name,
             has_more_patches: false,
-            patches: vec![wa::SyncdPatch {
-                mutations: vec![overwrite_mutation.clone()],
-                version: Some(wa::SyncdVersion { version: Some(2) }),
-                key_id: Some(wa::KeyId {
-                    id: Some(key_id_bytes),
-                }),
-                ..Default::default()
+            patches: vec![{
+                let mut version = wa::SyncdVersion::default();
+                version.version = Some(2);
+                let mut patch = wa::SyncdPatch::default();
+                patch.mutations = vec![overwrite_mutation.clone()];
+                patch.version = version.into();
+                patch.key_id = make_key_id(&key_id_bytes).into();
+                patch
             }],
             snapshot: None,
             snapshot_ref: None,

@@ -270,13 +270,10 @@ async fn send(
             Json(json!({"ok": false, "error": "invalid_jid"})),
         );
     };
-    let message = wa::Message {
-        extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-            text: Some(text),
-            ..Default::default()
-        })),
-        ..Default::default()
-    };
+    let mut extended_text = wa::message::ExtendedTextMessage::default();
+    extended_text.text = Some(text);
+    let mut message = wa::Message::default();
+    message.extended_text_message = extended_text.into();
     match client.send_message(jid, message).await {
         Ok(id) => (
             axum::http::StatusCode::OK,

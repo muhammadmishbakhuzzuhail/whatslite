@@ -1,9 +1,9 @@
 use bytes::Bytes;
 use flate2::read::ZlibDecoder;
-use prost::Message;
 use protobuf::CodedInputStream;
 use std::io::BufReader;
 use thiserror::Error;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 const STREAMING_BUFFER_SIZE: usize = 64 * 1024;
@@ -70,7 +70,7 @@ where
             {
                 let raw_bytes = cis.read_bytes()?;
 
-                if let Ok(pn) = wa::Pushname::decode(raw_bytes.as_slice())
+                if let Ok(pn) = wa::Pushname::decode_from_slice(raw_bytes.as_slice())
                     && let Some(ref id) = pn.id
                     && Some(id.as_str()) == own_user
                     && let Some(name) = pn.pushname

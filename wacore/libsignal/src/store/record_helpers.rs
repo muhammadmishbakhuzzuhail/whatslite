@@ -6,11 +6,11 @@ use chrono::Utc;
 use waproto::whatsapp as wa;
 
 pub fn new_pre_key_record(id: u32, key_pair: &KeyPair) -> wa::PreKeyRecordStructure {
-    wa::PreKeyRecordStructure {
-        id: Some(id),
-        public_key: Some(key_pair.public_key.public_key_bytes().to_vec()),
-        private_key: Some(key_pair.private_key.serialize().to_vec()),
-    }
+    let mut record = wa::PreKeyRecordStructure::default();
+    record.id = Some(id);
+    record.public_key = Some(key_pair.public_key.public_key_bytes().to_vec());
+    record.private_key = Some(key_pair.private_key.serialize().to_vec());
+    record
 }
 
 pub fn new_signed_pre_key_record(
@@ -19,18 +19,18 @@ pub fn new_signed_pre_key_record(
     signature: [u8; 64],
     timestamp: chrono::DateTime<Utc>,
 ) -> wa::SignedPreKeyRecordStructure {
-    wa::SignedPreKeyRecordStructure {
-        id: Some(id),
-        public_key: Some(key_pair.public_key.public_key_bytes().to_vec()),
-        private_key: Some(key_pair.private_key.serialize().to_vec()),
-        signature: Some(signature.to_vec()),
-        timestamp: Some(
-            timestamp
-                .timestamp()
-                .try_into()
-                .expect("Timestamp conversion failed"),
-        ),
-    }
+    let mut record = wa::SignedPreKeyRecordStructure::default();
+    record.id = Some(id);
+    record.public_key = Some(key_pair.public_key.public_key_bytes().to_vec());
+    record.private_key = Some(key_pair.private_key.serialize().to_vec());
+    record.signature = Some(signature.to_vec());
+    record.timestamp = Some(
+        timestamp
+            .timestamp()
+            .try_into()
+            .expect("Timestamp conversion failed"),
+    );
+    record
 }
 
 pub fn prekey_structure_to_record(
@@ -59,11 +59,11 @@ pub fn prekey_structure_to_record(
 pub fn prekey_record_to_structure(
     record: &PreKeyRecord,
 ) -> Result<wa::PreKeyRecordStructure, SignalProtocolError> {
-    Ok(wa::PreKeyRecordStructure {
-        id: Some(record.id()?.into()),
-        public_key: Some(record.key_pair()?.public_key.public_key_bytes().to_vec()),
-        private_key: Some(record.key_pair()?.private_key.serialize().to_vec()),
-    })
+    let mut structure = wa::PreKeyRecordStructure::default();
+    structure.id = Some(record.id()?.into());
+    structure.public_key = Some(record.key_pair()?.public_key.public_key_bytes().to_vec());
+    structure.private_key = Some(record.key_pair()?.private_key.serialize().to_vec());
+    Ok(structure)
 }
 
 pub fn signed_prekey_structure_to_record(

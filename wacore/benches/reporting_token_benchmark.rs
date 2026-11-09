@@ -2,35 +2,33 @@ use iai_callgrind::{
     Callgrind, FlamegraphConfig, LibraryBenchmarkConfig, library_benchmark,
     library_benchmark_group, main,
 };
-use prost::Message;
 use std::hint::black_box;
-use wacore::reporting_token::{
+use wa_rs_core::reporting_token::{
     MESSAGE_SECRET_SIZE, REPORTING_TOKEN_KEY_SIZE, calculate_reporting_token,
     derive_reporting_token_key, generate_reporting_token, generate_reporting_token_content,
 };
 use wacore_binary::jid::Jid;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 fn create_simple_message() -> wa::Message {
-    wa::Message {
-        conversation: Some("Hello, World!".to_string()),
-        ..Default::default()
-    }
+    let mut message = wa::Message::default();
+    message.conversation = Some("Hello, World!".to_string());
+    message
 }
 
 fn create_extended_message() -> wa::Message {
-    wa::Message {
-        extended_text_message: Some(Box::new(wa::message::ExtendedTextMessage {
-            text: Some("Test message with context info".to_string()),
-            context_info: Some(Box::new(wa::ContextInfo {
-                is_forwarded: Some(true),
-                forwarding_score: Some(5),
-                ..Default::default()
-            })),
-            ..Default::default()
-        })),
-        ..Default::default()
-    }
+    let mut context_info = wa::ContextInfo::default();
+    context_info.is_forwarded = Some(true);
+    context_info.forwarding_score = Some(5);
+
+    let mut extended = wa::message::ExtendedTextMessage::default();
+    extended.text = Some("Test message with context info".to_string());
+    extended.context_info = context_info.into();
+
+    let mut message = wa::Message::default();
+    message.extended_text_message = extended.into();
+    message
 }
 
 fn create_test_jid(user: &str) -> Jid {

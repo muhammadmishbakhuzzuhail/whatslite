@@ -1,9 +1,5 @@
 //! `companion_platform_id` + `companion_platform_display` emission.
-//! Encoding only. Ported from oxidezap #592/#593/#595.
-//!
-//! The wire ids here are NOT the proto `DeviceProps.PlatformType` numbering:
-//! they follow `WAWebCompanionRegClientUtils.DEVICE_PLATFORM`, a separate
-//! table the server validates (Edge=2, Firefox=3, IE=4, Opera=5, Safari=6).
+//! Encoding only.
 
 use waproto::whatsapp as wa;
 
@@ -35,8 +31,7 @@ pub enum CompanionWebClientType {
 }
 
 impl CompanionWebClientType {
-    /// Single-byte ASCII id placed in `<companion_platform_id>` (and the
-    /// QR string's 5th field).
+    /// Single-byte ASCII id placed in `<companion_platform_id>`.
     pub const fn wire_byte(self) -> u8 {
         match self {
             Self::Chrome => b'1',
@@ -66,20 +61,19 @@ impl std::fmt::Display for CompanionWebClientType {
 /// underlying Chromium renderer in those contexts. Mobile variants are
 /// short-circuited by [`companion_platform_display`] before reaching here.
 pub const fn companion_browser_name(ct: CompanionWebClientType) -> &'static str {
-    use CompanionWebClientType as C;
     match ct {
-        C::Chrome => "Chrome",
-        C::Edge => "Edge",
-        C::Firefox => "Firefox",
-        C::Ie => "IE",
-        C::Opera => "Opera",
-        C::Safari => "Safari",
-        C::Electron
-        | C::Uwp
-        | C::OtherWebClient
-        | C::AndroidTablet
-        | C::AndroidPhone
-        | C::AndroidAmbiguous => "Chrome",
+        CompanionWebClientType::Chrome => "Chrome",
+        CompanionWebClientType::Edge => "Edge",
+        CompanionWebClientType::Firefox => "Firefox",
+        CompanionWebClientType::Ie => "IE",
+        CompanionWebClientType::Opera => "Opera",
+        CompanionWebClientType::Safari => "Safari",
+        CompanionWebClientType::Electron
+        | CompanionWebClientType::Uwp
+        | CompanionWebClientType::OtherWebClient
+        | CompanionWebClientType::AndroidTablet
+        | CompanionWebClientType::AndroidPhone
+        | CompanionWebClientType::AndroidAmbiguous => "Chrome",
     }
 }
 
@@ -95,17 +89,35 @@ pub const fn companion_web_client_type_for_platform(
     use CompanionWebClientType as C;
     use wa::device_props::PlatformType as P;
     match pt {
-        P::Chrome => C::Chrome,
-        P::Firefox => C::Firefox,
-        P::Ie => C::Ie,
-        P::Opera => C::Opera,
-        P::Safari => C::Safari,
-        P::Edge => C::Edge,
-        P::Desktop => C::Electron,
-        P::Uwp => C::Uwp,
-        P::AndroidPhone | P::AndroidTablet | P::AndroidAmbiguous => C::Chrome,
-        // Wildcard keeps future proto variants server-safe instead of
-        // breaking exhaustiveness when waproto regenerates.
+        P::CHROME => C::Chrome,
+        P::FIREFOX => C::Firefox,
+        P::IE => C::Ie,
+        P::OPERA => C::Opera,
+        P::SAFARI => C::Safari,
+        P::EDGE => C::Edge,
+        P::DESKTOP => C::Electron,
+        P::UWP => C::Uwp,
+        P::ANDROID_PHONE | P::ANDROID_TABLET | P::ANDROID_AMBIGUOUS => C::Chrome,
+        P::UNKNOWN
+        | P::IPAD
+        | P::OHANA
+        | P::ALOHA
+        | P::CATALINA
+        | P::TCL_TV
+        | P::IOS_PHONE
+        | P::IOS_CATALYST
+        | P::WEAR_OS
+        | P::AR_WRIST
+        | P::AR_DEVICE
+        | P::VR
+        | P::CLOUD_API
+        | P::SMARTGLASSES
+        | P::WAIL
+        | P::WASS
+        | P::BUSINESS_BACK_OFFICE
+        | P::WAIL_WAI
+        | P::WAIL_ALEXA
+        | P::AUTOMOTIVE => C::OtherWebClient,
         _ => C::OtherWebClient,
     }
 }
@@ -113,25 +125,23 @@ pub const fn companion_web_client_type_for_platform(
 pub fn companion_web_client_type_for_props(props: &wa::DeviceProps) -> CompanionWebClientType {
     props
         .platform_type
-        .and_then(|v| wa::device_props::PlatformType::try_from(v).ok())
         .map(companion_web_client_type_for_platform)
-        .unwrap_or_default()
+        .unwrap_or(CompanionWebClientType::OtherWebClient)
 }
 
 /// Canonical OS label for the pair-code `companion_platform_display`.
 ///
 /// WA Web only ever emits a real OS name from its UA parser
-/// (`WAWebBrowserInfo().os` → `ua-parser-js` `getOS().name`). Unlike QR
-/// pairing — which never sends this field and therefore tolerates an
-/// arbitrary branding string in `DeviceProps::os` — the pair-code
-/// `companion_hello` server **rejects a non-OS display with `bad-request`**.
-/// So the OS component must come from a closed set of real OS names, never
-/// the free-form branding string.
+/// (`WAWebBrowserInfo().os` → `ua-parser-js` `getOS().name`). Unlike QR pairing —
+/// which never sends this field and therefore tolerates an arbitrary branding
+/// string in `DeviceProps::os` — the pair-code `companion_hello` server
+/// **rejects a non-OS display with `bad-request`**. So the OS component must come
+/// from a closed set of real OS names, never the free-form branding string.
 ///
-/// The set is deliberately small and conservative: the server is lenient
-/// toward real OS names today (it also accepts `Ubuntu`, `Fedora`, `Mac`, …),
-/// but collapsing everything to a guaranteed-accepted canonical value is
-/// robust against that leniency changing. Anything unrecognized coerces to
+/// The set is deliberately small and conservative: the server is lenient toward
+/// real OS names today (it also accepts `Ubuntu`, `Fedora`, `Mac`, …), but
+/// collapsing everything to a guaranteed-accepted canonical value is robust
+/// against that leniency changing. Anything unrecognized coerces to
 /// [`Self::Linux`] (see [`Self::from_hint`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompanionOs {
@@ -143,8 +153,8 @@ pub enum CompanionOs {
 }
 
 impl CompanionOs {
-    /// The exact wire string, matching `ua-parser-js` `getOS().name` (what WA
-    /// Web sends) — note the `"Mac OS"` and `"iOS"` spellings.
+    /// The exact wire string, matching `ua-parser-js` `getOS().name` (what WA Web
+    /// sends) — note the `"Mac OS"` and `"iOS"` spellings.
     pub const fn wire_str(self) -> &'static str {
         match self {
             Self::Windows => "Windows",
@@ -155,12 +165,11 @@ impl CompanionOs {
         }
     }
 
-    /// Classify a free-form OS hint into a known canonical OS, or `None` when
-    /// it is not recognizably an OS (empty, or a branding label such as
-    /// `"Veloz"`). Case-insensitive. iPad folds to [`Self::Ios`]: older UA
-    /// parsers report iPad as `"iOS"`, so `"iPadOS"` is not a confirmed
-    /// server-accepted value. Chrome OS and Linux distros fold to
-    /// [`Self::Linux`].
+    /// Classify a free-form OS hint into a known canonical OS, or `None` when it
+    /// is not recognizably an OS (empty, or a branding label such as `"Veloz"`).
+    /// Case-insensitive. iPad folds to [`Self::Ios`]: older UA parsers report iPad
+    /// as `"iOS"`, so `"iPadOS"` is not a confirmed server-accepted value. Chrome
+    /// OS and Linux distros fold to [`Self::Linux`].
     pub fn classify(os: &str) -> Option<Self> {
         let os = os.trim().to_ascii_lowercase();
         if os.is_empty() {
@@ -208,9 +217,8 @@ impl CompanionOs {
 /// mirroring `WAWebAltDeviceLinkingIq`, with `os` used **verbatim** — no
 /// canonicalization. This is the escape hatch for an advanced caller that
 /// overrides the display OS (e.g. to keep a real distro name like `"Ubuntu"`
-/// the server accepts); the server validates the OS, so a non-OS string here
-/// is rejected with `bad-request`. Most callers want
-/// [`companion_platform_display`].
+/// the server accepts); the server validates the OS, so a non-OS string here is
+/// rejected with `bad-request`. Most callers want [`companion_platform_display`].
 pub fn companion_platform_display_raw(ct: CompanionWebClientType, os: &str) -> String {
     use CompanionWebClientType as C;
     match ct {
@@ -221,16 +229,17 @@ pub fn companion_platform_display_raw(ct: CompanionWebClientType, os: &str) -> S
     }
 }
 
-/// `companion_platform_display` body: `<Browser> (<OS>)` (Android client
-/// types emit `Android (<OS>)`), mirroring `WAWebAltDeviceLinkingIq`. The OS
-/// is canonicalized through [`CompanionOs`] because the pair-code server
-/// rejects a non-OS string here with `bad-request`; an unrecognized/branding
-/// `os` (or an empty one) becomes `Linux`.
+/// `companion_platform_display` body: `<Browser> (<OS>)` (Android client types
+/// emit `Android (<OS>)`), mirroring `WAWebAltDeviceLinkingIq`. The OS is
+/// canonicalized through [`CompanionOs`] because the pair-code server rejects a
+/// non-OS string here with `bad-request`; an unrecognized/branding `os` (or an
+/// empty one) becomes `Linux`.
 pub fn companion_platform_display(ct: CompanionWebClientType, os: &str) -> String {
     companion_platform_display_raw(ct, CompanionOs::from_hint(os).wire_str())
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
 
@@ -259,14 +268,17 @@ mod tests {
         assert_eq!(format!("{}", CompanionWebClientType::Chrome), "1");
         assert_eq!(format!("{}", CompanionWebClientType::OtherWebClient), "9");
         assert_eq!(format!("{}", CompanionWebClientType::AndroidPhone), "e");
+        assert_eq!(format!("{}", CompanionWebClientType::AndroidTablet), "d");
+        assert_eq!(format!("{}", CompanionWebClientType::AndroidAmbiguous), "f");
     }
 
     #[test]
     fn default_is_other_web_client_nine() {
         assert_eq!(
             CompanionWebClientType::default(),
-            CompanionWebClientType::OtherWebClient
+            CompanionWebClientType::OtherWebClient,
         );
+        assert_eq!(CompanionWebClientType::default().wire_byte(), b'9');
     }
 
     #[test]
@@ -274,62 +286,184 @@ mod tests {
         use CompanionWebClientType as C;
         use wa::device_props::PlatformType as P;
         for (pt, expected) in [
-            (P::Chrome, C::Chrome),
-            (P::Firefox, C::Firefox),
-            (P::Edge, C::Edge),
-            (P::Safari, C::Safari),
-            (P::Opera, C::Opera),
-            (P::Ie, C::Ie),
-            (P::Desktop, C::Electron),
-            (P::Uwp, C::Uwp),
+            (P::CHROME, C::Chrome),
+            (P::FIREFOX, C::Firefox),
+            (P::EDGE, C::Edge),
+            (P::SAFARI, C::Safari),
+            (P::OPERA, C::Opera),
+            (P::IE, C::Ie),
+            (P::DESKTOP, C::Electron),
+            (P::UWP, C::Uwp),
         ] {
-            assert_eq!(companion_web_client_type_for_platform(pt), expected);
-        }
-    }
-
-    #[test]
-    fn android_collapses_to_chrome_and_unknown_to_other() {
-        use CompanionWebClientType as C;
-        use wa::device_props::PlatformType as P;
-        for pt in [P::AndroidPhone, P::AndroidTablet, P::AndroidAmbiguous] {
-            assert_eq!(companion_web_client_type_for_platform(pt), C::Chrome);
-        }
-        for pt in [P::Unknown, P::Ipad, P::IosPhone, P::Vr, P::CloudApi] {
             assert_eq!(
                 companion_web_client_type_for_platform(pt),
-                C::OtherWebClient
+                expected,
+                "{pt:?}"
             );
         }
     }
 
     #[test]
-    fn for_props_reads_platform_type_and_falls_back() {
-        let chrome = wa::DeviceProps {
-            platform_type: Some(wa::device_props::PlatformType::Chrome as i32),
-            ..Default::default()
-        };
+    fn android_platform_types_map_to_chrome() {
+        use CompanionWebClientType as C;
+        use wa::device_props::PlatformType as P;
+        for pt in [P::ANDROID_PHONE, P::ANDROID_TABLET, P::ANDROID_AMBIGUOUS] {
+            assert_eq!(
+                companion_web_client_type_for_platform(pt),
+                C::Chrome,
+                "{pt:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn unconfirmed_platform_types_collapse_to_other() {
+        use CompanionWebClientType as C;
+        use wa::device_props::PlatformType as P;
+        for pt in [
+            P::IPAD,
+            P::IOS_PHONE,
+            P::IOS_CATALYST,
+            P::WEAR_OS,
+            P::AR_WRIST,
+            P::AR_DEVICE,
+            P::VR,
+            P::OHANA,
+            P::ALOHA,
+            P::CATALINA,
+            P::TCL_TV,
+            P::CLOUD_API,
+            P::SMARTGLASSES,
+            P::WAIL,
+            P::WASS,
+            P::BUSINESS_BACK_OFFICE,
+            P::WAIL_WAI,
+            P::WAIL_ALEXA,
+            P::AUTOMOTIVE,
+        ] {
+            assert_eq!(
+                companion_web_client_type_for_platform(pt),
+                C::OtherWebClient,
+                "{pt:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn proto_unknown_collapses_to_other_web_client() {
+        use CompanionWebClientType as C;
+        use wa::device_props::PlatformType as P;
         assert_eq!(
-            companion_web_client_type_for_props(&chrome),
-            CompanionWebClientType::Chrome
-        );
-        // Absent or unrecognized platform_type falls back to OtherWebClient.
-        let empty = wa::DeviceProps::default();
-        assert_eq!(
-            companion_web_client_type_for_props(&empty),
-            CompanionWebClientType::OtherWebClient
-        );
-        let bogus = wa::DeviceProps {
-            platform_type: Some(999),
-            ..Default::default()
-        };
-        assert_eq!(
-            companion_web_client_type_for_props(&bogus),
-            CompanionWebClientType::OtherWebClient
+            companion_web_client_type_for_platform(P::UNKNOWN),
+            C::OtherWebClient,
         );
     }
 
     #[test]
-    fn os_wire_spellings_match_ua_parser() {
+    fn android_variants_still_emit_their_wire_bytes_when_used_directly() {
+        assert_eq!(CompanionWebClientType::AndroidPhone.wire_byte(), b'e');
+        assert_eq!(CompanionWebClientType::AndroidTablet.wire_byte(), b'd');
+        assert_eq!(CompanionWebClientType::AndroidAmbiguous.wire_byte(), b'f');
+    }
+
+    #[test]
+    fn for_props_reads_platform_type() {
+        let props = {
+            let mut proto = wa::DeviceProps::default();
+            proto.platform_type = Some(wa::device_props::PlatformType::CHROME);
+            proto
+        };
+        assert_eq!(
+            companion_web_client_type_for_props(&props),
+            CompanionWebClientType::Chrome,
+        );
+    }
+
+    #[test]
+    fn for_props_missing_platform_type_is_other_web_client() {
+        let props = wa::DeviceProps::default();
+        assert_eq!(
+            companion_web_client_type_for_props(&props),
+            CompanionWebClientType::OtherWebClient,
+        );
+    }
+
+    #[test]
+    fn for_props_invalid_platform_type_is_other_web_client() {
+        use buffa::Message as _;
+
+        let props = wa::DeviceProps::decode_from_slice(&[0x18, 0x8f, 0x4e]).unwrap();
+        assert_eq!(
+            companion_web_client_type_for_props(&props),
+            CompanionWebClientType::OtherWebClient,
+        );
+    }
+
+    #[test]
+    fn browser_name_for_six_valid_browsers() {
+        use CompanionWebClientType as C;
+        for (ct, name) in [
+            (C::Chrome, "Chrome"),
+            (C::Edge, "Edge"),
+            (C::Firefox, "Firefox"),
+            (C::Ie, "IE"),
+            (C::Opera, "Opera"),
+            (C::Safari, "Safari"),
+        ] {
+            assert_eq!(companion_browser_name(ct), name, "{ct:?}");
+        }
+    }
+
+    #[test]
+    fn browser_name_for_non_browser_falls_back_to_chrome() {
+        for ct in [
+            CompanionWebClientType::Electron,
+            CompanionWebClientType::Uwp,
+            CompanionWebClientType::OtherWebClient,
+        ] {
+            assert_eq!(companion_browser_name(ct), "Chrome", "{ct:?}");
+        }
+    }
+
+    #[test]
+    fn platform_display_always_browser_paren_os() {
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::Chrome, "Linux"),
+            "Chrome (Linux)"
+        );
+        // "Mac" canonicalizes to the ua-parser name WA Web actually sends.
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::Firefox, "Mac"),
+            "Firefox (Mac OS)"
+        );
+    }
+
+    #[test]
+    fn platform_display_empty_os_defaults_to_linux() {
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::Chrome, ""),
+            "Chrome (Linux)"
+        );
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::Chrome, "   "),
+            "Chrome (Linux)"
+        );
+    }
+
+    #[test]
+    fn platform_display_non_browser_uses_chrome() {
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::OtherWebClient, "Android"),
+            "Chrome (Android)"
+        );
+        assert_eq!(
+            companion_platform_display(CompanionWebClientType::Electron, "Mac"),
+            "Chrome (Mac OS)"
+        );
+    }
+
+    #[test]
+    fn companion_os_wire_str_matches_ua_parser_names() {
         assert_eq!(CompanionOs::Windows.wire_str(), "Windows");
         assert_eq!(CompanionOs::MacOs.wire_str(), "Mac OS");
         assert_eq!(CompanionOs::Linux.wire_str(), "Linux");
@@ -338,49 +472,76 @@ mod tests {
     }
 
     #[test]
-    fn os_classification_covers_common_names() {
-        assert_eq!(
-            CompanionOs::classify("Windows 11"),
-            Some(CompanionOs::Windows)
-        );
-        assert_eq!(CompanionOs::classify("macOS"), Some(CompanionOs::MacOs));
-        assert_eq!(CompanionOs::classify("Mac OS X"), Some(CompanionOs::MacOs));
-        assert_eq!(CompanionOs::classify("Linux"), Some(CompanionOs::Linux));
-        assert_eq!(
-            CompanionOs::classify("Ubuntu 24.04"),
-            Some(CompanionOs::Linux)
-        );
-        assert_eq!(
-            CompanionOs::classify("Android 15"),
-            Some(CompanionOs::Android)
-        );
-        assert_eq!(CompanionOs::classify("iOS 18"), Some(CompanionOs::Ios));
-        assert_eq!(CompanionOs::classify("iPadOS 26"), Some(CompanionOs::Ios));
-        // Branding and empty hints are not OS names.
-        assert_eq!(CompanionOs::classify("rust"), None);
-        assert_eq!(CompanionOs::classify("Veloz"), None);
-        assert_eq!(CompanionOs::classify("  "), None);
-        // Unknown branding coerces to Linux.
-        assert_eq!(CompanionOs::from_hint("rust"), CompanionOs::Linux);
+    fn companion_os_classify_known_aliases() {
+        use CompanionOs as O;
+        for (hint, want) in [
+            ("Windows", O::Windows),
+            ("windows 11", O::Windows),
+            ("Mac", O::MacOs),
+            ("macOS", O::MacOs),
+            ("Mac OS", O::MacOs),
+            ("Mac OS X", O::MacOs),
+            ("darwin", O::MacOs),
+            ("Linux", O::Linux),
+            ("Ubuntu", O::Linux),
+            ("Fedora", O::Linux),
+            ("Arch Linux", O::Linux),
+            ("Arch", O::Linux),
+            ("archlinux", O::Linux),
+            ("CrOS", O::Linux),
+            ("Chrome OS", O::Linux),
+            ("ChromeOS", O::Linux),
+            ("Chromium OS", O::Linux),
+            ("Android", O::Android),
+            ("android 14", O::Android),
+            ("iOS", O::Ios),
+            ("iOS 17", O::Ios),
+            ("iPhone", O::Ios),
+            ("iPad", O::Ios),
+            ("iPadOS", O::Ios),
+        ] {
+            assert_eq!(CompanionOs::classify(hint), Some(want), "{hint:?}");
+        }
     }
 
     #[test]
-    fn display_canonicalizes_os_and_android_renders_android() {
+    fn companion_os_branding_and_empty_are_unclassified_and_default_linux() {
+        // "KaiOS" must NOT substring-match "ios", and branding containing "arch"/
+        // "cros" as a fragment ("March", "Search", "across") must NOT match Linux
+        // -> all unrecognized -> Linux via fallback (not via classify).
+        for hint in [
+            "Veloz",
+            "Foobar123",
+            "KaiOS",
+            "March",
+            "Search",
+            "across",
+            "",
+            "   ",
+        ] {
+            assert_eq!(CompanionOs::classify(hint), None, "{hint:?}");
+            assert_eq!(CompanionOs::from_hint(hint), CompanionOs::Linux, "{hint:?}");
+        }
+    }
+
+    /// The regression this whole enum exists for: a branding `os` must never ride
+    /// through to the wire (the pair-code server rejects it with `bad-request`).
+    #[test]
+    fn platform_display_coerces_branding_os_to_linux() {
         assert_eq!(
-            companion_platform_display(CompanionWebClientType::Chrome, "Ubuntu"),
+            companion_platform_display(CompanionWebClientType::Chrome, "Veloz"),
             "Chrome (Linux)"
         );
-        assert_eq!(
-            companion_platform_display(CompanionWebClientType::Safari, "macOS 15"),
-            "Safari (Mac OS)"
-        );
-        assert_eq!(
-            companion_platform_display(CompanionWebClientType::Chrome, "rust"),
-            "Chrome (Linux)"
-        );
-        assert_eq!(
-            companion_platform_display(CompanionWebClientType::AndroidPhone, "Android 15"),
-            "Android (Android)"
-        );
+    }
+
+    #[test]
+    fn platform_display_canonicalizes_mac_aliases() {
+        for os in ["Mac", "macOS", "Mac OS", "Mac OS X", "darwin"] {
+            assert_eq!(
+                companion_platform_display(CompanionWebClientType::Chrome, os),
+                "Chrome (Mac OS)",
+                "{os:?}"
+            );
+        }
     }
 }

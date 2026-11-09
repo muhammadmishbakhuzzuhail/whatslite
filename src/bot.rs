@@ -44,6 +44,7 @@ impl MessageContext {
             &self.info.id,
             &self.info.source.sender,
             &self.info.source.chat,
+            &self.info.source.chat,
             &self.message,
         )
     }
@@ -588,6 +589,14 @@ mod tests {
     use crate::store::SqliteStore;
     use wa_rs_tokio_transport::TokioWebSocketTransportFactory;
 
+    fn app_version(primary: u32, secondary: u32, tertiary: u32) -> wa::device_props::AppVersion {
+        let mut version = wa::device_props::AppVersion::default();
+        version.primary = Some(primary);
+        version.secondary = Some(secondary);
+        version.tertiary = Some(tertiary);
+        version
+    }
+
     // Mock HTTP client for testing
     #[derive(Debug, Clone)]
     struct MockHttpClient;
@@ -772,18 +781,13 @@ mod tests {
         let http_client = MockHttpClient;
 
         let custom_os = "CustomOS".to_string();
-        let custom_version = wa::device_props::AppVersion {
-            primary: Some(99),
-            secondary: Some(88),
-            tertiary: Some(77),
-            ..Default::default()
-        };
+        let custom_version = app_version(99, 88, 77);
 
         let bot = Bot::builder()
             .with_backend(backend)
             .with_transport_factory(transport)
             .with_http_client(http_client)
-            .with_device_props(Some(custom_os.clone()), Some(custom_version), None)
+            .with_device_props(Some(custom_os.clone()), Some(custom_version.clone()), None)
             .build()
             .await
             .expect("Failed to build bot with device props override");
@@ -794,7 +798,10 @@ mod tests {
 
         // Verify the device props were overridden
         assert_eq!(device.device_props.os, Some(custom_os));
-        assert_eq!(device.device_props.version, Some(custom_version));
+        assert_eq!(
+            device.device_props.version.as_option(),
+            Some(&custom_version)
+        );
     }
 
     #[tokio::test]
@@ -822,8 +829,8 @@ mod tests {
         assert_eq!(device.device_props.os, Some(custom_os));
         // Version should be the default since we didn't override it
         assert_eq!(
-            device.device_props.version,
-            Some(wacore::store::Device::default_device_props_version())
+            device.device_props.version.as_option(),
+            Some(&wacore::store::Device::default_device_props_version())
         );
     }
 
@@ -833,18 +840,13 @@ mod tests {
         let transport = TokioWebSocketTransportFactory::new();
         let http_client = MockHttpClient;
 
-        let custom_version = wa::device_props::AppVersion {
-            primary: Some(99),
-            secondary: Some(88),
-            tertiary: Some(77),
-            ..Default::default()
-        };
+        let custom_version = app_version(99, 88, 77);
 
         let bot = Bot::builder()
             .with_backend(backend)
             .with_http_client(http_client)
             .with_transport_factory(transport)
-            .with_device_props(None, Some(custom_version), None)
+            .with_device_props(None, Some(custom_version.clone()), None)
             .build()
             .await
             .expect("Failed to build bot with version only override");
@@ -854,7 +856,10 @@ mod tests {
         let device = persistence_manager.get_device_snapshot().await;
 
         // Verify only version was overridden, OS should be default ("rust")
-        assert_eq!(device.device_props.version, Some(custom_version));
+        assert_eq!(
+            device.device_props.version.as_option(),
+            Some(&custom_version)
+        );
         // OS should be the default since we didn't override it
         assert_eq!(
             device.device_props.os,
@@ -884,7 +889,7 @@ mod tests {
         // Verify platform type was set to Chrome
         assert_eq!(
             device.device_props.platform_type,
-            Some(wa::device_props::PlatformType::Chrome as i32)
+            Some(wa::device_props::PlatformType::Chrome)
         );
         // OS and version should remain default
         assert_eq!(
@@ -892,8 +897,8 @@ mod tests {
             Some(wacore::store::Device::default_os().to_string())
         );
         assert_eq!(
-            device.device_props.version,
-            Some(wacore::store::Device::default_device_props_version())
+            device.device_props.version.as_option(),
+            Some(&wacore::store::Device::default_device_props_version())
         );
     }
 
@@ -904,12 +909,7 @@ mod tests {
         let http_client = MockHttpClient;
 
         let custom_os = "macOS".to_string();
-        let custom_version = wa::device_props::AppVersion {
-            primary: Some(2),
-            secondary: Some(0),
-            tertiary: Some(0),
-            ..Default::default()
-        };
+        let custom_version = app_version(2, 0, 0);
         let custom_platform = wa::device_props::PlatformType::Safari;
 
         let bot = Bot::builder()
@@ -918,7 +918,7 @@ mod tests {
             .with_http_client(http_client)
             .with_device_props(
                 Some(custom_os.clone()),
-                Some(custom_version),
+                Some(custom_version.clone()),
                 Some(custom_platform),
             )
             .build()
@@ -931,11 +931,11 @@ mod tests {
 
         // Verify all device props were overridden
         assert_eq!(device.device_props.os, Some(custom_os));
-        assert_eq!(device.device_props.version, Some(custom_version));
         assert_eq!(
-            device.device_props.platform_type,
-            Some(custom_platform as i32)
+            device.device_props.version.as_option(),
+            Some(&custom_version)
         );
+        assert_eq!(device.device_props.platform_type, Some(custom_platform));
     }
 
     #[tokio::test]

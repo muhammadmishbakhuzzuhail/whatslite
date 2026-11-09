@@ -3,12 +3,12 @@ use crate::types::message::MessageInfo;
 use crate::types::presence::{ChatPresence, ChatPresenceMedia, ReceiptType};
 use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
-use prost::Message;
 use serde::Serialize;
 use std::fmt;
 use std::sync::{Arc, OnceLock, RwLock};
 use wacore_binary::jid::{Jid, MessageId};
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp::{self as wa, HistorySync};
 
 /// Wrapper for large event data that uses Arc for cheap cloning.
@@ -77,20 +77,20 @@ impl LazyConversation {
     /// Returns `None` if parsing fails or the conversation has an empty id;
     /// a decode failure (server-controlled data) is logged once.
     pub fn get(&self) -> Option<&wa::Conversation> {
-        let conv =
-            self.parsed
-                .get_or_init(|| match wa::Conversation::decode(&self.raw_bytes[..]) {
-                    Ok(conv) => conv,
-                    Err(e) => {
-                        log::warn!(
-                            target: "HistorySync",
-                            "Failed to decode conversation protobuf ({} bytes): {}",
-                            self.raw_bytes.len(),
-                            e
-                        );
-                        Default::default()
-                    }
-                });
+        let conv = self.parsed.get_or_init(|| {
+            match wa::Conversation::decode_from_slice(&self.raw_bytes[..]) {
+                Ok(conv) => conv,
+                Err(e) => {
+                    log::warn!(
+                        target: "HistorySync",
+                        "Failed to decode conversation protobuf ({} bytes): {}",
+                        self.raw_bytes.len(),
+                        e
+                    );
+                    Default::default()
+                }
+            }
+        });
         if conv.id.is_empty() { None } else { Some(conv) }
     }
 

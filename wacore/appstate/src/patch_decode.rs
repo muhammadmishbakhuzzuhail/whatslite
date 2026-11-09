@@ -1,9 +1,9 @@
 //! Patch list parsing (snapshot + patches) - partial port of Go appstate/decode.go
 
 use anyhow::{Result, anyhow};
-use prost::Message;
 use std::str::FromStr;
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,7 +70,7 @@ pub fn parse_patch_list(node: &Node) -> Result<PatchList> {
     let mut snapshot_ref = None;
     if let Some(snapshot_node) = collection.get_optional_child("snapshot")
         && let Some(wacore_binary::node::NodeContent::Bytes(raw)) = &snapshot_node.content
-        && let Ok(ext_ref) = wa::ExternalBlobReference::decode(raw.as_slice())
+        && let Ok(ext_ref) = wa::ExternalBlobReference::decode_from_slice(raw.as_slice())
     {
         snapshot_ref = Some(ext_ref);
     }
@@ -85,7 +85,7 @@ pub fn parse_patch_list(node: &Node) -> Result<PatchList> {
             if child.tag == "patch"
                 && let Some(wacore_binary::node::NodeContent::Bytes(raw)) = &child.content
             {
-                match wa::SyncdPatch::decode(raw.as_slice()) {
+                match wa::SyncdPatch::decode_from_slice(raw.as_slice()) {
                     Ok(p) => patches.push(p),
                     Err(e) => return Err(anyhow!("failed to unmarshal patch: {e}")),
                 }

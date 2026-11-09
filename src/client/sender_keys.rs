@@ -10,6 +10,7 @@
 
 use anyhow::Result;
 use wacore_binary::jid::Jid;
+use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
 use super::Client;
@@ -87,10 +88,9 @@ impl Client {
     /// Take a recent message from the cache (removes it).
     /// Returns the deserialized message if found, None otherwise.
     pub(crate) async fn take_recent_message(&self, to: Jid, id: String) -> Option<wa::Message> {
-        use prost::Message;
         let key = self.make_stanza_key(to.clone(), id.clone()).await;
         self.recent_messages.remove(&key).await.and_then(|bytes| {
-            match wa::Message::decode(bytes.as_slice()) {
+            match wa::Message::decode_from_slice(bytes.as_slice()) {
                 Ok(msg) => Some(msg),
                 Err(e) => {
                     log::warn!("Failed to decode cached message for {}:{}: {}", to, id, e);
@@ -103,7 +103,6 @@ impl Client {
     /// Store a recent message in the cache (serialized as bytes).
     /// This is lightweight - only stores the protobuf bytes, not Arc<Message>.
     pub(crate) async fn add_recent_message(&self, to: Jid, id: String, msg: &wa::Message) {
-        use prost::Message;
         let key = self.make_stanza_key(to, id).await;
         // Serialize message to bytes - much lighter than storing Arc<Message>
         let bytes = msg.encode_to_vec();

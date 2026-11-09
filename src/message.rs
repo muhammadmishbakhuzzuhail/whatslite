@@ -4,7 +4,6 @@ use crate::types::events::Event;
 use crate::types::message::MessageInfo;
 use chrono::DateTime;
 use log::{debug, warn};
-use prost::Message as ProtoMessage;
 use rand::TryRngCore;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -24,6 +23,7 @@ use wacore::types::jid::JidExt;
 use wacore_binary::jid::Jid;
 use wacore_binary::jid::JidExt as _;
 use wacore_binary::node::Node;
+use waproto::buffa::Message as _;
 use waproto::whatsapp::{self as wa};
 
 /// Maximum retry attempts per message (matches WhatsApp Web's MAX_RETRY = 5).
@@ -92,7 +92,7 @@ impl Client {
         };
 
         if let Some(wacore_binary::node::NodeContent::Bytes(bytes)) = &plaintext_node.content {
-            match wa::Message::decode(bytes.as_slice()) {
+            match wa::Message::decode_from_slice(bytes.as_slice()) {
                 Ok(msg) => {
                     log::info!(
                         "[msg:{}] Received newsletter plaintext message from {}",
@@ -1147,10 +1147,10 @@ impl Client {
             enc_type
         );
 
-        match wa::Message::decode(plaintext_slice) {
+        match wa::Message::decode_from_slice(plaintext_slice) {
             Ok(mut original_msg) => {
                 // Post-decryption logic (SKDM, sync keys, etc.)
-                if let Some(skdm) = &original_msg.sender_key_distribution_message
+                if let Some(skdm) = original_msg.sender_key_distribution_message.as_option()
                     && let Some(axolotl_bytes) = &skdm.axolotl_sender_key_distribution_message
                 {
                     self.handle_sender_key_distribution_message(
@@ -1161,15 +1161,16 @@ impl Client {
                     .await;
                 }
 
-                if let Some(protocol_msg) = &original_msg.protocol_message
-                    && let Some(keys) = &protocol_msg.app_state_sync_key_share
+                if let Some(protocol_msg) = original_msg.protocol_message.as_option()
+                    && let Some(keys) = protocol_msg.app_state_sync_key_share.as_option()
                 {
                     self.handle_app_state_sync_key_share(keys).await;
                 }
 
-                if let Some(protocol_msg) = &original_msg.protocol_message
-                    && let Some(pdo_response) =
-                        &protocol_msg.peer_data_operation_request_response_message
+                if let Some(protocol_msg) = original_msg.protocol_message.as_option()
+                    && let Some(pdo_response) = protocol_msg
+                        .peer_data_operation_request_response_message
+                        .as_option()
                 {
                     self.handle_pdo_response(pdo_response, info).await;
                 }
@@ -1177,7 +1178,7 @@ impl Client {
                 // Note: original_msg might be modified by take() below
                 let history_sync_taken = original_msg
                     .protocol_message
-                    .as_mut()
+                    .as_option_mut()
                     .and_then(|pm| pm.history_sync_notification.take());
 
                 if let Some(history_sync) = history_sync_taken {
@@ -1189,7 +1190,7 @@ impl Client {
                 // (protocol-level key exchange) with no user-visible content.
                 // These arrive as a separate pkmsg enc node alongside the actual
                 // group message (skmsg) and would otherwise surface as "unknown".
-                if is_sender_key_distribution_only(&original_msg) {
+                if is_sender_key_distribution_only(&mut original_msg) {
                     log::debug!(
                         "[msg:{}] Skipping event dispatch for sender key distribution message",
                         info.id
@@ -1357,15 +1358,15 @@ impl Client {
 
         /// Extract components from an AppStateSyncKey for storage.
         fn extract_key_components(key: &wa::message::AppStateSyncKey) -> Option<KeyComponents<'_>> {
-            let key_id = key.key_id.as_ref()?.key_id.as_ref()?;
-            let key_data = key.key_data.as_ref()?;
-            let fingerprint = key_data.fingerprint.as_ref()?;
+            let key_id = key.key_id.as_option()?.key_id.as_ref()?;
+            let key_data = key.key_data.as_option()?;
+            let fingerprint = key_data.fingerprint.as_option()?;
             let data = key_data.key_data.as_ref()?;
             Some(KeyComponents {
                 key_id,
                 data,
                 fingerprint_bytes: fingerprint.encode_to_vec(),
-                timestamp: key_data.timestamp(),
+                timestamp: key_data.timestamp.unwrap_or(0),
             })
         }
 
@@ -1428,7 +1429,7 @@ impl Client {
     ) {
         let skdm = match SenderKeyDistributionMessage::try_from(axolotl_bytes) {
             Ok(msg) => msg,
-            Err(e1) => match wa::SenderKeyDistributionMessage::decode(axolotl_bytes) {
+            Err(e1) => match wa::SenderKeyDistributionMessage::decode_from_slice(axolotl_bytes) {
                 Ok(go_msg) => {
                     let (Some(signing_key), Some(id), Some(iteration), Some(chain_key)) = (
                         go_msg.signing_key.as_ref(),
@@ -1541,22 +1542,52 @@ impl Client {
 /// When sending a group message, WhatsApp includes the SKDM in a separate
 /// `pkmsg` enc node.  We must process it (store the sender key) but should
 /// not surface it as a user event.
-fn is_sender_key_distribution_only(msg: &wa::Message) -> bool {
-    let has_skdm = msg.sender_key_distribution_message.is_some()
-        || msg
+fn is_sender_key_distribution_only(msg: &mut wa::Message) -> bool {
+    if msg.sender_key_distribution_message.is_unset()
+        && msg
             .fast_ratchet_key_sender_key_distribution_message
-            .is_some();
-
-    if !has_skdm {
+            .is_unset()
+    {
         return false;
     }
 
-    // Strip protocol-only fields and check if anything user-visible remains.
-    let mut stripped = msg.clone();
-    stripped.sender_key_distribution_message = None;
-    stripped.fast_ratchet_key_sender_key_distribution_message = None;
-    stripped.message_context_info = None;
-    stripped == wa::Message::default()
+    // Fast path: most common user-visible fields.
+    if msg.conversation.is_some()
+        || msg.extended_text_message.is_set()
+        || msg.image_message.is_set()
+        || msg.video_message.is_set()
+        || msg.audio_message.is_set()
+        || msg.document_message.is_set()
+        || msg.reaction_message.is_set()
+        || msg.protocol_message.is_set()
+        || msg.sticker_message.is_set()
+        || msg.contact_message.is_set()
+        || msg.location_message.is_set()
+        || msg.live_location_message.is_set()
+    {
+        return false;
+    }
+
+    // Slow path: take out the carrier fields, measure the remaining encoded
+    // size, then restore them. Encoded length 0 means no user content.
+    let skdm = msg.sender_key_distribution_message.take();
+    let fast = msg.fast_ratchet_key_sender_key_distribution_message.take();
+    let ctx = msg.message_context_info.take();
+
+    let mut cache = waproto::buffa::SizeCache::new();
+    let only = waproto::codec::message_compute_size(msg, &mut cache) == 0;
+
+    msg.sender_key_distribution_message = skdm
+        .map(waproto::buffa::MessageField::some)
+        .unwrap_or_default();
+    msg.fast_ratchet_key_sender_key_distribution_message = fast
+        .map(waproto::buffa::MessageField::some)
+        .unwrap_or_default();
+    msg.message_context_info = ctx
+        .map(waproto::buffa::MessageField::some)
+        .unwrap_or_default();
+
+    only
 }
 
 #[cfg(test)]
@@ -4354,45 +4385,39 @@ mod tests {
 
     #[test]
     fn test_is_sender_key_distribution_only() {
-        let skdm = wa::message::SenderKeyDistributionMessage {
-            group_id: Some("group".into()),
-            axolotl_sender_key_distribution_message: Some(vec![1, 2, 3]),
-        };
+        let mut skdm = wa::message::SenderKeyDistributionMessage::default();
+        skdm.group_id = Some("group".into());
+        skdm.axolotl_sender_key_distribution_message = Some(vec![1, 2, 3]);
 
         // Empty message → false (no SKDM)
-        assert!(!is_sender_key_distribution_only(&wa::Message::default()));
+        assert!(!is_sender_key_distribution_only(&mut wa::Message::default()));
 
         // SKDM only → true
-        assert!(is_sender_key_distribution_only(&wa::Message {
-            sender_key_distribution_message: Some(skdm.clone()),
-            ..Default::default()
-        }));
+        let mut skdm_only = wa::Message::default();
+        skdm_only.sender_key_distribution_message = skdm.clone().into();
+        assert!(is_sender_key_distribution_only(&mut skdm_only));
 
         // SKDM + message_context_info → still true (context_info is metadata)
-        assert!(is_sender_key_distribution_only(&wa::Message {
-            sender_key_distribution_message: Some(skdm.clone()),
-            message_context_info: Some(wa::MessageContextInfo::default()),
-            ..Default::default()
-        }));
+        let mut skdm_with_context = wa::Message::default();
+        skdm_with_context.sender_key_distribution_message = skdm.clone().into();
+        skdm_with_context.message_context_info = wa::MessageContextInfo::default().into();
+        assert!(is_sender_key_distribution_only(&mut skdm_with_context));
 
         // SKDM + sticker → false (has user content)
-        assert!(!is_sender_key_distribution_only(&wa::Message {
-            sender_key_distribution_message: Some(skdm.clone()),
-            sticker_message: Some(Box::new(wa::message::StickerMessage::default())),
-            ..Default::default()
-        }));
+        let mut skdm_with_sticker = wa::Message::default();
+        skdm_with_sticker.sender_key_distribution_message = skdm.clone().into();
+        skdm_with_sticker.sticker_message = wa::message::StickerMessage::default().into();
+        assert!(!is_sender_key_distribution_only(&mut skdm_with_sticker));
 
         // SKDM + text → false (has user content)
-        assert!(!is_sender_key_distribution_only(&wa::Message {
-            sender_key_distribution_message: Some(skdm.clone()),
-            conversation: Some("hello".into()),
-            ..Default::default()
-        }));
+        let mut skdm_with_text = wa::Message::default();
+        skdm_with_text.sender_key_distribution_message = skdm.clone().into();
+        skdm_with_text.conversation = Some("hello".into());
+        assert!(!is_sender_key_distribution_only(&mut skdm_with_text));
 
         // protocol_message only (no SKDM) → false
-        assert!(!is_sender_key_distribution_only(&wa::Message {
-            protocol_message: Some(Box::new(wa::message::ProtocolMessage::default())),
-            ..Default::default()
-        }));
+        let mut protocol_only = wa::Message::default();
+        protocol_only.protocol_message = wa::message::ProtocolMessage::default().into();
+        assert!(!is_sender_key_distribution_only(&mut protocol_only));
     }
 }

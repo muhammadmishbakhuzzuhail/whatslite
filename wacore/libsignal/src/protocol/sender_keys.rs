@@ -6,7 +6,7 @@
 use std::collections::VecDeque;
 
 use itertools::Itertools;
-use prost::Message;
+use waproto::buffa::Message as _;
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -74,10 +74,10 @@ impl SenderMessageKey {
 
     pub(crate) fn as_protobuf(&self) -> sender_key_state_structure::SenderMessageKey {
         use prost::bytes::Bytes;
-        sender_key_state_structure::SenderMessageKey {
-            iteration: Some(self.iteration),
-            seed: Some(Bytes::copy_from_slice(&self.seed)),
-        }
+        let mut key = sender_key_state_structure::SenderMessageKey::default();
+        key.iteration = Some(self.iteration);
+        key.seed = Some(Bytes::copy_from_slice(&self.seed));
+        key
     }
 }
 
@@ -160,10 +160,10 @@ impl SenderChainKey {
 
     pub(crate) fn as_protobuf(&self) -> sender_key_state_structure::SenderChainKey {
         use prost::bytes::Bytes;
-        sender_key_state_structure::SenderChainKey {
-            iteration: Some(self.iteration),
-            seed: Some(Bytes::copy_from_slice(&self.chain_key)),
-        }
+        let mut key = sender_key_state_structure::SenderChainKey::default();
+        key.iteration = Some(self.iteration);
+        key.seed = Some(Bytes::copy_from_slice(&self.chain_key));
+        key
     }
 }
 
@@ -183,16 +183,16 @@ impl SenderKeyState {
     ) -> SenderKeyState {
         use prost::bytes::Bytes;
         let chain_key_arr: [u8; 32] = chain_key.try_into().expect("chain_key must be 32 bytes");
-        let state = SenderKeyStateStructure {
-            sender_key_id: Some(chain_id),
-            sender_chain_key: Some(SenderChainKey::new(iteration, chain_key_arr).as_protobuf()),
-            sender_signing_key: Some(sender_key_state_structure::SenderSigningKey {
-                public: Some(Bytes::copy_from_slice(&signature_key.serialize())),
-                private: signature_private_key
-                    .map(|k| Bytes::copy_from_slice(k.serialize().as_ref())),
-            }),
-            sender_message_keys: vec![],
-        };
+        let mut signing_key = sender_key_state_structure::SenderSigningKey::default();
+        signing_key.public = Some(Bytes::copy_from_slice(&signature_key.serialize()));
+        signing_key.private =
+            signature_private_key.map(|k| Bytes::copy_from_slice(k.serialize().as_ref()));
+        let mut state = SenderKeyStateStructure::default();
+        state.sender_key_id = Some(chain_id);
+        state.sender_chain_key = SenderChainKey::new(iteration, chain_key_arr)
+            .as_protobuf()
+            .into();
+        state.sender_signing_key = signing_key.into();
 
         Self { state }
     }
@@ -210,7 +210,7 @@ impl SenderKeyState {
     }
 
     pub fn sender_chain_key(&self) -> Option<SenderChainKey> {
-        let sender_chain = self.state.sender_chain_key.as_ref()?;
+        let sender_chain = self.state.sender_chain_key.as_option()?;
         let seed: [u8; 32] = sender_chain
             .seed
             .as_deref()
@@ -224,11 +224,11 @@ impl SenderKeyState {
     }
 
     pub fn set_sender_chain_key(&mut self, chain_key: SenderChainKey) {
-        self.state.sender_chain_key = Some(chain_key.as_protobuf());
+        self.state.sender_chain_key = chain_key.as_protobuf().into();
     }
 
     pub fn signing_key_public(&self) -> Result<PublicKey, InvalidSenderKeySessionError> {
-        if let Some(ref signing_key) = self.state.sender_signing_key {
+        if let Some(signing_key) = self.state.sender_signing_key.as_option() {
             let public = signing_key
                 .public
                 .as_ref()
@@ -241,7 +241,7 @@ impl SenderKeyState {
     }
 
     pub fn signing_key_private(&self) -> Result<PrivateKey, InvalidSenderKeySessionError> {
-        if let Some(ref signing_key) = self.state.sender_signing_key {
+        if let Some(signing_key) = self.state.sender_signing_key.as_option() {
             let private = signing_key
                 .private
                 .as_ref()
@@ -302,7 +302,7 @@ impl SenderKeyRecord {
     }
 
     pub fn deserialize(buf: &[u8]) -> Result<SenderKeyRecord, SignalProtocolError> {
-        let skr = SenderKeyRecordStructure::decode(buf)
+        let skr = SenderKeyRecordStructure::decode_from_slice(buf)
             .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
 
         let mut states = VecDeque::with_capacity(skr.sender_key_states.len());
@@ -406,9 +406,9 @@ impl SenderKeyRecord {
             states.push(state.as_protobuf());
         }
 
-        SenderKeyRecordStructure {
-            sender_key_states: states,
-        }
+        let mut record = SenderKeyRecordStructure::default();
+        record.sender_key_states = states;
+        record
     }
 
     pub fn serialize(&self) -> Result<Vec<u8>, SignalProtocolError> {

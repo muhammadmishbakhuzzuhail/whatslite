@@ -2,7 +2,6 @@ use crate::client::Client;
 use crate::message::RetryReason;
 use crate::types::events::Receipt;
 use log::{info, warn};
-use prost::Message;
 use rand::TryRngCore;
 use scopeguard;
 use std::sync::Arc;
@@ -17,6 +16,7 @@ use wacore::types::jid::JidExt;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::JidExt as _;
 use wacore_binary::node::{Node, NodeContent};
+use waproto::buffa::Message as _;
 
 /// Helper to extract bytes content from a Node.
 fn get_bytes_content(node: &Node) -> Option<&[u8]> {
@@ -731,10 +731,8 @@ mod tests {
             .parse()
             .expect("test JID should be valid");
         let msg_id = "ABC123".to_string();
-        let msg = wa::Message {
-            conversation: Some("hello".into()),
-            ..Default::default()
-        };
+        let mut msg = wa::Message::default();
+        msg.conversation = Some("hello".into());
 
         // Insert via the new async API
         client

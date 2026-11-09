@@ -9,6 +9,7 @@ use rand::{CryptoRng, Rng};
 use sha2::Sha256;
 use std::sync::OnceLock;
 use subtle::ConstantTimeEq;
+use waproto::buffa::Message as _;
 
 use crate::protocol::state::{PreKeyId, SignedPreKeyId};
 use crate::protocol::{IdentityKey, PrivateKey, PublicKey, Result, SignalProtocolError, Timestamp};
@@ -84,17 +85,15 @@ impl SignalMessage {
         sender_identity_key: &IdentityKey,
         receiver_identity_key: &IdentityKey,
     ) -> Result<Self> {
-        let message = waproto::whatsapp::SignalMessage {
-            ratchet_key: Some(sender_ratchet_key.serialize().to_vec()),
-            counter: Some(counter),
-            previous_counter: Some(previous_counter),
-            ciphertext: Some(Vec::<u8>::from(ciphertext)),
-        };
-        let mut serialized = Vec::with_capacity(1 + message.encoded_len() + Self::MAC_LENGTH);
+        let mut message = waproto::whatsapp::SignalMessage::default();
+        message.ratchet_key = Some(sender_ratchet_key.serialize().to_vec());
+        message.counter = Some(counter);
+        message.previous_counter = Some(previous_counter);
+        message.ciphertext = Some(Vec::<u8>::from(ciphertext));
+        let mut serialized =
+            Vec::with_capacity(1 + message.encoded_len() as usize + Self::MAC_LENGTH);
         serialized.push(((message_version & 0xF) << 4) | CIPHERTEXT_MESSAGE_CURRENT_VERSION);
-        message
-            .encode(&mut serialized)
-            .expect("can always append to a buffer");
+        message.encode(&mut serialized);
         let mac = Self::compute_mac(
             sender_identity_key,
             receiver_identity_key,
@@ -205,7 +204,7 @@ impl TryFrom<&[u8]> for SignalMessage {
             ));
         }
 
-        let proto_structure = waproto::whatsapp::SignalMessage::decode(
+        let proto_structure = waproto::whatsapp::SignalMessage::decode_from_slice(
             &value[1..value.len() - SignalMessage::MAC_LENGTH],
         )
         .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
@@ -256,19 +255,16 @@ impl PreKeySignalMessage {
         identity_key: IdentityKey,
         message: SignalMessage,
     ) -> Result<Self> {
-        let proto_message = waproto::whatsapp::PreKeySignalMessage {
-            registration_id: Some(registration_id),
-            pre_key_id: pre_key_id.map(|id| id.into()),
-            signed_pre_key_id: Some(signed_pre_key_id.into()),
-            base_key: Some(base_key.serialize().to_vec()),
-            identity_key: Some(identity_key.serialize().to_vec()),
-            message: Some(Vec::from(message.as_ref())),
-        };
-        let mut serialized = Vec::with_capacity(1 + proto_message.encoded_len());
+        let mut proto_message = waproto::whatsapp::PreKeySignalMessage::default();
+        proto_message.registration_id = Some(registration_id);
+        proto_message.pre_key_id = pre_key_id.map(|id| id.into());
+        proto_message.signed_pre_key_id = Some(signed_pre_key_id.into());
+        proto_message.base_key = Some(base_key.serialize().to_vec());
+        proto_message.identity_key = Some(identity_key.serialize().to_vec());
+        proto_message.message = Some(Vec::from(message.as_ref()));
+        let mut serialized = Vec::with_capacity(1 + proto_message.encoded_len() as usize);
         serialized.push(((message_version & 0xF) << 4) | CIPHERTEXT_MESSAGE_CURRENT_VERSION);
-        proto_message
-            .encode(&mut serialized)
-            .expect("can always append to a Vec");
+        proto_message.encode(&mut serialized);
         Ok(Self {
             message_version,
             registration_id,
@@ -344,8 +340,9 @@ impl TryFrom<&[u8]> for PreKeySignalMessage {
             ));
         }
 
-        let proto_structure = waproto::whatsapp::PreKeySignalMessage::decode(&value[1..])
-            .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
+        let proto_structure =
+            waproto::whatsapp::PreKeySignalMessage::decode_from_slice(&value[1..])
+                .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
 
         let base_key = proto_structure
             .base_key
@@ -413,21 +410,18 @@ impl SenderKeyMessage {
         csprng: &mut R,
         signature_key: &PrivateKey,
     ) -> Result<Self> {
-        let proto_message = waproto::whatsapp::SenderKeyMessage {
-            id: Some(chain_id),
-            iteration: Some(iteration),
-            ciphertext: Some(ciphertext.into_vec()),
-        };
+        let mut proto_message = waproto::whatsapp::SenderKeyMessage::default();
+        proto_message.id = Some(chain_id);
+        proto_message.iteration = Some(iteration);
+        proto_message.ciphertext = Some(ciphertext.into_vec());
 
         // Build serialized buffer directly: [version_byte || proto || signature]
         // Sign over [version_byte || proto], then append signature
         let shifted_version = (message_version << 4) | 3u8;
-        let proto_len = proto_message.encoded_len();
+        let proto_len = proto_message.encoded_len() as usize;
         let mut serialized = Vec::with_capacity(1 + proto_len + Self::SIGNATURE_LEN);
         serialized.push(shifted_version);
-        proto_message
-            .encode(&mut serialized)
-            .expect("can always append to a buffer");
+        proto_message.encode(&mut serialized);
 
         // Sign the data we've built so far (version + proto)
         let signature = signature_key
@@ -492,7 +486,7 @@ impl SenderKeyMessage {
     fn decode_ciphertext(&self) -> Result<Box<[u8]>> {
         // serialized layout: [version_byte || protobuf || signature]
         let proto_bytes = &self.serialized[1..self.serialized.len() - Self::SIGNATURE_LEN];
-        let proto = waproto::whatsapp::SenderKeyMessage::decode(proto_bytes)
+        let proto = waproto::whatsapp::SenderKeyMessage::decode_from_slice(proto_bytes)
             .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
         let ciphertext = proto
             .ciphertext
@@ -530,7 +524,7 @@ impl TryFrom<&[u8]> for SenderKeyMessage {
                 message_version,
             ));
         }
-        let proto_structure = waproto::whatsapp::SenderKeyMessage::decode(
+        let proto_structure = waproto::whatsapp::SenderKeyMessage::decode_from_slice(
             &value[1..value.len() - Self::SIGNATURE_LEN],
         )
         .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
@@ -577,17 +571,14 @@ impl SenderKeyDistributionMessage {
         chain_key: [u8; 32],
         signing_key: PublicKey,
     ) -> Result<Self> {
-        let proto_message = waproto::whatsapp::SenderKeyDistributionMessage {
-            id: Some(chain_id),
-            iteration: Some(iteration),
-            chain_key: Some(chain_key.to_vec()),
-            signing_key: Some(signing_key.serialize().to_vec()),
-        };
-        let mut serialized = Vec::with_capacity(1 + proto_message.encoded_len());
+        let mut proto_message = waproto::whatsapp::SenderKeyDistributionMessage::default();
+        proto_message.id = Some(chain_id);
+        proto_message.iteration = Some(iteration);
+        proto_message.chain_key = Some(chain_key.to_vec());
+        proto_message.signing_key = Some(signing_key.serialize().to_vec());
+        let mut serialized = Vec::with_capacity(1 + proto_message.encoded_len() as usize);
         serialized.push(((message_version & 0xF) << 4) | SENDERKEY_MESSAGE_CURRENT_VERSION);
-        proto_message
-            .encode(&mut serialized)
-            .expect("can always append to a buffer");
+        proto_message.encode(&mut serialized);
 
         Ok(Self {
             message_version,
@@ -658,8 +649,9 @@ impl TryFrom<&[u8]> for SenderKeyDistributionMessage {
             ));
         }
 
-        let proto_structure = waproto::whatsapp::SenderKeyDistributionMessage::decode(&value[1..])
-            .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
+        let proto_structure =
+            waproto::whatsapp::SenderKeyDistributionMessage::decode_from_slice(&value[1..])
+                .map_err(|_| SignalProtocolError::InvalidProtobufEncoding)?;
 
         let chain_id = proto_structure
             .id

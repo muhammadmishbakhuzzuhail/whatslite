@@ -5,8 +5,8 @@
 
 use std::result::Result;
 
-use prost::Message;
 use subtle::ConstantTimeEq;
+use waproto::buffa::Message as _;
 
 use crate::core::curve::KeyType;
 use crate::protocol::ratchet::keys::MessageKeyGenerator;
@@ -82,23 +82,16 @@ impl SessionState {
         root_key: &RootKey,
         alice_base_key: &PublicKey,
     ) -> Self {
-        Self {
-            session: SessionStructure {
-                session_version: Some(version as u32),
-                local_identity_public: Some(our_identity.public_key().serialize().to_vec()),
-                remote_identity_public: Some(their_identity.serialize().to_vec()),
-                root_key: Some(root_key.key().to_vec()),
-                previous_counter: Some(0),
-                sender_chain: None,
-                receiver_chains: vec![],
-                pending_pre_key: None,
-                remote_registration_id: Some(0),
-                local_registration_id: Some(0),
-                alice_base_key: Some(alice_base_key.serialize().to_vec()),
-                needs_refresh: None,
-                pending_key_exchange: None,
-            },
-        }
+        let mut session = SessionStructure::default();
+        session.session_version = Some(version as u32);
+        session.local_identity_public = Some(our_identity.public_key().serialize().to_vec());
+        session.remote_identity_public = Some(their_identity.serialize().to_vec());
+        session.root_key = Some(root_key.key().to_vec());
+        session.previous_counter = Some(0);
+        session.remote_registration_id = Some(0);
+        session.local_registration_id = Some(0);
+        session.alice_base_key = Some(alice_base_key.serialize().to_vec());
+        Self { session }
     }
 
     pub fn alice_base_key(&self) -> &[u8] {
@@ -170,9 +163,9 @@ impl SessionState {
     }
 
     pub fn sender_ratchet_key(&self) -> Result<PublicKey, InvalidSessionError> {
-        match self.session.sender_chain {
+        match self.session.sender_chain.as_option() {
             None => Err(InvalidSessionError("missing sender chain")),
-            Some(ref c) => {
+            Some(c) => {
                 let key_bytes = c
                     .sender_ratchet_key
                     .as_ref()
@@ -188,9 +181,9 @@ impl SessionState {
     }
 
     pub fn sender_ratchet_private_key(&self) -> Result<PrivateKey, InvalidSessionError> {
-        match self.session.sender_chain {
+        match self.session.sender_chain.as_option() {
             None => Err(InvalidSessionError("missing sender chain")),
-            Some(ref c) => {
+            Some(c) => {
                 let key_bytes = c
                     .sender_ratchet_key_private
                     .as_ref()
@@ -202,7 +195,7 @@ impl SessionState {
     }
 
     pub fn has_usable_sender_chain(&self) -> Result<bool, InvalidSessionError> {
-        if self.session.sender_chain.is_none() {
+        if self.session.sender_chain.is_unset() {
             return Ok(false);
         }
         // We removed timestamp from PendingPreKey, so we can't check for expiration here.
@@ -217,7 +210,7 @@ impl SessionState {
 
             let chain_key_idx = chain
                 .chain_key
-                .as_ref()
+                .as_option()
                 .and_then(|chain_key| chain_key.index);
 
             results.push((sender_ratchet_public, chain_key_idx))
@@ -275,7 +268,7 @@ impl SessionState {
         let chain = &self.session.receiver_chains[idx];
         let chain_key = chain
             .chain_key
-            .as_ref()
+            .as_option()
             .ok_or(InvalidSessionError("missing receiver chain key"))?;
         let key_bytes = chain_key
             .key
@@ -292,17 +285,14 @@ impl SessionState {
 
     pub fn add_receiver_chain(&mut self, sender: &PublicKey, chain_key: &ChainKey) {
         use prost::bytes::Bytes;
-        let chain_key = session_structure::chain::ChainKey {
-            index: Some(chain_key.index()),
-            key: Some(Bytes::copy_from_slice(chain_key.key())),
-        };
+        let mut chain_key_structure = session_structure::chain::ChainKey::default();
+        chain_key_structure.index = Some(chain_key.index());
+        chain_key_structure.key = Some(Bytes::copy_from_slice(chain_key.key()));
 
-        let chain = session_structure::Chain {
-            sender_ratchet_key: Some(sender.serialize().to_vec()),
-            sender_ratchet_key_private: Some(vec![]),
-            chain_key: Some(chain_key),
-            message_keys: vec![],
-        };
+        let mut chain = session_structure::Chain::default();
+        chain.sender_ratchet_key = Some(sender.serialize().to_vec());
+        chain.sender_ratchet_key_private = Some(vec![]);
+        chain.chain_key = chain_key_structure.into();
 
         self.session.receiver_chains.push(chain);
 
@@ -328,19 +318,16 @@ impl SessionState {
 
     pub fn set_sender_chain(&mut self, sender: &KeyPair, next_chain_key: &ChainKey) {
         use prost::bytes::Bytes;
-        let chain_key = session_structure::chain::ChainKey {
-            index: Some(next_chain_key.index()),
-            key: Some(Bytes::copy_from_slice(next_chain_key.key())),
-        };
+        let mut chain_key_structure = session_structure::chain::ChainKey::default();
+        chain_key_structure.index = Some(next_chain_key.index());
+        chain_key_structure.key = Some(Bytes::copy_from_slice(next_chain_key.key()));
 
-        let new_chain = session_structure::Chain {
-            sender_ratchet_key: Some(sender.public_key.serialize().to_vec()),
-            sender_ratchet_key_private: Some(sender.private_key.serialize().to_vec()),
-            chain_key: Some(chain_key),
-            message_keys: vec![],
-        };
+        let mut new_chain = session_structure::Chain::default();
+        new_chain.sender_ratchet_key = Some(sender.public_key.serialize().to_vec());
+        new_chain.sender_ratchet_key_private = Some(sender.private_key.serialize().to_vec());
+        new_chain.chain_key = chain_key_structure.into();
 
-        self.session.sender_chain = Some(new_chain);
+        self.session.sender_chain = new_chain.into();
     }
 
     pub fn with_sender_chain(mut self, sender: &KeyPair, next_chain_key: &ChainKey) -> Self {
@@ -352,12 +339,12 @@ impl SessionState {
         let sender_chain = self
             .session
             .sender_chain
-            .as_ref()
+            .as_option()
             .ok_or(InvalidSessionError("missing sender chain"))?;
 
         let chain_key = sender_chain
             .chain_key
-            .as_ref()
+            .as_option()
             .ok_or(InvalidSessionError("missing sender chain key"))?;
 
         let key_bytes = chain_key
@@ -380,27 +367,27 @@ impl SessionState {
 
     pub fn set_sender_chain_key(&mut self, next_chain_key: &ChainKey) {
         use prost::bytes::Bytes;
-        let chain_key = session_structure::chain::ChainKey {
-            index: Some(next_chain_key.index()),
-            key: Some(Bytes::copy_from_slice(next_chain_key.key())),
-        };
+        let mut chain_key_structure = session_structure::chain::ChainKey::default();
+        chain_key_structure.index = Some(next_chain_key.index());
+        chain_key_structure.key = Some(Bytes::copy_from_slice(next_chain_key.key()));
 
         // Is it actually valid to call this function with sender_chain == None?
 
         let new_chain = match self.session.sender_chain.take() {
-            None => session_structure::Chain {
-                sender_ratchet_key: Some(vec![]),
-                sender_ratchet_key_private: Some(vec![]),
-                chain_key: Some(chain_key),
-                message_keys: vec![],
-            },
+            None => {
+                let mut chain = session_structure::Chain::default();
+                chain.sender_ratchet_key = Some(vec![]);
+                chain.sender_ratchet_key_private = Some(vec![]);
+                chain.chain_key = chain_key_structure.into();
+                chain
+            }
             Some(mut c) => {
-                c.chain_key = Some(chain_key);
+                c.chain_key = chain_key_structure.into();
                 c
             }
         };
 
-        self.session.sender_chain = Some(new_chain);
+        self.session.sender_chain = new_chain.into();
     }
 
     pub fn get_message_keys(
@@ -472,11 +459,10 @@ impl SessionState {
             .expect("called set_receiver_chain_key for a non-existent chain");
 
         use prost::bytes::Bytes;
-        self.session.receiver_chains[chain_idx].chain_key =
-            Some(session_structure::chain::ChainKey {
-                index: Some(chain_key.index()),
-                key: Some(Bytes::copy_from_slice(chain_key.key())),
-            });
+        let mut chain_key_structure = session_structure::chain::ChainKey::default();
+        chain_key_structure.index = Some(chain_key.index());
+        chain_key_structure.key = Some(Bytes::copy_from_slice(chain_key.key()));
+        self.session.receiver_chains[chain_idx].chain_key = chain_key_structure.into();
 
         Ok(())
     }
@@ -488,18 +474,17 @@ impl SessionState {
         base_key: &PublicKey,
     ) {
         let signed_ec_pre_key_id: u32 = signed_ec_pre_key_id.into();
-        let pending = session_structure::PendingPreKey {
-            pre_key_id: pre_key_id.map(PreKeyId::into),
-            signed_pre_key_id: Some(signed_ec_pre_key_id as i32),
-            base_key: Some(base_key.serialize().to_vec()),
-        };
-        self.session.pending_pre_key = Some(pending);
+        let mut pending = session_structure::PendingPreKey::default();
+        pending.pre_key_id = pre_key_id.map(PreKeyId::into);
+        pending.signed_pre_key_id = Some(signed_ec_pre_key_id as i32);
+        pending.base_key = Some(base_key.serialize().to_vec());
+        self.session.pending_pre_key = pending.into();
     }
 
     pub fn unacknowledged_pre_key_message_items(
         &self,
     ) -> Result<Option<UnacknowledgedPreKeyMessageItems>, InvalidSessionError> {
-        if let Some(ref pending_pre_key) = self.session.pending_pre_key {
+        if let Some(pending_pre_key) = self.session.pending_pre_key.as_option() {
             Ok(Some(UnacknowledgedPreKeyMessageItems::new(
                 pending_pre_key.pre_key_id.map(Into::into),
                 (pending_pre_key.signed_pre_key_id.unwrap_or(0) as u32).into(),
@@ -517,25 +502,7 @@ impl SessionState {
     }
 
     pub fn clear_unacknowledged_pre_key_message(&mut self) {
-        // Explicitly destructuring the SessionStructure in case there are new
-        // pending fields that need to be cleared.
-        let SessionStructure {
-            session_version: _session_version,
-            local_identity_public: _local_identity_public,
-            remote_identity_public: _remote_identity_public,
-            root_key: _root_key,
-            previous_counter: _previous_counter,
-            sender_chain: _sender_chain,
-            receiver_chains: _receiver_chains,
-            pending_pre_key: _pending_pre_key,
-            remote_registration_id: _remote_registration_id,
-            local_registration_id: _local_registration_id,
-            alice_base_key: _alice_base_key,
-            needs_refresh: _needs_refresh,
-            pending_key_exchange: _pending_key_exchange,
-        } = &self.session;
-
-        self.session.pending_pre_key = None;
+        self.session.pending_pre_key = Default::default();
     }
 
     pub fn set_remote_registration_id(&mut self, registration_id: u32) {
@@ -595,7 +562,7 @@ impl SessionRecord {
     }
 
     pub fn deserialize(bytes: &[u8]) -> Result<Self, SignalProtocolError> {
-        let mut record = RecordStructure::decode(bytes)
+        let mut record = RecordStructure::decode_from_slice(bytes)
             .map_err(|_| InvalidSessionError("failed to decode session record protobuf"))?;
 
         // OPTIMIZATION: Aggressively prune previous_sessions on load.
@@ -772,10 +739,13 @@ impl SessionRecord {
     }
 
     pub fn serialize(&self) -> Result<Vec<u8>, SignalProtocolError> {
-        let record = RecordStructure {
-            current_session: self.current_session.as_ref().map(|s| s.into()),
-            previous_sessions: self.previous_sessions.clone(),
-        };
+        let mut record = RecordStructure::default();
+        record.current_session = self
+            .current_session
+            .as_ref()
+            .map(|s| s.clone().into())
+            .into();
+        record.previous_sessions = self.previous_sessions.clone();
         Ok(record.encode_to_vec())
     }
 

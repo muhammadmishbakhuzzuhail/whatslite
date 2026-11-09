@@ -1,3 +1,5 @@
+#![allow(clippy::double_must_use)]
+
 //! Media option and streaming contracts shared by download/upload paths.
 
 use std::time::Duration;

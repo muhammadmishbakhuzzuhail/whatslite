@@ -1,5 +1,6 @@
 pub mod blocklist;
 pub mod bot;
+pub mod business;
 pub mod chatstate;
 pub mod community_create;
 pub mod contacts;

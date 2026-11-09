@@ -16,11 +16,28 @@ pub mod cache_store;
 pub mod error;
 pub use error::{ErrorChainExt, ServerRejection, Sources};
 pub mod client;
+#[cfg(feature = "plugins")]
+pub mod plugins;
 pub mod portable_cache;
 pub use client::Client;
 pub use client::builder::{ClientBuild, ClientBuilder, ClientBuilderError, ClientOptions};
+#[cfg(feature = "client-lifecycle")]
+pub use client::extension_lifecycle::{ClientLifecycle, ConnectionScope, ConnectionScopeState};
 pub use client::lifecycle::{ConnectError, ConnectStage};
 pub use client::node_io::{NodeFilter, NodeWaiter};
+#[cfg(feature = "plugins")]
+pub use plugins::{
+    ClientPlugin, Interception, PluginCapabilities, PluginCapability, PluginClientInfo,
+    PluginConnectionScope, PluginContext, PluginEventEndpointConfig, PluginEventEnvelope,
+    PluginEventOverflow, PluginEventPayloadEncoding, PluginEventPublishError,
+    PluginEventPublishReport, PluginEventPublisherStats, PluginEventReceiveError,
+    PluginEventRouteError, PluginEventRouter, PluginEventRouterStats, PluginEventSelector,
+    PluginEventSubscribeError, PluginEventSubscription, PluginEventTopic,
+    PluginEventTryReceiveError, PluginEvents, PluginFuture, PluginHealth, PluginHost,
+    PluginHostConfig, PluginHostStats, PluginIqError, PluginIqInterceptor, PluginIqReply,
+    PluginIqReplyError, PluginManifest, PluginMessagingError, PluginPlanError, PluginResourceError,
+    PluginState, PluginStats, UntypedClientPlugin,
+};
 pub use types::connect_admission::ConnectAdmission;
 pub use types::decrypt_failure_admission::DecryptFailureAdmission;
 pub use types::durability_hook::{HistorySyncCaptureHook, InboundDurabilityHook};

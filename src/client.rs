@@ -1,6 +1,8 @@
 pub mod builder;
 mod context_impl;
 mod device_registry;
+#[cfg(feature = "client-lifecycle")]
+pub mod extension_lifecycle;
 mod lid_pn;
 pub mod lifecycle;
 pub mod node_io;

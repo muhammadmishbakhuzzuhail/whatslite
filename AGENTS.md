@@ -138,7 +138,9 @@ When adding a new feature, follow a repeatable flow that mirrors WhatsApp Web be
    - Expose them via `src/features/mod.rs`.
 
 7. **Test and verify**
-   - Run `cargo fmt`, `cargo clippy --all-targets`, and `cargo test --all`.
+   - Run `cargo fmt`. During iteration use `cargo check -p <crate>` and targeted
+     `cargo test -p <crate> --test <name>`. Run the full workspace lint/test only
+     at a phase gate or before merge (see §8 and §10).
    - Use logging to compare with WhatsApp Web traffic where applicable.
 
 ### Quick Structure Guide
@@ -478,11 +480,16 @@ grep -r "xmlns.*blocklist\|xmlns.*w:g2" docs/captured-js/*.js
 
 ## 8. Final Implementation Checks
 
-Before finalizing a feature/fix, always run:
+Before finalizing a feature/fix:
 
-- **Format**: `cargo fmt`
-- **Lint**: `cargo clippy --all-targets`
-- **Test**: `cargo test --all`
+- **Format**: `cargo fmt --all`
+- **Lint (iteration)**: `cargo clippy -p <crate> --lib --tests`
+- **Test (iteration)**: `cargo test -p <crate> --test <name>`
+- **Phase gate / CI only**: `cargo clippy --workspace --all-targets`,
+  `cargo test --workspace`, `cargo check --workspace`
+
+Do not run the full workspace matrix after every small edit. It builds every
+test/example target and is the main source of memory spikes and target bloat.
 
 ---
 
@@ -596,3 +603,30 @@ fn encode_nibbles(s: &str) -> String {
 decode_nibbles("100000000000001f") // -> "100000000000001"
 encode_nibbles("100000000000001")  // -> "100000000000001f"
 ```
+
+---
+
+## 10. Build Resource Policy
+
+This workspace has 17 members and ~939 locked packages. Several crates
+(`waproto`, `wa-rs-core`, `wa-rs-libsignal`, `gpui`, bundled SQLite) can use
+0.5–3 GB of RSS each. The goal is to keep builds under the 11 GB machine limit
+and keep `target/` bounded.
+
+- **Parallelism:** `.cargo/config.toml` sets `[build] jobs = 4`. Do not override
+  it with `-j16` or `CARGO_BUILD_JOBS=16` on this machine. Use `-j2`/`-j4` for
+  large test matrices.
+- **Profiles:** `[profile.dev]` uses `debug = 1`, `incremental = false`, and
+  disables debug info for dependencies and `wa-rs-proto`. Use
+  `cargo build --profile fastrelease` (thin LTO, 16 codegen units) for local
+  release checks; keep `[profile.release]` (fat LTO) for distribution/CI only.
+- **Iteration commands:** prefer `cargo check -p <crate>` and
+  `cargo test -p <crate> --test <name>`. Avoid `--all-targets` and
+  `cargo test --workspace` except at phase gates.
+- **Cleanup:** `target/` should stay below ~50 GB. Reclaim space with:
+  `rm -rf target/debug/incremental target/debug/examples`,
+  `cargo clean --target wasm32-unknown-unknown`, and `cargo clean -p <heavy-crate>`.
+  A full `cargo clean` is acceptable when changing profiles or linker flags.
+- **Linker:** GNU ld is the current linker. If `mold` or `ld.lld` is installed,
+  prefer `-C link-arg=-fuse-ld=mold` (or `lld`); changing rustflags invalidates
+  the target cache, so do it together with a cleanup and rebuild.

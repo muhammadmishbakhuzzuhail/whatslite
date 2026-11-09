@@ -1,0 +1,8 @@
+# Keep build parallelism below the machine's core count: this workspace has
+# several multi-GB rustc crates (waproto, core, gpui, sqlite). Four jobs keeps
+# peak RSS well under 11 GB; raise only on a larger machine.
+[build]
+jobs = 4
+
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]

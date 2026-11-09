@@ -7,6 +7,7 @@ pub use wacore_noise as noise;
 // Re-export derive macros
 pub use wacore_derive::{EmptyNode, ProtocolNode, StringEnum, WireEnum};
 
+pub mod crypto;
 pub mod diagnostics;
 pub mod event;
 pub mod runtime;
@@ -35,8 +36,11 @@ pub mod reporting_token;
 pub mod request;
 pub mod secret_enc_addon;
 pub mod send;
+pub mod session_engine;
+pub mod shortcake;
 pub mod stanza;
 pub mod store;
+pub mod sync_engine;
 pub mod types;
 pub mod upload;
 pub mod usync;

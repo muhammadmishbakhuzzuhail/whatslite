@@ -6,6 +6,24 @@ use wacore_binary::node::Node;
 use waproto::buffa::Message as _;
 use waproto::whatsapp as wa;
 
+/// Why a collection sync request failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CollectionSyncError {
+    Conflict { has_more: bool },
+    Fatal { code: u16, text: String },
+    Retry { code: u16, text: String },
+}
+
+impl std::fmt::Display for CollectionSyncError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Conflict { has_more } => write!(f, "conflict (has_more={has_more})"),
+            Self::Fatal { code, text } => write!(f, "fatal error {code}: {text}"),
+            Self::Retry { code, text } => write!(f, "retryable error {code}: {text}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WAPatchName {
     CriticalBlock,

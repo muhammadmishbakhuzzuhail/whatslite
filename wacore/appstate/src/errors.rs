@@ -28,6 +28,8 @@ pub enum AppStateError {
     MissingKeyId,
     #[error("snapshot MAC mismatch")]
     SnapshotMACMismatch,
+    #[error("snapshot MAC missing")]
+    SnapshotMACMissing,
     #[error("patch snapshot MAC mismatch")]
     PatchSnapshotMACMismatch,
     #[error("patch MAC mismatch")]

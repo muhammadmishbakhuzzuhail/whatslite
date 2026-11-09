@@ -11,3 +11,6 @@ pub enum DecryptFailMode {
     #[wire = "show"]
     Show,
 }
+
+/// `HID_FAILED_DECRYPT` bit of a receipt's `<meta mode>` bitmask.
+pub const RECEIPT_MODE_HID_FAILED_DECRYPT: u32 = 1 << 2;

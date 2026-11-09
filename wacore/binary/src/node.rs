@@ -458,6 +458,14 @@ impl<'a> NodeRef<'a> {
             .and_then(|nodes| nodes.iter().find(|node| node.tag == tag))
     }
 
+    /// Borrow the raw bytes content, when the node carries one.
+    pub fn content_bytes(&self) -> Option<&[u8]> {
+        match self.content.as_deref() {
+            Some(NodeContentRef::Bytes(bytes)) => Some(bytes),
+            _ => None,
+        }
+    }
+
     pub fn to_owned(&self) -> Node {
         Node {
             tag: self.tag.to_string(),

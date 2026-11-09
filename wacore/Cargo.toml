@@ -36,6 +36,7 @@ chrono = { workspace = true, features = ["now", "serde"] }
 ctr = { workspace = true }
 event-listener = { version = "5", default-features = false }
 flate2 = { workspace = true }
+fluent-uri = { workspace = true }
 futures = { workspace = true, features = ["std"] }
 hex = { workspace = true }
 hkdf = { workspace = true }
@@ -54,6 +55,7 @@ serde-big-array = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 smallvec = { workspace = true, features = ["union"] }
 sha2 = { workspace = true }
+subtle = { workspace = true }
 thiserror = { workspace = true }
 tracing = { version = "0.1", default-features = false, features = ["attributes"], optional = true }
 metrics = { version = "0.24", optional = true }

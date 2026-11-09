@@ -30,6 +30,8 @@ pub mod history_sync;
 pub mod ib;
 pub use wacore_libsignal as libsignal;
 pub mod messages;
+#[cfg(feature = "mobile")]
+pub mod mobile;
 pub mod net;
 pub mod pair;
 pub mod pair_code;

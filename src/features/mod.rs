@@ -3,6 +3,8 @@ mod chatstate;
 mod contacts;
 mod groups;
 mod mex;
+#[cfg(feature = "mobile-core")]
+pub mod mobile_api;
 mod presence;
 mod tctoken;
 

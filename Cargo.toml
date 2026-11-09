@@ -52,6 +52,7 @@ chrono = { version = "0.4", default-features = false }
 compact_str = { version = "0.10", default-features = false }
 ctr = { version = "0.9", default-features = false }
 flate2 = { version = "1.1.5", default-features = false, features = ["zlib-rs"] }
+fluent-uri = { version = "0.4.1", default-features = false, features = ["alloc"] }
 futures = { version = "0.3", default-features = false, features = ["alloc", "async-await"] }
 heck = "0.5"
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
@@ -67,6 +68,7 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 serde-big-array = "0.5"
 serde_json = { version = "1.0", default-features = false }
 sha2 = { version = "0.10.6", default-features = false }
+subtle = "2.6.1"
 smallvec = "1.15"
 thiserror = "2.0.17"
 tokio = { version = "1.48.0", default-features = false }
@@ -97,7 +99,7 @@ legacy-session-interop = []
 client-lifecycle = []
 plugins = []
 passkey = []
-mobile-core = []
+mobile-core = ["wacore/mobile"]
 mobile-transport-native = []
 generated-group-notifications = []
 js = []

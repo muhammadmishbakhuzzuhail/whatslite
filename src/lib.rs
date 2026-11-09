@@ -52,6 +52,10 @@ pub mod history_sync;
 pub mod usync;
 
 pub mod features;
+#[cfg(feature = "mobile-core")]
+pub mod mobile;
+#[cfg(feature = "mobile-core")]
+pub mod mobile_session;
 pub use features::{
     Blocking, BlocklistEntry, ChatStateType, Chatstate, ContactInfo, Contacts, CreateGroupResult,
     GroupCreateOptions, GroupDescription, GroupMetadata, GroupParticipant, GroupParticipantOptions,

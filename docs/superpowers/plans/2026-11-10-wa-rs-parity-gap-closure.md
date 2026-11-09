@@ -52,15 +52,14 @@ Read-only audit of the six phase plans against the current tree:
 **Files:**
 - Create: `wacore/src/serde_helpers.rs`
 - Create: `wacore/src/types/message_ref.rs` and `wacore/src/types/message_ref/` (tests)
-- Create: `wacore/src/types/message_secret.rs`
-- Create: `wacore/binary/tests/` (port the upstream binary test files)
-- Test: `wacore/tests/{context_info,stored_message_secret,usync_response_fixture,usync_stream_response}.rs`
-- Test: `waproto/tests/proto_roundtrip.rs`
+- Test: `wacore/tests/context_info.rs`
 - Modify: `wacore/src/types/mod.rs`, `wacore/src/lib.rs`
 
 **Interfaces:**
-- Produces: `ProtoHelpers`, `Xml`, `MessageSecret`, `MessageRef`, `UsyncProtocol`, `UsyncQuery`, `SyncTask`.
+- Produces: `ProtoHelpers`, `Xml`, `MessageRef`.
 - Preserves: existing `wacore::xml`, `wacore::types` exports.
+
+**Scope ruling (2026-11-10):** `wacore/src/types/message_secret.rs`, `stored_message_secret`, `InMemoryBackend`/`MsgSecretStore`, the binary tests, and the USync stream fixtures are moved to G3/G6 because they depend on store/stream internals that do not exist yet. `waproto/tests/proto_roundtrip.rs` is removed: it does not exist upstream at `f077a5d4`.
 
 - [ ] **Step 1: Write the failing tests** by porting the four upstream `wacore/tests/*` files and the binary test files. Keep assertions unchanged; rewrite imports to `wacore`/`wacore_binary`.
 - [ ] **Step 2: Run and verify failure**
@@ -68,7 +67,6 @@ Read-only audit of the six phase plans against the current tree:
 ```bash
 cargo test -p wa-rs-core --test context_info --test stored_message_secret --test usync_response_fixture --test usync_stream_response
 cargo test -p wa-rs-binary
-cargo test -p wa-rs-proto --test proto_roundtrip
 ```
 
 - [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/wacore/src/serde_helpers.rs`, `wacore/src/types/message_ref*`, `wacore/src/types/message_secret.rs`, and `wacore/binary/tests/`.
@@ -77,14 +75,13 @@ cargo test -p wa-rs-proto --test proto_roundtrip
 ```bash
 cargo test -p wa-rs-core --test context_info --test stored_message_secret --test usync_response_fixture --test usync_stream_response
 cargo test -p wa-rs-binary
-cargo test -p wa-rs-proto --test proto_roundtrip
 cargo check -p wa-rs-core
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add wacore/src/serde_helpers.rs wacore/src/types/message_ref.rs wacore/src/types/message_ref wacore/src/types/message_secret.rs wacore/binary/tests wacore/tests/context_info.rs wacore/tests/stored_message_secret.rs wacore/tests/usync_response_fixture.rs wacore/tests/usync_stream_response.rs waproto/tests/proto_roundtrip.rs
+git add wacore/src/serde_helpers.rs wacore/src/types/message_ref.rs wacore/src/types/message_ref wacore/src/types/message_secret.rs wacore/binary/tests wacore/tests/context_info.rs wacore/tests/stored_message_secret.rs wacore/tests/usync_response_fixture.rs wacore/tests/usync_stream_response.rs
 git commit -m "feat(core): port serde helpers message refs and core types"
 ```
 
@@ -122,13 +119,14 @@ cargo test -p wa-rs-bridge
 
 **Files:**
 - Create: `wacore/src/message_processing.rs`
+- Create: `wacore/src/store/in_memory.rs`, `wacore/src/types/message_secret.rs`
 - Create: `src/message/{commit_batch,dispatch,durability,live_retention,msg_secret,raw_pending,receive,retry,special,tests}.rs`
 - Create: `src/handlers/notification/durability_tests.rs`
 - Modify: `src/message.rs`, `src/handlers/notification/mod.rs`
-- Test: `src/message/tests.rs`, `tests/parity_inbound.rs`, `tests/parity_messaging.rs`
+- Test: `src/message/tests.rs`, `wacore/tests/stored_message_secret.rs`, `tests/parity_inbound.rs`, `tests/parity_messaging.rs`
 
 **Interfaces:**
-- Produces: `BotMessage`, `CategorizedEncNodes`, `DecryptedMessageResult`, `EncNodeInfo`, `EncType`, `EncryptedEdit`, `ProtocolMessageInfo`, `SecretEncAddon`, `SecretEncKind`, `SecretEncrypted`.
+- Produces: `BotMessage`, `CategorizedEncNodes`, `DecryptedMessageResult`, `EncNodeInfo`, `EncType`, `EncryptedEdit`, `ProtocolMessageInfo`, `SecretEncAddon`, `SecretEncKind`, `SecretEncrypted`, `MessageSecret`, `StoredMessageSecret`, `MsgSecretStore`, `InMemoryBackend`.
 - Preserves: existing `Client::handle_message`, `Event` dispatch, and inbound durability hooks.
 
 - [ ] **Step 1: Write failing tests** for batch commit/drain, decrypt result classification, message secrets, retry/special messages, live retention, and durability notification.
@@ -136,6 +134,7 @@ cargo test -p wa-rs-bridge
 
 ```bash
 cargo test -p wa-rs --test parity_inbound --test parity_messaging
+cargo test -p wa-rs-core --test stored_message_secret
 ```
 
 - [ ] **Step 3: Port the modules** from `reference/whatsapp-rust/src/message/`, `src/handlers/notification/durability_tests.rs`, and `wacore/src/message_processing.rs`. Keep the existing 64-line `src/message.rs` as a facade until the split is green.
@@ -143,7 +142,7 @@ cargo test -p wa-rs --test parity_inbound --test parity_messaging
 
 ```bash
 cargo test -p wa-rs --test parity_inbound --test parity_messaging
-cargo test -p wa-rs-core --test parity_messaging
+cargo test -p wa-rs-core --test parity_messaging --test stored_message_secret
 cargo check -p wa-rs
 ```
 
@@ -213,11 +212,12 @@ cargo check -p wa-rs
 - Create: `src/{pdo,history_sync,request,usync,keepalive,lid_pn_cache}/`
 - Create: `src/request_context_tests.rs`, `src/retry_conformance_tests.rs`, `src/store/release_tests.rs`, `src/usync/*_tests.rs`
 - Create: `tests/handshake_integration.rs`, `tests/noise_frame_size_contract.rs`
+- Create: `wacore/binary/tests/`, `wacore/tests/{usync_response_fixture,usync_stream_response}.rs`
 - Modify: `src/{pdo,history_sync,request,usync,keepalive,lid_pn_cache}.rs`, `src/store/mod.rs`
 - Test: `tests/parity_reliability.rs`, `tests/parity_pdo.rs`, `tests/parity_history.rs`
 
 **Interfaces:**
-- Produces: the directory-split public surfaces for PDO, history sync, request context, USync, keepalive, LID/PN cache and store release.
+- Produces: the directory-split public surfaces for PDO, history sync, request context, USync, keepalive, LID/PN cache and store release; `UsyncProtocol`, `UsyncQuery`, `SyncTask`, `NodeStream`, `IqStreamSpec`.
 - Preserves: current retry/stanza-error/history-sync keys and `StoreRelease` behavior.
 
 - [ ] **Step 1: Write failing tests** for request context, retry conformance, store release, USync fixtures, handshake integration and noise frame size.
@@ -226,6 +226,8 @@ cargo check -p wa-rs
 ```bash
 cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history
 cargo test -p wa-rs-core --test noise_handshake_test
+cargo test -p wa-rs-core --test usync_response_fixture --test usync_stream_response
+cargo test -p wa-rs-binary
 ```
 
 - [ ] **Step 3: Port the modules** from the corresponding upstream directories. Keep the existing monolithic modules as re-export facades.
@@ -233,7 +235,8 @@ cargo test -p wa-rs-core --test noise_handshake_test
 
 ```bash
 cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history
-cargo test -p wa-rs-core --test noise_handshake_test
+cargo test -p wa-rs-core --test noise_handshake_test --test usync_response_fixture --test usync_stream_response
+cargo test -p wa-rs-binary
 cargo check -p wa-rs
 ```
 

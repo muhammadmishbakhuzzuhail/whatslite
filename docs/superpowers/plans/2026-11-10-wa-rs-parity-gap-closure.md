@@ -277,11 +277,12 @@ cargo test -p wa-rs-bridge
 **Files:**
 - Create: `wacore/src/iq/{join_shapes,community_create,newsletter,bot,business,profile,abprops,contextual,devices}.rs`
 - Create: `wacore/src/iq/usync/`
+- Create: `wacore/src/store/ab_props.rs` (AbPropsCache, owned by G8; G2a defers `ab_prop_enabled`)
 - Modify: `wacore/src/iq/{mod,groups,props,usync}.rs`
 - Test: `tests/group_lookup_contract.rs`, `tests/iq_parse_errors.rs`, `tests/newsletter_public_api.rs`, `tests/ab_prop_watch_coverage.rs`
 
 **Interfaces:**
-- Produces: `GroupError`, `GroupLookupResult`, `GroupOverview`, `GroupOverviewResult`, `GroupEphemeralSettings`, `GroupJoinError`, `GroupParticipantDetails`, `JoinGroupResult`, `MembershipRequest`, `GroupPictureEntry`, `GroupProfilePicture`, `ReportedGroupMessage`, `ReportedGroupMessages`, `StarredMessages`, `CappingStatus`.
+- Produces: `GroupError`, `GroupLookupResult`, `GroupOverview`, `GroupOverviewResult`, `GroupEphemeralSettings`, `GroupJoinError`, `GroupParticipantDetails`, `JoinGroupResult`, `MembershipRequest`, `GroupPictureEntry`, `GroupProfilePicture`, `ReportedGroupMessage`, `ReportedGroupMessages`, `StarredMessages`, `CappingStatus`, `AbPropsCache`, `ab_prop_enabled`.
 - Preserves: `GroupMetadata`, `CreateGroupResult`, `GroupParticipant`, `MemberAddMode`, `MembershipApprovalMode`.
 
 - [ ] **Step 1: Write failing tests** for group lookup, IQ parse errors, newsletter public API and AB-prop watch coverage.
@@ -487,13 +488,14 @@ cargo check -p wa-rs --features parity-voip
 
 **Files:**
 - Modify: `src/plugins/{mod,events,iq_reply}.rs`, `src/client/extension_lifecycle.rs`, `src/client/{builder,lifecycle}.rs`, `src/client.rs`
-- Modify: `src/client/device_memo_stats.rs`, `src/client/accessors.rs`
+- Modify: `src/client/device_memo_stats.rs`, `src/client/accessors.rs`, `src/client/iq_ops.rs`
+- Modify: `wacore/src/store/commands.rs`, `src/handshake.rs` (client profile wiring deferred from G2a)
 - Modify: `storages/sqlite-storage/{Cargo.toml,src/}`, `transports/tokio-transport/{src/lib.rs,src/tcp.rs}`
 - Create: `tests/handshake_span_scope.rs`
 - Test: `tests/parity_plugins.rs`, `tests/parity_observability.rs`, storage wasm check
 
 **Interfaces:**
-- Produces: plugin install/callback queue integration, `ClientLifecycle` installation, real `MemoryReport`/`DeviceMemoStats` values, storage wasm shim, transport `StreamDialer`.
+- Produces: plugin install/callback queue integration, `ClientLifecycle` installation, real `MemoryReport`/`DeviceMemoStats` values, storage wasm shim, transport `StreamDialer`, and `set_client_profile` wiring (deferred from G2a).
 - Preserves: existing plugin/lifecycle/observability public types.
 
 - [ ] **Step 1: Write failing tests** for plugin install callbacks, lifecycle installation, real memory report values, dialer and handshake span scope.

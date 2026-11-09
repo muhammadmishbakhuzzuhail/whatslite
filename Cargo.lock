@@ -8015,6 +8015,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "env_logger",
+ "event-listener",
  "futures",
  "hex",
  "log",

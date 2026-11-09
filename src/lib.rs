@@ -48,7 +48,12 @@ pub mod retry;
 pub mod unified_session;
 
 pub mod appstate_sync;
+pub mod flush_scope;
 pub mod history_sync;
+pub mod inbound_queue;
+pub mod msg_secret_buffer;
+pub mod runtime_impl;
+pub mod signal_flush;
 pub mod usync;
 
 pub mod features;

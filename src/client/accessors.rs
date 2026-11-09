@@ -18,6 +18,16 @@ impl Client {
     ///
     /// An in-flight reconnect attempt may still complete; the preference is
     /// consulted before the next backoff cycle.
+    ///
+    /// # Terminal states are not cleared
+    ///
+    /// This fork stores the preference and the terminal stop verdict in one
+    /// flag, and the client sets it to `false` on logout, stream conflict
+    /// (`replaced`) and device removal (`516`). Nothing sets it back to `true`
+    /// internally, so calling this with `true` after one of those events only
+    /// flips the preference — it cannot revive the session, and the next
+    /// connect attempt against a logged-out or replaced session will fail.
+    /// Construct a new [`Client`] for a new session.
     pub fn set_auto_reconnect(&self, enabled: bool) {
         self.enable_auto_reconnect.store(enabled, Ordering::Relaxed);
     }

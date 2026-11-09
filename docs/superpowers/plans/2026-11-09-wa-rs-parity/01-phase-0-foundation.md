@@ -22,15 +22,15 @@
 - Produces: `wa_rs::wacore`, `wa_rs::wacore_binary`, `wa_rs::waproto` re-exports in `src/lib.rs`.
 - Preserves: package names, folder tree, and public crate names for external consumers.
 
-- [ ] **Step 1: Rename the dependency keys**
+- [x] **Step 1: Rename the dependency keys**
 
 Rename the existing `[workspace.dependencies]` keys and every member manifest entry from `wa-rs-core`, `wa-rs-binary`, `wa-rs-proto`, and the other sibling packages to the upstream aliases. Keep the package names unchanged. Do not keep both keys for the same package; Cargo rejects duplicate package dependencies. Update every `workspace = true` reference to the new key.
 
-- [ ] **Step 2: Add the self aliases**
+- [x] **Step 2: Add the self aliases**
 
 Add `extern crate self as ...;` to each crate root that does not already have one. `wacore/src/lib.rs` already has `extern crate self as wa_rs_core;`; the mechanical rename converts it to `wacore`, so do not add a duplicate. Add `extern crate self as whatsapp_rust;` to `src/lib.rs`. Also add `pub use wacore; pub use wacore_binary; pub use waproto;` to `src/lib.rs` so external consumers can reach the sibling crates through the main crate.
 
-- [ ] **Step 3: Rename the imports**
+- [x] **Step 3: Rename the imports**
 
 Run:
 
@@ -50,7 +50,7 @@ Do not touch `reference/whatsapp-rust`; it is the pinned upstream checkout.
 
 Do not rename the `wa-rs` package itself or the `wa_rs` crate name. Only the internal sibling crates are renamed.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 cargo check --workspace
@@ -59,7 +59,7 @@ cargo build -p whatslite-desktop
 
 Expected: both succeed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Cargo.toml wacore waproto bridge storages transports http_clients src
@@ -81,13 +81,13 @@ git commit -m "build: alias workspace crates to upstream names"
 - Produces: core features from the Feature Contract section.
 - Produces: `parity-core`, `parity-messaging`, `parity-social`, `parity-voip`, `parity-mobile`, `parity-plugins`, `parity-observability`, `parity-wasm`.
 
-- [ ] **Step 1: Declare every feature key as an empty shell**
+- [x] **Step 1: Declare every feature key as an empty shell**
 
 Add every canonical feature and every parity alias to the root manifest. Add the core features to `wacore/Cargo.toml`. Add the storage features `bundled-sqlite`, `js`, `mobile`, `wasm-test` and the transport feature `tcp` as empty shells. Do not add dependency edges yet.
 
 Also declare the `wa-rs` binary target with `required-features = ["sqlite-storage", "tokio-transport", "ureq-client", "tokio-native"]`. The CLI always needs the native stack; without this, `cargo check -p wa-rs --no-default-features` fails on `src/main.rs` instead of checking the library.
 
-- [ ] **Step 2: Add the parity aliases**
+- [x] **Step 2: Add the parity aliases**
 
 ```toml
 parity-core = ["instance-clock", "legacy-session-interop"]
@@ -100,7 +100,7 @@ parity-observability = ["tracing", "metrics"]
 parity-wasm = ["js"]
 ```
 
-- [ ] **Step 3: Verify the default build is unchanged**
+- [x] **Step 3: Verify the default build is unchanged**
 
 ```bash
 cargo check -p wa-rs --no-default-features
@@ -117,7 +117,7 @@ cargo check -p whatslite-desktop
 
 Expected: all succeed because every key is an empty shell.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Cargo.toml wacore/Cargo.toml storages/sqlite-storage/Cargo.toml transports/tokio-transport/Cargo.toml src/lib.rs
@@ -143,11 +143,11 @@ git commit -m "build: declare upstream and parity feature contract"
 - Produces: `SessionStats`, `StatsSnapshot`, `UnkeyableDevice`, `AllocMeter`, `AllocSnapshot`, `HeapSize`, `CollectionStats`, `TaskInstrument`, `MeteredFuture`, `CpuMeter`, `InstrumentedRuntime`.
 - Produces: `telemetry` metric functions and `Timer`; `ErrorSummary`; `MaybeSend`, `MaybeSendSync`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `wacore/tests/parity_runtime.rs` and `wacore/tests/parity_stats.rs` covering monotonic clock behavior, `VirtualClock::advance`, runtime shutdown, allocation metering, and `ErrorSummary` formatting.
 
-- [ ] **Step 2: Run them and verify failure**
+- [x] **Step 2: Run them and verify failure**
 
 ```bash
 cargo test -p wa-rs-core --test parity_runtime --test parity_stats
@@ -155,11 +155,11 @@ cargo test -p wa-rs-core --test parity_runtime --test parity_stats
 
 Expected: FAIL with unresolved modules and types.
 
-- [ ] **Step 3: Port the modules**
+- [x] **Step 3: Port the modules**
 
 Copy the upstream files listed above. Keep the upstream `#[cfg(feature = "instance-clock")]`, `#[cfg(feature = "tracing")]`, and `#[cfg(feature = "metrics")]` attributes. Add `dep:tracing`, `dep:metrics`, `portable-atomic`, `event-listener`, and any missing dependencies to `wacore/Cargo.toml`.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 cargo test -p wa-rs-core --test parity_runtime --test parity_stats
@@ -170,7 +170,7 @@ cargo check -p wa-rs-core
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wacore/src/runtime.rs wacore/src/runtime wacore/src/time.rs wacore/src/time wacore/src/stats.rs wacore/src/telemetry.rs wacore/src/diagnostics.rs wacore/src/sync_marker.rs wacore/src/lib.rs wacore/Cargo.toml wacore/tests/parity_runtime.rs wacore/tests/parity_stats.rs
@@ -189,11 +189,11 @@ git commit -m "feat(core): port runtime time stats telemetry diagnostics and syn
 - Produces: `as_str()`, `code()`, `wire_tag()`, `tag_name()`, `TryFrom<&str>`, `Default`.
 - Preserves: existing `StringEnum` derive and all 12 current uses.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `wacore/tests/parity_wire_enum.rs` with a small enum deriving `WireEnum` and assertions for `as_str`, `code`, `wire_tag`, `TryFrom<&str>`, and default fallback.
 
-- [ ] **Step 2: Run it and verify failure**
+- [x] **Step 2: Run it and verify failure**
 
 ```bash
 cargo test -p wa-rs-core --test parity_wire_enum
@@ -201,13 +201,13 @@ cargo test -p wa-rs-core --test parity_wire_enum
 
 Expected: FAIL because `WireEnum` is not exported.
 
-- [ ] **Step 3: Port the macro**
+- [x] **Step 3: Port the macro**
 
 Copy upstream `WireEnum` from `reference/whatsapp-rust/wacore/derive/src/lib.rs` into `wacore/derive/src/lib.rs`. Keep `StringEnum` in place. Re-export both from `wacore/src/lib.rs`.
 
 Upstream uses `syn 3.0`; the current derive crate uses `syn 2.0`. Upgrade `wacore/derive/Cargo.toml` to `syn = { version = "3.0", features = ["full"] }` and run the existing derive tests. If `syn 3` breaks `ProtocolNode`, `EmptyNode` or `StringEnum`, port the upstream versions of those three macros as well.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 cargo test -p wa-rs-core --test parity_wire_enum
@@ -216,7 +216,7 @@ cargo test -p wa-rs-core --features instance-clock
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wacore/derive/src/lib.rs wacore/src/lib.rs wacore/tests/parity_wire_enum.rs
@@ -239,11 +239,11 @@ This task is split into three commits. Do not combine them.
 - Produces: view types such as `MessageView`, `ADVSignedDeviceIdentityView`, `ADVSignedKeyIndexListView`.
 - Produces: `waproto` features `serde-deserialize`, `serde-snake-case`, `serde-enum-repr`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `waproto/tests/proto_roundtrip.rs` and `waproto/tests/build_freshness.rs`.
 
-- [ ] **Step 2: Run them and verify failure**
+- [x] **Step 2: Run them and verify failure**
 
 ```bash
 cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
@@ -251,11 +251,11 @@ cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
 
 Expected: FAIL because buffa codegen is not present.
 
-- [ ] **Step 3: Port the pipeline**
+- [x] **Step 3: Port the pipeline**
 
 Copy the upstream `waproto` build pipeline and compatibility layer. Keep the package name `wa-rs-proto` and path `waproto/`. Do not vendor `whatspec` or `unwasm`; the committed descriptor and snapshots are the source of truth.
 
-- [ ] **Step 4: Verify codegen**
+- [x] **Step 4: Verify codegen**
 
 ```bash
 cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
@@ -263,7 +263,7 @@ cargo test -p wa-rs-proto --test proto_roundtrip --test build_freshness
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add waproto
@@ -281,7 +281,7 @@ git commit -m "refactor(proto): port buffa codegen pipeline"
 - Produces: buffa-shaped proto access across `wacore`, `src`, and `bridge`.
 - Preserves: `bridge` message construction through `waproto::whatsapp`.
 
-- [ ] **Step 1: Migrate `wacore`**
+- [x] **Step 1: Migrate `wacore`**
 
 Replace prost-specific field access, `Box<T>` wrapping, and `Default` construction with the buffa equivalents. Work in this order and run `cargo check -p wa-rs-core` after each group:
 
@@ -294,15 +294,15 @@ Replace prost-specific field access, `Box<T>` wrapping, and `Default` constructi
 
 This is the largest task in Phase 0. Do not batch it with unrelated changes.
 
-- [ ] **Step 2: Migrate `src`**
+- [x] **Step 2: Migrate `src`**
 
 Update `src/bot.rs`, `src/appstate_sync.rs`, `src/message.rs`, `src/send.rs`, and the feature modules that construct proto messages.
 
-- [ ] **Step 3: Migrate `bridge`**
+- [x] **Step 3: Migrate `bridge`**
 
 `bridge/src/main.rs` constructs `wa::Message` and `wa::message::ExtendedTextMessage`. Update it to the buffa constructors.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 cargo check -p wa-rs-core
@@ -314,7 +314,7 @@ cargo test --workspace
 
 Expected: all succeed. The existing tests are part of the migration; do not leave a test on prost types.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wacore src bridge tests
@@ -327,16 +327,16 @@ git commit -m "refactor(proto): migrate call sites and tests to buffa types"
 - Create: `waproto/tests/generated_api.rs`, `waproto/tests/retained_schema.rs`, `waproto/tests/serde_enum_repr.rs`
 - Test: `cargo test -p wa-rs-proto`
 
-- [ ] **Step 1: Port the upstream proto tests** that validate the generated API, retained schema fields, and serde enum representation.
-- [ ] **Step 2: Run them and fix the compatibility layer** until they pass.
-- [ ] **Step 3: Verify**
+- [x] **Step 1: Port the upstream proto tests** that validate the generated API, retained schema fields, and serde enum representation.
+- [x] **Step 2: Run them and fix the compatibility layer** until they pass.
+- [x] **Step 3: Verify**
 
 ```bash
 cargo test -p wa-rs-proto
 cargo check -p wa-rs-bridge
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add waproto/tests
@@ -358,11 +358,11 @@ git commit -m "test(proto): cover buffa generated API and retained schema"
 - Produces: `EventDelivery`, `EventDeliveryStats`, `CallbackEventHandler`.
 - Preserves: current `Event` names used by `bridge` and `src/bot.rs`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `wacore/tests/parity_events.rs` with a count assertion for 80 `EventKind` and 80 `Event` variants, serde round-trips, and interest-bit tests. Create `tests/parity_event_delivery.rs` for delivery modes and hook registration.
 
-- [ ] **Step 2: Run them and verify failure**
+- [x] **Step 2: Run them and verify failure**
 
 ```bash
 cargo test -p wa-rs-core --test parity_events
@@ -371,11 +371,11 @@ cargo test -p wa-rs --test parity_event_delivery
 
 Expected: FAIL because `EventKind`, `CoreEventBus`, and `EventDelivery` are missing.
 
-- [ ] **Step 3: Port the event model**
+- [x] **Step 3: Port the event model**
 
 Copy upstream `wacore/src/types/events.rs` and `wacore/src/event.rs`. Add the current `Event` variants that upstream no longer has as compatibility adapters if `bridge` still uses them. Port `src/bot/event_delivery.rs` and `src/bot/event_delivery/`.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 ```bash
 cargo test -p wa-rs-core --test parity_events
@@ -385,7 +385,7 @@ cargo check -p wa-rs-bridge
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wacore/src/types/events.rs wacore/src/event.rs src/bot.rs src/bot/event_delivery.rs src/bot/event_delivery wacore/tests/parity_events.rs tests/parity_event_delivery.rs
@@ -410,11 +410,11 @@ git commit -m "feat(events): port 80-variant event model and delivery"
 - Produces: `wa_rs_bridge::build_router`, `AppState`, and `AppState::for_test()` (`client: None`) so `bridge/tests/parity_smoke.rs` can call `/health`, `/status`, `/pair/start` validation and `/send` validation through `tower::ServiceExt::oneshot`.
 - Preserves: bridge HTTP routes and response shapes; only the module boundary moves. Manual bridge pairing smoke remains.
 
-- [ ] **Step 1: Write the failing compatibility tests**
+- [x] **Step 1: Write the failing compatibility tests**
 
 Create the four test files. Assert the re-exports, the existing public signatures, the Phase 0 consumer surface, and the bridge HTTP surface.
 
-- [ ] **Step 2: Run them and verify failure**
+- [x] **Step 2: Run them and verify failure**
 
 ```bash
 cargo test -p wa-rs --test parity_reexports --test parity_existing_api --test parity_api_consumer
@@ -423,7 +423,7 @@ cargo test -p wa-rs-bridge
 
 Expected: FAIL because the aliases and the extracted bridge router are not present.
 
-- [ ] **Step 3: Port the harness and fixtures**
+- [x] **Step 3: Port the harness and fixtures**
 
 Create `tests/support/` and copy `wacore/tests/support/`, `wacore/tests/fixtures/`, `wacore/appstate/tests/fixtures/`, `wacore/libsignal/tests/vectors/`, `wacore/src/voip/testdata/`, and `wacore/src/voip/mlow/testdata/`.
 
@@ -431,7 +431,7 @@ Port the Phase 0 rows from the Test Port Matrix: `waproto/tests/*`, `wacore/test
 
 Move `AppState`, `Callback`, the handlers and `build_router` from `bridge/src/main.rs` into `bridge/src/lib.rs`; keep `main` as a thin binary so the HTTP surface is testable without a live WhatsApp connection.
 
-- [ ] **Step 4: Run and verify pass**
+- [x] **Step 4: Run and verify pass**
 
 ```bash
 cargo test -p wa-rs --test parity_reexports --test parity_existing_api --test parity_api_consumer
@@ -440,7 +440,7 @@ cargo test -p whatslite-desktop
 cargo test --workspace
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests wacore/tests wacore/appstate/tests wacore/libsignal/tests wacore/src/voip/testdata wacore/src/voip/mlow/testdata bridge Cargo.toml
@@ -449,20 +449,20 @@ git commit -m "test: port harness fixtures and compatibility tests"
 
 ### Phase 0 Gate
 
-- [ ] `cargo test -p wa-rs-core --test parity_runtime --test parity_stats --test parity_wire_enum --test parity_events`
-- [ ] `cargo test -p wa-rs-core --features instance-clock --test parity_runtime`
-- [ ] `cargo test -p wa-rs-core --features metrics,tracing --test parity_runtime`
-- [ ] `cargo test -p wa-rs-proto`
-- [ ] `cargo test -p wa-rs --test parity_event_delivery`
-- [ ] `cargo test -p wa-rs --test parity_reexports --test parity_existing_api --test parity_api_consumer`
-- [ ] `cargo test -p wa-rs-bridge`
-- [ ] `cargo test -p whatslite-desktop`
-- [ ] `cargo build -p whatslite-desktop`
-- [ ] `cargo test --workspace`
-- [ ] `cargo check --workspace`
-- [ ] `cargo check -p wa-rs --no-default-features --features parity-core`
-- [ ] `cargo check -p wa-rs-bridge`
-- [ ] Bridge smoke test: pair, connect, send, receive
+- [x] `cargo test -p wa-rs-core --test parity_runtime --test parity_stats --test parity_wire_enum --test parity_events`
+- [x] `cargo test -p wa-rs-core --features instance-clock --test parity_runtime`
+- [x] `cargo test -p wa-rs-core --features metrics,tracing --test parity_runtime`
+- [x] `cargo test -p wa-rs-proto`
+- [x] `cargo test -p wa-rs --test parity_event_delivery`
+- [x] `cargo test -p wa-rs --test parity_reexports --test parity_existing_api --test parity_api_consumer`
+- [x] `cargo test -p wa-rs-bridge`
+- [x] `cargo test -p whatslite-desktop`
+- [x] `cargo build -p whatslite-desktop`
+- [x] `cargo test --workspace`
+- [x] `cargo check --workspace`
+- [x] `cargo check -p wa-rs --no-default-features --features parity-core`
+- [x] `cargo check -p wa-rs-bridge`
+- [x] Bridge smoke test: pair, connect, send, receive
 
 ---
 

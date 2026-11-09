@@ -22,6 +22,8 @@ pub mod mediaconn;
 pub mod message;
 pub mod pair;
 pub mod pair_code;
+#[cfg(feature = "passkey")]
+pub mod passkey;
 pub mod request;
 pub mod send;
 pub use send::{RevokeType, SendOptions};

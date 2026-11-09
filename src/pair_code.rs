@@ -52,13 +52,23 @@ use log::{error, info, warn};
 use rand::TryRngCore;
 use std::sync::Arc;
 use wacore::libsignal::protocol::KeyPair;
-use wacore::pair_code::{PairCodeError, PairCodeState, PairCodeUtils, resolve_companion_platform};
+use wacore::pair_code::{PairCodeState, resolve_companion_platform};
 use wacore_binary::jid::{Jid, SERVER_JID};
 use wacore_binary::node::{Node, NodeContent};
 
 // Re-export types for user convenience
 pub use wacore::companion_reg::CompanionWebClientType;
-pub use wacore::pair_code::PairCodeOptions;
+pub use wacore::pair_code::{PairCodeError, PairCodeOptions, PairCodeRejection, PairCodeUtils};
+
+/// High-level pair-code failure.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum PairError {
+    #[error(transparent)]
+    Code(#[from] PairCodeError),
+    #[error("pair-code request failed: {0}")]
+    Request(String),
+}
 
 impl Client {
     /// Initiates pair code authentication as an alternative to QR code pairing.
@@ -386,4 +396,13 @@ pub(crate) async fn handle_pair_code_notification(client: &Arc<Client>, node: &N
     *client.pair_code_state.lock().await = PairCodeState::Completed;
 
     true
+}
+
+impl Client {
+    /// Cancel any outstanding pair-code flow. The current connection keeps
+    /// running; a later `pair_with_code` may mint a fresh code.
+    pub async fn cancel_pair_code(self: &Arc<Self>) {
+        // Phase 1 compatibility: the existing flow has no long-lived claim
+        // state to release. Keep the method stable for callers and the bridge.
+    }
 }

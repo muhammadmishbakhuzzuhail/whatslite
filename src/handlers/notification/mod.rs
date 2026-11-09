@@ -1,5 +1,7 @@
 use super::traits::StanzaHandler;
 use crate::client::Client;
+
+mod companion_reg;
 use crate::lid_pn_cache::LearningSource;
 use crate::types::events::Event;
 use async_trait::async_trait;
@@ -92,7 +94,7 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
         "link_code_companion_reg" => {
             // Handle pair code notification (stage 2 of pair code authentication)
             // This is sent when the user enters the code on their phone
-            crate::pair_code::handle_pair_code_notification(client, node).await;
+            companion_reg::handle(client, node).await;
         }
         "business" => {
             // Handle business notification (WhatsApp Web: handleBusinessNotification)

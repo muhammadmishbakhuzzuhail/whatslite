@@ -135,6 +135,9 @@ pub struct Client {
     /// the PreKey message that establishes the Signal session.
     pub(crate) message_queues: Cache<String, mpsc::Sender<Arc<Node>>>,
 
+    #[cfg(feature = "passkey")]
+    pub(crate) passkey: crate::passkey::flow::Passkey,
+
     /// Cache for LID to Phone Number mappings (bidirectional).
     /// When we receive a message with sender_lid/sender_pn attributes, we store the mapping here.
     /// This allows us to reuse existing LID-based sessions when sending replies.
@@ -318,6 +321,8 @@ impl Client {
                 .time_to_live(Duration::from_secs(300)) // Idle queues expire after 5 mins
                 .max_capacity(10_000) // Limit to 10k concurrent chats
                 .build(),
+            #[cfg(feature = "passkey")]
+            passkey: crate::passkey::flow::Passkey::default(),
             lid_pn_cache: Arc::new(LidPnCache::new()),
             message_enqueue_locks: Cache::builder()
                 .time_to_live(Duration::from_secs(300))

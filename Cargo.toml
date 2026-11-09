@@ -103,9 +103,9 @@ mobile-core = ["wacore/mobile"]
 mobile-transport-native = []
 generated-group-notifications = []
 js = []
-tracing = []
-metrics = []
-tracing-pii = []
+tracing = ["dep:tracing", "wacore/tracing"]
+metrics = ["wacore/metrics"]
+tracing-pii = ["wacore/tracing-pii", "wacore_binary/tracing-pii"]
 voip-control = []
 voip-runtime = ["voip"]
 voip-engine-wacore = []
@@ -153,6 +153,7 @@ scopeguard = "1.2"
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
+tracing = { version = "0.1", default-features = false, features = ["attributes", "std"], optional = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
 wacore = { workspace = true }
 wacore_binary = { workspace = true }

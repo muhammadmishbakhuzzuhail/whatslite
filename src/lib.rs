@@ -8,6 +8,7 @@ pub use wacore_binary::jid::Jid;
 pub use waproto;
 
 pub mod http;
+pub mod logging;
 pub mod types;
 
 pub mod cache;
@@ -21,10 +22,17 @@ pub mod plugins;
 pub mod portable_cache;
 pub use client::Client;
 pub use client::builder::{ClientBuild, ClientBuilder, ClientBuilderError, ClientOptions};
+pub use client::device_memo_stats::{
+    DeviceMemoStats, GroupDevicesMemoStats, MemoryReport, ResourceReport, SkdmTargetsMemoStats,
+    SubsystemCollection, SubsystemMemory,
+};
 #[cfg(feature = "client-lifecycle")]
 pub use client::extension_lifecycle::{ClientLifecycle, ConnectionScope, ConnectionScopeState};
 pub use client::lifecycle::{ConnectError, ConnectStage};
 pub use client::node_io::{NodeFilter, NodeWaiter};
+#[cfg(feature = "tracing")]
+pub use logging::span;
+pub use logging::{StanzaSummary, init_logging};
 #[cfg(feature = "plugins")]
 pub use plugins::{
     ClientPlugin, Interception, PluginCapabilities, PluginCapability, PluginClientInfo,
@@ -43,6 +51,12 @@ pub use types::decrypt_failure_admission::DecryptFailureAdmission;
 pub use types::durability_hook::{HistorySyncCaptureHook, InboundDurabilityHook};
 pub use types::history_sync_admission::HistorySyncAdmission;
 pub use types::retry_admission::RetryAdmission;
+pub use wacore::stats::{
+    AllocMeter, AllocSnapshot, CollectionStats, HttpResourceReport, SessionStats, StatsSnapshot,
+    StorageResourceReport, TransportResourceReport,
+};
+pub use wacore::telemetry;
+pub use wacore::telemetry::Timer;
 pub mod download;
 pub mod handlers;
 pub use handlers::chatstate::ChatStateEvent;

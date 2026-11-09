@@ -1,5 +1,6 @@
 pub mod builder;
 mod context_impl;
+pub mod device_memo_stats;
 mod device_registry;
 #[cfg(feature = "client-lifecycle")]
 pub mod extension_lifecycle;

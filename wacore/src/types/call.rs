@@ -47,3 +47,65 @@ pub struct CallEndedElsewhere {
     pub timestamp: DateTime<Utc>,
     pub outcome: String,
 }
+
+/// One persisted call-log record.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
+pub struct CallLog {
+    pub call_id: String,
+    pub peer: Jid,
+    pub timestamp: DateTime<Utc>,
+    pub duration_secs: u32,
+    pub video: bool,
+    pub missed: bool,
+}
+
+impl CallLog {
+    pub fn new(
+        call_id: impl Into<String>,
+        peer: Jid,
+        timestamp: DateTime<Utc>,
+        duration_secs: u32,
+        video: bool,
+        missed: bool,
+    ) -> Self {
+        Self {
+            call_id: call_id.into(),
+            peer,
+            timestamp,
+            duration_secs,
+            video,
+            missed,
+        }
+    }
+}
+
+/// Group-call state update.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
+pub struct GroupCallUpdate {
+    pub group: Jid,
+    pub call_id: String,
+    pub participants: Vec<Jid>,
+}
+
+impl GroupCallUpdate {
+    pub fn new(group: Jid, call_id: impl Into<String>, participants: Vec<Jid>) -> Self {
+        Self {
+            group,
+            call_id: call_id.into(),
+            participants,
+        }
+    }
+}
+
+/// Typed call event union.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
+pub enum CallEvent {
+    Incoming(IncomingCall),
+    Missed(MissedCall),
+    EndedElsewhere(CallEndedElsewhere),
+    Log(CallLog),
+    Group(GroupCallUpdate),
+}

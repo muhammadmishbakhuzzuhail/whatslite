@@ -20,7 +20,7 @@ js = []
 mobile = []
 voip-control = []
 voip = []
-voip-mlow = []
+voip-mlow = ["voip"]
 
 [dependencies]
 aes = { workspace = true }

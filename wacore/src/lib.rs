@@ -57,6 +57,10 @@ pub mod types;
 pub mod upload;
 pub mod usync;
 pub mod version;
+#[cfg(feature = "voip")]
+pub mod voip;
+#[cfg(feature = "voip-control")]
+pub mod voip_control;
 pub mod webp;
 pub mod xml;
 pub mod zip;

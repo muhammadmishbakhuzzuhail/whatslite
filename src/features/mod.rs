@@ -29,6 +29,7 @@ pub mod app_state_resync;
 pub mod app_state_settings;
 pub mod bots;
 pub mod business;
+pub mod call_log;
 pub mod chat_actions;
 pub mod comments;
 pub mod community;

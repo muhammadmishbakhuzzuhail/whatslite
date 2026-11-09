@@ -47,6 +47,10 @@ pub mod socket;
 pub mod store;
 pub mod transport;
 pub mod upload;
+#[cfg(any(feature = "voip", feature = "voip-runtime"))]
+pub mod voip;
+#[cfg(feature = "voip-control")]
+pub mod voip_control;
 
 pub mod pdo;
 pub mod prekeys;

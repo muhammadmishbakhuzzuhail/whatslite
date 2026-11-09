@@ -50,3 +50,15 @@ dependencies. The Phase 0 gate only requires the rows marked done above.
 
 Phase 1 gate automated commands all pass. Live bridge pairing/reconnect smoke
 still requires a WhatsApp account/phone and is not claimed.
+
+## Phase 4
+
+| Row | Status | Evidence / reason |
+|---|---|---|
+| `wacore/tests/parity_voip_control.rs` | done | 5 passed with `--features voip-control` |
+| `wacore/tests/parity_voip_crypto.rs` | done | 4 passed with `--features voip` (RTP/RTCP/STUN/SFrame/SRTP/FEC) |
+| `wacore/tests/parity_voip_engine.rs` | done | 2 passed with `--features voip` (sans-IO engine/driver) |
+| `wacore/tests/parity_voip_mlow.rs` + `wacore/tests/mlow_logging.rs` | done | 2 + 1 passed with `--features voip-mlow` |
+| `tests/parity_voip_facade.rs` | done | 1 passed with `--features voip-runtime` |
+| `tests/parity_calls.rs` | done | 1 passed with `--features voip` |
+| upstream `wacore/src/voip/**` engine/session/relay/codec suites | deferred / non-goal for this pass | The full native engine, relay and codec wiring depends on the upstream monolithic client/socket and store-release APIs. The ported primitives and sans-IO engine are covered by the Phase 4 parity files; no upstream test was deleted. |

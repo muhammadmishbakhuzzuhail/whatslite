@@ -195,22 +195,22 @@ cargo check -p wa-rs-bridge
 
 ### Phase 4 Gate
 
-- [ ] `cargo test -p wa-rs-core --features voip-control --test parity_voip_control`
-- [ ] `cargo test -p wa-rs-core --features voip --test parity_voip_crypto`
-- [ ] `cargo test -p wa-rs-core --features voip --test parity_voip_engine`
-- [ ] `cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow --test mlow_logging`
-- [ ] `cargo test -p wa-rs --features voip-runtime --test parity_voip_facade`
-- [ ] `cargo test -p wa-rs --features voip --test parity_calls`
-- [ ] `cargo test -p wa-rs --features voip`
-- [ ] `cargo test -p wa-rs-core --features voip-control`
-- [ ] `cargo test -p wa-rs-core --features voip`
-- [ ] `cargo test -p wa-rs-core --features voip-mlow`
-- [ ] `cargo check -p wa-rs --features parity-voip`
-- [ ] `cargo check -p wa-rs --features voip-encoded`
-- [ ] `cargo check -p wa-rs --features voip-libopus`
-- [ ] `cargo test -p wa-rs-bridge`
-- [ ] `cargo test -p whatslite-desktop`
-- [ ] `cargo build -p whatslite-desktop`
+- [x] `cargo test -p wa-rs-core --features voip-control --test parity_voip_control`
+- [x] `cargo test -p wa-rs-core --features voip --test parity_voip_crypto`
+- [x] `cargo test -p wa-rs-core --features voip --test parity_voip_engine`
+- [x] `cargo test -p wa-rs-core --features voip-mlow --test parity_voip_mlow --test mlow_logging`
+- [x] `cargo test -p wa-rs --features voip-runtime --test parity_voip_facade`
+- [x] `cargo test -p wa-rs --features voip --test parity_calls`
+- [x] `cargo test -p wa-rs --features voip`
+- [x] `cargo test -p wa-rs-core --features voip-control`
+- [x] `cargo test -p wa-rs-core --features voip`
+- [x] `cargo test -p wa-rs-core --features voip-mlow`
+- [x] `cargo check -p wa-rs --features parity-voip`
+- [x] `cargo check -p wa-rs --features voip-encoded`
+- [x] `cargo check -p wa-rs --features voip-libopus`
+- [x] `cargo test -p wa-rs-bridge`
+- [x] `cargo test -p whatslite-desktop`
+- [x] `cargo build -p whatslite-desktop`
 
 ---
 

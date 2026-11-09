@@ -1,3 +1,43 @@
+/// Options for an outbound retry request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RetryRequestOptions {
+    pub count: u8,
+    pub force_include_keys: bool,
+}
+
+/// Result of a retry request attempt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetryRequestOutcome {
+    Accepted,
+    Dropped,
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum RetryRequestError {
+    #[error("client is not connected")]
+    NotConnected,
+    #[error("retry request rejected: {0}")]
+    Rejected(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StanzaRejection {
+    pub code: u16,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StanzaResponseError {
+    pub rejection: Option<StanzaRejection>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageRetransmission {
+    pub message_id: String,
+    pub retry_count: u8,
+}
+
 use crate::client::Client;
 use crate::message::RetryReason;
 use crate::types::events::Receipt;

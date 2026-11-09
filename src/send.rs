@@ -26,6 +26,66 @@ pub enum RevokeType {
     Admin { original_sender: Jid },
 }
 
+/// Options for editing an existing message.
+#[derive(Debug, Clone, Default)]
+pub struct EditOptions {
+    pub id: Option<String>,
+}
+
+/// Result of a successful send.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SendResult {
+    pub id: String,
+}
+
+/// How long a pinned message stays pinned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PinDuration {
+    Hours24,
+    Days7,
+    Days30,
+    Custom(u32),
+}
+
+impl PinDuration {
+    pub fn hours(self) -> u32 {
+        match self {
+            Self::Hours24 => 24,
+            Self::Days7 => 24 * 7,
+            Self::Days30 => 24 * 30,
+            Self::Custom(hours) => hours,
+        }
+    }
+}
+
+/// A typed outgoing message request.
+#[derive(Debug, Clone)]
+pub struct SendRequest {
+    pub to: Jid,
+    pub message: wa::Message,
+    pub options: SendOptions,
+}
+
+/// A typed edit request.
+#[derive(Debug, Clone)]
+pub struct EditRequest {
+    pub chat: Jid,
+    pub original_id: String,
+    pub new_content: wa::Message,
+    pub options: EditOptions,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum SendError {
+    #[error("transport unavailable: {0}")]
+    Transport(String),
+    #[error("server rejected the message: {0}")]
+    Rejected(String),
+    #[error("invalid send request: {0}")]
+    InvalidRequest(String),
+}
+
 impl Client {
     pub async fn send_message(
         &self,

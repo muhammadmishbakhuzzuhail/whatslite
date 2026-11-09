@@ -10,7 +10,13 @@ pub use waproto;
 pub mod http;
 pub mod types;
 
+pub mod cache;
+pub mod cache_config;
+pub mod cache_store;
+pub mod error;
+pub use error::{ErrorChainExt, ServerRejection, Sources};
 pub mod client;
+pub mod portable_cache;
 pub use client::Client;
 pub use client::builder::{ClientBuild, ClientBuilder, ClientBuilderError, ClientOptions};
 pub use client::lifecycle::{ConnectError, ConnectStage};

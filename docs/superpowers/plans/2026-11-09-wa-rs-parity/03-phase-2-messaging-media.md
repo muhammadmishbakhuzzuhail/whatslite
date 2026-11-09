@@ -290,20 +290,20 @@ cargo check -p wa-rs
 
 ### Phase 2 Gate
 
-- [ ] `cargo test -p wa-rs-core --test parity_messaging --test parity_secrets`
-- [ ] `cargo test -p wa-rs --test parity_inbound --test parity_send --test parity_cache --test parity_media`
-- [ ] `cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history`
-- [ ] `cargo test -p wa-rs --test parity_protocol --test parity_transport --test parity_types`
-- [ ] `cargo test -p wa-rs-binary`
-- [ ] `cargo test -p wa-rs-core --test noise_handshake_test`
-- [ ] `cargo test -p wa-rs`
-- [ ] `cargo test -p wa-rs-core`
-- [ ] `cargo check -p wa-rs-core`
-- [ ] `cargo check -p wa-rs --features parity-messaging`
-- [ ] `cargo test -p wa-rs-bridge`
-- [ ] `cargo test -p whatslite-desktop`
-- [ ] `cargo build -p whatslite-desktop`
-- [ ] Bridge send/receive/media smoke test
+- [x] `cargo test -p wa-rs-core --test parity_messaging --test parity_secrets`
+- [x] `cargo test -p wa-rs --test parity_inbound --test parity_send --test parity_cache --test parity_media`
+- [x] `cargo test -p wa-rs --test parity_reliability --test parity_pdo --test parity_history`
+- [x] `cargo test -p wa-rs --test parity_protocol --test parity_transport --test parity_types`
+- [x] `cargo test -p wa-rs-binary`
+- [x] `cargo test -p wa-rs-core --test noise_handshake_test`
+- [x] `cargo test -p wa-rs`
+- [x] `cargo test -p wa-rs-core`
+- [x] `cargo check -p wa-rs-core`
+- [x] `cargo check -p wa-rs --features parity-messaging`
+- [x] `cargo test -p wa-rs-bridge`
+- [x] `cargo test -p whatslite-desktop`
+- [x] `cargo build -p whatslite-desktop`
+- [ ] Bridge send/receive/media smoke test — blocked on a live WhatsApp account/phone; HTTP router smoke is green.
 
 ---
 

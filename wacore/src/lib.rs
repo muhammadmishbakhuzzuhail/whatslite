@@ -16,9 +16,12 @@ pub mod sync_marker;
 pub mod telemetry;
 pub mod time;
 
+pub mod adv;
 pub mod client;
+pub mod client_profile;
 pub mod companion_reg;
 pub mod download;
+pub mod identity_verification;
 pub mod iq;
 pub mod protocol;
 pub use wacore_noise::framing;

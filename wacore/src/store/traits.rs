@@ -59,6 +59,33 @@ pub struct DeviceInfo {
     pub key_index: Option<u32>,
 }
 
+impl DeviceInfo {
+    pub const fn new(device_id: u32, key_index: Option<u32>) -> Self {
+        Self {
+            device_id,
+            key_index,
+        }
+    }
+
+    pub const fn device_id(&self) -> u32 {
+        self.device_id
+    }
+
+    pub const fn key_index(&self) -> Option<u32> {
+        self.key_index
+    }
+
+    /// Compatibility shim: the current device record has no hosting bit.
+    pub const fn with_hosting(self, _is_hosted: bool) -> Self {
+        self
+    }
+
+    /// Compatibility shim: the current device record has no hosting bit.
+    pub const fn is_hosted(&self) -> bool {
+        false
+    }
+}
+
 /// Device list record matching WhatsApp Web's DeviceListRecord structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceListRecord {

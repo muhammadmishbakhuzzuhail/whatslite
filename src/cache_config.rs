@@ -83,25 +83,13 @@ pub trait OriginalMessageResolver: Send + Sync + 'static {
 }
 
 /// Aggregate cache configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CacheConfig {
     pub group: CacheEntryConfig,
     pub device_registry: CacheEntryConfig,
     pub lid_pn: CacheEntryConfig,
     pub recent_messages: CacheEntryConfig,
     pub stores: CacheStores,
-}
-
-impl Default for CacheConfig {
-    fn default() -> Self {
-        Self {
-            group: CacheEntryConfig::default(),
-            device_registry: CacheEntryConfig::default(),
-            lid_pn: CacheEntryConfig::default(),
-            recent_messages: CacheEntryConfig::default(),
-            stores: CacheStores::default(),
-        }
-    }
 }
 
 impl CacheConfig {

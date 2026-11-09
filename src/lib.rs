@@ -73,6 +73,10 @@ pub mod passkey;
 pub mod request;
 pub mod send;
 pub use send::{RevokeType, SendOptions};
+#[cfg(feature = "signal")]
+pub mod shutdown;
+#[cfg(feature = "signal")]
+pub use shutdown::shutdown_signal;
 pub mod session;
 pub mod socket;
 pub mod store;
@@ -95,6 +99,8 @@ pub mod history_sync;
 pub mod inbound_queue;
 pub mod msg_secret_buffer;
 pub mod runtime_impl;
+#[cfg(feature = "tokio-runtime")]
+pub use runtime_impl::TokioRuntime;
 pub mod signal_flush;
 pub mod usync;
 

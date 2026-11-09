@@ -14,6 +14,11 @@ use tokio::sync::Mutex;
 use tokio_websockets::{ClientBuilder, Connector, MaybeTlsStream, Message, WebSocketStream};
 use wacore::net::{Transport, TransportEvent, TransportFactory, WHATSAPP_WEB_WS_URL};
 
+#[cfg(feature = "tcp")]
+mod tcp;
+#[cfg(feature = "tcp")]
+pub use tcp::{TokioTcpTransportFactory, from_byte_stream};
+
 /// Ensures the rustls crypto provider is only installed once
 static CRYPTO_PROVIDER_INIT: Once = Once::new();
 

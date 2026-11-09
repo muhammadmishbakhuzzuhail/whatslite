@@ -8,11 +8,12 @@ repository = "https://github.com/homunbot/wa-rs"
 description = "SQLite storage backend for whatsapp-rust"
 
 [features]
-default = []
-bundled-sqlite = []
+default = ["bundled-sqlite"]
+bundled-sqlite = ["libsqlite3-sys/bundled"]
+test-util = []
 js = []
-mobile = []
-wasm-test = []
+mobile = ["wacore/mobile"]
+wasm-test = ["js"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -25,6 +26,7 @@ diesel = { version = "2.3.5", default-features = false, features = [
 diesel_migrations = { version = "2.3.1", default-features = false, features = [
     "sqlite",
 ] }
+libsqlite3-sys = { version = "0.35", default-features = false, optional = true }
 log = { workspace = true }
 prost = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }

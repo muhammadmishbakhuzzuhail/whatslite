@@ -88,7 +88,7 @@ they do not appear in `#[cfg]` inside ported code.
 - `cargo fmt --all --check` → exit 0.
 - `cargo clippy --workspace --all-targets` → exit 0, 190 warning lines
   (baseline; no new warnings).
-- `cargo test --workspace` → 1297 passed, 0 failed, 29 ignored.
+- `cargo test --workspace` → 1296 passed, 0 failed, 29 ignored.
 - `cargo check --workspace` → exit 0.
 - `cargo test -p whatslite-desktop` → 21 passed; `cargo build -p whatslite-desktop` → exit 0.
 - `cargo test -p wa-rs-bridge` → 3 passed; `cargo check -p wa-rs-bridge` → exit 0.

@@ -93,7 +93,7 @@ to make a build green.
 
 ## Final evidence
 
-- `cargo test --workspace` → **1297 passed, 0 failed, 29 ignored**.
+- `cargo test --workspace` → **1296 passed, 0 failed, 29 ignored**.
 - `cargo check --workspace` → exit 0.
 - `cargo clippy --workspace --all-targets` → exit 0, **190 warning lines** (baseline, no new warnings).
 - `cargo fmt --all --check` → exit 0.

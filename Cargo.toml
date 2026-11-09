@@ -54,6 +54,7 @@ ctr = { version = "0.9", default-features = false }
 flate2 = { version = "1.1.5", default-features = false, features = ["zlib-rs"] }
 fluent-uri = { version = "0.4.1", default-features = false, features = ["alloc"] }
 futures = { version = "0.3", default-features = false, features = ["alloc", "async-await"] }
+getrandom = { version = "0.3", default-features = false }
 heck = "0.5"
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 hkdf = { version = "0.12.3", default-features = false }
@@ -83,7 +84,7 @@ wacore_noise = { package = "wa-rs-noise", path = "./wacore/noise", version = "0.
 waproto = { package = "wa-rs-proto", path = "./waproto", version = "0.2.0" }
 
 [features]
-debug-snapshots = []
+debug-snapshots = ["wacore/debug-snapshots"]
 danger-skip-tls-verify = ["wa-rs-tokio-transport?/danger-skip-tls-verify"]
 default = ["sqlite-storage", "tokio-transport", "ureq-client", "tokio-native"]
 ureq-client = ["dep:wa-rs-ureq-http"]
@@ -95,26 +96,26 @@ tokio-native = ["tokio-runtime", "tokio/rt-multi-thread"]
 
 # Canonical parity features. Edges are added by the task that ports each module.
 sqlite-storage-bundled = ["sqlite-storage", "wa-rs-sqlite-storage/bundled-sqlite"]
-instance-clock = []
-legacy-session-interop = []
+instance-clock = ["wacore/instance-clock", "wa-rs-sqlite-storage?/instance-clock"]
+legacy-session-interop = ["wacore/legacy-session-interop"]
 client-lifecycle = []
 plugins = ["client-lifecycle"]
 passkey = []
-mobile-core = ["wacore/mobile"]
+mobile-core = ["wacore/mobile", "instance-clock", "wa-rs-sqlite-storage?/mobile"]
 mobile-transport-native = ["mobile-core", "tokio-transport", "wa-rs-tokio-transport/tcp"]
 generated-group-notifications = []
-js = ["wa-rs-sqlite-storage?/js"]
+js = ["wacore/js", "wa-rs-sqlite-storage?/js"]
 tracing = ["dep:tracing", "wacore/tracing"]
 metrics = ["wacore/metrics"]
 tracing-pii = ["wacore/tracing-pii", "wacore_binary/tracing-pii"]
-voip-control = []
-voip-runtime = ["voip"]
-voip-engine-wacore = []
-voip-relay-native = []
-voip = ["wacore/voip", "wacore/voip-control"]
-voip-encoded = []
-voip-mlow = []
-voip-libopus = []
+voip-control = ["wacore/voip-control"]
+voip-runtime = ["voip-control", "voip-engine-wacore"]
+voip-engine-wacore = ["voip-control", "wacore/voip"]
+voip-relay-native = ["voip-runtime", "tokio-runtime"]
+voip = ["voip-mlow", "voip-libopus", "voip-relay-native"]
+voip-encoded = ["voip-runtime"]
+voip-mlow = ["voip-runtime", "wacore/voip-mlow"]
+voip-libopus = ["voip-encoded"]
 
 # Parity aliases
 parity-core = ["instance-clock", "legacy-session-interop"]

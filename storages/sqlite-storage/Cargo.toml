@@ -11,7 +11,8 @@ description = "SQLite storage backend for whatsapp-rust"
 default = ["bundled-sqlite"]
 bundled-sqlite = ["libsqlite3-sys/bundled"]
 test-util = []
-js = []
+instance-clock = ["wacore/instance-clock"]
+js = ["wacore/js"]
 mobile = ["wacore/mobile"]
 wasm-test = ["js"]
 
@@ -37,3 +38,6 @@ waproto = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["sync", "rt", "time", "macros"] }
+
+[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, features = ["wasm_js"] }

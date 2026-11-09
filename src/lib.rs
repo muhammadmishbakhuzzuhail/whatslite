@@ -32,6 +32,7 @@ pub use handlers::chatstate::ChatStateEvent;
 pub mod handshake;
 pub mod jid_utils;
 pub mod keepalive;
+pub mod media;
 pub mod mediaconn;
 pub mod message;
 pub mod pair;

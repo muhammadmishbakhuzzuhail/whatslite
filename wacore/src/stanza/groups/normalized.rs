@@ -599,3 +599,11 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "envelope_conformance.rs"]
+mod conformance;
+
+#[cfg(test)]
+#[path = "actions_conformance.rs"]
+mod actions_conformance;

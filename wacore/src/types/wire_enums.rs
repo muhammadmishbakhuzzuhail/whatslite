@@ -26,3 +26,30 @@ pub enum DisallowedListAction {
     #[wire = "remove"]
     Remove,
 }
+
+/// A participant's role inside a group.
+///
+/// Wire format: the `type` attribute of `<participant>` children in group
+/// notifications, mirroring WA Web's `maybeAttrEnum("type")`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, WireEnum)]
+pub enum GroupParticipantType {
+    #[wire = "superadmin"]
+    SuperAdmin,
+    #[wire = "admin"]
+    Admin,
+    #[wire_default]
+    #[wire = "participant"]
+    Participant,
+}
+
+/// Who may share a group's history with a new participant.
+///
+/// Generated from `MemberShareGroupHistoryMode` in `WAWebGroupHistoryShareMode`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, WireEnum)]
+pub enum MemberShareHistoryMode {
+    #[wire_default]
+    #[wire = "admin_share"]
+    AdminShare,
+    #[wire = "all_member_share"]
+    AllMemberShare,
+}

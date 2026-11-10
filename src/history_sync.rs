@@ -136,9 +136,9 @@ impl Client {
                         .timestamp(chrono::Utc::now())
                         .is_lid_addressing_mode(false)
                         .action(Box::new(
-                            wacore::stanza::groups::GroupNotificationAction::Other(
-                                "joined_group".to_string(),
-                            ),
+                            wacore::stanza::groups::GroupNotificationAction::unknown()
+                                .tag("joined_group".to_string())
+                                .build(),
                         ))
                         .build();
                     self.core

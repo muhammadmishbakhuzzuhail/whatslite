@@ -3,10 +3,14 @@ use crate::mediaconn::MediaConn;
 use anyhow::{Result, anyhow};
 use std::io::{Seek, SeekFrom, Write};
 
-pub use wacore::download::{DownloadUtils, Downloadable, MediaDecryption, MediaType};
+pub use wacore::download::{
+    DownloadUtils, DownloadWriter, Downloadable, MediaDecryption, MediaType,
+};
 
 mod budget;
 pub use budget::{DownloadLimits, DownloadPolicyError, MediaByteDomain};
+
+mod memory;
 
 impl From<&MediaConn> for wacore::download::MediaConnection {
     fn from(conn: &MediaConn) -> Self {

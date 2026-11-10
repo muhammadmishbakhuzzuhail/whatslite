@@ -789,3 +789,110 @@ mod tests {
         );
     }
 }
+
+/// A sink a media download can be streamed into.
+///
+/// [`Self::truncate`] is the entire reason this is not simply `Write + Seek`.
+/// Media carries a single MAC over the whole ciphertext, so
+/// [`DownloadUtils::decrypt_stream_to_writer`] has necessarily written plaintext
+/// by the time it can tell the payload was forged, and the retry that follows may
+/// write fewer bytes than the attempt it replaces. Rewinding alone would then
+/// leave verified media followed by a tail of stale bytes from the failed host.
+/// `Write + Seek` cannot express the fix: shortening a sink lives on concrete
+/// types (`File::set_len`, `Vec::truncate`), not on any std trait.
+///
+/// Implementations are provided for the sinks a download realistically targets —
+/// [`std::fs::File`], an in-memory [`std::io::Cursor`], and the `BufWriter` and
+/// `&mut` wrappers around them.
+pub trait DownloadWriter: std::io::Write + std::io::Seek {
+    /// Shorten the sink to `len` bytes, discarding anything beyond it.
+    ///
+    /// Only ever called with a length the sink already reaches, so an
+    /// implementation never has to decide what extending would mean.
+    fn truncate(&mut self, len: u64) -> std::io::Result<()>;
+}
+
+impl DownloadWriter for std::fs::File {
+    fn truncate(&mut self, len: u64) -> std::io::Result<()> {
+        self.set_len(len)
+    }
+}
+
+/// Saturating rather than fallible: `Vec::truncate` past the end is a no-op, which
+/// is exactly the right answer when the length cannot be represented locally.
+fn truncate_vec(buf: &mut Vec<u8>, len: u64) {
+    buf.truncate(usize::try_from(len).unwrap_or(usize::MAX));
+}
+
+impl DownloadWriter for std::io::Cursor<Vec<u8>> {
+    fn truncate(&mut self, len: u64) -> std::io::Result<()> {
+        truncate_vec(self.get_mut(), len);
+        Ok(())
+    }
+}
+
+impl DownloadWriter for std::io::Cursor<&mut Vec<u8>> {
+    fn truncate(&mut self, len: u64) -> std::io::Result<()> {
+        truncate_vec(self.get_mut(), len);
+        Ok(())
+    }
+}
+
+/// Buffered bytes are part of the sink's length, so they have to reach it before
+/// it can be measured against `len`.
+impl<W: DownloadWriter> DownloadWriter for std::io::BufWriter<W> {
+    fn truncate(&mut self, len: u64) -> std::io::Result<()> {
+        std::io::Write::flush(self)?;
+        self.get_mut().truncate(len)
+    }
+}
+
+impl<W: DownloadWriter + ?Sized> DownloadWriter for &mut W {
+    fn truncate(&mut self, len: u64) -> std::io::Result<()> {
+        (**self).truncate(len)
+    }
+}
+
+#[cfg(test)]
+mod writer_tests {
+    use super::DownloadWriter;
+    use std::io::{Seek, SeekFrom, Write};
+
+    #[test]
+    fn cursor_truncate_shortens_and_saturates_unrepresentable_lengths() {
+        let mut cursor = std::io::Cursor::new(b"abcdefgh".to_vec());
+        cursor.seek(SeekFrom::Start(8)).unwrap();
+        cursor.truncate(4).unwrap();
+        assert_eq!(cursor.get_ref(), b"abcd");
+        cursor.truncate(u64::MAX).unwrap();
+        assert_eq!(cursor.get_ref(), b"abcd");
+
+        let mut buf = b"abcdefgh".to_vec();
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        cursor.truncate(3).unwrap();
+        assert_eq!(cursor.get_ref().as_slice(), b"abc");
+
+        let mut owned = std::io::Cursor::new(vec![1u8; 2]);
+        let by_ref = &mut owned;
+        by_ref.truncate(1).unwrap();
+        assert_eq!(by_ref.get_ref(), &[1u8]);
+    }
+
+    #[test]
+    fn file_and_bufwriter_truncate_discard_the_stale_tail() {
+        let path =
+            std::env::temp_dir().join(format!("wa-rs-download-writer-{}.bin", std::process::id()));
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.write_all(b"verified-media").unwrap();
+        file.truncate(8).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), 8);
+
+        // Buffered bytes are part of the sink, so truncate must flush before measuring.
+        let mut buffered = std::io::BufWriter::new(file);
+        buffered.write_all(b"tail").unwrap();
+        buffered.truncate(4).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), 4);
+        drop(buffered);
+        std::fs::remove_file(&path).unwrap();
+    }
+}

@@ -612,6 +612,7 @@ Completed sub-tasks (reviewed, committed):
 | G3b message secret storage | `4039bb1` | Approved; 2 conformance + 7 inline |
 | G3b2 Backend MsgSecretStore + SQLite | `27dc039` | Approved; 4 SQLite tests |
 | G3c message-edit feature surface | `a0cdd76` | Approved; 24 tests |
+| G8o structured IQ parse errors | `dc18210` | Approved; 3 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):

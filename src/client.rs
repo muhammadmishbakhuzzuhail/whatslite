@@ -19,6 +19,7 @@ mod notification_scope;
     reason = "the notification dispatcher names this once it is wired"
 )]
 pub(crate) use notification_scope::NotificationScope;
+pub mod group_notifications;
 pub(crate) mod offline_resume;
 mod sender_keys;
 mod sessions;
@@ -177,6 +178,12 @@ pub struct Client {
     /// This allows us to reuse existing LID-based sessions when sending replies.
     /// The cache is backed by persistent storage and warmed up on client initialization.
     pub(crate) lid_pn_cache: Arc<LidPnCache>,
+
+    /// Optional effective account facts for contextual group-notification
+    /// parsing, registered once by the host. Unset keeps the legacy adapter.
+    pub(crate) group_notification_facts_provider: std::sync::OnceLock<
+        Arc<dyn crate::types::group_notification_facts::GroupNotificationFactsProvider>,
+    >,
 
     /// Per-chat mutex for serializing message enqueue operations.
     /// This ensures messages are enqueued in the order they arrive,
@@ -356,6 +363,7 @@ impl Client {
             #[cfg(feature = "passkey")]
             passkey: crate::passkey::flow::Passkey::default(),
             lid_pn_cache: Arc::new(LidPnCache::new()),
+            group_notification_facts_provider: std::sync::OnceLock::new(),
             message_enqueue_locks: Cache::builder()
                 .time_to_live(Duration::from_secs(300))
                 .max_capacity(10_000)

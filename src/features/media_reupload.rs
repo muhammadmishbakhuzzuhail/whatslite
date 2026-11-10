@@ -212,13 +212,34 @@ fn receipt_rejection(ack: &Node) -> Option<Option<u16>> {
     })
 }
 
-/// Substitute the account LID for a migrated regular-user chat. The fork has
-/// no account-migration flag yet, so a known PN→LID mapping stands in for it.
-fn receipt_chat(chat: &Jid, lid_user: Option<&str>) -> Jid {
-    match lid_user {
-        Some(lid) if chat.is_pn() => Jid::lid(lid),
-        _ => chat.clone(),
+/// Build the operation target from a caller's reference. The chat is kept
+/// verbatim: WA Web substitutes accountLid only when `is_lid_migrated()` holds,
+/// and this fork has no migration flag. A PN→LID mapping alone is not
+/// evidence — an unmigrated account keeps 1:1 chats on PN even with a known
+/// mapping, and `<rmr jid>` must address the message's own chat.
+fn reupload_target(req: &MediaReuploadRequest<'_>) -> ReuploadTarget {
+    ReuploadTarget {
+        id: req.target.id().clone(),
+        chat: req.target.chat().to_non_ad(),
+        participant: req.target.receipt_sender().map(Jid::to_non_ad),
+        from_me: req.target.from_me(),
+        media_key: *req.media_key,
     }
+}
+
+/// Race `future` against the phase budget, naming the phase that stalled.
+/// The budget is a parameter so the mapping is testable offline.
+async fn within_phase<F, T>(
+    phase: MediaReuploadPhase,
+    budget: Duration,
+    future: F,
+) -> Result<T, MediaReuploadError>
+where
+    F: std::future::Future<Output = T>,
+{
+    tokio::time::timeout(budget, future)
+        .await
+        .map_err(|_| MediaReuploadError::Timeout { phase })
 }
 
 pub struct MediaReupload<'a> {
@@ -234,13 +255,7 @@ impl<'a> MediaReupload<'a> {
         &self,
         req: &MediaReuploadRequest<'_>,
     ) -> Result<Shared<ReuploadFuture>, MediaReuploadError> {
-        let target = ReuploadTarget {
-            id: req.target.id().clone(),
-            chat: req.target.chat().to_non_ad(),
-            participant: req.target.receipt_sender().map(Jid::to_non_ad),
-            from_me: req.target.from_me(),
-            media_key: *req.media_key,
-        };
+        let target = reupload_target(req);
         let mut pending = self
             .client
             .media_reuploads
@@ -313,17 +328,10 @@ impl<'a> MediaReupload<'a> {
             .clone()
             .ok_or(MediaReuploadError::NotLoggedIn)?;
         let own_jid = lid.to_non_ad();
-        // WAWebSendServerErrorReceiptJob only substitutes accountLid for a
-        // migrated regular-user chat. A missing mapping keeps the original JID.
-        let lid_user = if req.chat.is_pn() {
-            self.client
-                .lid_pn_cache
-                .get_current_lid(&req.chat.user)
-                .await
-        } else {
-            None
-        };
-        let chat = receipt_chat(&req.chat, lid_user.as_deref());
+        // WAWebSendServerErrorReceiptJob substitutes accountLid only for a
+        // migrated regular-user chat. Without a migration flag, keep the
+        // message's own chat; genuinely LID-addressed chats already are LID.
+        let chat = req.chat.clone();
         // MessageRef requires the author for received group/broadcast messages.
         // Preserve the supplied sender; the Web job omits participant when its
         // message model has no sender (possible for an own-send reference).
@@ -346,7 +354,7 @@ impl<'a> MediaReupload<'a> {
         );
         // Both subscriptions exist before send. A notification received during
         // send/ACK remains buffered, but cannot hide a rejected receipt.
-        tokio::time::timeout(MEDIA_RETRY_TIMEOUT, async {
+        within_phase(MediaReuploadPhase::SendAndAck, MEDIA_RETRY_TIMEOUT, async {
             self.client.send_node(receipt).await?;
             let ack = ack.await.map_err(|_| MediaReuploadError::Cancelled {
                 phase: MediaReuploadPhase::SendAndAck,
@@ -359,18 +367,16 @@ impl<'a> MediaReupload<'a> {
             }
             Ok(())
         })
-        .await
-        .map_err(|_| MediaReuploadError::Timeout {
-            phase: MediaReuploadPhase::SendAndAck,
-        })??;
-        let node = tokio::time::timeout(MEDIA_RETRY_TIMEOUT, notification)
-            .await
-            .map_err(|_| MediaReuploadError::Timeout {
-                phase: MediaReuploadPhase::Notification,
-            })?
-            .map_err(|_| MediaReuploadError::Cancelled {
-                phase: MediaReuploadPhase::Notification,
-            })?;
+        .await??;
+        let node = within_phase(
+            MediaReuploadPhase::Notification,
+            MEDIA_RETRY_TIMEOUT,
+            notification,
+        )
+        .await?
+        .map_err(|_| MediaReuploadError::Cancelled {
+            phase: MediaReuploadPhase::Notification,
+        })?;
         Ok(parse_media_retry_notification(
             &node.as_node_ref(),
             req.media_key.as_slice(),
@@ -615,16 +621,35 @@ mod tests {
     }
 
     #[test]
-    fn receipt_chat_substitutes_lid_only_for_pn_chats() {
+    fn target_keeps_every_chat_kind_verbatim() {
+        // Regression: a PN chat with a known PN→LID mapping must stay PN. Only
+        // `is_lid_migrated()` justifies substitution and this fork has no such
+        // flag, so the receipt must address the message's own chat.
         let pn = Jid::pn("15551234567");
-        assert_eq!(
-            receipt_chat(&pn, Some("100000012345678")),
-            Jid::lid("100000012345678")
-        );
-        assert_eq!(receipt_chat(&pn, None), pn);
-
+        let lid = Jid::lid("100000012345678");
         let group = Jid::group("120363040237990503");
-        assert_eq!(receipt_chat(&group, Some("100000012345678")), group);
+        let sender = Jid::pn("15550001111");
+        let media_key = [1u8; 32];
+
+        let group_target = MessageRef::new(
+            &group,
+            MessageId::new("MSG1").expect("test message id"),
+            Some(&sender),
+            false,
+        )
+        .expect("test group reference");
+        for (chat, target) in [
+            (pn.clone(), pn_target(&pn, "MSG1")),
+            (lid.clone(), pn_target(&lid, "MSG1")),
+            (group.clone(), group_target),
+        ] {
+            let request = MediaReuploadRequest {
+                target,
+                media_key: &media_key,
+            };
+            let target = reupload_target(&request);
+            assert_eq!(target.chat, chat, "target chat must not be rewritten");
+        }
     }
 
     #[test]
@@ -666,6 +691,137 @@ mod tests {
             received.attrs.get("id").and_then(|value| value.as_str()),
             Some("WAITER1")
         );
+    }
+
+    #[tokio::test]
+    async fn identical_targets_share_and_conflicts_are_rejected() {
+        let client = crate::test_utils::create_test_client().await;
+        let chat = Jid::pn("15551234567");
+        let media_key_a = [1u8; 32];
+        let media_key_b = [2u8; 32];
+        let request_a = MediaReuploadRequest {
+            target: pn_target(&chat, "MSG1"),
+            media_key: &media_key_a,
+        };
+        let request_b = MediaReuploadRequest {
+            target: pn_target(&chat, "MSG1"),
+            media_key: &media_key_b,
+        };
+        let reupload = client.media_reupload();
+
+        let first = reupload
+            .subscribe(&request_a)
+            .expect("first operation reserves the id");
+        let duplicate = reupload
+            .subscribe(&request_a)
+            .expect("identical request shares the operation");
+        assert!(
+            first.ptr_eq(&duplicate),
+            "duplicates must share one operation"
+        );
+
+        match reupload.subscribe(&request_b) {
+            Err(MediaReuploadError::Conflict(id)) => assert_eq!(id.as_str(), "MSG1"),
+            other => panic!("expected Conflict, got {other:?}"),
+        }
+
+        // Dropping one of two subscribers keeps the operation and its id.
+        drop(duplicate);
+        assert_eq!(
+            client
+                .media_reuploads
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .len(),
+            1
+        );
+
+        // Dropping the last subscriber cancels the operation and frees the id.
+        drop(first);
+        assert!(
+            client
+                .media_reuploads
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn request_many_preserves_order_and_reports_conflicts_in_place() {
+        let client = crate::test_utils::create_test_client().await;
+        let chat = Jid::pn("15551234567");
+        let media_key_a = [1u8; 32];
+        let media_key_b = [2u8; 32];
+        let requests = [
+            MediaReuploadRequest {
+                target: pn_target(&chat, "MSG1"),
+                media_key: &media_key_a,
+            },
+            MediaReuploadRequest {
+                target: pn_target(&chat, "MSG1"),
+                media_key: &media_key_b,
+            },
+            MediaReuploadRequest {
+                target: pn_target(&chat, "MSG1"),
+                media_key: &media_key_a,
+            },
+            MediaReuploadRequest {
+                target: pn_target(&chat, "MSG2"),
+                media_key: &media_key_a,
+            },
+        ];
+
+        let results = client.media_reupload().request_many(&requests).await;
+
+        assert_eq!(results.len(), requests.len(), "cardinality is preserved");
+        assert!(matches!(results[0], Err(MediaReuploadError::NotLoggedIn)));
+        assert!(
+            matches!(results[1], Err(MediaReuploadError::Conflict(ref id)) if id.as_str() == "MSG1")
+        );
+        assert!(
+            matches!(results[2], Err(MediaReuploadError::NotLoggedIn)),
+            "the duplicate shares the first operation's slot"
+        );
+        assert!(
+            matches!(results[3], Err(MediaReuploadError::NotLoggedIn)),
+            "a distinct id runs its own operation"
+        );
+        assert!(
+            client
+                .media_reuploads
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn phase_budget_reports_the_stalled_phase() {
+        for phase in [
+            MediaReuploadPhase::SendAndAck,
+            MediaReuploadPhase::Notification,
+        ] {
+            let error = within_phase(
+                phase,
+                Duration::from_millis(5),
+                std::future::pending::<()>(),
+            )
+            .await
+            .expect_err("a pending future must time out");
+            assert!(
+                matches!(error, MediaReuploadError::Timeout { phase: stalled } if stalled == phase),
+                "{error:?}"
+            );
+        }
+
+        let value = within_phase(
+            MediaReuploadPhase::SendAndAck,
+            Duration::from_secs(1),
+            async { 7 },
+        )
+        .await;
+        assert_eq!(value.expect("a fast future completes"), 7);
     }
 
     #[tokio::test]

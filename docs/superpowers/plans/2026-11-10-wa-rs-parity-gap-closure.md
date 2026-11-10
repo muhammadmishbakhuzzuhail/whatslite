@@ -602,6 +602,7 @@ Completed sub-tasks (reviewed, committed):
 | G8n-1 ab prop watch coverage | `9aca279` | Approved; 2 tests |
 | G8n-2 newsletter poll vote alias | `13c5b4b` | Approved; 1 test |
 | G10g1 normalized group parser core | `383d351` | Approved; 82 tests |
+| G2e-2b group notification facts provider | `f347d85` | Approved; 6 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -609,7 +610,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | Sub-task | Blocker |
 |---|---|
 | G2c adapters | `signal_cache`, `message_semaphore_generation`, `session_lock_for`, `flush_signal_cache` absent |
-| G2e-2b group_notifications | `wacore::stanza::groups` normalized parser absent |
+| G2e-2b group_notifications | done (`f347d85`); inbound `w:gp2` wiring follows G10 |
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 

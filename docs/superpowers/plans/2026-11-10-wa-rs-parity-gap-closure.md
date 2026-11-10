@@ -584,6 +584,17 @@ Completed sub-tasks (reviewed, committed):
 | G8g contextual IQ catalog | `4f98807` | Approved; 8 tests |
 | G9a appstate known verbs | `6ecd2b8` | Approved; 4 tests |
 | G9b shared appstate sync engine | `3879359`, `7880016` | Approved after 1 fix; 43 tests |
+| G4a pending device sync set | `b9877ec` | Approved; 7 tests |
+| G5a download byte budget | `688b987` | Approved; 9 tests |
+| G5b download memory writer | `c96aefc`, `ac98715` | Approved after 1 fix; 9 tests |
+| G5c media reupload | `f3f1d19`, `a20595e` | Approved after 1 fix; 15 tests |
+| G10a presence handler | `09bba55` | Approved; 3 tests |
+| G10a-wire presence registration | `1599b95` | Approved; 4 tests |
+| G10b privacy/business notifications | `97f5109` | Approved; 11 tests |
+| G10c stanza wire tags | `5c0fb4e` | Approved; 4 tests |
+| G10d profile notifications + macro | `c9eeb90` | Approved; 24 tests |
+| G10e device notifications | `3fad85d`, `6ff845a` | Approved after 1 fix; 18 tests |
+
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
 
@@ -594,7 +605,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G10–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

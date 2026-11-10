@@ -608,6 +608,7 @@ Completed sub-tasks (reviewed, committed):
 | G10i disappearing-mode notifications | `7ad1565` | Approved; 7 tests |
 | G10j MEX notification handler | `6b65712` | Approved; 8 tests |
 | G10k newsletter notification handler | `3dc27b0` | Approved; 8 tests |
+| G3a core message processing | `5e0cc4c` | Approved; 31 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):

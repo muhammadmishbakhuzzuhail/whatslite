@@ -33,6 +33,7 @@ pub use media_reupload::{
 };
 
 pub use newsletter::NewsletterPollVote;
+pub use newsletter::NewsletterReactionCount;
 
 pub mod app_state_resync;
 pub mod app_state_settings;

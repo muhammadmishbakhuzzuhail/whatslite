@@ -5,6 +5,7 @@ mod companion_reg;
 mod device;
 mod groups;
 mod mex;
+mod newsletter;
 mod privacy_business;
 pub mod profile;
 use crate::types::events::Event;
@@ -145,6 +146,11 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             // matching WA Web's WAWebHandleMexNotification. The typed
             // `MexNotification` replaces the raw fallback for this stanza type.
             mex::handle_mex_notification(client, node);
+        }
+        "newsletter" => {
+            // Newsletter live updates yield the typed counter event plus the
+            // raw twin, which this arm therefore dispatches itself.
+            newsletter::handle_newsletter_notification(client, node);
         }
         _ => {
             warn!("TODO: Implement handler for <notification type='{notification_type}'>");
@@ -496,6 +502,33 @@ mod tests {
         assert_eq!(raw.op_name, "SomeFutureOp");
         // The mex arm must not fall through to the raw stanza fallback.
         assert!(events.try_recv().is_err(), "exactly one event");
+    }
+
+    #[tokio::test]
+    async fn routes_newsletter_notifications_to_the_newsletter_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "newsletter")
+            .attr("from", "120363000000000001@newsletter")
+            .children([NodeBuilder::new("live_updates")
+                .children([NodeBuilder::new("messages")
+                    .children([NodeBuilder::new("message").attr("server_id", "42").build()])
+                    .build()])
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("newsletter live update");
+        assert!(matches!(&*event, Event::NewsletterLiveUpdate(_)));
+        let raw = events.try_recv().expect("raw newsletter notification");
+        assert!(matches!(&*raw, Event::Notification(_)));
+        assert!(events.try_recv().is_err(), "exactly two events");
     }
 
     #[test]

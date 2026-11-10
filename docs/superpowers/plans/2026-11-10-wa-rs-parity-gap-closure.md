@@ -605,6 +605,7 @@ Completed sub-tasks (reviewed, committed):
 | G2e-2b group notification facts provider | `f347d85` | Approved; 6 tests |
 | G10h core group notification handler | `e8cbb0b` | Approved; 8 tests |
 | G10g2 group parser conformance suites | `e531e4e` | Approved; 86 parser tests |
+| G10i disappearing-mode notifications | `7ad1565` | Approved; 7 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -616,7 +617,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10 newsletter/MEX/disappearing handlers, G11–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10 newsletter/MEX/server_sync handlers, G11–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

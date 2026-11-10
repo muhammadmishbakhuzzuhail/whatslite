@@ -1390,6 +1390,76 @@ impl AppStateProcessor {
         Ok((progress.new_mutations, progress.state, pl))
     }
 
+    /// Build and encode a `SyncdPatch` for sending mutations to the server.
+    ///
+    /// Takes a list of pre-encoded mutations (from `appstate::encode_record`)
+    /// and produces the protobuf-encoded patch bytes ready for inclusion in an
+    /// IQ stanza.
+    ///
+    /// Returns `(patch_bytes, base_version)` where `base_version` is the
+    /// collection version before the patch (for the IQ `version` attribute).
+    /// Does NOT persist state — the caller must only persist after the server
+    /// acknowledges the patch.
+    pub async fn build_patch(
+        &self,
+        collection_name: &str,
+        mutations: Vec<wa::SyncdMutation>,
+    ) -> Result<(Vec<u8>, u64)> {
+        use crate::appstate::hash::generate_patch_mac;
+
+        // Get active key
+        let key_id = self
+            .backend
+            .get_latest_sync_key_id()
+            .await?
+            .ok_or_else(|| anyhow!("No app state sync key available"))?;
+        let keys = self.get_app_state_key(&key_id).await?;
+
+        // Get current hash state — save base version for the caller
+        let mut state = self.backend.get_version(collection_name).await?;
+        let base_version = state.version;
+
+        // Pre-fetch previous value MACs in one backend round-trip, mirroring
+        // the inbound patch path: one batched query instead of a
+        // spawn_blocking + single-row SELECT per mutation.
+        let need_db_lookup = collect_unique_index_macs(&mutations);
+        let db_prev: HashMap<IndexMac, Vec<u8>> = self
+            .backend
+            .get_mutation_macs(collection_name, &need_db_lookup)
+            .await?;
+
+        // Update hash state
+        let (_, hash_result) = state.update_hash(&mutations, |index_mac, _| {
+            Ok(<&IndexMac>::try_from(index_mac)
+                .ok()
+                .and_then(|k| db_prev.get(k))
+                .cloned())
+        });
+        hash_result?;
+
+        state.version += 1;
+
+        // Generate snapshot MAC
+        let snapshot_mac = state.generate_snapshot_mac(collection_name, &keys.snapshot_mac);
+
+        // Build the patch — matching whatsmeow: no Version or DeviceIndex fields
+        let mut patch = wa::SyncdPatch::default();
+        patch.snapshot_mac = Some(snapshot_mac);
+        let mut id = wa::KeyId::default();
+        id.id = Some(key_id.clone());
+        patch.key_id = id.into();
+        patch.mutations = mutations;
+
+        // Generate and set patch MAC
+        let patch_mac = generate_patch_mac(&patch, collection_name, &keys.patch_mac, state.version);
+        patch.patch_mac = Some(patch_mac);
+
+        // Encode to protobuf
+        let patch_bytes = waproto::codec::syncd_patch_to_vec(&patch);
+
+        Ok((patch_bytes, base_version))
+    }
+
     pub async fn get_missing_key_ids(&self, pl: &PatchList) -> Result<Vec<Vec<u8>>> {
         let key_ids = collect_key_ids_from_patch_list(pl.snapshot.as_ref(), &pl.patches);
         let mut missing = Vec::with_capacity(key_ids.len());
@@ -2357,6 +2427,497 @@ mod recovery_claim_tests {
         assert_eq!(
             registry.claim("req-6"),
             RecoveryClaim::Claimed("regular".into())
+        );
+    }
+}
+
+#[cfg(test)]
+mod async_engine_tests {
+    use super::*;
+    use crate::runtime::{AbortHandle, Runtime};
+    use crate::store::error::Result as StoreResult;
+    use crate::store::traits::{
+        AppStateSyncKey, AppSyncStore, DeviceListRecord, DeviceStore, LidPnMappingEntry,
+        ProtocolStore, SignalStore,
+    };
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::time::Duration;
+
+    type MockMacMap = Arc<Mutex<HashMap<(String, Vec<u8>), Vec<u8>>>>;
+
+    #[derive(Default, Clone)]
+    struct MockBackend {
+        versions: Arc<Mutex<HashMap<String, HashState>>>,
+        macs: MockMacMap,
+        keys: Arc<Mutex<HashMap<Vec<u8>, AppStateSyncKey>>>,
+        latest: Arc<Mutex<Option<Vec<u8>>>>,
+    }
+
+    impl MockBackend {
+        async fn store_key(&self, key_id: &[u8], master: [u8; 32]) {
+            self.keys.lock().await.insert(
+                key_id.to_vec(),
+                AppStateSyncKey {
+                    key_data: master.to_vec(),
+                    ..Default::default()
+                },
+            );
+            *self.latest.lock().await = Some(key_id.to_vec());
+        }
+    }
+
+    #[async_trait]
+    impl SignalStore for MockBackend {
+        async fn put_identity(&self, _: &str, _: [u8; 32]) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn load_identity(&self, _: &str) -> StoreResult<Option<Vec<u8>>> {
+            Ok(None)
+        }
+        async fn delete_identity(&self, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_session(&self, _: &str) -> StoreResult<Option<Vec<u8>>> {
+            Ok(None)
+        }
+        async fn put_session(&self, _: &str, _: &[u8]) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn delete_session(&self, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn store_prekey(&self, _: u32, _: &[u8], _: bool) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn load_prekey(&self, _: u32) -> StoreResult<Option<Vec<u8>>> {
+            Ok(None)
+        }
+        async fn remove_prekey(&self, _: u32) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn max_prekey_id(&self) -> StoreResult<Option<u32>> {
+            Ok(None)
+        }
+        async fn store_signed_prekey(&self, _: u32, _: &[u8]) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn load_signed_prekey(&self, _: u32) -> StoreResult<Option<Vec<u8>>> {
+            Ok(None)
+        }
+        async fn load_all_signed_prekeys(&self) -> StoreResult<Vec<(u32, Vec<u8>)>> {
+            Ok(vec![])
+        }
+        async fn remove_signed_prekey(&self, _: u32) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn put_sender_key(&self, _: &str, _: &[u8]) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_sender_key(&self, _: &str) -> StoreResult<Option<Vec<u8>>> {
+            Ok(None)
+        }
+        async fn delete_sender_key(&self, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl AppSyncStore for MockBackend {
+        async fn get_sync_key(&self, key_id: &[u8]) -> StoreResult<Option<AppStateSyncKey>> {
+            Ok(self.keys.lock().await.get(key_id).cloned())
+        }
+        async fn set_sync_key(&self, key_id: &[u8], key: AppStateSyncKey) -> StoreResult<()> {
+            self.keys.lock().await.insert(key_id.to_vec(), key);
+            Ok(())
+        }
+        async fn get_version(&self, name: &str) -> StoreResult<HashState> {
+            Ok(self
+                .versions
+                .lock()
+                .await
+                .get(name)
+                .cloned()
+                .unwrap_or_default())
+        }
+        async fn set_version(&self, name: &str, state: HashState) -> StoreResult<()> {
+            self.versions.lock().await.insert(name.to_string(), state);
+            Ok(())
+        }
+        async fn put_mutation_macs(
+            &self,
+            name: &str,
+            _version: u64,
+            mutations: &[AppStateMutationMAC],
+        ) -> StoreResult<()> {
+            let mut macs = self.macs.lock().await;
+            for m in mutations {
+                macs.insert((name.to_string(), m.index_mac.clone()), m.value_mac.clone());
+            }
+            Ok(())
+        }
+        async fn get_mutation_mac(
+            &self,
+            name: &str,
+            index_mac: &[u8],
+        ) -> StoreResult<Option<Vec<u8>>> {
+            Ok(self
+                .macs
+                .lock()
+                .await
+                .get(&(name.to_string(), index_mac.to_vec()))
+                .cloned())
+        }
+        async fn delete_mutation_macs(
+            &self,
+            name: &str,
+            index_macs: &[Vec<u8>],
+        ) -> StoreResult<()> {
+            let mut macs = self.macs.lock().await;
+            for index_mac in index_macs {
+                macs.remove(&(name.to_string(), index_mac.clone()));
+            }
+            Ok(())
+        }
+        async fn clear_mutation_macs(&self, name: &str) -> StoreResult<()> {
+            let mut macs = self.macs.lock().await;
+            macs.retain(|(collection, _), _| collection != name);
+            Ok(())
+        }
+        async fn get_latest_sync_key_id(&self) -> StoreResult<Option<Vec<u8>>> {
+            Ok(self.latest.lock().await.clone())
+        }
+    }
+
+    #[async_trait]
+    impl ProtocolStore for MockBackend {
+        async fn get_skdm_recipients(&self, _: &str) -> StoreResult<Vec<wacore_binary::jid::Jid>> {
+            Ok(vec![])
+        }
+        async fn add_skdm_recipients(
+            &self,
+            _: &str,
+            _: &[wacore_binary::jid::Jid],
+        ) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn clear_skdm_recipients(&self, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_lid_mapping(&self, _: &str) -> StoreResult<Option<LidPnMappingEntry>> {
+            Ok(None)
+        }
+        async fn get_pn_mapping(&self, _: &str) -> StoreResult<Option<LidPnMappingEntry>> {
+            Ok(None)
+        }
+        async fn put_lid_mapping(&self, _: &LidPnMappingEntry) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_all_lid_mappings(&self) -> StoreResult<Vec<LidPnMappingEntry>> {
+            Ok(vec![])
+        }
+        async fn save_base_key(&self, _: &str, _: &str, _: &[u8]) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn has_same_base_key(&self, _: &str, _: &str, _: &[u8]) -> StoreResult<bool> {
+            Ok(false)
+        }
+        async fn delete_base_key(&self, _: &str, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn update_device_list(&self, _: DeviceListRecord) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_devices(&self, _: &str) -> StoreResult<Option<DeviceListRecord>> {
+            Ok(None)
+        }
+        async fn mark_forget_sender_key(&self, _: &str, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn consume_forget_marks(&self, _: &str) -> StoreResult<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn get_tc_token(
+            &self,
+            _: &str,
+        ) -> StoreResult<Option<crate::store::traits::TcTokenEntry>> {
+            Ok(None)
+        }
+        async fn put_tc_token(
+            &self,
+            _: &str,
+            _: &crate::store::traits::TcTokenEntry,
+        ) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn delete_tc_token(&self, _: &str) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn get_all_tc_token_jids(&self) -> StoreResult<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn delete_expired_tc_tokens(&self, _: i64) -> StoreResult<u32> {
+            Ok(0)
+        }
+    }
+
+    #[async_trait]
+    impl DeviceStore for MockBackend {
+        async fn save(&self, _: &crate::store::Device) -> StoreResult<()> {
+            Ok(())
+        }
+        async fn load(&self) -> StoreResult<Option<crate::store::Device>> {
+            Ok(Some(crate::store::Device::new()))
+        }
+        async fn exists(&self) -> StoreResult<bool> {
+            Ok(true)
+        }
+        async fn create(&self) -> StoreResult<i32> {
+            Ok(1)
+        }
+    }
+
+    struct TestRuntime;
+
+    #[async_trait]
+    impl Runtime for TestRuntime {
+        fn spawn(&self, _: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) -> AbortHandle {
+            AbortHandle::noop()
+        }
+        fn sleep(&self, _: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+            Box::pin(std::future::ready(()))
+        }
+        fn spawn_blocking(
+            &self,
+            f: Box<dyn FnOnce() + Send + 'static>,
+        ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+            f();
+            Box::pin(std::future::ready(()))
+        }
+        fn yield_now(&self) -> Option<Pin<Box<dyn Future<Output = ()> + Send>>> {
+            None
+        }
+    }
+
+    fn empty_list() -> PatchList {
+        PatchList {
+            name: WAPatchName::Regular,
+            has_more_patches: false,
+            patches: Vec::new(),
+            snapshot: None,
+            snapshot_ref: None,
+            error: None,
+        }
+    }
+
+    fn processor(backend: Arc<MockBackend>) -> AppStateProcessor {
+        AppStateProcessor::new(backend, Arc::new(TestRuntime))
+    }
+
+    fn no_download(_: &wa::ExternalBlobReference) -> Result<bytes::Bytes> {
+        Ok(bytes::Bytes::new())
+    }
+
+    #[tokio::test]
+    async fn an_empty_terminal_answer_records_a_bootstrap() {
+        let backend = Arc::new(MockBackend::default());
+        let processor = processor(backend.clone());
+
+        let (mutations, state, list) = processor
+            .process_patch_list(empty_list(), false)
+            .await
+            .expect("empty answer processes");
+
+        assert!(mutations.is_empty());
+        assert!(state.bootstrapped, "a terminal empty answer is a bootstrap");
+        assert!(list.error.is_none());
+        let stored = backend.get_version("regular").await.expect("version read");
+        assert!(stored.bootstrapped, "the flag is persisted");
+        assert_eq!(stored.version, 0);
+    }
+
+    #[tokio::test]
+    async fn a_collection_error_is_not_recorded_as_a_bootstrap() {
+        let backend = Arc::new(MockBackend::default());
+        let processor = processor(backend.clone());
+        let mut pl = empty_list();
+        pl.error = Some(CollectionSyncError::Fatal {
+            code: 404,
+            text: "synthetic fatal".into(),
+        });
+
+        let (mutations, state, list) = processor
+            .process_one_patch_list(pl, &no_download, false)
+            .await
+            .expect("errored collection is skipped");
+
+        assert!(mutations.is_empty());
+        assert!(!state.bootstrapped);
+        assert!(matches!(
+            list.error,
+            Some(CollectionSyncError::Fatal { .. })
+        ));
+        let stored = backend.get_version("regular").await.expect("version read");
+        assert!(!stored.bootstrapped);
+        assert_eq!(stored.version, 0);
+    }
+
+    fn recovery(version: u64, key_id: &[u8]) -> wa::SyncdSnapshotRecovery {
+        let mut recovery = wa::SyncdSnapshotRecovery::default();
+        recovery.collection_name = Some("regular".into());
+        let mut syncd_version = wa::SyncdVersion::default();
+        syncd_version.version = Some(version);
+        recovery.version = syncd_version.into();
+        recovery.collection_lthash = Some(vec![9u8; 128]);
+
+        let mut action = wa::SyncActionData::default();
+        action.index = Some(serde_json::to_vec(&["archive"]).expect("index json"));
+        let mut value = wa::SyncActionValue::default();
+        value.timestamp = Some(1);
+        action.value = value.into();
+
+        let mut record = wa::SyncdPlainTextRecord::default();
+        record.value = action.into();
+        record.key_id = Some(key_id.to_vec());
+        record.mac = Some(vec![7u8; 32]);
+        recovery.mutation_records.push(record);
+        recovery
+    }
+
+    #[tokio::test]
+    async fn snapshot_recovery_replaces_the_collection_and_its_macs() {
+        let backend = Arc::new(MockBackend::default());
+        let key_id = b"synthetic-key".to_vec();
+        backend.store_key(&key_id, [7u8; 32]).await;
+        let processor = processor(backend.clone());
+
+        let outcome = processor
+            .apply_snapshot_recovery(recovery(5, &key_id), "regular", &|| true)
+            .await
+            .expect("recovery applies");
+
+        let RecoveryOutcome::Applied(mutations) = outcome else {
+            panic!("expected an applied recovery");
+        };
+        assert_eq!(mutations.len(), 1);
+        assert_eq!(mutations[0].index, vec!["archive".to_string()]);
+
+        let stored = backend.get_version("regular").await.expect("version read");
+        assert_eq!(stored.version, 5);
+        assert_eq!(stored.hash, [9u8; 128]);
+        assert!(stored.bootstrapped);
+
+        let index_mac = crate::appstate::hash::generate_index_mac(
+            &serde_json::to_vec(&["archive"]).expect("index json"),
+            &crate::appstate::expand_app_state_keys(&[7u8; 32]).index,
+        );
+        let stored_mac = backend
+            .get_mutation_mac("regular", &index_mac)
+            .await
+            .expect("mac read");
+        assert_eq!(stored_mac, Some(vec![7u8; 32]));
+    }
+
+    #[tokio::test]
+    async fn a_stale_recovery_is_discarded_without_writing() {
+        let backend = Arc::new(MockBackend::default());
+        let key_id = b"synthetic-key".to_vec();
+        backend.store_key(&key_id, [7u8; 32]).await;
+        backend
+            .set_version(
+                "regular",
+                HashState {
+                    version: 10,
+                    ..HashState::default()
+                },
+            )
+            .await
+            .expect("seed version");
+        let processor = processor(backend.clone());
+
+        let outcome = processor
+            .apply_snapshot_recovery(recovery(5, &key_id), "regular", &|| true)
+            .await
+            .expect("stale recovery is not an error");
+
+        assert!(matches!(
+            outcome,
+            RecoveryOutcome::Stale {
+                held: 10,
+                offered: 5
+            }
+        ));
+        let stored = backend.get_version("regular").await.expect("version read");
+        assert_eq!(stored.version, 10);
+        assert!(!stored.bootstrapped);
+    }
+
+    #[tokio::test]
+    async fn a_retired_recovery_writes_nothing() {
+        let backend = Arc::new(MockBackend::default());
+        let key_id = b"synthetic-key".to_vec();
+        backend.store_key(&key_id, [7u8; 32]).await;
+        let processor = processor(backend.clone());
+
+        let outcome = processor
+            .apply_snapshot_recovery(recovery(5, &key_id), "regular", &|| false)
+            .await
+            .expect("retired recovery is not an error");
+
+        assert!(matches!(outcome, RecoveryOutcome::Retired));
+        let stored = backend.get_version("regular").await.expect("version read");
+        assert_eq!(stored.version, 0);
+        assert!(!stored.bootstrapped);
+    }
+
+    #[tokio::test]
+    async fn a_recovery_for_another_collection_is_refused() {
+        let backend = Arc::new(MockBackend::default());
+        let key_id = b"synthetic-key".to_vec();
+        backend.store_key(&key_id, [7u8; 32]).await;
+        let processor = processor(backend.clone());
+
+        let error = processor
+            .apply_snapshot_recovery(recovery(5, &key_id), "regular_low", &|| true)
+            .await
+            .expect_err("mismatched collection is refused");
+        assert!(error.to_string().contains("not the regular_low"));
+    }
+
+    #[tokio::test]
+    async fn build_patch_uses_the_latest_key_and_advances_the_version() {
+        let backend = Arc::new(MockBackend::default());
+        let key_id = b"synthetic-key".to_vec();
+        backend.store_key(&key_id, [7u8; 32]).await;
+        let processor = processor(backend.clone());
+
+        let mut mutation = wa::SyncdMutation::default();
+        mutation.operation = Some(wa::syncd_mutation::SyncdOperation::SET.into());
+        let mut record = wa::SyncdRecord::default();
+        let mut index = wa::SyncdIndex::default();
+        index.blob = Some(vec![1; 32]);
+        record.index = index.into();
+        let mut value = wa::SyncdValue::default();
+        value.blob = Some(vec![3; 64]);
+        record.value = value.into();
+        let mut record_key = wa::KeyId::default();
+        record_key.id = Some(key_id.clone());
+        record.key_id = record_key.into();
+        mutation.record = record.into();
+
+        let (bytes, base_version) = processor
+            .build_patch("regular", vec![mutation])
+            .await
+            .expect("patch builds");
+
+        assert_eq!(base_version, 0, "nothing was persisted before the ack");
+        let patch = waproto::codec::syncd_patch_decode(&bytes).expect("patch decodes");
+        assert_eq!(patch.mutations.len(), 1);
+        assert!(patch.snapshot_mac.is_some());
+        assert!(patch.patch_mac.is_some());
+        assert_eq!(
+            patch.key_id.as_option().and_then(|key| key.id.as_deref()),
+            Some(key_id.as_slice())
         );
     }
 }

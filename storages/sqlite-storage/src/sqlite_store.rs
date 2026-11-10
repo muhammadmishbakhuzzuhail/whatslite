@@ -1079,6 +1079,175 @@ impl SqliteStore {
         Ok(())
     }
 
+    /// Batched read of previous-MAC values for many index MACs in one query
+    /// (single spawn_blocking + `index_mac IN (...)`), replacing the
+    /// per-mutation N+1 in appstate sync.
+    pub async fn get_app_state_mutation_macs_batch_for_device(
+        &self,
+        name: &str,
+        index_macs: &[[u8; 32]],
+        device_id: i32,
+    ) -> Result<std::collections::HashMap<[u8; 32], Vec<u8>>> {
+        if index_macs.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let pool = self.pool.clone();
+        let name = name.to_string();
+        let index_macs: Vec<[u8; 32]> = index_macs.to_vec();
+        tokio::task::spawn_blocking(
+            move || -> Result<std::collections::HashMap<[u8; 32], Vec<u8>>> {
+                let mut conn = pool
+                    .get()
+                    .map_err(|e| StoreError::Connection(e.to_string()))?;
+                let mut out = std::collections::HashMap::with_capacity(index_macs.len());
+                // SQLite variable limit is usually 999 or higher.
+                const CHUNK_SIZE: usize = 500;
+                for chunk in index_macs.chunks(CHUNK_SIZE) {
+                    let chunk_slices: Vec<&[u8]> = chunk.iter().map(|m| m.as_slice()).collect();
+                    let rows: Vec<(Vec<u8>, Vec<u8>)> = app_state_mutation_macs::table
+                        .select((
+                            app_state_mutation_macs::index_mac,
+                            app_state_mutation_macs::value_mac,
+                        ))
+                        .filter(app_state_mutation_macs::name.eq(&name))
+                        .filter(app_state_mutation_macs::index_mac.eq_any(chunk_slices))
+                        .filter(app_state_mutation_macs::device_id.eq(device_id))
+                        .load(&mut conn)
+                        .map_err(|e| StoreError::Database(e.to_string()))?;
+                    // Rows with a non-32-byte index_mac cannot have come from the
+                    // 32-byte keys we just queried; skip defensively.
+                    out.extend(rows.into_iter().filter_map(|(k, v)| {
+                        <[u8; 32]>::try_from(k.as_slice()).ok().map(|k| (k, v))
+                    }));
+                }
+                Ok(out)
+            },
+        )
+        .await
+        .map_err(|e| StoreError::Database(e.to_string()))?
+    }
+
+    /// Persist one applied patch atomically: version, removals and additions
+    /// become visible together within one transaction.
+    pub async fn commit_app_state_patch_for_device(
+        &self,
+        name: &str,
+        state: &HashState,
+        removed_index_macs: &[Vec<u8>],
+        added: &[AppStateMutationMAC],
+        device_id: i32,
+    ) -> Result<()> {
+        let pool = self.pool.clone();
+        let name = name.to_string();
+        let version = state.version;
+        let data = bincode::serde::encode_to_vec(state, bincode::config::standard())
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let removed: Vec<Vec<u8>> = removed_index_macs.to_vec();
+        let added: Vec<AppStateMutationMAC> = added.to_vec();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            conn.transaction::<_, diesel::result::Error, _>(|conn| {
+                diesel::insert_into(app_state_versions::table)
+                    .values((
+                        app_state_versions::name.eq(&name),
+                        app_state_versions::state_data.eq(&data),
+                        app_state_versions::device_id.eq(device_id),
+                    ))
+                    .on_conflict((app_state_versions::name, app_state_versions::device_id))
+                    .do_update()
+                    .set(app_state_versions::state_data.eq(&data))
+                    .execute(conn)?;
+
+                // SQLite variable limit is usually 999 or higher.
+                const CHUNK_SIZE: usize = 500;
+                for chunk in removed.chunks(CHUNK_SIZE) {
+                    diesel::delete(
+                        app_state_mutation_macs::table.filter(
+                            app_state_mutation_macs::name
+                                .eq(&name)
+                                .and(app_state_mutation_macs::index_mac.eq_any(chunk))
+                                .and(app_state_mutation_macs::device_id.eq(device_id)),
+                        ),
+                    )
+                    .execute(conn)?;
+                }
+
+                let records: Vec<_> = added
+                    .iter()
+                    .map(|m| {
+                        (
+                            app_state_mutation_macs::name.eq(&name),
+                            app_state_mutation_macs::version.eq(version as i64),
+                            app_state_mutation_macs::index_mac.eq(&m.index_mac),
+                            app_state_mutation_macs::value_mac.eq(&m.value_mac),
+                            app_state_mutation_macs::device_id.eq(device_id),
+                        )
+                    })
+                    .collect();
+                // Each row has 5 columns; 100 rows is safe under the limit.
+                const INSERT_CHUNK_SIZE: usize = 100;
+                for chunk in records.chunks(INSERT_CHUNK_SIZE) {
+                    diesel::insert_into(app_state_mutation_macs::table)
+                        .values(chunk)
+                        .on_conflict((
+                            app_state_mutation_macs::name,
+                            app_state_mutation_macs::index_mac,
+                            app_state_mutation_macs::device_id,
+                        ))
+                        .do_update()
+                        .set((
+                            app_state_mutation_macs::version
+                                .eq(excluded(app_state_mutation_macs::version)),
+                            app_state_mutation_macs::value_mac
+                                .eq(excluded(app_state_mutation_macs::value_mac)),
+                        ))
+                        .execute(conn)?;
+                }
+                Ok(())
+            })
+            .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| StoreError::Database(e.to_string()))?
+    }
+
+    pub async fn get_latest_app_state_sync_key_id_for_device(
+        &self,
+        device_id: i32,
+    ) -> Result<Option<Vec<u8>>> {
+        let pool = self.pool.clone();
+        tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // Return the latest key whose blob actually decodes. A corrupt row
+            // still sits in the table with a possibly higher key_id; selecting
+            // it would make an outbound build_patch fail later in
+            // get_app_state_key with KeyNotFound.
+            let candidates: Vec<(Vec<u8>, Vec<u8>)> = app_state_keys::table
+                .select((app_state_keys::key_id, app_state_keys::key_data))
+                .filter(app_state_keys::device_id.eq(device_id))
+                .order(app_state_keys::key_id.desc())
+                .load(&mut conn)
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(candidates
+                .into_iter()
+                .find(|(_, data)| {
+                    bincode::serde::decode_from_slice::<AppStateSyncKey, _>(
+                        data,
+                        bincode::config::standard(),
+                    )
+                    .is_ok()
+                })
+                .map(|(key_id, _)| key_id))
+        })
+        .await
+        .map_err(|e| StoreError::Database(e.to_string()))?
+    }
+
     pub async fn clear_app_state_mutation_macs_for_device(
         &self,
         name: &str,
@@ -1392,13 +1561,44 @@ impl AppSyncStore for SqliteStore {
             .await
     }
 
+    async fn get_mutation_macs(
+        &self,
+        name: &str,
+        index_macs: &[[u8; 32]],
+    ) -> Result<std::collections::HashMap<[u8; 32], Vec<u8>>> {
+        self.get_app_state_mutation_macs_batch_for_device(name, index_macs, self.device_id)
+            .await
+    }
+
     async fn delete_mutation_macs(&self, name: &str, index_macs: &[Vec<u8>]) -> Result<()> {
         self.delete_app_state_mutation_macs_for_device(name, index_macs, self.device_id)
             .await
     }
 
+    async fn commit_patch(
+        &self,
+        name: &str,
+        state: HashState,
+        removed_index_macs: &[Vec<u8>],
+        added: &[AppStateMutationMAC],
+    ) -> Result<()> {
+        self.commit_app_state_patch_for_device(
+            name,
+            &state,
+            removed_index_macs,
+            added,
+            self.device_id,
+        )
+        .await
+    }
+
     async fn clear_mutation_macs(&self, name: &str) -> Result<()> {
         self.clear_app_state_mutation_macs_for_device(name, self.device_id)
+            .await
+    }
+
+    async fn get_latest_sync_key_id(&self) -> Result<Option<Vec<u8>>> {
+        self.get_latest_app_state_sync_key_id_for_device(self.device_id)
             .await
     }
 }

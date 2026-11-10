@@ -261,6 +261,12 @@ pub trait AppSyncStore: Send + Sync {
             "backend does not support clearing app state mutation MACs".to_string(),
         ))
     }
+
+    /// Get the most recently stored app state sync key ID.
+    ///
+    /// Outbound patch building encrypts under the newest usable key; `None`
+    /// means the account has no app-state key yet.
+    async fn get_latest_sync_key_id(&self) -> Result<Option<Vec<u8>>>;
 }
 
 /// WhatsApp Web protocol alignment storage.

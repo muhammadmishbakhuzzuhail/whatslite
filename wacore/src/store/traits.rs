@@ -11,8 +11,44 @@ use crate::appstate::hash::HashState;
 use crate::store::error::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use wacore_appstate::processor::AppStateMutationMAC;
-use wacore_binary::jid::Jid;
+use wacore_binary::jid::{Jid, JidExt as _};
+
+/// Inline protocol-sized message secret. The array makes invalid lengths
+/// unrepresentable without a heap allocation or pointer indirection per row.
+pub type MessageSecretBytes = [u8; crate::reporting_token::MESSAGE_SECRET_SIZE];
+
+pub use crate::types::message_secret::{InvalidMessageSecret, MessageSecret};
+
+/// A validated stored secret and the parent's event time in Unix seconds.
+/// `None` means unknown, not the Unix epoch. Retention deadlines remain a
+/// separate persisted property and are not changed by this read projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct StoredMessageSecret {
+    pub secret: MessageSecret,
+    pub message_ts: Option<i64>,
+}
+
+impl StoredMessageSecret {
+    pub fn new(secret: MessageSecret, message_ts: Option<i64>) -> Self {
+        Self {
+            secret,
+            message_ts: message_ts.filter(|ts| *ts != 0),
+        }
+    }
+
+    /// Validate bytes read from storage, mapping malformed rows to a typed
+    /// invalid-data error without truncating, padding or logging their contents.
+    pub fn from_stored_bytes(secret: &[u8], message_ts: i64) -> Result<Self> {
+        Ok(Self::new(
+            MessageSecret::try_from(secret)
+                .map_err(crate::store::error::StoreError::InvalidMessageSecret)?,
+            Some(message_ts),
+        ))
+    }
+}
 
 /// App state synchronization key for WhatsApp's app state protocol.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -48,6 +84,71 @@ pub struct TcTokenEntry {
     pub token_timestamp: i64,
     /// Unix timestamp (seconds) when we last issued our token to this contact.
     pub sender_timestamp: Option<i64>,
+}
+
+/// Message-secret write entry keyed by chat, sender, and message ID.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsgSecretEntry {
+    /// Canonical non-AD chat JID. Shared across entries from the same history
+    /// conversation instead of allocating one identical string per message.
+    pub chat: Arc<str>,
+    /// Canonical non-AD sender JID. Often aliases `chat` for direct messages.
+    pub sender: Arc<str>,
+    /// Message identifier. `Arc<str>` keeps entry clones used by buffered
+    /// persistence cheap without changing the serialized representation.
+    pub msg_id: Arc<str>,
+    pub secret: MessageSecretBytes,
+    /// Absolute unix-seconds retention deadline. `0` means never expire.
+    /// Computed by the caller from the parent message's event time plus a
+    /// per-add-on-kind horizon (see `MsgSecretRetention`). The store prunes
+    /// rows whose deadline has passed; it does not know the horizon itself.
+    #[serde(default)]
+    pub expires_at: i64,
+    /// Parent message event time (unix seconds), or `0` when unknown. Kept so
+    /// the receive path can enforce the edit-processing window
+    /// (`editTs < message_ts + window`) the same way WhatsApp Web does.
+    #[serde(default)]
+    pub message_ts: i64,
+}
+
+impl MsgSecretEntry {
+    /// The canonical non-AD sender identifier for a row whose chat identifier is
+    /// already in hand, sharing that allocation whenever both JIDs address the
+    /// same user. That covers every direct message (chat and sender are the peer)
+    /// and every self-authored history row, which is what the `sender` field doc
+    /// means by "often aliases `chat`".
+    pub fn sender_id_for(chat: &Jid, chat_id: &Arc<str>, sender: &Jid) -> Arc<str> {
+        if sender.is_same_chat_as(chat) {
+            Arc::clone(chat_id)
+        } else {
+            Arc::from(sender.to_non_ad().to_string())
+        }
+    }
+
+    /// Build a row from the JIDs the send and receive paths already carry.
+    ///
+    /// Single chokepoint for how a row's three identifiers are derived, so the
+    /// inbound capture and the outbound persist cannot drift on either the
+    /// canonicalisation or the aliasing above.
+    pub fn new(
+        chat: &Jid,
+        sender: &Jid,
+        msg_id: &str,
+        secret: MessageSecretBytes,
+        expires_at: i64,
+        message_ts: i64,
+    ) -> Self {
+        let chat_id: Arc<str> = Arc::from(chat.to_non_ad().to_string());
+        let sender_id = Self::sender_id_for(chat, &chat_id, sender);
+        Self {
+            chat: chat_id,
+            sender: sender_id,
+            msg_id: Arc::from(msg_id),
+            secret,
+            expires_at,
+            message_ts,
+        }
+    }
 }
 
 /// Device information for registry tracking.
@@ -372,6 +473,102 @@ pub trait DeviceStore: Send + Sync {
     async fn snapshot_db(&self, _name: &str, _extra_content: Option<&[u8]>) -> Result<()> {
         Ok(())
     }
+}
+
+/// Per-outbound-message secret storage for addon-style decryption.
+///
+/// Persists the 32-byte `MessageContextInfo.messageSecret` we send out so that
+/// later inbound replies (poll votes, reactions, msmsg bot responses, edits)
+/// referencing the original message ID can be decrypted. Mirrors WA Web's
+/// `WAWebMsmsgMsgSecretCache` + the `messageSecret` field on the DB message row.
+#[async_trait]
+pub trait MsgSecretStore: Send + Sync {
+    /// Persist the protocol-sized `secret` under the composite key with NO
+    /// expiry (`expires_at = 0`). Convenience wrapper over [`put_msg_secrets`].
+    /// `chat`, `sender`, and `msg_id` are JID strings / message ID strings;
+    /// callers should pass non-AD (no-device) form for the JIDs so lookups
+    /// match regardless of which device echo'd the stanza back.
+    ///
+    /// Real call sites that compute a retention deadline build
+    /// [`MsgSecretEntry`] directly and call [`put_msg_secrets`].
+    ///
+    /// [`put_msg_secrets`]: MsgSecretStore::put_msg_secrets
+    async fn put_msg_secret(
+        &self,
+        chat: &str,
+        sender: &str,
+        msg_id: &str,
+        secret: &[u8; crate::reporting_token::MESSAGE_SECRET_SIZE],
+    ) -> Result<()> {
+        self.put_msg_secrets(vec![MsgSecretEntry {
+            chat: Arc::from(chat),
+            sender: Arc::from(sender),
+            msg_id: Arc::from(msg_id),
+            secret: *secret,
+            expires_at: 0,
+            message_ts: 0,
+        }])
+        .await?;
+        Ok(())
+    }
+
+    /// Batched upsert carrying a per-row `expires_at` deadline. On key conflict
+    /// implementations merge deterministically via [`merge_msg_secret_expiry`]
+    /// (later deadline wins, `0` = "never" = infinity) so a redelivery or edit
+    /// re-persist never shortens a window, and via [`merge_msg_secret_message_ts`]
+    /// (the later non-zero parent time wins; a `0` never clobbers a known one).
+    async fn put_msg_secrets(&self, entries: Vec<MsgSecretEntry>) -> Result<usize>;
+
+    /// Read a validated secret and all available parent timestamp metadata.
+    ///
+    /// Required deliberately: an adapter migration must choose whether its
+    /// timestamp is known, rather than inheriting a default that silently loses
+    /// it. Backends without timestamps explicitly return `message_ts: None`.
+    /// Malformed persisted bytes must return `StoreError::InvalidMessageSecret`.
+    async fn get_stored_msg_secret(
+        &self,
+        chat: &str,
+        sender: &str,
+        msg_id: &str,
+    ) -> Result<Option<StoredMessageSecret>>;
+
+    /// Explicit byte-only interoperability projection. Prefer
+    /// [`Self::get_stored_msg_secret`] when the parent time matters. Even this
+    /// projection validates the persisted bytes through the named read.
+    async fn get_msg_secret(
+        &self,
+        chat: &str,
+        sender: &str,
+        msg_id: &str,
+    ) -> Result<Option<Vec<u8>>> {
+        Ok(self
+            .get_stored_msg_secret(chat, sender, msg_id)
+            .await?
+            .map(|stored| stored.secret.into_bytes().to_vec()))
+    }
+
+    /// Delete rows whose non-zero `expires_at` is at or before
+    /// `cutoff_timestamp` (absolute unix seconds; callers pass "now"). Rows
+    /// with `expires_at = 0` (never) are kept. Returns the number removed so
+    /// the keepalive cleanup can log/throttle.
+    async fn delete_expired_msg_secrets(&self, cutoff_timestamp: i64) -> Result<u32>;
+}
+
+/// Merge two `expires_at` deadlines on key conflict: `0` ("never") wins,
+/// otherwise the later (larger) deadline is kept so windows never shrink.
+pub fn merge_msg_secret_expiry(existing: i64, incoming: i64) -> i64 {
+    if existing == 0 || incoming == 0 {
+        0
+    } else {
+        existing.max(incoming)
+    }
+}
+
+/// Merge two parent `message_ts` values on key conflict: the later (larger)
+/// non-zero value wins, so a `0` ("unknown") never clobbers a known parent
+/// time. `max` already yields this because every real timestamp is `> 0`.
+pub fn merge_msg_secret_message_ts(existing: i64, incoming: i64) -> i64 {
+    existing.max(incoming)
 }
 
 /// Combined storage backend trait.

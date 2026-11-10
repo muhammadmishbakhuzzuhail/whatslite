@@ -25,6 +25,9 @@ pub enum StoreError {
 
     #[error("Device with ID {0} not found")]
     DeviceNotFound(i32),
+
+    #[error("invalid message secret: {0}")]
+    InvalidMessageSecret(#[from] crate::types::message_secret::InvalidMessageSecret),
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;

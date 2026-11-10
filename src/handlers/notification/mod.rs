@@ -2,18 +2,16 @@ use super::traits::StanzaHandler;
 use crate::client::Client;
 
 mod companion_reg;
+mod device;
 mod privacy_business;
 pub mod profile;
-use crate::lid_pn_cache::LearningSource;
 use crate::types::events::Event;
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use std::sync::Arc;
-use wacore::stanza::devices::DeviceNotification;
 use wacore::store::traits::{DeviceInfo, DeviceListRecord};
-use wacore::types::events::{DeviceListUpdate, DeviceNotificationInfo};
 use wacore_binary::jid::{Jid, JidExt};
-use wacore_binary::{jid::SERVER_JID, node::Node};
+use wacore_binary::node::Node;
 
 /// Handler for `<notification>` stanzas.
 ///
@@ -42,14 +40,7 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
 
     match notification_type {
         "encrypt" => {
-            if node.attrs().optional_string("from") == Some(SERVER_JID) {
-                let client_clone = client.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = client_clone.upload_pre_keys().await {
-                        warn!("Failed to upload pre-keys after notification: {:?}", e);
-                    }
-                });
-            }
+            device::handle_encrypt_notification(client, node).await;
         }
         "server_sync" => {
             // Server sync notifications inform us of app state changes from other devices.
@@ -88,7 +79,7 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
         "devices" => {
             // Handle device list change notifications (WhatsApp Web: handleDevicesNotification)
             // These are sent when a user adds, removes, or updates a device
-            handle_devices_notification(client, node).await;
+            device::handle_devices_notification(client, node).await;
         }
         "link_code_companion_reg" => {
             // Handle pair code notification (stage 2 of pair code authentication)
@@ -125,72 +116,6 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
                 .dispatch(Event::Notification(std::sync::Arc::new(node.clone())));
         }
     }
-}
-
-/// Handle device list change notifications.
-/// Matches WhatsApp Web's WAWebHandleDeviceNotification.handleDevicesNotification().
-///
-/// Device notifications have the structure:
-/// ```xml
-/// <notification type="devices" from="user@s.whatsapp.net">
-///   <add device_hash="..."> or <remove device_hash="..."> or <update hash="...">
-///     <device jid="user:device@server"/>
-///     <key-index-list ts="..."/>
-///   </add/remove/update>
-/// </notification>
-/// ```
-async fn handle_devices_notification(client: &Arc<Client>, node: &Node) {
-    // Parse using type-safe struct
-    let notification = match DeviceNotification::try_parse(node) {
-        Ok(n) => n,
-        Err(e) => {
-            warn!("Failed to parse device notification: {e}");
-            return;
-        }
-    };
-
-    // Learn LID-PN mapping if present
-    if let Some((lid, pn)) = notification.lid_pn_mapping()
-        && let Err(e) = client
-            .add_lid_pn_mapping(lid, pn, LearningSource::DeviceNotification)
-            .await
-    {
-        warn!("Failed to add LID-PN mapping from device notification: {e}");
-    }
-
-    // Process the single operation (per WhatsApp Web: one operation per notification)
-    let op = &notification.operation;
-    debug!(
-        "Device notification: user={}, type={:?}, devices={:?}",
-        notification.user(),
-        op.operation_type,
-        op.device_ids()
-    );
-
-    client.invalidate_device_cache(notification.user()).await;
-
-    // Dispatch event to notify application layer
-    let event = Event::DeviceListUpdate(
-        DeviceListUpdate::builder()
-            .user(notification.from.clone())
-            .maybe_lid_user(notification.lid_user.clone())
-            .update_type(op.operation_type.into())
-            .devices(
-                op.devices
-                    .iter()
-                    .map(|d| {
-                        DeviceNotificationInfo::builder()
-                            .device_id(d.device_id())
-                            .maybe_key_index(d.key_index)
-                            .build()
-                    })
-                    .collect(),
-            )
-            .maybe_key_index(op.key_index.clone())
-            .maybe_contact_hash(op.contact_hash.clone())
-            .build(),
-    );
-    client.core.event_bus.dispatch(event);
 }
 
 /// Parsed device info from account_sync notification
@@ -334,7 +259,7 @@ async fn handle_account_sync_devices(client: &Arc<Client>, node: &Node, devices_
 mod tests {
     use super::*;
     use crate::test_utils::create_test_client;
-    use wacore::stanza::devices::DeviceNotificationType;
+    use wacore::stanza::devices::{DeviceNotification, DeviceNotificationType};
     use wacore::types::events::{ChannelEventHandler, DeviceListUpdateType};
     use wacore_binary::builder::NodeBuilder;
 

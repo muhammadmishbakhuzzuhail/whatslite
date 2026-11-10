@@ -33,6 +33,8 @@ use wacore_binary::node::{Node, NodeContent};
 /// IQ namespace for A/B props.
 pub const PROPS_NAMESPACE: &str = "abt";
 
+use crate::iq::abprops;
+
 /// Historical AB props retained for SDK callers even when the current Web
 /// capture omits their definitions from the generated registry's `ALL` slices.
 /// Retaining the historical values preserves callers and their
@@ -675,6 +677,38 @@ pub mod stale {
     };
 }
 
+/// AB props this client reads. Seeds the cache interest set so the other ~2900
+/// server props are discarded on `apply_props`. Add an entry when you start
+/// reading a new flag from [`crate::iq::abprops`]. Only these consts (and their
+/// name strings) materialize in the binary; the rest of the vendored registry is
+/// unreferenced and emitted nowhere.
+pub const WATCHED: &[abprops::AbProp] = &[
+    abprops::web::LID_ONE_ON_ONE_MIGRATION_ENABLED,
+    abprops::web::PRIVACY_TOKEN_SENDING_ON_ALL_1_ON_1_MESSAGES,
+    abprops::web::PRIVACY_TOKEN_SENDING_ON_GROUP_CREATE,
+    abprops::web::PRIVACY_TOKEN_SENDING_ON_GROUP_PARTICIPANT_ADD,
+    abprops::web::LID_TRUSTED_TOKEN_ISSUE_TO_LID,
+    abprops::web::TCTOKEN_DURATION,
+    abprops::web::TCTOKEN_DURATION_SENDER,
+    abprops::web::TCTOKEN_NUM_BUCKETS,
+    abprops::web::TCTOKEN_NUM_BUCKETS_SENDER,
+    abprops::web::WA_NCT_TOKEN_SEND_ENABLED,
+    abprops::web::RECEIPT_MODE_BITMASK_ENABLED,
+    abprops::web::WEB_SEND_HID_FAILED_DECRYPT_IN_RECEIPTS_ENABLED,
+    abprops::web::WEB_E2E_BACKFILL_EXPIRE_TIME,
+    abprops::web::ENABLE_SPAM_REPORT_IQ_WITH_PRIVACY_TOKEN,
+    abprops::web::PROFILE_SCRAPING_PRIVACY_TOKEN_IN_ABOUT_USYNC,
+    abprops::web::ENABLE_PEER_SNAPSHOT_RECOVERY,
+    abprops::web::SNAPSHOT_RECOVERY_MAX_MUTATIONS_COUNT_ALLOWED,
+    abprops::web::USERNAME_CONTACT_DISPLAY,
+    abprops::web::ENABLE_CALLING_PHONE_NUMBER_PRIVACY,
+    abprops::web::GROUP_HISTORY_MESSAGE_COUNT_LIMIT,
+    abprops::web::GROUP_HISTORY_MESSAGES_TIME_LIMIT_SECS,
+    abprops::web::GROUP_HISTORY_SEND,
+    stale::PRIVACY_TOKEN_ONLY_CHECK_LID,
+    stale::PROFILE_PIC_PRIVACY_TOKEN,
+];
+
 /// Protocol version for props requests.
 pub const PROPS_PROTOCOL_VERSION: &str = "1";
 
@@ -1219,5 +1253,36 @@ mod tests {
 
         assert_eq!(parsed.event_code, prop.event_code);
         assert_eq!(parsed.sampling_weight, prop.sampling_weight);
+    }
+
+    /// Duplicate codes would make the interest set silently ambiguous about
+    /// which flag it is actually retaining.
+    #[test]
+    fn watched_props_are_unique() {
+        use std::collections::HashSet;
+
+        assert!(!WATCHED.is_empty(), "the cache would retain nothing");
+        let mut seen = HashSet::new();
+        for prop in WATCHED {
+            assert!(
+                seen.insert(prop.code),
+                "duplicate watched code {} ({})",
+                prop.code,
+                prop.name
+            );
+        }
+    }
+
+    #[test]
+    fn watched_covers_connection_critical_flags() {
+        let codes: std::collections::HashSet<u32> = WATCHED.iter().map(|p| p.code).collect();
+        for prop in [
+            crate::iq::abprops::web::PRIVACY_TOKEN_SENDING_ON_ALL_1_ON_1_MESSAGES,
+            crate::iq::abprops::web::TCTOKEN_DURATION,
+            crate::iq::abprops::web::WA_NCT_TOKEN_SEND_ENABLED,
+            stale::PROFILE_PIC_PRIVACY_TOKEN,
+        ] {
+            assert!(codes.contains(&prop.code), "{} must be watched", prop.name);
+        }
     }
 }

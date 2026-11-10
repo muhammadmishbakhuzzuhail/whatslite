@@ -8,8 +8,6 @@ use wacore_binary::node::Node;
 ///
 /// This handler provides a placeholder for stanza types like:
 /// - `<call>` - Voice/video call signaling
-/// - `<presence>` - User presence updates
-/// - `<chatstate>` - Typing indicators
 ///
 /// These will be logged and handled minimally until full implementations are added.
 pub struct UnimplementedHandler {

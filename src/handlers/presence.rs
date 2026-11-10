@@ -142,6 +142,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stanza_router_dispatches_inbound_presence_to_event_bus() {
+        let client = create_test_client().await;
+        let (_subscription, events) = subscribed(&client);
+
+        let node = NodeBuilder::new("presence")
+            .attr("from", FROM)
+            .attr("type", "unavailable")
+            .attr("last", "1700000000")
+            .build();
+
+        let mut cancelled = false;
+        assert!(
+            client
+                .stanza_router
+                .dispatch(client.clone(), Arc::new(node), &mut cancelled)
+                .await,
+            "router should dispatch presence stanzas"
+        );
+
+        let event = tokio::time::timeout(std::time::Duration::from_secs(1), events.recv())
+            .await
+            .expect("presence event should be dispatched promptly")
+            .expect("presence event");
+        let Event::Presence(update) = &*event else {
+            panic!("expected presence event, got {:?}", event);
+        };
+        assert_eq!(update.from.to_string(), FROM);
+        assert_eq!(update.status, PresenceStatus::Unavailable);
+        assert_eq!(
+            update.last_seen.expect("last seen").timestamp(),
+            1_700_000_000
+        );
+    }
+
+    #[tokio::test]
     async fn missing_or_invalid_from_is_ignored() {
         let client = create_test_client().await;
         let (_subscription, events) = subscribed(&client);

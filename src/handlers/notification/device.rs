@@ -15,7 +15,7 @@ use wacore::stanza::devices::{DeviceNotification, DeviceNotificationType};
 use wacore::store::traits::DeviceListRecord;
 use wacore::types::events::{DeviceListUpdate, DeviceNotificationInfo, EventKind, IdentityChange};
 use wacore::types::jid::JidExt;
-use wacore_binary::jid::{Jid, SERVER_JID};
+use wacore_binary::jid::{DEFAULT_USER_SERVER, HIDDEN_USER_SERVER, Jid, SERVER_JID};
 use wacore_binary::node::Node;
 
 /// What an `<notification type="encrypt">` stanza asks this client to do.
@@ -63,6 +63,16 @@ pub(crate) fn classify_encrypt_notification(node: &Node) -> EncryptTarget<'_> {
     }
 }
 
+/// Only a 404 means the server holds no key-bundle record at all, which is the
+/// one digest outcome WA Web repairs by uploading. Every other failure is
+/// logged and left to the normal rotation job.
+fn digest_requires_forced_upload(error: &crate::request::IqError) -> bool {
+    matches!(
+        error,
+        crate::request::IqError::ServerError { code: 404, .. }
+    )
+}
+
 pub(crate) async fn handle_encrypt_notification(client: &Arc<Client>, node: &Node) {
     match classify_encrypt_notification(node) {
         EncryptTarget::Identity => handle_identity_change(client, node).await,
@@ -86,8 +96,8 @@ pub(crate) async fn handle_encrypt_notification(client: &Arc<Client>, node: &Nod
 ///
 /// Upstream additionally clears a persisted `server_has_prekeys` flag and
 /// serializes uploads through `prekey_upload_lock`; neither exists in this
-/// fork, so there is no dedup gate here and the upload path is shared with
-/// login.
+/// fork, so there is no dedup gate here. The upload itself is forced past the
+/// server-count guard, matching WA Web's unconditional `handlePreKeyLow`.
 pub(crate) async fn handle_prekey_low(client: &Arc<Client>) {
     let client_clone = client.clone();
     tokio::spawn(async move {
@@ -99,7 +109,7 @@ pub(crate) async fn handle_prekey_low(client: &Arc<Client>) {
             return;
         }
 
-        if let Err(e) = client_clone.upload_pre_keys().await {
+        if let Err(e) = client_clone.upload_pre_keys_force().await {
             warn!("Failed to upload pre-keys after prekey_low notification: {e:?}");
         }
     });
@@ -107,16 +117,26 @@ pub(crate) async fn handle_prekey_low(client: &Arc<Client>) {
 
 /// Handle encrypt/digest notification (Digest Key validation).
 ///
-/// Upstream `validate_digest_key` compares the server's digest response
-/// against locally stored key material and re-uploads on 404. This fork's
-/// `DigestKeyBundleResponse` only carries the digest bytes (no registration
-/// id or prekey ids), so validation cannot be implemented yet; send the
-/// digest query without interpreting the answer.
+/// Matches WA Web's `WAWebDigestKeyJob`: a 404 means the server holds no
+/// key-bundle record at all, so upload a fresh batch. Other failures are
+/// logged and left to the normal rotation path; WA Web catches every
+/// validation exception without re-uploading.
+///
+/// Local SHA-1 comparison is not implemented because this fork's
+/// `DigestKeyBundleResponse` carries only the digest bytes (no registration id
+/// or prekey ids), so the 404 recovery is the whole repair path available here.
 pub(crate) fn handle_digest_key(client: &Arc<Client>) {
     let client_clone = client.clone();
     tokio::spawn(async move {
-        if let Err(e) = client_clone.send_digest_key_bundle().await {
-            warn!("Digest key validation failed: {e:?}");
+        match client_clone.send_digest_key_bundle().await {
+            Ok(()) => {}
+            Err(e) if digest_requires_forced_upload(&e) => {
+                warn!("Digest key: no server record, re-uploading pre-keys");
+                if let Err(e) = client_clone.upload_pre_keys_force().await {
+                    warn!("Digest key: pre-key re-upload failed: {e:?}");
+                }
+            }
+            Err(e) => warn!("Digest key validation failed: {e:?}"),
         }
     });
 }
@@ -132,6 +152,35 @@ async fn load_device_record(client: &Client, user: &str) -> Option<DeviceListRec
         }
     }
     None
+}
+
+/// Resolve every Signal namespace `user` may be stored under.
+///
+/// A device is addressed by PN *and* LID once a mapping is known; the stanza
+/// that triggered cleanup names only one of them. Without this, the companion
+/// session/identity under the other namespace survives the reset and the next
+/// send can resume the stale session.
+async fn signal_namespaces(client: &Client, user: &str) -> Vec<(String, &'static str)> {
+    if let Some(pn) = client.lid_pn_cache.get_phone_number(user).await {
+        // `user` is a LID with a known phone number.
+        vec![
+            (pn, DEFAULT_USER_SERVER),
+            (user.to_string(), HIDDEN_USER_SERVER),
+        ]
+    } else if let Some(lid) = client.lid_pn_cache.get_current_lid(user).await {
+        // `user` is a PN with a known LID.
+        vec![
+            (user.to_string(), DEFAULT_USER_SERVER),
+            (lid, HIDDEN_USER_SERVER),
+        ]
+    } else {
+        // Unknown: it could be either type, so cover both (mirrors upstream
+        // `UserLookupKeys::Unknown`).
+        vec![
+            (user.to_string(), DEFAULT_USER_SERVER),
+            (user.to_string(), HIDDEN_USER_SERVER),
+        ]
+    }
 }
 
 /// Handle identity change notification (user reinstalled WhatsApp).
@@ -178,19 +227,31 @@ pub(crate) async fn handle_identity_change(client: &Arc<Client>, node: &Node) {
     // clearDeviceRecordForIdentityChange (which runs before the had-prior
     // identity gate): drop companion device sessions and force a fresh usync.
     if let Some(record) = load_device_record(client, &from_jid.user).await {
-        let backend = client.persistence_manager.backend();
-        for device in record.devices.iter().filter(|d| d.device_id() != 0) {
-            let Ok(device_id) = u16::try_from(device.device_id()) else {
-                continue;
-            };
-            let device_jid = if from_jid.is_lid() {
-                Jid::lid_device(from_jid.user.clone(), device_id)
-            } else {
-                Jid::pn_device(from_jid.user.clone(), device_id)
-            };
-            let addr = device_jid.to_protocol_address().to_string();
-            if let Err(e) = backend.delete_session(&addr).await {
-                warn!("Identity change: failed deleting companion session: {e}");
+        let device_ids: Vec<u16> = record
+            .devices
+            .iter()
+            .filter(|d| d.device_id() != 0)
+            .filter_map(|d| u16::try_from(d.device_id()).ok())
+            .collect();
+        if !device_ids.is_empty() {
+            let backend = client.persistence_manager.backend();
+            for (key, server) in signal_namespaces(client, &from_jid.user).await {
+                for &device_id in &device_ids {
+                    let device_jid = if server == HIDDEN_USER_SERVER {
+                        Jid::lid_device(key.clone(), device_id)
+                    } else {
+                        Jid::pn_device(key.clone(), device_id)
+                    };
+                    let addr = device_jid.to_protocol_address().to_string();
+                    // Mirrors upstream `delete_sessions_for_devices_unflushed`:
+                    // a companion's identity is retired with its session.
+                    if let Err(e) = backend.delete_session(&addr).await {
+                        warn!("Identity change: failed deleting companion session: {e}");
+                    }
+                    if let Err(e) = backend.delete_identity(&addr).await {
+                        warn!("Identity change: failed deleting companion identity: {e}");
+                    }
+                }
             }
         }
     }
@@ -815,6 +876,112 @@ mod tests {
         assert_eq!(
             DeviceListUpdateType::from(DeviceNotificationType::Add),
             DeviceListUpdateType::Add
+        );
+    }
+
+    #[test]
+    fn digest_404_requires_a_forced_upload() {
+        let missing = crate::request::IqError::ServerError {
+            code: 404,
+            text: String::new(),
+        };
+        assert!(digest_requires_forced_upload(&missing));
+
+        for code in [406, 503, 500] {
+            assert!(!digest_requires_forced_upload(
+                &crate::request::IqError::ServerError {
+                    code,
+                    text: String::new(),
+                }
+            ));
+        }
+        assert!(!digest_requires_forced_upload(
+            &crate::request::IqError::NotConnected
+        ));
+    }
+
+    /// A companion device is known under both the PN and the LID namespace;
+    /// clearing only the namespace the stanza happened to use leaves the other
+    /// stale session in place.
+    #[tokio::test]
+    async fn identity_change_clears_companion_sessions_and_identities_in_both_namespaces() {
+        let client = create_test_client_with_name("identity_both_namespaces").await;
+        let pn_user = "15551234567";
+        let lid_user = "100000000000001";
+        client
+            .add_lid_pn_mapping(
+                lid_user,
+                pn_user,
+                crate::lid_pn_cache::LearningSource::Usync,
+            )
+            .await
+            .expect("seed mapping");
+        client
+            .update_device_list(DeviceListRecord {
+                user: lid_user.to_string(),
+                devices: vec![
+                    wacore::store::traits::DeviceInfo::new(0, None),
+                    wacore::store::traits::DeviceInfo::new(5, None),
+                ],
+                timestamp: 1,
+                phash: None,
+            })
+            .await
+            .expect("seed device list");
+
+        let backend = client.persistence_manager.backend();
+        let pn_companion = Jid::pn_device(pn_user, 5).to_protocol_address().to_string();
+        let lid_companion = Jid::lid_device(lid_user, 5)
+            .to_protocol_address()
+            .to_string();
+        let primary = Jid::lid(lid_user).to_protocol_address().to_string();
+        for addr in [&pn_companion, &lid_companion] {
+            backend
+                .put_identity(addr, [9u8; 32])
+                .await
+                .expect("identity");
+            backend
+                .put_session(addr, &[1, 2, 3])
+                .await
+                .expect("session");
+        }
+        backend
+            .put_identity(&primary, [7u8; 32])
+            .await
+            .expect("primary identity");
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "encrypt")
+            .attr("from", format!("{pn_user}@s.whatsapp.net"))
+            .children([NodeBuilder::new("identity").build()])
+            .build();
+        handle_encrypt_notification(&client, &node).await;
+
+        for addr in [&pn_companion, &lid_companion] {
+            assert!(
+                backend
+                    .get_session(addr)
+                    .await
+                    .expect("read session")
+                    .is_none(),
+                "companion session must be cleared in every namespace: {addr}"
+            );
+            assert!(
+                backend
+                    .load_identity(addr)
+                    .await
+                    .expect("read identity")
+                    .is_none(),
+                "companion identity must be cleared in every namespace: {addr}"
+            );
+        }
+        assert!(
+            backend
+                .load_identity(&primary)
+                .await
+                .expect("read primary identity")
+                .is_none(),
+            "the primary reset still runs"
         );
     }
 }

@@ -15,6 +15,15 @@ use waproto::buffa::Message as _;
 const WANTED_PRE_KEY_COUNT: usize = 50;
 const MIN_PRE_KEY_COUNT: usize = 5;
 
+/// Whether a count-guarded caller should upload.
+///
+/// A forced caller (prekey-low, digest 404 repair) skips the server-count IQ
+/// entirely: WA Web's `handlePreKeyLow` uploads unconditionally, so a stale or
+/// transiently-failing count must never block the replenish.
+fn should_upload_pre_keys(force: bool, server_count: usize) -> bool {
+    force || server_count < MIN_PRE_KEY_COUNT
+}
+
 impl Client {
     pub(crate) async fn fetch_pre_keys(
         &self,
@@ -44,17 +53,35 @@ impl Client {
     /// Ensure the server has at least MIN_PRE_KEY_COUNT pre-keys, and upload a batch of
     /// WANTED_PRE_KEY_COUNT pre-keys when it is below the threshold.
     pub(crate) async fn upload_pre_keys(&self) -> Result<(), anyhow::Error> {
-        let server_count = match self.get_server_pre_key_count().await {
-            Ok(c) => c,
-            Err(e) => return Err(anyhow::anyhow!(e)),
-        };
+        self.upload_pre_keys_inner(false).await
+    }
 
-        if server_count >= MIN_PRE_KEY_COUNT {
-            log::debug!("Server has {} pre-keys, no upload needed.", server_count);
-            return Ok(());
+    /// Upload a batch unconditionally, skipping the server-count query.
+    ///
+    /// Used by the prekey-low notification (WA Web's `handlePreKeyLow` uploads
+    /// unconditionally) and by digest-404 repair. The server emits prekey-low
+    /// only after crossing its own threshold, so re-querying and skipping when
+    /// the local count looks adequate would let the pool drain.
+    pub(crate) async fn upload_pre_keys_force(&self) -> Result<(), anyhow::Error> {
+        self.upload_pre_keys_inner(true).await
+    }
+
+    async fn upload_pre_keys_inner(&self, force: bool) -> Result<(), anyhow::Error> {
+        if !force {
+            let server_count = match self.get_server_pre_key_count().await {
+                Ok(c) => c,
+                Err(e) => return Err(anyhow::anyhow!(e)),
+            };
+
+            if !should_upload_pre_keys(force, server_count) {
+                log::debug!("Server has {} pre-keys, no upload needed.", server_count);
+                return Ok(());
+            }
+
+            log::debug!("Server has {} pre-keys, uploading more.", server_count);
+        } else {
+            log::debug!("Forced pre-key upload (skipping server count query).");
         }
-
-        log::debug!("Server has {} pre-keys, uploading more.", server_count);
 
         let device_snapshot = self.persistence_manager.get_device_snapshot().await;
         let device_store = self.persistence_manager.get_device_arc().await;
@@ -137,5 +164,31 @@ impl Client {
         );
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A prekey-low notification must refill even when the server still reports
+    /// a count at or above the low-water mark: the server emits the
+    /// notification after crossing its own higher threshold.
+    #[test]
+    fn forced_prekey_upload_bypasses_the_count_guard() {
+        for count in [0, MIN_PRE_KEY_COUNT, MIN_PRE_KEY_COUNT + 1, 50] {
+            assert!(
+                should_upload_pre_keys(true, count),
+                "force must upload at count {count}"
+            );
+        }
+    }
+
+    #[test]
+    fn count_guarded_prekey_upload_respects_the_low_water_mark() {
+        assert!(should_upload_pre_keys(false, 0));
+        assert!(should_upload_pre_keys(false, MIN_PRE_KEY_COUNT - 1));
+        assert!(!should_upload_pre_keys(false, MIN_PRE_KEY_COUNT));
+        assert!(!should_upload_pre_keys(false, 50));
     }
 }

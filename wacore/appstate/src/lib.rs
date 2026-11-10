@@ -7,6 +7,13 @@ pub mod keys;
 pub mod lthash;
 pub mod patch_decode;
 pub mod processor;
+pub mod validation;
+#[allow(clippy::all)]
+mod validation_batch_generated;
+#[allow(clippy::all)]
+mod validation_generated;
+#[allow(dead_code)]
+mod validation_value;
 
 pub use decode::{Mutation, collect_key_ids_from_patch_list, decode_record};
 pub use errors::*;

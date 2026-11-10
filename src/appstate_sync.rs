@@ -690,6 +690,7 @@ mod tests {
             }],
             snapshot: None,
             snapshot_ref: None,
+            error: None,
         };
 
         let result = processor.process_patch_list(patch_list, false).await;

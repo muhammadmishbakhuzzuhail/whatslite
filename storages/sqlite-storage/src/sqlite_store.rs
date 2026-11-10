@@ -1079,6 +1079,33 @@ impl SqliteStore {
         Ok(())
     }
 
+    pub async fn clear_app_state_mutation_macs_for_device(
+        &self,
+        name: &str,
+        device_id: i32,
+    ) -> Result<()> {
+        let pool = self.pool.clone();
+        let name = name.to_string();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            diesel::delete(
+                app_state_mutation_macs::table.filter(
+                    app_state_mutation_macs::name
+                        .eq(&name)
+                        .and(app_state_mutation_macs::device_id.eq(device_id)),
+                ),
+            )
+            .execute(&mut conn)
+            .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| StoreError::Database(e.to_string()))??;
+        Ok(())
+    }
+
     pub async fn get_app_state_mutation_mac_for_device(
         &self,
         name: &str,
@@ -1367,6 +1394,11 @@ impl AppSyncStore for SqliteStore {
 
     async fn delete_mutation_macs(&self, name: &str, index_macs: &[Vec<u8>]) -> Result<()> {
         self.delete_app_state_mutation_macs_for_device(name, index_macs, self.device_id)
+            .await
+    }
+
+    async fn clear_mutation_macs(&self, name: &str) -> Result<()> {
+        self.clear_app_state_mutation_macs_for_device(name, self.device_id)
             .await
     }
 }

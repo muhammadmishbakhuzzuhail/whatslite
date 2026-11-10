@@ -29,6 +29,7 @@ pub mod handshake;
 pub mod history_sync;
 pub mod ib;
 pub use wacore_libsignal as libsignal;
+pub mod appstate_sync;
 pub mod bot_message;
 pub mod comment;
 pub mod media_retry;

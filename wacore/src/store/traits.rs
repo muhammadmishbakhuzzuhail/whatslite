@@ -205,8 +205,62 @@ pub trait AppSyncStore: Send + Sync {
     /// Get a mutation MAC by index.
     async fn get_mutation_mac(&self, name: &str, index_mac: &[u8]) -> Result<Option<Vec<u8>>>;
 
+    /// Batch variant of [`get_mutation_mac`](Self::get_mutation_mac): fetch many
+    /// previous-MAC values in a single backend round-trip. The default delegates
+    /// to per-item lookups; backends with a set-membership query should override
+    /// it to avoid an N+1.
+    async fn get_mutation_macs(
+        &self,
+        name: &str,
+        index_macs: &[[u8; 32]],
+    ) -> Result<std::collections::HashMap<[u8; 32], Vec<u8>>> {
+        let mut out = std::collections::HashMap::with_capacity(index_macs.len());
+        for index_mac in index_macs {
+            if let Some(mac) = self.get_mutation_mac(name, index_mac.as_slice()).await? {
+                out.insert(*index_mac, mac);
+            }
+        }
+        Ok(out)
+    }
+
     /// Delete mutation MACs by their index MACs.
     async fn delete_mutation_macs(&self, name: &str, index_macs: &[Vec<u8>]) -> Result<()>;
+
+    /// Persist one applied patch as a unit: the collection's new version, the
+    /// index MACs the patch removed and the MACs it added.
+    ///
+    /// The default implementation applies the three existing primitives in
+    /// order. It is not atomic; a backend that can do better should override it
+    /// with a transaction so the version and MAC changes become visible
+    /// together. Removals are applied before additions, as an index may occur
+    /// in both.
+    async fn commit_patch(
+        &self,
+        name: &str,
+        state: HashState,
+        removed_index_macs: &[Vec<u8>],
+        added: &[AppStateMutationMAC],
+    ) -> Result<()> {
+        if !removed_index_macs.is_empty() {
+            self.delete_mutation_macs(name, removed_index_macs).await?;
+        }
+        if !added.is_empty() {
+            self.put_mutation_macs(name, state.version, added).await?;
+        }
+        self.set_version(name, state).await
+    }
+
+    /// Delete every mutation MAC for a collection.
+    ///
+    /// Called on snapshot re-sync so the MAC store is rebuilt from the snapshot,
+    /// matching the ltHash baseline; leftover entries would corrupt the next
+    /// patch's ltHash. Backends that cannot clear a collection fail closed
+    /// rather than silently leaving stale MACs behind.
+    async fn clear_mutation_macs(&self, _name: &str) -> Result<()> {
+        Err(crate::store::error::StoreError::Database(
+            "backend does not support clearing app state mutation MACs".to_string(),
+        ))
+    }
 }
 
 /// WhatsApp Web protocol alignment storage.

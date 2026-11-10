@@ -68,6 +68,8 @@ pub struct PatchList {
     pub patches: Vec<wa::SyncdPatch>,
     pub snapshot: Option<wa::SyncdSnapshot>, // filled only if already present inline (currently never)
     pub snapshot_ref: Option<wa::ExternalBlobReference>, // external reference to fetch
+    /// Per-collection error from the server (None = success).
+    pub error: Option<CollectionSyncError>,
 }
 
 /// Parse an incoming app state collection node into a PatchList.
@@ -117,5 +119,6 @@ pub fn parse_patch_list(node: &Node) -> Result<PatchList> {
         patches,
         snapshot,
         snapshot_ref,
+        error: None,
     })
 }

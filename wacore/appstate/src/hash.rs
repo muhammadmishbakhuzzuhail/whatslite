@@ -12,6 +12,21 @@ pub struct HashState {
     #[serde(with = "BigArray")]
     pub hash: [u8; 128],
     pub index_value_map: HashMap<String, Vec<u8>>,
+    /// The collection's aggregate ltHash no longer agrees with the one its peers
+    /// compute, so a patch's `snapshotMac` can never match again.
+    ///
+    /// Set the first time a patch fails the snapshotMac comparison; a snapshot
+    /// resets it because a rebuild starts from a fresh baseline.
+    #[serde(default)]
+    pub mac_mismatch_fatal: bool,
+    /// Whether a bootstrap reached its terminal page.
+    ///
+    /// Set only when the run that persisted this state was not still paging, so
+    /// a partial bootstrap leaves it false even though the version has moved.
+    /// Presence of a record cannot answer that: a never-synced collection and a
+    /// synced-but-empty one are both version 0 with an all-zero ltHash.
+    #[serde(default)]
+    pub bootstrapped: bool,
 }
 
 impl Default for HashState {
@@ -20,6 +35,8 @@ impl Default for HashState {
             version: 0,
             hash: [0; 128],
             index_value_map: HashMap::new(),
+            mac_mismatch_fatal: false,
+            bootstrapped: false,
         }
     }
 }
@@ -160,6 +177,14 @@ pub fn generate_content_mac(
 
 fn u64_to_be(val: u64) -> [u8; 8] {
     val.to_be_bytes()
+}
+
+/// HMAC-SHA256 over the decoded index JSON, the value stored as an index MAC.
+pub fn generate_index_mac(index_json_bytes: &[u8], key: &[u8; 32]) -> Vec<u8> {
+    let mut mac =
+        CryptographicMac::new("HmacSha256", key).expect("HmacSha256 is a valid algorithm");
+    mac.update(index_json_bytes);
+    mac.finalize()
 }
 
 pub fn validate_index_mac(

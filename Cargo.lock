@@ -8109,6 +8109,7 @@ dependencies = [
  "aes-gcm",
  "anyhow",
  "async-channel",
+ "async-lock",
  "async-trait",
  "base64",
  "bon",

@@ -32,6 +32,8 @@ pub use media_reupload::{
     MediaReupload, MediaReuploadError, MediaReuploadPhase, MediaReuploadRequest,
 };
 
+pub use message_edit::{EncryptedEdit, MessageEditError, SecretEncKind, SecretEncrypted};
+
 pub use newsletter::NewsletterPollVote;
 pub use newsletter::NewsletterReactionCount;
 
@@ -49,6 +51,7 @@ pub mod favorites;
 pub mod group_history;
 pub mod labels;
 pub mod media_reupload;
+pub mod message_edit;
 pub mod newsletter;
 pub mod pictures;
 pub mod polls;

@@ -5,6 +5,9 @@ use std::io::{Seek, SeekFrom, Write};
 
 pub use wacore::download::{DownloadUtils, Downloadable, MediaDecryption, MediaType};
 
+mod budget;
+pub use budget::{DownloadLimits, DownloadPolicyError, MediaByteDomain};
+
 impl From<&MediaConn> for wacore::download::MediaConnection {
     fn from(conn: &MediaConn) -> Self {
         wacore::download::MediaConnection {

@@ -76,6 +76,26 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             if let Some(devices_node) = node.get_optional_child_by_tag(&["devices"]) {
                 handle_account_sync_devices(client, node, devices_node).await;
             }
+
+            // WA Web's account_sync parser reads a `<disappearing_mode>` child
+            // alongside `<devices>`, and both arms end at the same place the
+            // standalone `type="disappearing_mode"` notification does. The two
+            // arms are mutually exclusive: with `action` present the stanza
+            // carries no duration/`t`, and WA Web answers `action="modify"` by
+            // re-querying the server, which this client cannot do (it has only
+            // the set IQ). Log that arm instead of announcing it as a malformed
+            // stanza.
+            if let Some(dm) = node.get_optional_child("disappearing_mode") {
+                if dm.attrs().optional_string("action").is_some() {
+                    debug!(
+                        target: "Client/Notification",
+                        "account_sync disappearing_mode carried an action and no duration; \
+                         re-querying the account default is not implemented"
+                    );
+                } else {
+                    groups::handle_disappearing_mode_notification(client, &node.as_node_ref());
+                }
+            }
         }
         "devices" => {
             // Handle device list change notifications (WhatsApp Web: handleDevicesNotification)
@@ -101,6 +121,11 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             // Group metadata / participant / settings updates. Emits one typed
             // GroupUpdate per action plus the legacy raw Notification.
             groups::handle_group_notification(client, node).await;
+        }
+        "disappearing_mode" => {
+            // A contact changed their default disappearing messages setting.
+            // Matches WhatsApp Web's WAWebHandleDisappearingModeNotification.
+            groups::handle_disappearing_mode_notification(client, &node.as_node_ref());
         }
         "picture" => {
             // Matches WhatsApp Web's WAWebHandleProfilePicNotification.
@@ -354,6 +379,87 @@ mod tests {
 
         let event = events.try_recv().expect("group update event");
         assert!(matches!(&*event, Event::GroupUpdate(_)));
+    }
+
+    #[tokio::test]
+    async fn routes_disappearing_mode_notifications_to_the_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "disappearing_mode")
+            .attr("from", "15550000001:75@s.whatsapp.net")
+            .attr("t", "1700000000")
+            .children([NodeBuilder::new("disappearing_mode")
+                .attr("duration", "86400")
+                .attr("t", "1700000000")
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("disappearing mode event");
+        let Event::DisappearingModeChanged(changed) = &*event else {
+            panic!("unexpected event: {event:?}");
+        };
+        assert_eq!(changed.from.user, "15550000001");
+        assert_eq!(changed.from.device, 0);
+        assert_eq!(changed.duration, 86_400);
+    }
+
+    #[tokio::test]
+    async fn account_sync_with_disappearing_mode_dispatches_the_event() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "account_sync")
+            .attr("from", "15550000001@s.whatsapp.net")
+            .attr("t", "1700000000")
+            .children([NodeBuilder::new("disappearing_mode")
+                .attr("duration", "604800")
+                .attr("t", "1700000000")
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("disappearing mode event");
+        let Event::DisappearingModeChanged(changed) = &*event else {
+            panic!("unexpected event: {event:?}");
+        };
+        assert_eq!(changed.duration, 604_800);
+        assert_eq!(changed.setting_timestamp.timestamp(), 1_700_000_000);
+    }
+
+    #[tokio::test]
+    async fn account_sync_with_disappearing_mode_action_dispatches_nothing() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        // With `action` present the stanza carries no duration/t: WA Web
+        // re-queries, which this client does not implement, so it must not
+        // dispatch a made-up update.
+        let node = NodeBuilder::new("notification")
+            .attr("type", "account_sync")
+            .attr("from", "15550000001@s.whatsapp.net")
+            .children([NodeBuilder::new("disappearing_mode")
+                .attr("action", "modify")
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        assert!(events.try_recv().is_err(), "action arm dispatches nothing");
     }
 
     #[test]

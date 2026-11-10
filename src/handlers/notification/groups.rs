@@ -7,8 +7,8 @@
 //! Reference: WhatsApp Web `WAWebHandleGroupNotification`.
 //!
 //! Deferred: sender-key rotation, group-metadata lane guarding, and the
-//! unrelated `server_sync` / `newsletter` / `mex` / `disappearing_mode`
-//! handlers, whose subsystems are not ported yet.
+//! unrelated `server_sync` / `newsletter` / `mex` handlers, whose subsystems
+//! are not ported yet.
 
 use crate::client::Client;
 use log::{debug, warn};
@@ -16,7 +16,7 @@ use std::sync::Arc;
 use wacore::stanza::groups::{GroupNotificationAction, GroupParticipantInfo, parse_groups_dirty};
 use wacore::types::events::{Event, EventKind, GroupUpdate};
 use wacore_binary::jid::{Jid, JidExt as _};
-use wacore_binary::node::Node;
+use wacore_binary::node::{Node, NodeRef};
 
 /// Hand the repeated envelope fields to every update but the last, which takes
 /// them, avoiding an owned clone per action.
@@ -220,6 +220,63 @@ async fn handle_groups_dirty(client: &Arc<Client>, groups: Vec<Jid>) {
         );
         cache.invalidate(&group_jid).await;
     }
+}
+
+/// Handle `<notification type="disappearing_mode">` — a contact changed their
+/// default disappearing messages setting.
+///
+/// WA Web: `WAWebHandleDisappearingModeNotification` parses the
+/// `<disappearing_mode duration="..." t="..."/>` child and calls
+/// `WAWebUpdateDisappearingModeForContact`, which applies the update only if
+/// the new timestamp is newer than the stored one. We dispatch
+/// [`Event::DisappearingModeChanged`] and leave persistence to consumers.
+pub(crate) fn handle_disappearing_mode_notification(client: &Arc<Client>, node: &NodeRef<'_>) {
+    let from = node.attr_parser().non_ad_jid("from");
+
+    let Some(dm_node) = node.get_optional_child("disappearing_mode") else {
+        warn!(
+            target: "Client/Notification",
+            "disappearing_mode notification missing <disappearing_mode> child"
+        );
+        return;
+    };
+
+    let mut dm_attrs = dm_node.attr_parser();
+
+    // WA Web: `attrInt("duration", 0)` — 0 means disabled.
+    let duration = dm_attrs
+        .optional_string("duration")
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(0);
+
+    // WA Web: `attrTime("t")` — required, no default.
+    let Some(setting_timestamp) = dm_attrs
+        .optional_string("t")
+        .and_then(|s| s.parse::<i64>().ok())
+        .and_then(wacore::time::from_secs)
+    else {
+        warn!(
+            target: "Client/Notification",
+            "disappearing_mode notification missing or invalid 't' attribute"
+        );
+        return;
+    };
+
+    debug!(
+        target: "Client/Notification",
+        "Disappearing mode changed for {from}: duration={duration}s, t={setting_timestamp}"
+    );
+
+    client
+        .core
+        .event_bus
+        .dispatch(Event::DisappearingModeChanged(
+            wacore::types::events::DisappearingModeChanged::builder()
+                .from(from)
+                .duration(duration)
+                .setting_timestamp(setting_timestamp)
+                .build(),
+        ));
 }
 
 #[cfg(test)]
@@ -533,5 +590,102 @@ mod tests {
             &*updates[0].action,
             GroupNotificationAction::Unknown { tag, .. } if tag == "future_action"
         ));
+    }
+
+    fn disappearing_mode_notification(from: &str, child: Node) -> Node {
+        NodeBuilder::new("notification")
+            .attr("type", "disappearing_mode")
+            .attr("from", from)
+            .attr("id", "notif-2")
+            .attr("t", "1700000000")
+            .children([child])
+            .build()
+    }
+
+    fn disappearing_mode(duration: Option<&str>, t: Option<&str>) -> Node {
+        let mut builder = NodeBuilder::new("disappearing_mode");
+        if let Some(duration) = duration {
+            builder = builder.attr("duration", duration);
+        }
+        if let Some(t) = t {
+            builder = builder.attr("t", t);
+        }
+        builder.build()
+    }
+
+    #[tokio::test]
+    async fn disappearing_mode_dispatches_changed_event_with_stripped_from() {
+        let client = create_test_client().await;
+        let (_sub, events) = subscribe(&client).await;
+
+        // A companion device address must be normalized to the bare user JID.
+        let node = disappearing_mode_notification(
+            "15550000001:75@s.whatsapp.net",
+            disappearing_mode(Some("86400"), Some("1700000000")),
+        );
+        handle_disappearing_mode_notification(&client, &node.as_node_ref());
+
+        let event = events.try_recv().expect("disappearing mode event");
+        let Event::DisappearingModeChanged(changed) = &*event else {
+            panic!("unexpected event: {event:?}");
+        };
+        assert_eq!(changed.from, pn("15550000001"));
+        assert_eq!(changed.duration, 86_400);
+        assert_eq!(changed.setting_timestamp.timestamp(), 1_700_000_000);
+        assert!(
+            events.try_recv().is_err(),
+            "the handler dispatches exactly one event"
+        );
+    }
+
+    #[tokio::test]
+    async fn disappearing_mode_missing_duration_defaults_to_zero() {
+        let client = create_test_client().await;
+        let (_sub, events) = subscribe(&client).await;
+
+        let node = disappearing_mode_notification(
+            "15550000001@s.whatsapp.net",
+            disappearing_mode(None, Some("1700000000")),
+        );
+        handle_disappearing_mode_notification(&client, &node.as_node_ref());
+
+        let event = events.try_recv().expect("disappearing mode event");
+        let Event::DisappearingModeChanged(changed) = &*event else {
+            panic!("unexpected event: {event:?}");
+        };
+        assert_eq!(changed.duration, 0, "WA Web defaults duration to 0");
+    }
+
+    #[tokio::test]
+    async fn disappearing_mode_without_child_dispatches_nothing() {
+        let client = create_test_client().await;
+        let (_sub, events) = subscribe(&client).await;
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "disappearing_mode")
+            .attr("from", "15550000001@s.whatsapp.net")
+            .build();
+        handle_disappearing_mode_notification(&client, &node.as_node_ref());
+
+        assert!(events.try_recv().is_err(), "no event without a child");
+    }
+
+    #[tokio::test]
+    async fn disappearing_mode_missing_or_invalid_t_dispatches_nothing() {
+        for t in [None, Some("not-a-timestamp"), Some("99999999999999999")] {
+            let client = create_test_client().await;
+            let (_sub, events) = subscribe(&client).await;
+
+            let node = disappearing_mode_notification(
+                "15550000001@s.whatsapp.net",
+                disappearing_mode(Some("86400"), t),
+            );
+            handle_disappearing_mode_notification(&client, &node.as_node_ref());
+
+            assert!(
+                events.try_recv().is_err(),
+                "an unusable 't' must not dispatch (t={t:?})"
+            );
+        }
     }
 }

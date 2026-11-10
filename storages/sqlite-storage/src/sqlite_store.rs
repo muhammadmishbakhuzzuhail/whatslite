@@ -20,6 +20,10 @@ use waproto::whatsapp as wa;
 
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
+/// One upsert statement per chunk. Seven columns per row keeps a chunk well
+/// under SQLite's default 999-variable limit.
+const MSG_SECRET_INSERT_CHUNK_SIZE: usize = 100;
+
 type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 type DeviceRow = (
     i32,
@@ -2211,6 +2215,130 @@ impl ProtocolStore for SqliteStore {
 }
 
 #[async_trait]
+impl MsgSecretStore for SqliteStore {
+    async fn put_msg_secrets(&self, entries: Vec<MsgSecretEntry>) -> Result<usize> {
+        if entries.is_empty() {
+            return Ok(0);
+        }
+
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<usize> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // One transaction around every chunk keeps merge order observable
+            // when a batch updates a key it inserted in an earlier statement.
+            conn.transaction::<_, diesel::result::Error, _>(|conn| {
+                let mut stored = 0usize;
+                for chunk in entries.chunks(MSG_SECRET_INSERT_CHUNK_SIZE) {
+                    let records: Vec<_> = chunk
+                        .iter()
+                        .map(|entry| {
+                            (
+                                msg_secrets::chat.eq(entry.chat.as_ref()),
+                                msg_secrets::sender.eq(entry.sender.as_ref()),
+                                msg_secrets::msg_id.eq(entry.msg_id.as_ref()),
+                                msg_secrets::device_id.eq(device_id),
+                                msg_secrets::secret.eq(entry.secret.as_slice()),
+                                msg_secrets::expires_at.eq(entry.expires_at),
+                                msg_secrets::message_ts.eq(entry.message_ts),
+                            )
+                        })
+                        .collect();
+                    stored += diesel::insert_into(msg_secrets::table)
+                        .values(records.as_slice())
+                        .on_conflict((
+                            msg_secrets::chat,
+                            msg_secrets::sender,
+                            msg_secrets::msg_id,
+                            msg_secrets::device_id,
+                        ))
+                        .do_update()
+                        .set((
+                            msg_secrets::secret.eq(excluded(msg_secrets::secret)),
+                            // Later deadline wins; 0 (never) beats everything.
+                            // Mirrors merge_msg_secret_expiry so a redelivery or
+                            // edit re-persist never shortens an existing window.
+                            msg_secrets::expires_at.eq(
+                                diesel::dsl::sql::<diesel::sql_types::BigInt>(
+                                    "CASE WHEN msg_secrets.expires_at = 0 \
+                                 OR excluded.expires_at = 0 THEN 0 \
+                                 ELSE MAX(msg_secrets.expires_at, excluded.expires_at) END",
+                                ),
+                            ),
+                            // Parent event time is immutable; keep the known
+                            // (non-zero / later) value across redeliveries.
+                            msg_secrets::message_ts.eq(
+                                diesel::dsl::sql::<diesel::sql_types::BigInt>(
+                                    "MAX(msg_secrets.message_ts, excluded.message_ts)",
+                                ),
+                            ),
+                        ))
+                        .execute(conn)?;
+                }
+                Ok(stored)
+            })
+            .map_err(|e| StoreError::Database(e.to_string()))
+        })
+        .await
+    }
+
+    async fn get_stored_msg_secret(
+        &self,
+        chat: &str,
+        sender: &str,
+        msg_id: &str,
+    ) -> Result<Option<StoredMessageSecret>> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let chat = chat.to_string();
+        let sender = sender.to_string();
+        let msg_id = msg_id.to_string();
+        self.with_semaphore(move || -> Result<Option<StoredMessageSecret>> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            let row: Option<(Vec<u8>, i64)> = msg_secrets::table
+                .select((msg_secrets::secret, msg_secrets::message_ts))
+                .filter(msg_secrets::chat.eq(&chat))
+                .filter(msg_secrets::sender.eq(&sender))
+                .filter(msg_secrets::msg_id.eq(&msg_id))
+                .filter(msg_secrets::device_id.eq(device_id))
+                .first(&mut conn)
+                .optional()
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+            row.map(|(secret, message_ts)| {
+                StoredMessageSecret::from_stored_bytes(&secret, message_ts)
+            })
+            .transpose()
+        })
+        .await
+    }
+
+    async fn delete_expired_msg_secrets(&self, cutoff_timestamp: i64) -> Result<u32> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<u32> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // expires_at = 0 means never expire; only passed deadlines go.
+            let deleted = diesel::delete(
+                msg_secrets::table
+                    .filter(msg_secrets::expires_at.ne(0))
+                    .filter(msg_secrets::expires_at.le(cutoff_timestamp))
+                    .filter(msg_secrets::device_id.eq(device_id)),
+            )
+            .execute(&mut conn)
+            .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(deleted as u32)
+        })
+        .await
+    }
+}
+
+#[async_trait]
 impl DeviceStore for SqliteStore {
     async fn save(&self, device: &CoreDevice) -> Result<()> {
         SqliteStore::save_device_data_for_device(self, self.device_id, device).await
@@ -2717,5 +2845,165 @@ mod tests {
             .expect("reload")
             .expect("device should still exist");
         assert_eq!(loaded.server_cert_chain, device.server_cert_chain);
+    }
+
+    #[tokio::test]
+    async fn msg_secret_unknown_round_trip_has_no_message_ts() {
+        const SECRET_BYTE: u8 = 177;
+        let store = create_test_store().await;
+        store
+            .put_msg_secret("c", "s", "unknown", &[SECRET_BYTE; 32])
+            .await
+            .expect("put");
+
+        let stored = store
+            .get_stored_msg_secret("c", "s", "unknown")
+            .await
+            .expect("get")
+            .expect("must exist");
+        assert_eq!(stored.message_ts, None);
+        assert_eq!(stored.secret.as_bytes(), &[SECRET_BYTE; 32]);
+        assert!(!format!("{stored:#?}").contains("177"));
+
+        assert!(
+            store
+                .get_stored_msg_secret("c", "s", "missing")
+                .await
+                .expect("get miss")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn msg_secret_merge_keeps_later_ts_and_longest_deadline() {
+        let store = create_test_store().await;
+        for (message_ts, expires_at) in [(120, 250), (0, 150), (90, 190), (100, 200)] {
+            store
+                .put_msg_secrets(vec![MsgSecretEntry {
+                    chat: "c".into(),
+                    sender: "s".into(),
+                    msg_id: "known".into(),
+                    secret: [177; 32],
+                    expires_at,
+                    message_ts,
+                }])
+                .await
+                .expect("put merge");
+        }
+        store
+            .put_msg_secrets(vec![MsgSecretEntry {
+                chat: "c".into(),
+                sender: "s".into(),
+                msg_id: "never".into(),
+                secret: [7; 32],
+                expires_at: 0,
+                message_ts: 0,
+            }])
+            .await
+            .expect("put never");
+
+        let known = store
+            .get_stored_msg_secret("c", "s", "known")
+            .await
+            .expect("get known")
+            .expect("must exist");
+        assert_eq!(known.message_ts, Some(120));
+
+        assert_eq!(
+            store
+                .delete_expired_msg_secrets(249)
+                .await
+                .expect("prune below deadline"),
+            0
+        );
+        assert_eq!(
+            store
+                .delete_expired_msg_secrets(250)
+                .await
+                .expect("prune at deadline"),
+            1
+        );
+        assert!(
+            store
+                .get_stored_msg_secret("c", "s", "known")
+                .await
+                .expect("get pruned")
+                .is_none()
+        );
+        assert!(
+            store
+                .get_stored_msg_secret("c", "s", "never")
+                .await
+                .expect("get never")
+                .is_some(),
+            "expires_at = 0 means never expire"
+        );
+    }
+
+    #[tokio::test]
+    async fn msg_secret_store_is_reachable_through_backend_object() {
+        let store: Arc<dyn Backend> = Arc::new(create_test_store().await);
+        store
+            .put_msg_secret("c", "s", "M", &[7; 32])
+            .await
+            .expect("put via Backend");
+        let stored = store
+            .get_stored_msg_secret("c", "s", "M")
+            .await
+            .expect("get via Backend")
+            .expect("must exist");
+        assert_eq!(stored.secret.as_bytes(), &[7; 32]);
+        assert_eq!(
+            store
+                .delete_expired_msg_secrets(i64::MAX)
+                .await
+                .expect("prune via Backend"),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn msg_secret_invalid_persisted_bytes_are_typed_errors() {
+        let store = create_test_store().await;
+        store
+            .put_msg_secret("c", "s", "M", &[177; 32])
+            .await
+            .expect("put");
+
+        let pool = store.pool.clone();
+        let device_id = store.device_id;
+        store
+            .with_semaphore(move || {
+                let mut conn = pool
+                    .get()
+                    .map_err(|e| StoreError::Connection(e.to_string()))?;
+                diesel::update(
+                    msg_secrets::table
+                        .filter(msg_secrets::chat.eq("c"))
+                        .filter(msg_secrets::sender.eq("s"))
+                        .filter(msg_secrets::msg_id.eq("M"))
+                        .filter(msg_secrets::device_id.eq(device_id)),
+                )
+                .set(msg_secrets::secret.eq(vec![177u8; 31]))
+                .execute(&mut conn)
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+                Ok(())
+            })
+            .await
+            .expect("corrupt row");
+
+        let error = store
+            .get_stored_msg_secret("c", "s", "M")
+            .await
+            .expect_err("malformed secret must fail");
+        match &error {
+            StoreError::InvalidMessageSecret(source) => assert_eq!(source.actual, 31),
+            other => panic!("expected InvalidMessageSecret, got {other:?}"),
+        }
+        assert!(!format!("{error:#?}").contains("177"));
+        assert!(matches!(
+            store.get_msg_secret("c", "s", "M").await,
+            Err(StoreError::InvalidMessageSecret(_))
+        ));
     }
 }

@@ -2438,13 +2438,16 @@ mod async_engine_tests {
     use crate::store::error::Result as StoreResult;
     use crate::store::traits::{
         AppStateSyncKey, AppSyncStore, DeviceListRecord, DeviceStore, LidPnMappingEntry,
-        ProtocolStore, SignalStore,
+        MessageSecret, MsgSecretEntry, MsgSecretStore, ProtocolStore, SignalStore,
+        StoredMessageSecret, merge_msg_secret_expiry, merge_msg_secret_message_ts,
     };
     use std::future::Future;
     use std::pin::Pin;
     use std::time::Duration;
 
     type MockMacMap = Arc<Mutex<HashMap<(String, Vec<u8>), Vec<u8>>>>;
+    /// `(chat, sender, msg_id)` -> `(secret, expires_at, message_ts)`.
+    type MockMsgSecretMap = Arc<Mutex<HashMap<(String, String, String), ([u8; 32], i64, i64)>>>;
 
     #[derive(Default, Clone)]
     struct MockBackend {
@@ -2452,6 +2455,7 @@ mod async_engine_tests {
         macs: MockMacMap,
         keys: Arc<Mutex<HashMap<Vec<u8>, AppStateSyncKey>>>,
         latest: Arc<Mutex<Option<Vec<u8>>>>,
+        msg_secrets: MockMsgSecretMap,
     }
 
     impl MockBackend {
@@ -2658,6 +2662,55 @@ mod async_engine_tests {
         }
         async fn delete_expired_tc_tokens(&self, _: i64) -> StoreResult<u32> {
             Ok(0)
+        }
+    }
+
+    #[async_trait]
+    impl MsgSecretStore for MockBackend {
+        async fn put_msg_secrets(&self, entries: Vec<MsgSecretEntry>) -> StoreResult<usize> {
+            let stored = entries.len();
+            let mut secrets = self.msg_secrets.lock().await;
+            for entry in entries {
+                let key = (
+                    entry.chat.to_string(),
+                    entry.sender.to_string(),
+                    entry.msg_id.to_string(),
+                );
+                match secrets.entry(key) {
+                    std::collections::hash_map::Entry::Occupied(mut occupied) => {
+                        let (secret, expires_at, message_ts) = occupied.get_mut();
+                        *secret = entry.secret;
+                        *expires_at = merge_msg_secret_expiry(*expires_at, entry.expires_at);
+                        *message_ts = merge_msg_secret_message_ts(*message_ts, entry.message_ts);
+                    }
+                    std::collections::hash_map::Entry::Vacant(vacant) => {
+                        vacant.insert((entry.secret, entry.expires_at, entry.message_ts));
+                    }
+                }
+            }
+            Ok(stored)
+        }
+
+        async fn get_stored_msg_secret(
+            &self,
+            chat: &str,
+            sender: &str,
+            msg_id: &str,
+        ) -> StoreResult<Option<StoredMessageSecret>> {
+            let secrets = self.msg_secrets.lock().await;
+            Ok(secrets
+                .get(&(chat.to_string(), sender.to_string(), msg_id.to_string()))
+                .map(|(secret, _, message_ts)| {
+                    StoredMessageSecret::new(MessageSecret::from_bytes(*secret), Some(*message_ts))
+                }))
+        }
+
+        async fn delete_expired_msg_secrets(&self, cutoff_timestamp: i64) -> StoreResult<u32> {
+            let mut secrets = self.msg_secrets.lock().await;
+            let before = secrets.len();
+            secrets
+                .retain(|_, (_, expires_at, _)| *expires_at == 0 || *expires_at > cutoff_timestamp);
+            Ok((before - secrets.len()) as u32)
         }
     }
 

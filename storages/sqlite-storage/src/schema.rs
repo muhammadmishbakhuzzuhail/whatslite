@@ -91,6 +91,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    msg_secrets (chat, sender, msg_id, device_id) {
+        chat -> Text,
+        sender -> Text,
+        msg_id -> Text,
+        device_id -> Integer,
+        secret -> Binary,
+        expires_at -> BigInt,
+        message_ts -> BigInt,
+    }
+}
+
+diesel::table! {
     prekeys (id, device_id) {
         id -> Integer,
         key -> Binary,
@@ -161,6 +173,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     device_registry,
     identities,
     lid_pn_mapping,
+    msg_secrets,
     prekeys,
     sender_key_status,
     sender_keys,

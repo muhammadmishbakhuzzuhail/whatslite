@@ -1,10 +1,11 @@
 //! Storage traits for the WhatsApp client.
 //!
-//! This module defines 4 domain-grouped traits that together form the `Backend` trait:
+//! This module defines 5 domain-grouped traits that together form the `Backend` trait:
 //!
 //! - [`SignalStore`]: Signal protocol cryptographic operations (identity, sessions, keys)
 //! - [`AppSyncStore`]: WhatsApp app state synchronization
 //! - [`ProtocolStore`]: WhatsApp Web protocol alignment (SKDM, LID mapping, device registry)
+//! - [`MsgSecretStore`]: Per-outbound-message secret persistence for addon decryption
 //! - [`DeviceStore`]: Device persistence operations
 
 use crate::appstate::hash::HashState;
@@ -573,8 +574,13 @@ pub fn merge_msg_secret_message_ts(existing: i64, incoming: i64) -> i64 {
 
 /// Combined storage backend trait.
 ///
-/// Any type implementing all four domain traits automatically implements `Backend`.
-pub trait Backend: SignalStore + AppSyncStore + ProtocolStore + DeviceStore + Send + Sync {}
+/// Any type implementing all five domain traits automatically implements `Backend`.
+pub trait Backend:
+    SignalStore + AppSyncStore + ProtocolStore + MsgSecretStore + DeviceStore + Send + Sync
+{
+}
 
-impl<T> Backend for T where T: SignalStore + AppSyncStore + ProtocolStore + DeviceStore + Send + Sync
-{}
+impl<T> Backend for T where
+    T: SignalStore + AppSyncStore + ProtocolStore + MsgSecretStore + DeviceStore + Send + Sync
+{
+}

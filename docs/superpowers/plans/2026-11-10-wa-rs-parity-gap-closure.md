@@ -609,6 +609,7 @@ Completed sub-tasks (reviewed, committed):
 | G10j MEX notification handler | `6b65712` | Approved; 8 tests |
 | G10k newsletter notification handler | `3dc27b0` | Approved; 8 tests |
 | G3a core message processing | `5e0cc4c` | Approved; 31 tests |
+| G3b message secret storage | `4039bb1` | Approved; 2 conformance + 7 inline |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -620,6 +621,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 | G10 server_sync handler | needs batched sync engine/client `SyncScope`/`report_background_sync`; belongs with G6 |
+| G3b2 Backend MsgSecretStore | needs SQLite schema/impl; required before G4 msg-secret path |
 
 Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10 server_sync handler (blocked on G6 sync engine), G11–G16. This is a multi-session effort; the plan is still authoritative.
 

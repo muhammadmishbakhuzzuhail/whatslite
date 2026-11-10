@@ -103,6 +103,7 @@ pub mod flush_scope;
 pub mod history_sync;
 pub mod inbound_queue;
 pub mod msg_secret_buffer;
+pub(crate) mod pending_device_sync;
 pub mod runtime_impl;
 #[cfg(feature = "tokio-runtime")]
 pub use runtime_impl::TokioRuntime;

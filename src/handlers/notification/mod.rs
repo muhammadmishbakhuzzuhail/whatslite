@@ -3,6 +3,7 @@ use crate::client::Client;
 
 mod companion_reg;
 mod privacy_business;
+pub mod profile;
 use crate::lid_pn_cache::LearningSource;
 use crate::types::events::Event;
 use async_trait::async_trait;
@@ -103,6 +104,18 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             // Handle incoming trusted contact privacy token notifications.
             // Matches WhatsApp Web's WAWebHandlePrivacyTokenNotification.
             privacy_business::handle_privacy_token_notification(client, node).await;
+        }
+        "picture" => {
+            // Matches WhatsApp Web's WAWebHandleProfilePicNotification.
+            profile::handle_picture_notification(client, node);
+        }
+        "status" => {
+            // Matches WhatsApp Web's WAWebHandleAboutNotification.
+            profile::handle_status_notification(client, node);
+        }
+        "contacts" => {
+            // Matches WhatsApp Web's WAWebHandleContactNotification.
+            profile::handle_contacts_notification(client, node).await;
         }
         _ => {
             warn!("TODO: Implement handler for <notification type='{notification_type}'>");
@@ -320,9 +333,73 @@ async fn handle_account_sync_devices(client: &Arc<Client>, node: &Node, devices_
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::create_test_client;
     use wacore::stanza::devices::DeviceNotificationType;
-    use wacore::types::events::DeviceListUpdateType;
+    use wacore::types::events::{ChannelEventHandler, DeviceListUpdateType};
     use wacore_binary::builder::NodeBuilder;
+
+    #[tokio::test]
+    async fn routes_picture_notifications_to_the_profile_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "picture")
+            .attr("from", "1234567890@s.whatsapp.net")
+            .attr("t", "1700000000")
+            .children([NodeBuilder::new("delete").build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("picture event");
+        assert!(matches!(&*event, Event::PictureUpdate(_)));
+    }
+
+    #[tokio::test]
+    async fn routes_status_notifications_to_the_profile_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "status")
+            .attr("from", "1234567890@s.whatsapp.net")
+            .children([NodeBuilder::new("set").string_content("Hello").build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("about event");
+        assert!(matches!(&*event, Event::UserAboutUpdate(_)));
+    }
+
+    #[tokio::test]
+    async fn routes_contacts_notifications_to_the_profile_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "contacts")
+            .attr("from", "s.whatsapp.net")
+            .children([NodeBuilder::new("update")
+                .attr("jid", "1234567890@s.whatsapp.net")
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("contacts event");
+        assert!(matches!(&*event, Event::ContactUpdated(_)));
+    }
 
     #[test]
     fn test_parse_device_add_notification() {

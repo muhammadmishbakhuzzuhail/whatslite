@@ -42,54 +42,67 @@
 //! </iq>
 //! ```
 
+use crate::WireEnum;
 use crate::iq::spec::IqSpec;
 use crate::request::InfoQuery;
 use anyhow::anyhow;
 use log::warn;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::{Jid, SERVER_JID};
 use wacore_binary::node::{Node, NodeContent};
 
+mod query;
+
+pub use query::*;
+
 /// Usync mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, WireEnum)]
 pub enum UsyncMode {
     /// Query mode - used for contact lookups.
-    #[default]
+    #[wire_default]
+    #[wire = "query"]
     Query,
     /// Full mode - used for user info with more details.
+    #[wire = "full"]
     Full,
-}
-
-impl UsyncMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Query => "query",
-            Self::Full => "full",
-        }
-    }
+    /// Delta mode - used for incremental contact synchronization.
+    #[wire = "delta"]
+    Delta,
 }
 
 /// Usync context.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, WireEnum)]
 pub enum UsyncContext {
     /// Interactive context - for user-initiated operations.
-    #[default]
+    #[wire_default]
+    #[wire = "interactive"]
     Interactive,
     /// Background context - for background sync operations.
+    #[wire = "background"]
     Background,
     /// Message context - for message-related operations.
+    #[wire = "message"]
     Message,
+    /// VoIP context - used by call setup when refreshing device lists.
+    #[wire = "voip"]
+    Voip,
 }
 
-impl UsyncContext {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Interactive => "interactive",
-            Self::Background => "background",
-            Self::Message => "message",
-        }
-    }
+/// Per-subprotocol error reported by the server for one user.
+///
+/// The typed USync response surfaces these instead of dropping a user whose
+/// subprotocol failed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct UsyncSubprotocolError {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backoff: Option<u32>,
 }
 
 /// Build user nodes with phone number contact children.

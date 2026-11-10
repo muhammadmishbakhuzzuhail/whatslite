@@ -4,7 +4,7 @@
 
 use crate::iq::node::{optional_attr, optional_child};
 use anyhow::{Result, anyhow};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wacore_binary::jid::Jid;
 use wacore_binary::node::{Node, NodeContent};
 
@@ -41,7 +41,7 @@ impl std::fmt::Display for BusinessNotificationType {
 }
 
 /// Verified name certificate information.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifiedName {
     pub name: Option<String>,
     pub serial: Option<String>,

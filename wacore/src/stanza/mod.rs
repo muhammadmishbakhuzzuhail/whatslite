@@ -6,6 +6,7 @@ pub mod business;
 pub mod devices;
 pub mod groups;
 pub mod message;
+pub mod wire_tags;
 
 pub use business::*;
 pub use devices::*;

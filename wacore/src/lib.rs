@@ -34,6 +34,7 @@ pub mod bot_message;
 pub mod comment;
 pub mod media_retry;
 pub mod message_edit;
+pub mod message_processing;
 pub mod messages;
 #[cfg(feature = "mobile")]
 pub mod mobile;

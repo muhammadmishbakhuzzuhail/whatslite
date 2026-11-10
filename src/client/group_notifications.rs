@@ -7,18 +7,10 @@ use wacore::stanza::groups::GroupNotification;
 use wacore::stanza::groups::normalized::{GroupParseContext, GroupParseError};
 use wacore_binary::{Jid, JidExt, NodeRef};
 
-#[allow(
-    dead_code,
-    reason = "used by the contextual parse wrapper wired into the w:gp2 handler with G10 groups"
-)]
 fn is_me_account(jid: &Jid, pn: Option<&Jid>, lid: Option<&Jid>) -> bool {
     pn.is_some_and(|me| jid.is_same_chat_as(me)) || lid.is_some_and(|me| jid.is_same_chat_as(me))
 }
 
-#[allow(
-    dead_code,
-    reason = "used by the contextual parse wrapper wired into the w:gp2 handler with G10 groups"
-)]
 fn parse_with_provider(
     node: &NodeRef<'_>,
     pn: Option<&Jid>,
@@ -55,7 +47,6 @@ impl Client {
 
     /// Keep the existing adapter when the host has not supplied effective facts.
     /// Both branches parse before cache, storage and ACK effects.
-    #[allow(dead_code, reason = "wired into the w:gp2 handler with G10 groups")]
     pub(crate) async fn parse_group_notification(
         &self,
         node: &NodeRef<'_>,

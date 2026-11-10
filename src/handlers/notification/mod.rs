@@ -3,6 +3,7 @@ use crate::client::Client;
 
 mod companion_reg;
 mod device;
+mod groups;
 mod privacy_business;
 pub mod profile;
 use crate::types::events::Event;
@@ -95,6 +96,11 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
             // Handle incoming trusted contact privacy token notifications.
             // Matches WhatsApp Web's WAWebHandlePrivacyTokenNotification.
             privacy_business::handle_privacy_token_notification(client, node).await;
+        }
+        "w:gp2" => {
+            // Group metadata / participant / settings updates. Emits one typed
+            // GroupUpdate per action plus the legacy raw Notification.
+            groups::handle_group_notification(client, node).await;
         }
         "picture" => {
             // Matches WhatsApp Web's WAWebHandleProfilePicNotification.
@@ -324,6 +330,30 @@ mod tests {
 
         let event = events.try_recv().expect("contacts event");
         assert!(matches!(&*event, Event::ContactUpdated(_)));
+    }
+
+    #[tokio::test]
+    async fn routes_group_notifications_to_the_group_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(8);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "w:gp2")
+            .attr("from", "120363000000000001@g.us")
+            .attr("id", "notif-1")
+            .attr("t", "1700000000")
+            .children([NodeBuilder::new("subject")
+                .attr("subject", "renamed")
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("group update event");
+        assert!(matches!(&*event, Event::GroupUpdate(_)));
     }
 
     #[test]

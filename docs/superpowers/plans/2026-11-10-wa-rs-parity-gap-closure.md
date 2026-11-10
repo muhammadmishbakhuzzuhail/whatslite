@@ -601,6 +601,7 @@ Completed sub-tasks (reviewed, committed):
 | G8lm mex operation registries | `def2a97` | Approved; byte-identical |
 | G8n-1 ab prop watch coverage | `9aca279` | Approved; 2 tests |
 | G8n-2 newsletter poll vote alias | `13c5b4b` | Approved; 1 test |
+| G10g1 normalized group parser core | `383d351` | Approved; 82 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -612,7 +613,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10g2 conformance + groups handler, G11–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

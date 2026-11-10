@@ -192,6 +192,9 @@ pub struct Client {
     /// Connection generation counter - incremented on each new connection.
     /// Used to detect stale post-login tasks from previous connections.
     pub(crate) connection_generation: Arc<AtomicU64>,
+    /// In-memory A/B experiment props, refreshed on every connect. Kept out of
+    /// persistent storage; consumers call [`Client::ab_prop_enabled`].
+    pub(crate) ab_props: Arc<wacore::store::ab_props::AbPropsCache>,
     /// Incremented on every successful `connect()`, so exactly one keepalive
     /// loop survives rapid reconnect cycles (see `keepalive_loop`).
     pub(crate) connect_epoch: Arc<AtomicU64>,
@@ -366,6 +369,7 @@ impl Client {
 
             expected_disconnect: Arc::new(AtomicBool::new(false)),
             connection_generation: Arc::new(AtomicU64::new(0)),
+            ab_props: Arc::new(wacore::store::ab_props::AbPropsCache::new()),
             connect_epoch: Arc::new(AtomicU64::new(0)),
             ik_handshake_failures: Arc::new(AtomicU32::new(0)),
             data_watchdog: crate::keepalive::DataWatchdog::default(),
@@ -1105,6 +1109,11 @@ impl Client {
         // Increment connection generation to invalidate any stale post-login tasks
         // from previous connections (e.g., during 515 reconnect cycles).
         let current_generation = self.connection_generation.fetch_add(1, Ordering::SeqCst) + 1;
+
+        // Retire the previous connection's props before anything can read them.
+        // Cached values are retained, but generation-local readiness is reset so
+        // privacy-sensitive callers wait for the fresh response.
+        self.ab_props.begin_generation(current_generation).await;
 
         info!(
             "Successfully authenticated with WhatsApp servers! (gen={})",

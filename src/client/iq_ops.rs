@@ -2,10 +2,11 @@
 //! requests.
 //!
 //! Methods whose `wacore` IQ modules are not ported yet stay out of this file
-//! (see the task report): business profiles (`wacore::iq::business`) and the
-//! A/B prop cache (`wacore::store::ab_props`).
+//! (see the task report): business profiles (`wacore::iq::business`).
 
 use log::{debug, warn};
+use std::sync::atomic::Ordering;
+use wacore_binary::CompactString;
 use wacore_binary::jid::Jid;
 
 use super::Client;
@@ -20,6 +21,7 @@ impl Client {
     pub async fn fetch_props(&self) -> Result<(), crate::request::IqError> {
         use wacore::iq::props::PropsSpec;
 
+        let generation = self.connection_generation.load(Ordering::Acquire);
         let stored_hash = self
             .persistence_manager
             .get_device_snapshot()
@@ -39,27 +41,69 @@ impl Client {
         };
 
         let response = self.execute(spec).await?;
+        let delta_update = response.delta_update;
+        let hash = response.hash;
 
-        if response.delta_update {
+        if delta_update {
             debug!(
                 "Props delta update received ({} changed props)",
                 response.props.len()
             );
         } else {
             debug!(
-                "Props full update received ({} props, hash={:?})",
-                response.props.len(),
-                response.hash
+                "Props full update received ({} props, hash={hash:?})",
+                response.props.len()
             );
         }
 
-        if let Some(new_hash) = response.hash {
+        if !self
+            .apply_props_response(generation, delta_update, response.props)
+            .await
+        {
+            debug!("Discarding stale props response from connection generation {generation}");
+            return Ok(());
+        }
+
+        if let Some(new_hash) = hash {
             self.persistence_manager
                 .process_command(DeviceCommand::SetPropsHash(Some(new_hash)))
                 .await;
         }
 
         Ok(())
+    }
+
+    /// Applies a props response to the cache, keeping only experiment configs
+    /// and dropping everything from a retired connection generation. Returns
+    /// `false` when the response was stale.
+    async fn apply_props_response(
+        &self,
+        generation: u64,
+        delta_update: bool,
+        props: Vec<wacore::iq::props::AbPropConfig>,
+    ) -> bool {
+        use wacore::iq::props::AbPropConfig;
+
+        let experiments = props.into_iter().filter_map(|config| match config {
+            AbPropConfig::Experiment(prop) => {
+                Some((prop.config_code, CompactString::from(prop.config_value)))
+            }
+            AbPropConfig::Sampling(_) => None,
+        });
+
+        self.ab_props
+            .apply_props_for_generation(generation, delta_update, experiments)
+            .await
+            .is_some()
+    }
+
+    /// The server's value for a boolean A/B prop, or `None` when the client
+    /// holds none: the prop is not watched (see `WATCHED` in
+    /// `wacore::iq::props`), props have not been fetched yet, or the server did
+    /// not send it. WA Web falls back to the registry default in that case,
+    /// which is `prop.default`.
+    pub async fn ab_prop_enabled(&self, prop: wacore::iq::abprops::AbProp) -> Option<bool> {
+        self.ab_props.get_bool(prop).await
     }
 
     pub async fn fetch_privacy_settings(
@@ -214,7 +258,90 @@ fn build_ephemeral_setting_message(duration: u32, now_secs: i64) -> waproto::wha
 #[cfg(test)]
 mod tests {
     use super::build_ephemeral_setting_message;
+    use wacore::iq::abprops::web;
+    use wacore::iq::props::{AbProp as WireAbProp, AbPropConfig, SamplingProp};
     use waproto::whatsapp as wa;
+
+    use crate::test_utils::create_test_client;
+
+    fn experiment(code: u32, value: &str) -> AbPropConfig {
+        AbPropConfig::Experiment(WireAbProp {
+            config_code: code,
+            config_value: value.to_string(),
+            config_expo_key: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn ab_prop_enabled_reflects_applied_props() {
+        let client = create_test_client().await;
+
+        assert_eq!(
+            client.ab_prop_enabled(web::WA_NCT_TOKEN_SEND_ENABLED).await,
+            None,
+            "an unfetched prop is unknown, not a registry default"
+        );
+
+        let accepted = client
+            .apply_props_response(
+                0,
+                false,
+                vec![experiment(web::WA_NCT_TOKEN_SEND_ENABLED.code, "1")],
+            )
+            .await;
+
+        assert!(accepted);
+        assert_eq!(
+            client.ab_prop_enabled(web::WA_NCT_TOKEN_SEND_ENABLED).await,
+            Some(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn apply_props_response_ignores_sampling_entries() {
+        let client = create_test_client().await;
+
+        let accepted = client
+            .apply_props_response(
+                0,
+                false,
+                vec![AbPropConfig::Sampling(SamplingProp {
+                    event_code: web::WA_NCT_TOKEN_SEND_ENABLED.code,
+                    sampling_weight: 1,
+                })],
+            )
+            .await;
+
+        assert!(accepted);
+        assert_eq!(
+            client.ab_prop_enabled(web::WA_NCT_TOKEN_SEND_ENABLED).await,
+            None,
+            "sampling entries carry event codes, not experiment config codes"
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_props_response_is_discarded() {
+        let client = create_test_client().await;
+        client.ab_props.begin_generation(1).await;
+
+        let accepted = client
+            .apply_props_response(
+                0,
+                false,
+                vec![experiment(web::WA_NCT_TOKEN_SEND_ENABLED.code, "1")],
+            )
+            .await;
+
+        assert!(
+            !accepted,
+            "a retired generation must not populate the cache"
+        );
+        assert_eq!(
+            client.ab_prop_enabled(web::WA_NCT_TOKEN_SEND_ENABLED).await,
+            None
+        );
+    }
 
     #[test]
     fn ephemeral_setting_message_shape() {

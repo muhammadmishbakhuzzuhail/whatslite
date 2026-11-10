@@ -50,8 +50,8 @@ use scopeguard;
 use std::collections::{HashMap, HashSet};
 use wacore_binary::jid::Jid;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Weak};
 
 use thiserror::Error;
 use tokio::sync::{Mutex, Notify, OnceCell, RwLock, mpsc};
@@ -134,6 +134,20 @@ pub struct Client {
     /// Pending IQ waiters, resolved with the response node or failed fast on
     /// connection cleanup (`Err(IqError::NotConnected)`).
     pub(crate) response_waiters: Arc<Mutex<ResponseWaiterMap>>,
+
+    /// Weak self-reference so features that hand out `'static` shared futures
+    /// (media reupload) can upgrade without the caller owning an `Arc`.
+    pub(crate) self_weak: std::sync::OnceLock<Weak<Client>>,
+
+    /// Correlated-stanza waiters (receipt ACKs, notifications). Resolved before
+    /// any handler sees the node, so a waiter cannot miss a fast stanza.
+    pub(crate) node_waiters: node_io::NodeWaiterRegistry<Node>,
+
+    /// In-flight media reuploads keyed by message ID. Held behind a `std` mutex:
+    /// the critical section is a map operation and never spans an await.
+    pub(crate) media_reuploads:
+        Arc<std::sync::Mutex<crate::features::media_reupload::MediaReuploadMap>>,
+
     pub(crate) unique_id: String,
     pub(crate) id_counter: Arc<AtomicU64>,
 
@@ -317,6 +331,9 @@ impl Client {
             noise_socket: Arc::new(Mutex::new(None)),
 
             response_waiters: Arc::new(Mutex::new(HashMap::new())),
+            self_weak: std::sync::OnceLock::new(),
+            node_waiters: node_io::NodeWaiterRegistry::new(),
+            media_reuploads: Arc::new(std::sync::Mutex::new(HashMap::new())),
             unique_id: format!("{}.{}", unique_id_bytes[0], unique_id_bytes[1]),
             id_counter: Arc::new(AtomicU64::new(0)),
             unified_session: crate::unified_session::UnifiedSessionManager::new(),
@@ -421,6 +438,9 @@ impl Client {
         };
 
         let arc = Arc::new(this);
+        // Features that build `'static` shared futures upgrade this instead of
+        // requiring an `Arc<Client>` at the call site.
+        let _ = arc.self_weak.set(Arc::downgrade(&arc));
 
         // Warm up the LID-PN cache from persistent storage
         let warm_up_arc = arc.clone();
@@ -840,6 +860,14 @@ impl Client {
     /// Process a node wrapped in Arc. Handlers receive the Arc and can share/store it cheaply.
     pub(crate) async fn process_node(self: &Arc<Self>, node: Arc<Node>) {
         use wacore::xml::DisplayableNode;
+
+        // Correlated waiters see every stanza before a handler can consume or
+        // acknowledge it; dropping this registration would let a fast ACK race
+        // the receipt that requested it.
+        if self.node_waiters.active() > 0 {
+            let node_ref = node.as_node_ref();
+            self.node_waiters.resolve(&node, &node_ref);
+        }
 
         // --- Offline Sync Tracking ---
         if node.tag.as_str() == "ib" {

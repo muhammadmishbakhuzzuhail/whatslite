@@ -7,6 +7,8 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use super::Client;
+use super::node_io::{NodeFilter, NodeWaiter};
+use wacore_binary::Node;
 
 impl Client {
     /// Whether a finished connection will be retried by [`Self::run`].
@@ -59,5 +61,14 @@ impl Client {
     /// Returns `true` if history sync notifications are currently being skipped.
     pub fn skip_history_sync_enabled(&self) -> bool {
         self.skip_history_sync.load(Ordering::Relaxed)
+    }
+
+    /// Register a waiter for an incoming node matching the given filter.
+    ///
+    /// Register it **before** the action that triggers the expected stanza:
+    /// the notification dispatcher only resolves waiters that already exist.
+    /// Every matching waiter receives the same `Arc<Node>` in one resolve pass.
+    pub fn wait_for_node(&self, filter: NodeFilter) -> NodeWaiter<Node> {
+        self.node_waiters.wait(filter)
     }
 }

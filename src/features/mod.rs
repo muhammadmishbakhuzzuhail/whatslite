@@ -25,6 +25,11 @@ pub use mex::{Mex, MexError, MexErrorExtensions, MexGraphQLError, MexRequest, Me
 pub use presence::{Presence, PresenceStatus};
 
 pub use tctoken::TcToken;
+
+pub use media_reupload::{
+    MediaReupload, MediaReuploadError, MediaReuploadPhase, MediaReuploadRequest,
+};
+
 pub mod app_state_resync;
 pub mod app_state_settings;
 pub mod bots;
@@ -38,6 +43,7 @@ pub mod events;
 pub mod favorites;
 pub mod group_history;
 pub mod labels;
+pub mod media_reupload;
 pub mod newsletter;
 pub mod pictures;
 pub mod polls;

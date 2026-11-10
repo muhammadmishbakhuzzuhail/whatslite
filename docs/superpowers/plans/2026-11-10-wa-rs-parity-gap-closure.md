@@ -598,6 +598,7 @@ Completed sub-tasks (reviewed, committed):
 | G8i ab props cache | `a1ac57d` | Approved; 11+12 tests |
 | G8j client ab props wiring | `8035be7` | Approved; 5 tests |
 | G8k usync typed query codec | `8994406` | Approved; 32 tests |
+| G8lm mex operation registries | `def2a97` | Approved; byte-identical |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -609,7 +610,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G8l+ (MEX), G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G8m+ social tests/features, G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

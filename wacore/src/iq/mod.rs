@@ -13,6 +13,8 @@ pub mod join_shapes;
 pub mod keepalive;
 pub mod mediaconn;
 pub mod mex;
+pub mod mex_operations;
+pub mod mex_operations_unlisted;
 pub mod newsletter;
 pub mod node;
 pub mod passive;

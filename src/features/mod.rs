@@ -20,7 +20,9 @@ pub use groups::{
     MembershipApprovalMode, ParticipantChangeResponse,
 };
 
-pub use mex::{Mex, MexError, MexErrorExtensions, MexGraphQLError, MexRequest, MexResponse};
+pub use mex::{
+    Mex, MexError, MexErrorExtensions, MexGraphQLError, MexRequest, MexResponse, ReachoutTimelock,
+};
 
 pub use presence::{Presence, PresenceStatus};
 

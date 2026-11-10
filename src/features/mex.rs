@@ -10,6 +10,7 @@ use wacore::iq::mex::MexQuerySpec;
 
 // Re-export types from wacore
 pub use wacore::iq::mex::{MexErrorExtensions, MexGraphQLError, MexResponse};
+pub use wacore::iq::mex_operations::fetch_reachout_timelock::Xwa2FetchAccountReachoutTimelock as ReachoutTimelock;
 
 /// Error types for MEX operations.
 #[derive(Debug, Error)]

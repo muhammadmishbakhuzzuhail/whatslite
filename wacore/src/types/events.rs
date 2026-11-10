@@ -1468,14 +1468,11 @@ pub struct MexNotification {
     pub payload: serde_json::Value,
 }
 
-/// The same concrete state returned by the typed account reachout query.
-/// Optional fields and unknown enforcement strings are preserved without
-/// normalizing the server's deadline or inventing defaults.
-#[derive(Debug, Clone, serde::Serialize, Default)]
-#[non_exhaustive]
-pub struct ReachoutTimelock {
-    pub is_active: Option<bool>,
-}
+/// The same concrete state returned by the typed account reachout pull query
+/// (`WAWebGetReachoutTimelockJob`), so the notification path and the pull path
+/// share one deserializer. Optional fields and unknown enforcement strings are
+/// preserved without normalizing the server's deadline or inventing defaults.
+pub use crate::iq::mex_operations::fetch_reachout_timelock::Xwa2FetchAccountReachoutTimelock as ReachoutTimelock;
 
 /// Payload for [`Event::ReachoutTimelockUpdate`].
 ///

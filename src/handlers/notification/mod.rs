@@ -4,6 +4,7 @@ use crate::client::Client;
 mod companion_reg;
 mod device;
 mod groups;
+mod mex;
 mod privacy_business;
 pub mod profile;
 use crate::types::events::Event;
@@ -138,6 +139,12 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
         "contacts" => {
             // Matches WhatsApp Web's WAWebHandleContactNotification.
             profile::handle_contacts_notification(client, node).await;
+        }
+        "mex" => {
+            // MEX notifications are routed by `op_name`, not by GraphQL doc ID,
+            // matching WA Web's WAWebHandleMexNotification. The typed
+            // `MexNotification` replaces the raw fallback for this stanza type.
+            mex::handle_mex_notification(client, node);
         }
         _ => {
             warn!("TODO: Implement handler for <notification type='{notification_type}'>");
@@ -460,6 +467,35 @@ mod tests {
             .await;
 
         assert!(events.try_recv().is_err(), "action arm dispatches nothing");
+    }
+
+    #[tokio::test]
+    async fn routes_mex_notifications_to_the_mex_handler() {
+        let client = create_test_client().await;
+        let (handler, events) = ChannelEventHandler::with_capacity(4);
+        let _subscription = client.subscribe_handler(handler);
+
+        let node = NodeBuilder::new("notification")
+            .attr("type", "mex")
+            .attr("from", "s.whatsapp.net")
+            .attr("id", "mex-notif-1")
+            .children([NodeBuilder::new("update")
+                .attr("op_name", "SomeFutureOp")
+                .string_content(r#"{"data":{"xwa2_something":true}}"#)
+                .build()])
+            .build();
+        let mut cancelled = false;
+        NotificationHandler
+            .handle(client.clone(), Arc::new(node), &mut cancelled)
+            .await;
+
+        let event = events.try_recv().expect("raw mex event");
+        let Event::MexNotification(raw) = &*event else {
+            panic!("unexpected event: {event:?}");
+        };
+        assert_eq!(raw.op_name, "SomeFutureOp");
+        // The mex arm must not fall through to the raw stanza fallback.
+        assert!(events.try_recv().is_err(), "exactly one event");
     }
 
     #[test]

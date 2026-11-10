@@ -594,6 +594,8 @@ Completed sub-tasks (reviewed, committed):
 | G10c stanza wire tags | `5c0fb4e` | Approved; 4 tests |
 | G10d profile notifications + macro | `c9eeb90` | Approved; 24 tests |
 | G10e device notifications | `3fad85d`, `6ff845a` | Approved after 1 fix; 18 tests |
+| G8h abprops registry | `ad9abdc` | Approved; byte-identical generated file |
+| G8i ab props cache | `a1ac57d` | Approved; 11+12 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
@@ -605,7 +607,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G8j+ (MEX/USync/Client wiring), G10 groups-only, G11–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

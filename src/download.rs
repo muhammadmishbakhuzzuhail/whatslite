@@ -10,7 +10,7 @@ pub use wacore::download::{
 mod budget;
 pub use budget::{DownloadLimits, DownloadPolicyError, MediaByteDomain};
 
-mod memory;
+pub(crate) mod memory;
 
 impl From<&MediaConn> for wacore::download::MediaConnection {
     fn from(conn: &MediaConn) -> Self {

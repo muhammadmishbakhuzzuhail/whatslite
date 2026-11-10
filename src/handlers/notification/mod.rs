@@ -2,17 +2,15 @@ use super::traits::StanzaHandler;
 use crate::client::Client;
 
 mod companion_reg;
+mod privacy_business;
 use crate::lid_pn_cache::LearningSource;
 use crate::types::events::Event;
 use async_trait::async_trait;
 use log::{debug, info, warn};
 use std::sync::Arc;
-use wacore::stanza::business::BusinessNotification;
 use wacore::stanza::devices::DeviceNotification;
 use wacore::store::traits::{DeviceInfo, DeviceListRecord};
-use wacore::types::events::{
-    BusinessStatusUpdate, BusinessUpdateType, DeviceListUpdate, DeviceNotificationInfo,
-};
+use wacore::types::events::{DeviceListUpdate, DeviceNotificationInfo};
 use wacore_binary::jid::{Jid, JidExt};
 use wacore_binary::{jid::SERVER_JID, node::Node};
 
@@ -99,12 +97,12 @@ async fn handle_notification_impl(client: &Arc<Client>, node: &Node) {
         "business" => {
             // Handle business notification (WhatsApp Web: handleBusinessNotification)
             // Notifies about business account status changes: verified name, profile, removal
-            handle_business_notification(client, node).await;
+            privacy_business::handle_business_notification(client, node).await;
         }
         "privacy_token" => {
             // Handle incoming trusted contact privacy token notifications.
             // Matches WhatsApp Web's WAWebHandlePrivacyTokenNotification.
-            handle_privacy_token_notification(client, node).await;
+            privacy_business::handle_privacy_token_notification(client, node).await;
         }
         _ => {
             warn!("TODO: Implement handler for <notification type='{notification_type}'>");
@@ -317,204 +315,6 @@ async fn handle_account_sync_devices(client: &Arc<Client>, node: &Node, devices_
             device.key_index
         );
     }
-}
-
-/// Handle incoming privacy_token notification.
-///
-/// Stores trusted contact tokens from contacts. Matches WhatsApp Web's
-/// `WAWebHandlePrivacyTokenNotification`.
-///
-/// Structure:
-/// ```xml
-/// <notification type="privacy_token" from="user@s.whatsapp.net" sender_lid="user@lid">
-///   <tokens>
-///     <token type="trusted_contact" t="1707000000"><!-- bytes --></token>
-///   </tokens>
-/// </notification>
-/// ```
-async fn handle_privacy_token_notification(client: &Arc<Client>, node: &Node) {
-    use wacore::iq::tctoken::parse_privacy_token_notification;
-    use wacore::store::traits::TcTokenEntry;
-
-    // Resolve the sender to a LID JID for storage.
-    // WA Web uses `sender_lid` attr if present, otherwise resolves from `from`.
-    let sender_lid = node
-        .attrs()
-        .optional_jid("sender_lid")
-        .map(|j| j.user.clone());
-
-    let sender_lid = match sender_lid {
-        Some(lid) if !lid.is_empty() => lid,
-        _ => {
-            // Fall back to resolving from the `from` JID via LID-PN cache
-            let from_jid = match node.attrs().optional_jid("from") {
-                Some(jid) => jid,
-                None => {
-                    warn!(target: "Client/TcToken", "privacy_token notification missing 'from' attribute");
-                    return;
-                }
-            };
-
-            if from_jid.is_lid() {
-                from_jid.user.clone()
-            } else {
-                // Try to resolve phone number to LID
-                match client.lid_pn_cache.get_current_lid(&from_jid.user).await {
-                    Some(lid) => lid,
-                    None => {
-                        debug!(
-                            target: "Client/TcToken",
-                            "Cannot resolve LID for privacy_token sender {}, storing under PN",
-                            from_jid
-                        );
-                        from_jid.user.clone()
-                    }
-                }
-            }
-        }
-    };
-
-    // Parse the token data from the notification
-    let received_tokens = match parse_privacy_token_notification(node) {
-        Ok(tokens) => tokens,
-        Err(e) => {
-            warn!(target: "Client/TcToken", "Failed to parse privacy_token notification: {e}");
-            return;
-        }
-    };
-
-    if received_tokens.is_empty() {
-        debug!(target: "Client/TcToken", "privacy_token notification had no trusted_contact tokens");
-        return;
-    }
-
-    let backend = client.persistence_manager.backend();
-
-    for received in &received_tokens {
-        match backend.get_tc_token(&sender_lid).await {
-            Ok(Some(existing)) => {
-                // Timestamp monotonicity guard: only store if incoming >= existing
-                if received.timestamp < existing.token_timestamp {
-                    debug!(
-                        target: "Client/TcToken",
-                        "Skipping older token for {} (incoming={}, existing={})",
-                        sender_lid, received.timestamp, existing.token_timestamp
-                    );
-                    continue;
-                }
-
-                // Preserve existing sender_timestamp when updating token
-                let entry = TcTokenEntry {
-                    token: received.token.clone(),
-                    token_timestamp: received.timestamp,
-                    sender_timestamp: existing.sender_timestamp,
-                };
-
-                if let Err(e) = backend.put_tc_token(&sender_lid, &entry).await {
-                    warn!(target: "Client/TcToken", "Failed to update tc_token for {}: {e}", sender_lid);
-                } else {
-                    debug!(target: "Client/TcToken", "Updated tc_token for {} (t={})", sender_lid, received.timestamp);
-                }
-            }
-            Ok(None) => {
-                // New token — no existing entry
-                let entry = TcTokenEntry {
-                    token: received.token.clone(),
-                    token_timestamp: received.timestamp,
-                    sender_timestamp: None,
-                };
-
-                if let Err(e) = backend.put_tc_token(&sender_lid, &entry).await {
-                    warn!(target: "Client/TcToken", "Failed to store tc_token for {}: {e}", sender_lid);
-                } else {
-                    debug!(target: "Client/TcToken", "Stored new tc_token for {} (t={})", sender_lid, received.timestamp);
-                }
-            }
-            Err(e) => {
-                warn!(target: "Client/TcToken", "Failed to read tc_token for {}: {e}, skipping", sender_lid);
-            }
-        }
-    }
-}
-
-/// Handle business notification (WhatsApp Web: `WAWebHandleBusinessNotification`).
-async fn handle_business_notification(client: &Arc<Client>, node: &Node) {
-    let notification = match BusinessNotification::try_parse(node) {
-        Ok(n) => n,
-        Err(e) => {
-            warn!(target: "Client/Business", "Failed to parse business notification: {e}");
-            return;
-        }
-    };
-
-    debug!(
-        target: "Client/Business",
-        "Business notification: from={}, type={}, jid={:?}",
-        notification.from,
-        notification.notification_type,
-        notification.jid
-    );
-
-    let update_type = BusinessUpdateType::from(notification.notification_type.clone());
-    let verified_name = notification
-        .verified_name
-        .as_ref()
-        .and_then(|vn| vn.name.clone());
-
-    let event = Event::BusinessStatusUpdate(Box::new(
-        BusinessStatusUpdate::builder()
-            .jid(notification.from.clone())
-            .update_type(update_type)
-            .timestamp(
-                chrono::DateTime::<chrono::Utc>::from_timestamp(notification.timestamp, 0)
-                    .unwrap_or_default(),
-            )
-            .maybe_target_jid(notification.jid.clone())
-            .maybe_hash(notification.hash.clone())
-            .maybe_verified_name(verified_name)
-            .product_ids(notification.product_ids.clone())
-            .collection_ids(notification.collection_ids.clone())
-            .subscriptions(notification.subscriptions.clone())
-            .build(),
-    ));
-
-    match notification.notification_type {
-        wacore::stanza::business::BusinessNotificationType::RemoveJid
-        | wacore::stanza::business::BusinessNotificationType::RemoveHash => {
-            info!(
-                target: "Client/Business",
-                "Contact {} is no longer a business account",
-                notification.from
-            );
-        }
-        wacore::stanza::business::BusinessNotificationType::VerifiedNameJid
-        | wacore::stanza::business::BusinessNotificationType::VerifiedNameHash => {
-            if let Some(name) = &notification
-                .verified_name
-                .as_ref()
-                .and_then(|vn| vn.name.as_ref())
-            {
-                info!(
-                    target: "Client/Business",
-                    "Contact {} verified business name: {}",
-                    notification.from,
-                    name
-                );
-            }
-        }
-        wacore::stanza::business::BusinessNotificationType::Profile
-        | wacore::stanza::business::BusinessNotificationType::ProfileHash => {
-            debug!(
-                target: "Client/Business",
-                "Contact {} business profile updated (hash: {:?})",
-                notification.from,
-                notification.hash
-            );
-        }
-        _ => {}
-    }
-
-    client.core.event_bus.dispatch(event);
 }
 
 #[cfg(test)]

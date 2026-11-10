@@ -8,7 +8,7 @@
 /// IQ namespace for newsletter operations (message history, reactions, live updates).
 pub const NEWSLETTER_XMLNS: &str = "newsletter";
 
-use crate::iq::node::{optional_child, required_child};
+use crate::iq::node::{IqParseError, optional_child, required_child};
 use crate::iq::spec::IqSpec;
 use crate::request::InfoQuery;
 use anyhow::{Result, anyhow};
@@ -140,7 +140,12 @@ fn required_attr(node: &Node, key: &str) -> Result<String> {
     node.attrs
         .get(key)
         .map(|value| value.to_string_value())
-        .ok_or_else(|| anyhow!("missing required attribute {key}"))
+        .ok_or_else(|| {
+            IqParseError::MissingAttribute {
+                name: key.to_owned(),
+            }
+            .into()
+        })
 }
 
 /// A required integer attribute, on top of [`required_attr`] so a missing

@@ -25,6 +25,18 @@ pub struct NewsletterAdminInfo {
     pub admins: Vec<String>,
 }
 
+/// A poll option's vote tally on a newsletter message.
+///
+/// Channel polls are counted server-side, so unlike a DM or group vote (which
+/// arrives encrypted) there is nothing to decrypt here: the server hands over
+/// the totals directly, keyed by `option_hash`, the SHA-256 of the option name.
+#[derive(Debug, Clone, PartialEq, Eq, bon::Builder)]
+#[non_exhaustive]
+pub struct NewsletterPollVote {
+    pub option_hash: [u8; 32],
+    pub count: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NewsletterRole {
     Owner,

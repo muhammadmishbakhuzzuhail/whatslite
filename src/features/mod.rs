@@ -30,6 +30,8 @@ pub use media_reupload::{
     MediaReupload, MediaReuploadError, MediaReuploadPhase, MediaReuploadRequest,
 };
 
+pub use newsletter::NewsletterPollVote;
+
 pub mod app_state_resync;
 pub mod app_state_settings;
 pub mod bots;

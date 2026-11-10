@@ -583,6 +583,7 @@ Completed sub-tasks (reviewed, committed):
 | G8f business profile IQ | `17b6afe` | Approved; 23 tests |
 | G8g contextual IQ catalog | `4f98807` | Approved; 8 tests |
 | G9a appstate known verbs | `6ecd2b8` | Approved; 4 tests |
+| G9b shared appstate sync engine | `3879359`, `7880016` | Approved after 1 fix; 43 tests |
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):
 
@@ -593,7 +594,7 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G2d-2 session_state | needs `Client` session-state field/wiring |
 | G2f app_state/client tests | ~20k lines, depends on G2/G3/G4 |
 
-Remaining workstreams: G3–G7, G9b–G16. This is a multi-session effort; the plan is still authoritative.
+Remaining workstreams: G3–G7, G10–G16. This is a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

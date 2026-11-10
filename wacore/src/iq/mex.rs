@@ -15,15 +15,30 @@
 //!   <result>{"data":{...},"errors":[...]}</result>
 //! </iq>
 //! ```
+//!
+//! Generated shapes and their construction policy live in
+//! [`crate::iq::mex_operations`]. `VARIABLE_KEYS` lists declarations, not
+//! requiredness; execution does not validate key presence.
 
 use crate::iq::spec::IqSpec;
 use crate::request::InfoQuery;
 use anyhow::anyhow;
+use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wacore_binary::builder::NodeBuilder;
 use wacore_binary::jid::{Jid, SERVER_JID};
 use wacore_binary::node::{Node, NodeContent};
+
+/// MEX persisted-query descriptor. Pairing `name` with `id` lets diagnostics
+/// surface a stable identifier when the numeric `id` rotates between WA Web
+/// bundle releases. Built from a [`crate::iq::mex_operations`] module's
+/// `NAME`/`DOC_ID` consts.
+#[derive(Debug, Clone, Copy)]
+pub struct MexDoc {
+    pub name: &'static str,
+    pub id: &'static str,
+}
 
 /// MEX GraphQL error extensions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,11 +63,31 @@ impl MexGraphQLError {
     }
 
     #[inline]
-    pub fn is_fatal(&self) -> bool {
+    pub fn is_summary(&self) -> bool {
         self.extensions
             .as_ref()
             .is_some_and(|ext| ext.is_summary == Some(true))
     }
+
+    #[inline]
+    pub fn has_error_code(&self) -> bool {
+        self.error_code().is_some()
+    }
+}
+
+/// Code reported for a fatal MEX error whose payload carried none.
+const DEFAULT_MEX_ERROR_CODE: i32 = 500;
+
+/// A GraphQL error the server marked fatal, raised as a typed error so the
+/// code survives the trip: the IQ layer wraps this in `IqError::ParseError`,
+/// which keeps the source, and a caller that cares about a particular code
+/// (a MEX 404 is how the server says "nothing here") downcasts to it.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("MEX fatal error (query={query}, code={code}): {message}")]
+pub struct MexFatalError {
+    pub query: &'static str,
+    pub code: i32,
+    pub message: String,
 }
 
 /// MEX GraphQL response.
@@ -73,46 +108,78 @@ impl MexResponse {
         self.errors.as_ref().is_some_and(|e| !e.is_empty())
     }
 
+    /// Find a fatal error, matching WhatsApp Web's `parseFatalExtensionError`:
+    /// 1. Error with `is_summary == true`
+    /// 2. OR any error with an `error_code`
+    /// 3. OR the first error (assigned code 500)
     pub fn fatal_error(&self) -> Option<&MexGraphQLError> {
-        self.errors.as_ref()?.iter().find(|e| e.is_fatal())
+        let errors = self.errors.as_ref()?;
+        if errors.is_empty() {
+            return None;
+        }
+        errors
+            .iter()
+            .find(|e| e.is_summary())
+            .or_else(|| errors.iter().find(|e| e.has_error_code()))
+            .or_else(|| errors.first())
     }
 }
 
 #[derive(Serialize)]
-struct MexPayload<'a> {
-    variables: &'a Value,
+struct MexPayload<'a, V> {
+    variables: &'a V,
 }
 
-/// MEX GraphQL query IQ specification.
+/// MEX GraphQL query IQ specification. The variables are serialized once at
+/// construction straight into the wire payload — no intermediate
+/// `serde_json::Value` tree — so a caller-side serialization error surfaces here
+/// rather than as a malformed (empty) request later in `build_iq`.
 #[derive(Debug, Clone)]
 pub struct MexQuerySpec {
-    pub doc_id: String,
-    pub variables: Value,
+    pub doc: MexDoc,
+    payload: Vec<u8>,
 }
 
 impl MexQuerySpec {
-    pub fn new(doc_id: impl Into<String>, variables: Value) -> Self {
-        Self {
-            doc_id: doc_id.into(),
-            variables,
-        }
+    pub fn new<V: Serialize>(doc: MexDoc, variables: &V) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_vec(&MexPayload { variables })?;
+        Ok(Self { doc, payload })
     }
+}
+
+/// Heuristic match on substrings Relay/Mex use when a persisted-query id is
+/// unknown to the server. Permissive on purpose: a false positive only adds
+/// an extra hint to the warn line.
+fn looks_like_stale_persisted_query(error: &MexGraphQLError) -> bool {
+    let msg = error.message.as_bytes();
+    contains_ascii_ci(msg, b"doc_id")
+        || contains_ascii_ci(msg, b"persistedquery")
+        || contains_ascii_ci(msg, b"persisted query")
+        || contains_ascii_ci(msg, b"document not found")
+        || contains_ascii_ci(msg, b"unknown query")
+}
+
+/// Case-insensitive ASCII substring search. Avoids the `String` allocation
+/// `str::to_lowercase` would do on every MEX failure.
+fn contains_ascii_ci(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    if haystack.len() < needle.len() {
+        return false;
+    }
+    haystack
+        .windows(needle.len())
+        .any(|w| w.iter().zip(needle).all(|(h, n)| h.eq_ignore_ascii_case(n)))
 }
 
 impl IqSpec for MexQuerySpec {
     type Response = MexResponse;
 
     fn build_iq(&self) -> InfoQuery<'static> {
-        let payload = MexPayload {
-            variables: &self.variables,
-        };
-        // Safety: MexPayload wraps &serde_json::Value, and serde_json::to_vec
-        // cannot fail for Value (no custom serializers or non-string map keys).
-        let payload_bytes = serde_json::to_vec(&payload).unwrap_or_default();
-
         let query_node = NodeBuilder::new("query")
-            .attr("query_id", &self.doc_id)
-            .bytes(payload_bytes)
+            .attr("query_id", self.doc.id)
+            .bytes(self.payload.clone())
             .build();
 
         InfoQuery::get(
@@ -134,14 +201,21 @@ impl IqSpec for MexQuerySpec {
             _ => return Err(anyhow!("MEX result node content is not binary or string")),
         };
 
-        // Check for fatal errors
         if let Some(fatal) = mex_response.fatal_error() {
-            let code = fatal.error_code().unwrap_or(500);
-            return Err(anyhow!(
-                "MEX fatal error (code={}): {}",
-                code,
-                fatal.message
-            ));
+            if looks_like_stale_persisted_query(fatal) {
+                warn!(
+                    target: "Mex",
+                    "MEX query '{}' (doc_id={}) looks like a stale persisted-query id: {}. \
+                     Refresh wacore::iq::mex_operations from the latest WA Web bundle.",
+                    self.doc.name, self.doc.id, fatal.message
+                );
+            }
+            return Err(MexFatalError {
+                query: self.doc.name,
+                code: fatal.error_code().unwrap_or(DEFAULT_MEX_ERROR_CODE),
+                message: fatal.message.clone(),
+            }
+            .into());
         }
 
         Ok(mex_response)
@@ -153,15 +227,21 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    const TEST_DOC: MexDoc = MexDoc {
+        name: "WAWebMexTestQuery",
+        id: "29829202653362039",
+    };
+
     #[test]
     fn test_mex_query_spec_build_iq() {
         let spec = MexQuerySpec::new(
-            "29829202653362039",
-            json!({
+            TEST_DOC,
+            &json!({
                 "input": {"query_input": [{"jid": "1234@s.whatsapp.net"}]},
                 "include_username": true
             }),
-        );
+        )
+        .expect("serialize test variables");
         let iq = spec.build_iq();
 
         assert_eq!(iq.namespace, "w:mex");
@@ -171,9 +251,11 @@ mod tests {
         if let Some(NodeContent::Nodes(nodes)) = &iq.content {
             assert_eq!(nodes.len(), 1);
             assert_eq!(nodes[0].tag, "query");
-            assert_eq!(
-                nodes[0].attrs.get("query_id").and_then(|s| s.as_str()),
-                Some("29829202653362039")
+            assert!(
+                nodes[0]
+                    .attrs
+                    .get("query_id")
+                    .is_some_and(|s| s == TEST_DOC.id)
             );
         } else {
             panic!("Expected NodeContent::Nodes");
@@ -222,7 +304,7 @@ mod tests {
         let fatal = fatal.unwrap();
         assert_eq!(fatal.message, "Fatal server error");
         assert_eq!(fatal.error_code(), Some(500));
-        assert!(fatal.is_fatal());
+        assert!(fatal.is_summary());
     }
 
     #[test]
@@ -238,6 +320,63 @@ mod tests {
         };
 
         assert_eq!(error.error_code(), Some(404));
-        assert!(!error.is_fatal());
+        assert!(!error.is_summary());
+    }
+
+    #[test]
+    fn test_stale_persisted_query_heuristic() {
+        let mk = |msg: &str| MexGraphQLError {
+            message: msg.to_string(),
+            extensions: None,
+        };
+        assert!(looks_like_stale_persisted_query(&mk(
+            "PersistedQuery `doc_id` 1234 not found"
+        )));
+        assert!(looks_like_stale_persisted_query(&mk(
+            "Persisted query not registered"
+        )));
+        assert!(looks_like_stale_persisted_query(&mk(
+            "PersistedQueryNotFound"
+        )));
+        assert!(looks_like_stale_persisted_query(&mk(
+            "Document not found for id"
+        )));
+        assert!(looks_like_stale_persisted_query(&mk(
+            "Unknown query identifier"
+        )));
+        assert!(!looks_like_stale_persisted_query(&mk(
+            "Group does not exist"
+        )));
+    }
+
+    /// The whole point of the typed error: a fatal GraphQL code has to survive
+    /// `parse_response`, because the IQ layer erases everything else about it
+    /// and a caller reads a MEX 404 as "nothing here" rather than as a failure.
+    #[test]
+    fn a_fatal_graphql_code_survives_parse_response() {
+        let spec = MexQuerySpec::new(TEST_DOC, &json!({})).expect("serialize test variables");
+        let payload = json!({
+            "data": null,
+            "errors": [{
+                "message": "no username",
+                "extensions": {"error_code": 404, "is_retryable": false, "severity": "CRITICAL"}
+            }]
+        })
+        .to_string();
+        let response = NodeBuilder::new("iq")
+            .attr("type", "result")
+            .children([NodeBuilder::new("result")
+                .bytes(payload.into_bytes())
+                .build()])
+            .build();
+
+        let error = spec
+            .parse_response(&response)
+            .expect_err("a fatal error must fail the parse");
+        let fatal = error
+            .downcast_ref::<MexFatalError>()
+            .expect("the fatal error keeps its type");
+        assert_eq!(fatal.code, 404);
+        assert_eq!(fatal.query, TEST_DOC.name);
     }
 }

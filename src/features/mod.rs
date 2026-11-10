@@ -21,7 +21,9 @@ pub use groups::{
 };
 
 pub use mex::{
-    Mex, MexError, MexErrorExtensions, MexGraphQLError, MexRequest, MexResponse, ReachoutTimelock,
+    CappingMvStatus, CappingOteStatus, CappingStatus, Mex, MexDoc, MexError, MexErrorExtensions,
+    MexFatalError, MexGraphQLError, MexOperation, MexRequest, MexResponse, NewChatMessageCapping,
+    OwnUsername, ReachoutTimelock,
 };
 
 pub use presence::{Presence, PresenceStatus};

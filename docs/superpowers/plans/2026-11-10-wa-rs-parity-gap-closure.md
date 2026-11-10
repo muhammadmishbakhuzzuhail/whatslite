@@ -603,6 +603,7 @@ Completed sub-tasks (reviewed, committed):
 | G8n-2 newsletter poll vote alias | `13c5b4b` | Approved; 1 test |
 | G10g1 normalized group parser core | `383d351` | Approved; 82 tests |
 | G2e-2b group notification facts provider | `f347d85` | Approved; 6 tests |
+| G10h core group notification handler | `e8cbb0b` | Approved; 8 tests |
 
 
 Blocked sub-tasks (need a prerequisite subsystem before they can be independent):

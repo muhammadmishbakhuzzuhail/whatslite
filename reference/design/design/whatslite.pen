@@ -64805,6 +64805,7 @@
           "type": "frame",
           "id": "J3jZY",
           "name": "Wallpaper Proof / Doodle",
+          "context": "{\"role\":\"wallpaper-proof\",\"source\":\"wallpaper-doodle-source.svg\",\"raster\":\"wp38-seamless-light-v19.png\",\"repeat\":\"800pt\",\"light\":\"#C9B9A3 60%\",\"dark\":\"#D8CCBC 20%\"}",
           "clip": true,
           "width": "fill_container",
           "height": 420,

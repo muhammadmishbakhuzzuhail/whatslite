@@ -15,3 +15,6 @@ docs
 !/docs/superpowers/**
 .superpowers/
 .claude
+# Local agent workspace and generated caches
+.agent/
+__pycache__/

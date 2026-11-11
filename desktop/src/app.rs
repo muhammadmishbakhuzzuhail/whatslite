@@ -10400,7 +10400,7 @@ impl App {
                             .text_color(p.text_secondary)
                             .child("The 39-page handoff package is documentation, not WhatsApp features. This page mirrors its essentials, including the page 38 doodle wallpaper proof, so the build can be checked in-app."),
                     )
-                    .child(ui::section_label("FOUNDATIONS · COLOR TOKENS", p))
+                    .child(ui::section_label("FOUNDATIONS · 01 COLOR TOKENS", p))
                     .child(
                         div()
                             .w_full()
@@ -10410,12 +10410,12 @@ impl App {
                             .p(px(20.))
                             .children(tokens.into_iter().map(|(name, color)| swatch(name, color))),
                     )
-                    .child(ui::section_label("FOUNDATIONS · TYPOGRAPHY", p))
+                    .child(ui::section_label("FOUNDATIONS · 02 TYPOGRAPHY", p))
                     .child(type_row("Caption · 11", 11., "Aa"))
                     .child(type_row("Small · 12", 12., "Aa"))
                     .child(type_row("Body · 14", 14., "Aa"))
                     .child(type_row("Heading · 20", 20., "Aa"))
-                    .child(ui::section_label("FOUNDATIONS · SPACING & RADIUS", p))
+                    .child(ui::section_label("FOUNDATIONS · 03 SPACING & RADIUS", p))
                     .child(
                         div()
                             .flex()
@@ -10429,7 +10429,7 @@ impl App {
                                 ui::chip(format!("r{radius}"), false, p)
                             })),
                     )
-                    .child(ui::section_label("FOUNDATIONS · BORDERS & ELEVATION", p))
+                    .child(ui::section_label("FOUNDATIONS · 04 BORDERS & ELEVATION", p))
                     .child(
                         div()
                             .flex()
@@ -10494,7 +10494,7 @@ impl App {
                         Some("macOS".into()),
                         p,
                     ))
-                    .child(ui::section_label("FOUNDATIONS · ICONOGRAPHY", p))
+                    .child(ui::section_label("FOUNDATIONS · 05 ICONOGRAPHY", p))
                     .child(ui::settings_row_field(
                         "Material Symbols Rounded",
                         "Outlined default · filled selected",
@@ -10518,7 +10518,7 @@ impl App {
                             .into_iter()
                             .map(|label| ui::chip(label, false, p))),
                     )
-                    .child(ui::section_label("FOUNDATIONS · LOGO", p))
+                    .child(ui::section_label("FOUNDATIONS · 06 LOGO", p))
                     .child(ui::settings_row_field(
                         "Mark",
                         "messages-square · Lucide · ISC",
@@ -10556,34 +10556,7 @@ impl App {
                                     .map(|label| ui::chip(label, false, p)),
                             ),
                     )
-                    .child(ui::section_label("FOUNDATIONS · MOTION", p))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .px(px(20.))
-                            .py(px(10.))
-                            .child(
-                                div()
-                                    .text_size(px(TEXT_SMALL))
-                                    .text_color(p.text_secondary)
-                                    .child("hover 120 · micro 160 · panel 200 · overlay 240 ms"),
-                            )
-                            .child(
-                                div()
-                                    .size(px(10.))
-                                    .rounded_full()
-                                    .bg(p.accent)
-                                    .with_animation(
-                                        "design-motion-dot",
-                                        Animation::new(Duration::from_millis(1200)).repeat(),
-                                        |el, delta| el.opacity(0.25 + 0.75 * delta),
-                                    ),
-                            ),
-                    )
-                    .child(self.toggle_row(cx, p, "reduce_motion", "Reduce motion", "Transitions become instant fades"))
-                    .child(ui::section_label("FOUNDATIONS · WALLPAPER DOODLE", p))
+                    .child(ui::section_label("FOUNDATIONS · 07 WALLPAPER DOODLE", p))
                     .child(
                         div()
                             .px(px(20.))
@@ -10618,6 +10591,33 @@ impl App {
                                     .child("Runtime: build-time alpha mask, tinted from the same SVG source"),
                             ),
                     )
+                    .child(ui::section_label("FOUNDATIONS · 08 MOTION", p))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .px(px(20.))
+                            .py(px(10.))
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child("hover 120 · micro 160 · panel 200 · overlay 240 ms"),
+                            )
+                            .child(
+                                div()
+                                    .size(px(10.))
+                                    .rounded_full()
+                                    .bg(p.accent)
+                                    .with_animation(
+                                        "design-motion-dot",
+                                        Animation::new(Duration::from_millis(1200)).repeat(),
+                                        |el, delta| el.opacity(0.25 + 0.75 * delta),
+                                    ),
+                            ),
+                    )
+                    .child(self.toggle_row(cx, p, "reduce_motion", "Reduce motion", "Transitions become instant fades"))
                     .child(ui::section_label("COMPONENTS", p))
                     .child(self.clickable(
                         cx,

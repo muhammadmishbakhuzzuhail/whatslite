@@ -8242,6 +8242,7 @@ version = "0.2.0"
 dependencies = [
  "async-trait",
  "bincode 2.0.1",
+ "bytes",
  "diesel",
  "diesel_migrations",
  "getrandom 0.3.4",

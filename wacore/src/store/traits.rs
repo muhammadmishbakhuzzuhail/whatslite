@@ -11,6 +11,7 @@
 use crate::appstate::hash::HashState;
 use crate::store::error::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use wacore_appstate::processor::AppStateMutationMAC;
@@ -451,6 +452,322 @@ pub trait ProtocolStore: Send + Sync {
 
     /// Delete tc tokens with token_timestamp older than cutoff. Returns count deleted.
     async fn delete_expired_tc_tokens(&self, cutoff_timestamp: i64) -> Result<u32>;
+
+    // --- Pending Inbound Buffer (inbound durability hook) ---
+    //
+    // Backs the at-least-once inbound durability hook: a decrypted message is
+    // buffered here (keyed by its stanza id) before the Signal ratchet is
+    // flushed, so a crash or failed commit before the hook acks replays the
+    // message on redelivery instead of dropping it. The defaults are non-breaking
+    // for backends that do not implement the hook, but fail CLOSED rather than
+    // no-op: an unsupported backend used with a hook surfaces an error (and the
+    // message stays unacked) instead of silently degrading to at-most-once.
+
+    /// Persist a decrypted inbound message awaiting a durability-hook commit.
+    /// Scoped by `(chat, sender, id)` because stanza ids are only unique within
+    /// a `(chat, sender)`.
+    async fn store_pending_inbound(
+        &self,
+        _chat: &str,
+        _sender: &str,
+        _id: &str,
+        _message: &[u8],
+    ) -> Result<()> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Read a buffered inbound message by `(chat, sender, id)` without removing it.
+    async fn get_pending_inbound(
+        &self,
+        _chat: &str,
+        _sender: &str,
+        _id: &str,
+    ) -> Result<Option<Vec<u8>>> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Remove a buffered inbound message once its durability hook has committed.
+    async fn delete_pending_inbound(&self, _chat: &str, _sender: &str, _id: &str) -> Result<()> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Delete buffered inbound messages older than cutoff (unix seconds). Returns
+    /// count deleted. Unlike the other defaults this is a benign `Ok(0)`: the
+    /// keepalive sweep calls it unconditionally for every backend, so it must not
+    /// error when the buffer is unsupported.
+    async fn delete_expired_pending_inbound(&self, _cutoff_timestamp: i64) -> Result<u32> {
+        Ok(0)
+    }
+
+    /// Read a pending row without allocating its payload above `max_bytes`.
+    /// Oversized or non-BLOB rows are errors, distinct from absence. Empty bytes
+    /// are a present row; envelope validation belongs to the decoder. The length
+    /// check and read must observe the same row. This optional contract has no
+    /// fallback to the unbounded getter. The supplied lease must cover the
+    /// maximum returned payload before this operation starts.
+    async fn read_pending_inbound_bounded(
+        &self,
+        _key: PendingInboundKey<'_>,
+        _max_bytes: usize,
+        _lease: PendingInboundLease,
+    ) -> Result<Option<PendingInboundRecord>> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Read the unique physical row for a group's non-device sender identity.
+    /// Return its actual sender spelling for subsequent CAS. Discover at most
+    /// 400 same-chat/id sender keys, each at most 128 bytes, before copying any
+    /// payload. Ambiguous aliases, invalid/oversized metadata and oversized
+    /// payloads are errors, never absence. Discovery and payload must share a
+    /// snapshot, and detached readers retain the supplied mutation-owner lease.
+    async fn read_pending_inbound_group_bounded(
+        &self,
+        _key: PendingInboundKey<'_>,
+        _max_bytes: usize,
+        _lease: PendingInboundLease,
+    ) -> Result<Option<(String, PendingInboundRecord)>> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Replace only the exact revision observed by the owner. Absence is an
+    /// explicit expected revision. Backends must compare and write atomically,
+    /// and reject oversized existing or replacement payloads before copying. An
+    /// already installed identical replacement is an idempotent success only
+    /// because each new envelope carries its unique operation identifier.
+    /// The owned payload and its lease stay alive through all detached workers.
+    ///
+    /// The caller must retain exclusive ownership until detached workers and
+    /// retries finish, including after cancellation. Revision checks alone do
+    /// not prevent an absent-row ABA after a successor creates and deletes it.
+    async fn replace_pending_inbound_if(
+        &self,
+        _key: PendingInboundKey<'_>,
+        _expected: PendingInboundRevision,
+        _replacement: PendingInboundPayload,
+        _max_bytes: usize,
+    ) -> Result<PendingInboundMutation> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Delete only the exact stored bytes observed by the current owner, in one
+    /// atomic operation. Missing expected and stored revisions are a no-op
+    /// success; a present expected revision against absence is a conflict.
+    /// The same worker-terminal ownership rule as conditional
+    /// replacement applies. A conflicting revision must remain untouched.
+    async fn delete_pending_inbound_if(
+        &self,
+        _key: PendingInboundKey<'_>,
+        _expected: PendingInboundRevision,
+        _max_bytes: usize,
+        _lease: PendingInboundLease,
+    ) -> Result<PendingInboundMutation> {
+        Err(unsupported_pending_inbound())
+    }
+
+    /// Batched [`store_pending_inbound`](Self::store_pending_inbound): the
+    /// offline drain buffers one commit-batch of messages per call, so backends
+    /// should override this with a single transaction (the bundled SqliteStore
+    /// does). The default iterates the single-row method, preserving behavior
+    /// for third-party backends.
+    async fn store_pending_inbound_batch(&self, rows: &[PendingInboundRow<'_>]) -> Result<()> {
+        for row in rows {
+            self.store_pending_inbound(row.chat, row.sender, row.id, row.message)
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Batched [`delete_pending_inbound`](Self::delete_pending_inbound); same
+    /// override guidance as [`store_pending_inbound_batch`](Self::store_pending_inbound_batch).
+    async fn delete_pending_inbound_batch(&self, keys: &[PendingInboundKey<'_>]) -> Result<()> {
+        for key in keys {
+            self.delete_pending_inbound(key.chat, key.sender, key.id)
+                .await?;
+        }
+        Ok(())
+    }
+}
+
+fn unsupported_pending_inbound() -> crate::store::error::StoreError {
+    crate::store::error::StoreError::Validation(
+        "backend does not support the pending inbound buffer required by the durability hook"
+            .to_string(),
+    )
+}
+
+/// One row of a pending-inbound batch write. Fields borrow from the in-flight
+/// commit batch so building a batch allocates nothing per row.
+#[derive(Debug, Clone, Copy)]
+pub struct PendingInboundRow<'a> {
+    pub chat: &'a str,
+    pub sender: &'a str,
+    pub id: &'a str,
+    pub message: &'a [u8],
+}
+
+/// Key of a buffered pending-inbound row, for batched deletes.
+#[derive(Debug, Clone, Copy)]
+pub struct PendingInboundKey<'a> {
+    pub chat: &'a str,
+    pub sender: &'a str,
+    pub id: &'a str,
+}
+
+/// Revision of the exact stored bytes, including legacy encodings. New raw
+/// envelopes must include a distinct operation identifier so successive writes
+/// with equal plaintext still have different revisions. No decode or re-encode
+/// participates in this identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PendingInboundRevision(Option<[u8; 32]>);
+
+impl PendingInboundRevision {
+    pub const fn missing() -> Self {
+        Self(None)
+    }
+
+    pub fn for_bytes(bytes: &[u8]) -> Self {
+        use sha2::Digest;
+        Self(Some(sha2::Sha256::digest(bytes).into()))
+    }
+}
+
+/// Opaque ownership retained by every detached pending-row worker and result.
+/// The caller supplies its identity lock and byte-budget reservation together.
+/// Cloning this token must not reacquire the lock or release its reservation.
+/// Backends must capture a clone in every retry factory and detached worker.
+#[derive(Clone)]
+pub struct PendingInboundLease {
+    _keepalive: Arc<dyn crate::sync_marker::MaybeSendSync>,
+}
+
+impl PendingInboundLease {
+    pub fn new(owner: Arc<dyn crate::sync_marker::MaybeSendSync>) -> Self {
+        Self { _keepalive: owner }
+    }
+}
+
+impl std::fmt::Debug for PendingInboundLease {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PendingInboundLease")
+            .finish_non_exhaustive()
+    }
+}
+
+/// Immutable replacement bytes and the ownership that accounts for them.
+/// The caller reserves before allocating; the lease must also cover bounded
+/// prior-row scratch. SQLite's internal copies need separate peak accounting.
+#[derive(Debug)]
+pub struct PendingInboundPayload {
+    bytes: Bytes,
+    revision: PendingInboundRevision,
+    // Fields drop in declaration order: bytes must die before their charge.
+    lease: PendingInboundLease,
+}
+
+impl PendingInboundPayload {
+    pub fn new(bytes: Bytes, lease: PendingInboundLease) -> Self {
+        let revision = PendingInboundRevision::for_bytes(&bytes);
+        Self {
+            bytes,
+            revision,
+            lease,
+        }
+    }
+
+    /// Revision computed once from the immutable replacement bytes.
+    pub const fn revision(&self) -> PendingInboundRevision {
+        self.revision
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn lease(&self) -> PendingInboundLease {
+        self.lease.clone()
+    }
+}
+
+/// One bounded pending row, with its revision computed from the original bytes.
+/// Keep this wrapper, or a clone of its lease, while decoded data remains live.
+#[derive(Debug)]
+pub struct PendingInboundRecord {
+    bytes: Vec<u8>,
+    revision: PendingInboundRevision,
+    lease: PendingInboundLease,
+}
+
+impl PendingInboundRecord {
+    pub fn new(bytes: Vec<u8>, lease: PendingInboundLease) -> Self {
+        let revision = PendingInboundRevision::for_bytes(&bytes);
+        Self {
+            bytes,
+            revision,
+            lease,
+        }
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// Transfer the owned backing without copying it. Keep the returned lease
+    /// through decoding, then release mutation exclusion before a new write.
+    pub fn into_bytes(self) -> (Bytes, PendingInboundLease) {
+        (Bytes::from(self.bytes), self.lease)
+    }
+
+    pub const fn revision(&self) -> PendingInboundRevision {
+        self.revision
+    }
+
+    pub fn lease(&self) -> PendingInboundLease {
+        self.lease.clone()
+    }
+}
+
+/// Select a unique non-device group sender from bounded physical metadata.
+/// `None` marks metadata withheld by a backend's preallocation length check.
+#[inline(never)]
+pub fn pending_group_sender(
+    senders: &mut dyn Iterator<Item = Option<&str>>,
+    sender: &str,
+) -> Result<Option<String>> {
+    let invalid = |message: &str| crate::store::error::StoreError::Validation(message.to_owned());
+    if sender.len() > 128 {
+        return Err(invalid("group pending sender exceeds bound"));
+    }
+    let canonical = sender
+        .parse::<Jid>()
+        .map_err(|_| invalid("invalid group pending sender"))?
+        .to_non_ad();
+    let mut selected = None;
+    for (index, spelling) in senders.enumerate() {
+        if index >= 400 {
+            return Err(invalid("pending group sender count exceeds bound"));
+        }
+        let spelling = spelling
+            .filter(|value| value.len() <= 128)
+            .ok_or_else(|| invalid("pending group sender metadata exceeds bound"))?;
+        let physical = spelling
+            .parse::<Jid>()
+            .map_err(|_| invalid("invalid pending group sender metadata"))?;
+        if physical.to_non_ad() == canonical {
+            if selected.is_some() {
+                return Err(invalid("ambiguous pending group sender aliases"));
+            }
+            selected = Some(spelling);
+        }
+    }
+    Ok(selected.map(str::to_owned))
+}
+
+/// Result of an atomic conditional pending-row mutation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum PendingInboundMutation {
+    Applied,
+    Conflict,
 }
 
 /// Device data persistence operations.

@@ -3,6 +3,7 @@
 //! This crate provides a SQLite-based storage implementation for the whatsapp-rust library.
 //! It implements all the required storage traits from wacore::store::traits.
 
+mod bounded_pending_query;
 mod schema;
 mod sqlite_store;
 

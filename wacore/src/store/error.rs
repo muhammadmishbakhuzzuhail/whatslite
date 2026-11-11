@@ -8,6 +8,11 @@ pub enum StoreError {
     #[error("Serialization/deserialization error: {0}")]
     Serialization(String),
 
+    /// Validation failure with a descriptive message and no underlying typed
+    /// source — e.g. "pending inbound replacement length exceeds limit".
+    #[error("data validation failed: {0}")]
+    Validation(String),
+
     #[error("Item not found: {0}")]
     NotFound(String),
 

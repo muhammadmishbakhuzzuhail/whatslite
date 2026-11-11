@@ -1607,6 +1607,119 @@ impl AppSyncStore for SqliteStore {
     }
 }
 
+/// A pending-row mutation owned for the lifetime of its detached worker. The
+/// lease must stay alive through the transaction so budget and identity
+/// exclusion outlive a cancelled caller.
+enum OwnedPendingMutation {
+    Replace {
+        payload: Arc<PendingInboundPayload>,
+        revision: PendingInboundRevision,
+    },
+    Delete(PendingInboundLease),
+}
+
+impl OwnedPendingMutation {
+    fn lease(&self) -> PendingInboundLease {
+        match self {
+            Self::Replace { payload, .. } => payload.lease(),
+            Self::Delete(lease) => lease.clone(),
+        }
+    }
+}
+
+/// Single source of the pending-inbound row insert, shared by the single-row
+/// and batch write paths so a schema or conflict-strategy change cannot
+/// silently diverge between them. `inserted_at` keeps its column default.
+fn insert_pending_inbound_row(
+    conn: &mut SqliteConnection,
+    device_id: i32,
+    chat: &str,
+    sender: &str,
+    id: &str,
+    message: &[u8],
+) -> QueryResult<usize> {
+    diesel::replace_into(pending_inbound_messages::table)
+        .values((
+            pending_inbound_messages::chat.eq(chat),
+            pending_inbound_messages::sender.eq(sender),
+            pending_inbound_messages::id.eq(id),
+            pending_inbound_messages::message.eq(message),
+            pending_inbound_messages::device_id.eq(device_id),
+        ))
+        .execute(conn)
+}
+
+#[derive(QueryableByName)]
+struct BoundedPendingPayload {
+    #[diesel(sql_type = diesel::sql_types::Text)]
+    storage_type: String,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::BigInt>)]
+    byte_len: Option<i64>,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Binary>)]
+    payload: Option<Vec<u8>>,
+}
+
+#[derive(QueryableByName)]
+struct BoundedPendingSender {
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Text>)]
+    sender: Option<String>,
+}
+
+fn read_pending_inbound_bounded_row(
+    conn: &mut SqliteConnection,
+    device_id: i32,
+    chat: &str,
+    sender: &str,
+    id: &str,
+    max_bytes: usize,
+    lease: PendingInboundLease,
+) -> QueryResult<Result<Option<PendingInboundRecord>>> {
+    use diesel::query_dsl::RunQueryDsl as _;
+
+    // CASE keeps oversized blobs out of the Diesel value buffer. Both length
+    // and payload come from one row snapshot, never separate racing queries.
+    let row: Option<BoundedPendingPayload> = crate::bounded_pending_query::BoundedPendingQuery {
+        max_bytes: i64::try_from(max_bytes).unwrap_or(i64::MAX),
+        device_id,
+        chat,
+        sender,
+        id,
+    }
+    .get_result(conn)
+    .optional()?;
+    Ok(match row {
+        None => Ok(None),
+        Some(row) if row.storage_type != "blob" => Err(StoreError::Validation(
+            "pending inbound payload is not a BLOB".to_owned(),
+        )),
+        Some(row) => match row.payload {
+            Some(bytes) => Ok(Some(PendingInboundRecord::new(bytes, lease))),
+            None => Err(StoreError::Validation(format!(
+                "pending inbound payload length {:?} exceeds limit {max_bytes}",
+                row.byte_len,
+            ))),
+        },
+    })
+}
+
+/// Batch/single-row shared delete; see [`insert_pending_inbound_row`].
+fn delete_pending_inbound_row(
+    conn: &mut SqliteConnection,
+    device_id: i32,
+    chat: &str,
+    sender: &str,
+    id: &str,
+) -> QueryResult<usize> {
+    diesel::delete(
+        pending_inbound_messages::table
+            .filter(pending_inbound_messages::chat.eq(chat))
+            .filter(pending_inbound_messages::sender.eq(sender))
+            .filter(pending_inbound_messages::id.eq(id))
+            .filter(pending_inbound_messages::device_id.eq(device_id)),
+    )
+    .execute(conn)
+}
+
 #[async_trait]
 impl ProtocolStore for SqliteStore {
     async fn get_skdm_recipients(&self, group_jid: &str) -> Result<Vec<Jid>> {
@@ -2212,6 +2325,358 @@ impl ProtocolStore for SqliteStore {
         .await
         .map_err(|e| StoreError::Database(e.to_string()))?
     }
+
+    async fn store_pending_inbound(
+        &self,
+        chat: &str,
+        sender: &str,
+        id: &str,
+        message: &[u8],
+    ) -> Result<()> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let (chat, sender, id) = (chat.to_owned(), sender.to_owned(), id.to_owned());
+        let message = message.to_vec();
+        self.with_semaphore(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            insert_pending_inbound_row(&mut conn, device_id, &chat, &sender, &id, &message)
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+    }
+
+    async fn get_pending_inbound(
+        &self,
+        chat: &str,
+        sender: &str,
+        id: &str,
+    ) -> Result<Option<Vec<u8>>> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let (chat, sender, id) = (chat.to_owned(), sender.to_owned(), id.to_owned());
+        self.with_semaphore(move || -> Result<Option<Vec<u8>>> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            pending_inbound_messages::table
+                .select(pending_inbound_messages::message)
+                .filter(pending_inbound_messages::chat.eq(&chat))
+                .filter(pending_inbound_messages::sender.eq(&sender))
+                .filter(pending_inbound_messages::id.eq(&id))
+                .filter(pending_inbound_messages::device_id.eq(device_id))
+                .first(&mut conn)
+                .optional()
+                .map_err(|e| StoreError::Database(e.to_string()))
+        })
+        .await
+    }
+
+    async fn delete_pending_inbound(&self, chat: &str, sender: &str, id: &str) -> Result<()> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let (chat, sender, id) = (chat.to_owned(), sender.to_owned(), id.to_owned());
+        self.with_semaphore(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            delete_pending_inbound_row(&mut conn, device_id, &chat, &sender, &id)
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
+    }
+
+    async fn read_pending_inbound_bounded(
+        &self,
+        key: PendingInboundKey<'_>,
+        max_bytes: usize,
+        lease: PendingInboundLease,
+    ) -> Result<Option<PendingInboundRecord>> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let (chat, sender, id) = (
+            key.chat.to_owned(),
+            key.sender.to_owned(),
+            key.id.to_owned(),
+        );
+        self.with_semaphore(move || -> Result<Option<PendingInboundRecord>> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            read_pending_inbound_bounded_row(
+                &mut conn, device_id, &chat, &sender, &id, max_bytes, lease,
+            )
+            .map_err(|e| StoreError::Database(e.to_string()))?
+        })
+        .await
+    }
+
+    async fn read_pending_inbound_group_bounded(
+        &self,
+        key: PendingInboundKey<'_>,
+        max_bytes: usize,
+        lease: PendingInboundLease,
+    ) -> Result<Option<(String, PendingInboundRecord)>> {
+        if key.sender.len() > 128 {
+            return Err(StoreError::Validation(
+                "group pending sender exceeds bound".into(),
+            ));
+        }
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        let (chat, sender, id) = (
+            key.chat.to_owned(),
+            key.sender.to_owned(),
+            key.id.to_owned(),
+        );
+        self.with_semaphore(move || -> Result<Option<(String, PendingInboundRecord)>> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // One read transaction prevents alias discovery and payload from
+            // observing different external-writer snapshots.
+            conn.transaction(
+                |conn| -> std::result::Result<
+                    Result<Option<(String, PendingInboundRecord)>>,
+                    diesel::result::Error,
+                > {
+                    let rows: Vec<BoundedPendingSender> =
+                        crate::bounded_pending_query::BoundedPendingSenders {
+                            device_id,
+                            chat: &chat,
+                            id: &id,
+                        }
+                        .load(conn)?;
+                    let physical = match pending_group_sender(
+                        &mut rows.iter().map(|row| row.sender.as_deref()),
+                        &sender,
+                    ) {
+                        Ok(Some(physical)) => physical,
+                        Ok(None) => return Ok(Ok(None)),
+                        Err(error) => return Ok(Err(error)),
+                    };
+                    Ok(read_pending_inbound_bounded_row(
+                        conn,
+                        device_id,
+                        &chat,
+                        &physical,
+                        &id,
+                        max_bytes,
+                        lease.clone(),
+                    )?
+                    .map(|record| record.map(|record| (physical, record))))
+                },
+            )
+            .map_err(|e| StoreError::Database(e.to_string()))?
+        })
+        .await
+    }
+
+    async fn replace_pending_inbound_if(
+        &self,
+        key: PendingInboundKey<'_>,
+        expected: PendingInboundRevision,
+        replacement: PendingInboundPayload,
+        max_bytes: usize,
+    ) -> Result<PendingInboundMutation> {
+        if replacement.bytes().len() > max_bytes {
+            return Err(StoreError::Validation(format!(
+                "pending inbound replacement length {} exceeds limit {max_bytes}",
+                replacement.bytes().len(),
+            )));
+        }
+        let revision = replacement.revision();
+        self.mutate_pending_inbound_owned(
+            key,
+            expected,
+            max_bytes,
+            OwnedPendingMutation::Replace {
+                payload: Arc::new(replacement),
+                revision,
+            },
+        )
+        .await
+    }
+
+    async fn delete_pending_inbound_if(
+        &self,
+        key: PendingInboundKey<'_>,
+        expected: PendingInboundRevision,
+        max_bytes: usize,
+        lease: PendingInboundLease,
+    ) -> Result<PendingInboundMutation> {
+        self.mutate_pending_inbound_owned(
+            key,
+            expected,
+            max_bytes,
+            OwnedPendingMutation::Delete(lease),
+        )
+        .await
+    }
+
+    async fn delete_expired_pending_inbound(&self, cutoff_timestamp: i64) -> Result<u32> {
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<u32> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            let deleted = diesel::delete(
+                pending_inbound_messages::table
+                    .filter(pending_inbound_messages::inserted_at.lt(cutoff_timestamp))
+                    .filter(pending_inbound_messages::device_id.eq(device_id)),
+            )
+            .execute(&mut conn)
+            .map_err(|e| StoreError::Database(e.to_string()))?;
+            Ok(deleted as u32)
+        })
+        .await
+    }
+
+    async fn store_pending_inbound_batch(&self, rows: &[PendingInboundRow<'_>]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        // One owned copy, then a single transaction amortizes the WAL commit
+        // over the whole batch.
+        let rows: Vec<(String, String, String, Vec<u8>)> = rows
+            .iter()
+            .map(|r| {
+                (
+                    r.chat.to_owned(),
+                    r.sender.to_owned(),
+                    r.id.to_owned(),
+                    r.message.to_vec(),
+                )
+            })
+            .collect();
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // Per-row statements inside ONE transaction: the WAL commit is the
+            // real per-message cost and it is already amortized.
+            conn.transaction(|conn| -> std::result::Result<(), diesel::result::Error> {
+                for (chat, sender, id, message) in rows.iter() {
+                    insert_pending_inbound_row(conn, device_id, chat, sender, id, message)?;
+                }
+                Ok(())
+            })
+            .map_err(|e| StoreError::Database(e.to_string()))
+        })
+        .await
+    }
+
+    async fn delete_pending_inbound_batch(&self, keys: &[PendingInboundKey<'_>]) -> Result<()> {
+        if keys.is_empty() {
+            return Ok(());
+        }
+        let keys: Vec<(String, String, String)> = keys
+            .iter()
+            .map(|k| (k.chat.to_owned(), k.sender.to_owned(), k.id.to_owned()))
+            .collect();
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<()> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // Diesel's DSL cannot express a composite `(chat, sender, id) IN (...)`
+            // tuple filter, and the transaction already amortizes the commit.
+            conn.transaction(|conn| -> std::result::Result<(), diesel::result::Error> {
+                for (chat, sender, id) in keys.iter() {
+                    delete_pending_inbound_row(conn, device_id, chat, sender, id)?;
+                }
+                Ok(())
+            })
+            .map_err(|e| StoreError::Database(e.to_string()))
+        })
+        .await
+    }
+}
+
+impl SqliteStore {
+    // Share the mutation transaction body while retaining the owned lease in
+    // the worker, including when its awaiting caller is cancelled.
+    async fn mutate_pending_inbound_owned(
+        &self,
+        key: PendingInboundKey<'_>,
+        expected: PendingInboundRevision,
+        max_bytes: usize,
+        mutation: OwnedPendingMutation,
+    ) -> Result<PendingInboundMutation> {
+        let (chat, sender, id) = (
+            key.chat.to_owned(),
+            key.sender.to_owned(),
+            key.id.to_owned(),
+        );
+        let pool = self.pool.clone();
+        let device_id = self.device_id;
+        self.with_semaphore(move || -> Result<PendingInboundMutation> {
+            let mut conn = pool
+                .get()
+                .map_err(|e| StoreError::Connection(e.to_string()))?;
+            // IMMEDIATE takes the write lock before the revision read, so the
+            // compare and the write cannot interleave with another writer.
+            let outcome: std::result::Result<
+                Result<PendingInboundMutation>,
+                diesel::result::Error,
+            > = conn.immediate_transaction(|conn| {
+                let current = match read_pending_inbound_bounded_row(
+                    conn,
+                    device_id,
+                    &chat,
+                    &sender,
+                    &id,
+                    max_bytes,
+                    mutation.lease(),
+                )? {
+                    Ok(current) => current,
+                    Err(error) => return Ok(Err(error)),
+                };
+                let revision = current.as_ref().map_or(
+                    PendingInboundRevision::missing(),
+                    PendingInboundRecord::revision,
+                );
+                // Already-replaced is Applied even if the caller's expected
+                // revision is stale. Delete has no such shortcut.
+                if let OwnedPendingMutation::Replace {
+                    revision: replacement,
+                    ..
+                } = &mutation
+                    && revision == *replacement
+                {
+                    return Ok(Ok(PendingInboundMutation::Applied));
+                }
+                if revision != expected {
+                    return Ok(Ok(PendingInboundMutation::Conflict));
+                }
+                match &mutation {
+                    OwnedPendingMutation::Replace { payload, .. } => {
+                        insert_pending_inbound_row(
+                            conn,
+                            device_id,
+                            &chat,
+                            &sender,
+                            &id,
+                            payload.bytes(),
+                        )?;
+                    }
+                    OwnedPendingMutation::Delete(_) => {
+                        delete_pending_inbound_row(conn, device_id, &chat, &sender, &id)?;
+                    }
+                }
+                Ok(Ok(PendingInboundMutation::Applied))
+            });
+            outcome.map_err(|e| StoreError::Database(e.to_string()))?
+        })
+        .await
+    }
 }
 
 #[async_trait]
@@ -2442,6 +2907,7 @@ impl DeviceStore for SqliteStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
 
     async fn create_test_store() -> SqliteStore {
         // Counter instead of a timestamp: parallel tests can get identical
@@ -3005,5 +3471,1037 @@ mod tests {
             store.get_msg_secret("c", "s", "M").await,
             Err(StoreError::InvalidMessageSecret(_))
         ));
+    }
+
+    async fn create_test_store_for_device(device_id: i32) -> (SqliteStore, String) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static PENDING_DB_COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = PENDING_DB_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let db_name = format!("file:memdb_pending_{id}?mode=memory&cache=shared");
+        let store = SqliteStore::new_for_device(&db_name, device_id)
+            .await
+            .expect("Failed to create test store");
+        (store, db_name)
+    }
+
+    async fn pending_execute(store: &SqliteStore, sql: &'static str) {
+        let pool = store.pool.clone();
+        store
+            .with_semaphore(move || {
+                let mut conn = pool
+                    .get()
+                    .map_err(|e| StoreError::Connection(e.to_string()))?;
+                diesel::sql_query(sql)
+                    .execute(&mut conn)
+                    .map_err(|e| StoreError::Database(e.to_string()))?;
+                Ok(())
+            })
+            .await
+            .expect("pending test SQL");
+    }
+
+    fn pending_test_lease() -> PendingInboundLease {
+        PendingInboundLease::new(Arc::new(()))
+    }
+
+    #[tokio::test]
+    async fn pending_inbound_round_trip_and_missing_row() {
+        let store = create_test_store().await;
+        let (chat, sender, id) = ("c@s.whatsapp.net", "s@s.whatsapp.net", "MISSING");
+        assert!(
+            store
+                .get_pending_inbound(chat, sender, id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        store
+            .store_pending_inbound(chat, sender, id, b"payload")
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .get_pending_inbound(chat, sender, id)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"payload".as_slice())
+        );
+        store
+            .delete_pending_inbound(chat, sender, id)
+            .await
+            .unwrap();
+        assert!(
+            store
+                .get_pending_inbound(chat, sender, id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        // Deleting an absent row is a benign no-op.
+        store
+            .delete_pending_inbound(chat, sender, id)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn pending_inbound_batches_write_and_remove_every_row() {
+        let store = create_test_store().await;
+        let rows = [
+            PendingInboundRow {
+                chat: "chat-a",
+                sender: "sender-a",
+                id: "id-1",
+                message: b"one",
+            },
+            PendingInboundRow {
+                chat: "chat-a",
+                sender: "sender-a",
+                id: "id-2",
+                message: b"two",
+            },
+            PendingInboundRow {
+                chat: "chat-b",
+                sender: "sender-b",
+                id: "id-1",
+                message: b"three",
+            },
+        ];
+        store.store_pending_inbound_batch(&rows).await.unwrap();
+        assert_eq!(
+            store
+                .get_pending_inbound("chat-a", "sender-a", "id-1")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"one".as_slice())
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound("chat-a", "sender-a", "id-2")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"two".as_slice())
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound("chat-b", "sender-b", "id-1")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"three".as_slice())
+        );
+        let keys = [
+            PendingInboundKey {
+                chat: "chat-a",
+                sender: "sender-a",
+                id: "id-1",
+            },
+            PendingInboundKey {
+                chat: "chat-a",
+                sender: "sender-a",
+                id: "id-2",
+            },
+            PendingInboundKey {
+                chat: "chat-b",
+                sender: "sender-b",
+                id: "id-1",
+            },
+        ];
+        store.delete_pending_inbound_batch(&keys).await.unwrap();
+        for key in keys {
+            assert!(
+                store
+                    .get_pending_inbound(key.chat, key.sender, key.id)
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+        }
+        // Empty batches stay no-ops rather than opening a transaction.
+        store.store_pending_inbound_batch(&[]).await.unwrap();
+        store.delete_pending_inbound_batch(&[]).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn pending_inbound_expiry_uses_strict_cutoff_and_device_scope() {
+        let (store, db_url) = create_test_store_for_device(1).await;
+        let other = SqliteStore::new_for_device(&db_url, 2).await.unwrap();
+        let (chat, sender) = ("1@s.whatsapp.net", "2@s.whatsapp.net");
+        for key in [&store, &other] {
+            key.store_pending_inbound(chat, sender, "OLD", b"msg")
+                .await
+                .unwrap();
+            key.store_pending_inbound(chat, sender, "BOUNDARY", b"msg")
+                .await
+                .unwrap();
+        }
+        pending_execute(
+            &store,
+            "UPDATE pending_inbound_messages SET inserted_at = 100 WHERE device_id = 1 AND id = 'OLD'",
+        )
+        .await;
+        pending_execute(
+            &store,
+            "UPDATE pending_inbound_messages SET inserted_at = 200 WHERE device_id = 1 AND id = 'BOUNDARY'",
+        )
+        .await;
+        pending_execute(
+            &other,
+            "UPDATE pending_inbound_messages SET inserted_at = 100 WHERE device_id = 2",
+        )
+        .await;
+
+        // Strict `<` cutoff: a row exactly at the cutoff survives.
+        assert_eq!(store.delete_expired_pending_inbound(100).await.unwrap(), 0);
+        assert_eq!(store.delete_expired_pending_inbound(101).await.unwrap(), 1);
+        assert!(
+            store
+                .get_pending_inbound(chat, sender, "OLD")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            store
+                .get_pending_inbound(chat, sender, "BOUNDARY")
+                .await
+                .unwrap()
+                .is_some()
+        );
+        // Device 2 keeps its own row even though device 1's was swept.
+        assert!(
+            other
+                .get_pending_inbound(chat, sender, "OLD")
+                .await
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_bounded_read_distinguishes_absence_limit_and_non_blob() {
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "bounded",
+        };
+        assert!(
+            store
+                .read_pending_inbound_bounded(key, 16, pending_test_lease())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, b"abc")
+            .await
+            .unwrap();
+
+        // Exact limit succeeds; one byte over is a Validation error, not absence.
+        let record = store
+            .read_pending_inbound_bounded(key, 3, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(record.bytes(), b"abc");
+        assert_eq!(record.revision(), PendingInboundRevision::for_bytes(b"abc"));
+        let error = store
+            .read_pending_inbound_bounded(key, 2, pending_test_lease())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+
+        // Empty bytes are a present row even at a zero limit.
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, b"")
+            .await
+            .unwrap();
+        let record = store
+            .read_pending_inbound_bounded(key, 0, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(record.bytes().is_empty());
+        assert_ne!(record.revision(), PendingInboundRevision::missing());
+
+        // A TEXT payload in the BLOB column is rejected, never returned.
+        pending_execute(
+            &store,
+            "INSERT INTO pending_inbound_messages (chat, sender, id, message, device_id) \
+             VALUES ('test-chat', 'test-sender', 'text-row', 'not a blob', 1)",
+        )
+        .await;
+        let text_key = PendingInboundKey {
+            id: "text-row",
+            ..key
+        };
+        let error = store
+            .read_pending_inbound_bounded(text_key, 16, pending_test_lease())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn pending_cas_replace_and_delete_revision_semantics() {
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "cas",
+        };
+        let v1 = PendingInboundPayload::new(Bytes::from_static(b"v1"), pending_test_lease());
+        let v1_revision = v1.revision();
+        // Absence is an explicit expected revision.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(key, PendingInboundRevision::missing(), v1, 16)
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound(key.chat, key.sender, key.id)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"v1".as_slice())
+        );
+        // A stale expected revision leaves the row untouched.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    PendingInboundRevision::missing(),
+                    PendingInboundPayload::new(Bytes::from_static(b"stale"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        // Re-installing the exact stored revision is an idempotent success.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    PendingInboundRevision::missing(),
+                    PendingInboundPayload::new(Bytes::from_static(b"v1"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        // The observed revision enables the next replacement.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    v1_revision,
+                    PendingInboundPayload::new(Bytes::from_static(b"v2"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        // That revision is now stale.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    v1_revision,
+                    PendingInboundPayload::new(Bytes::from_static(b"v3"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        let record = store
+            .read_pending_inbound_bounded(key, 16, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(record.bytes(), b"v2");
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, record.revision(), 16, record.lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, record.revision(), 16, pending_test_lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        // Oversized replacements fail before touching the row.
+        let error = store
+            .replace_pending_inbound_if(
+                key,
+                PendingInboundRevision::missing(),
+                PendingInboundPayload::new(Bytes::from_static(b"too-large"), pending_test_lease()),
+                2,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn pending_conditional_updates_preserve_noncanonical_legacy_bytes() {
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "legacy",
+        };
+        // The same conversation encoded with a compact and an extended varint.
+        let compact = [0x0a, 0x01, b'a'];
+        let extended = [0x0a, 0x81, 0x00, b'a'];
+        assert_eq!(
+            waproto::codec::message_decode(&compact)
+                .unwrap()
+                .conversation,
+            waproto::codec::message_decode(&extended)
+                .unwrap()
+                .conversation
+        );
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, &compact)
+            .await
+            .unwrap();
+        let original = store
+            .read_pending_inbound_bounded(key, 16, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(original.bytes(), compact);
+        let replacement =
+            PendingInboundPayload::new(Bytes::copy_from_slice(&extended), pending_test_lease());
+        let installed = replacement.revision();
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(key, original.revision(), replacement, 16)
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        let successor = store
+            .read_pending_inbound_bounded(key, 16, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        // The exact bytes are preserved: no decode/re-encode canonicalisation.
+        assert_eq!(successor.bytes(), extended);
+        assert_eq!(successor.revision(), installed);
+        assert_ne!(successor.revision(), original.revision());
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    original.revision(),
+                    PendingInboundPayload::new(
+                        Bytes::copy_from_slice(b"stale"),
+                        pending_test_lease()
+                    ),
+                    16
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, original.revision(), 16, pending_test_lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        // Re-installing the exact current bytes succeeds idempotently.
+        assert_eq!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    original.revision(),
+                    PendingInboundPayload::new(
+                        Bytes::copy_from_slice(&extended),
+                        pending_test_lease()
+                    ),
+                    16
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound(key.chat, key.sender, key.id)
+                .await
+                .unwrap()
+                .unwrap(),
+            extended
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_bounded_group_resolves_unique_alias_and_rejects_ambiguity() {
+        let store = create_test_store().await;
+        let chat = "120363000000000081@g.us";
+        let sender = "200:75@lid";
+        let key = PendingInboundKey {
+            chat,
+            sender,
+            id: "LEGACY_ALIAS",
+        };
+        let logical = PendingInboundKey {
+            sender: "200@lid",
+            ..key
+        };
+        store
+            .store_pending_inbound(chat, sender, key.id, b"old")
+            .await
+            .unwrap();
+        store
+            .store_pending_inbound(chat, "200:75@s.whatsapp.net", key.id, b"other")
+            .await
+            .unwrap();
+        let owner = Arc::new(());
+        let weak = Arc::downgrade(&owner);
+        let (physical, record) = store
+            .read_pending_inbound_group_bounded(
+                logical,
+                16,
+                PendingInboundLease::new(owner.clone()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        drop(owner);
+        assert!(
+            weak.upgrade().is_some(),
+            "the returned record retains the lease owner"
+        );
+        assert_eq!(physical, sender);
+        assert_eq!(record.bytes(), b"old");
+        let stale = record.revision();
+        drop(record);
+        assert!(weak.upgrade().is_none());
+
+        // CAS must target the physical spelling returned above.
+        store
+            .store_pending_inbound(chat, sender, key.id, b"new")
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, stale, 16, pending_test_lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        // Oversized payload discovered through the alias is an error.
+        assert!(
+            store
+                .read_pending_inbound_group_bounded(logical, 2, pending_test_lease())
+                .await
+                .is_err()
+        );
+        // Two physical keys sharing the logical identity are ambiguous.
+        store
+            .store_pending_inbound(chat, logical.sender, key.id, b"ambiguous")
+            .await
+            .unwrap();
+        assert!(
+            store
+                .read_pending_inbound_group_bounded(logical, 16, pending_test_lease())
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound(chat, sender, key.id)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(b"new".as_slice())
+        );
+        // Removing the ambiguous alias leaves the legacy physical row as the
+        // only match, so the group read resolves it again.
+        store
+            .delete_pending_inbound(chat, logical.sender, key.id)
+            .await
+            .unwrap();
+        let (_, record) = store
+            .read_pending_inbound_group_bounded(logical, 16, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, record.revision(), 16, record.lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        assert!(
+            store
+                .read_pending_inbound_group_bounded(logical, 16, pending_test_lease())
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_group_sender_rejects_oversized_and_too_many_aliases() {
+        let long = "a".repeat(129);
+        let error =
+            pending_group_sender(&mut [Some(long.as_str())].into_iter(), "200@lid").unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+
+        let error =
+            pending_group_sender(&mut [Some(long.as_str())].into_iter(), &long).unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+
+        let spellings: Vec<String> = (0..401).map(|i| format!("{i}:75@lid")).collect();
+        let error = pending_group_sender(
+            &mut spellings.iter().map(|spelling| Some(spelling.as_str())),
+            "none@lid",
+        )
+        .unwrap_err();
+        assert!(matches!(error, StoreError::Validation(_)));
+
+        // Exactly 400 distinct non-matching keys are within the bound.
+        let spellings: Vec<String> = (0..400).map(|i| format!("{i}:75@lid")).collect();
+        assert_eq!(
+            pending_group_sender(
+                &mut spellings.iter().map(|spelling| Some(spelling.as_str())),
+                "none@lid",
+            )
+            .unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn pending_bounded_statement_reuses_cache_and_rebinds_all_parameters() {
+        use diesel::connection::{InstrumentationEvent, SimpleConnection};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let mut conn = SqliteConnection::establish(":memory:").unwrap();
+        conn.batch_execute(
+            "CREATE TABLE pending_inbound_messages \
+             (device_id INTEGER, chat TEXT, sender TEXT, id TEXT, message BLOB); \
+             INSERT INTO pending_inbound_messages VALUES \
+             (1, 'chat-a', 'sender-a', 'id-a', x'616161'), \
+             (2, 'chat-a', 'sender-a', 'id-a', x'626262'), \
+             (1, 'chat-b', 'sender-a', 'id-a', x'636363'), \
+             (1, 'chat-a', 'sender-b', 'id-a', x'646464'), \
+             (1, 'chat-a', 'sender-a', 'id-b', x'656565');",
+        )
+        .unwrap();
+        let cached = Arc::new(AtomicUsize::new(0));
+        let observed = cached.clone();
+        conn.set_instrumentation(move |event: InstrumentationEvent<'_>| {
+            if let InstrumentationEvent::CacheQuery { .. } = event {
+                observed.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        for (max_bytes, device_id, chat, sender, id, expected) in [
+            (3, 1, "chat-a", "sender-a", "id-a", Some(b"aaa")),
+            (2, 1, "chat-a", "sender-a", "id-a", None),
+            (3, 2, "chat-a", "sender-a", "id-a", Some(b"bbb")),
+            (3, 1, "chat-b", "sender-a", "id-a", Some(b"ccc")),
+            (3, 1, "chat-a", "sender-b", "id-a", Some(b"ddd")),
+            (3, 1, "chat-a", "sender-a", "id-b", Some(b"eee")),
+            (3, 1, "chat-a", "sender-a", "id-a", Some(b"aaa")),
+        ] {
+            let row: BoundedPendingPayload = crate::bounded_pending_query::BoundedPendingQuery {
+                max_bytes,
+                device_id,
+                chat,
+                sender,
+                id,
+            }
+            .get_result(&mut conn)
+            .unwrap();
+            assert_eq!(row.storage_type, "blob");
+            assert_eq!(row.byte_len, Some(3));
+            assert_eq!(
+                row.payload.as_deref(),
+                expected.map(|value| value.as_slice())
+            );
+        }
+        assert_eq!(cached.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn pending_bounded_group_metadata_sql_limits_copying_and_rebinds_cache() {
+        use diesel::connection::{InstrumentationEvent, SimpleConnection};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let mut conn = SqliteConnection::establish(":memory:").unwrap();
+        conn.batch_execute("CREATE TABLE pending_inbound_messages (device_id INTEGER, chat TEXT, sender TEXT, id TEXT, message BLOB);
+            INSERT INTO pending_inbound_messages VALUES
+            (1, 'chat-a', '200:75@lid', 'id-a', zeroblob(4194304)),
+            (2, 'chat-a', '300:76@lid', 'id-a', x'01'),
+            (1, 'chat-b', '400@lid', 'id-a', x'01'),
+            (1, 'chat-a', '500@lid', 'id-b', x'01');").unwrap();
+        diesel::sql_query(
+            "INSERT INTO pending_inbound_messages VALUES (1, 'huge', ?, 'id-a', x'01')",
+        )
+        .bind::<diesel::sql_types::Text, _>("2".repeat(4096))
+        .execute(&mut conn)
+        .unwrap();
+        let cached = Arc::new(AtomicUsize::new(0));
+        let observed = cached.clone();
+        conn.set_instrumentation(move |event: InstrumentationEvent<'_>| {
+            if let InstrumentationEvent::CacheQuery { .. } = event {
+                observed.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+        for (device_id, chat, id, expected) in [
+            (1, "chat-a", "id-a", Some("200:75@lid")),
+            (2, "chat-a", "id-a", Some("300:76@lid")),
+            (1, "chat-b", "id-a", Some("400@lid")),
+            (1, "chat-a", "id-b", Some("500@lid")),
+            (1, "huge", "id-a", None),
+        ] {
+            let rows: Vec<BoundedPendingSender> =
+                crate::bounded_pending_query::BoundedPendingSenders {
+                    device_id,
+                    chat,
+                    id,
+                }
+                .load(&mut conn)
+                .unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].sender.as_deref(), expected);
+        }
+        assert_eq!(cached.load(Ordering::SeqCst), 1);
+        conn.batch_execute("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<402)
+            INSERT INTO pending_inbound_messages SELECT 1, 'many', x || '@lid', 'id-a', x'01' FROM n;").unwrap();
+        let rows: Vec<BoundedPendingSender> = crate::bounded_pending_query::BoundedPendingSenders {
+            device_id: 1,
+            chat: "many",
+            id: "id-a",
+        }
+        .load(&mut conn)
+        .unwrap();
+        assert_eq!(rows.len(), 401);
+        assert!(
+            pending_group_sender(&mut rows.iter().map(|row| row.sender.as_deref()), "1@lid")
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn pending_bounded_rejects_oversized_blob_and_large_text_without_mutation() {
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "oversized",
+        };
+        let payload = vec![0x7a; 2 * 1024 * 1024];
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, &payload)
+            .await
+            .unwrap();
+        let revision = PendingInboundRevision::for_bytes(&payload);
+        assert!(
+            store
+                .read_pending_inbound_bounded(key, 16, pending_test_lease())
+                .await
+                .is_err()
+        );
+        assert!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    revision,
+                    PendingInboundPayload::new(Bytes::from_static(b"new"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .is_err()
+        );
+        assert!(
+            store
+                .delete_pending_inbound_if(key, revision, 16, pending_test_lease())
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .get_pending_inbound(key.chat, key.sender, key.id)
+                .await
+                .unwrap()
+                .unwrap(),
+            payload
+        );
+        // Corrupt the column to TEXT: every bounded operation rejects it and
+        // leaves the original row in place.
+        pending_execute(
+            &store,
+            "UPDATE pending_inbound_messages SET message = replace(hex(zeroblob(1048576)), '0', 'x') WHERE id = 'oversized'",
+        )
+        .await;
+        assert!(
+            store
+                .read_pending_inbound_bounded(key, 16, pending_test_lease())
+                .await
+                .is_err()
+        );
+        assert!(
+            store
+                .replace_pending_inbound_if(
+                    key,
+                    revision,
+                    PendingInboundPayload::new(Bytes::from_static(b"new"), pending_test_lease()),
+                    16,
+                )
+                .await
+                .is_err()
+        );
+        assert!(
+            store
+                .delete_pending_inbound_if(key, revision, 16, pending_test_lease())
+                .await
+                .is_err()
+        );
+        let pool = store.pool.clone();
+        store
+            .with_semaphore(move || {
+                let mut conn = pool
+                    .get()
+                    .map_err(|e| StoreError::Connection(e.to_string()))?;
+                let row: BoundedPendingPayload = diesel::sql_query(
+                    "SELECT typeof(message) AS storage_type, NULL AS byte_len, NULL AS payload FROM pending_inbound_messages WHERE id = 'oversized'",
+                )
+                .get_result(&mut conn)
+                .map_err(|e| StoreError::Database(e.to_string()))?;
+                assert_eq!(row.storage_type, "text");
+                Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn pending_bounded_empty_is_present_and_delete_requires_revision() {
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "empty",
+        };
+        assert!(
+            store
+                .read_pending_inbound_bounded(key, 0, pending_test_lease())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(
+                    key,
+                    PendingInboundRevision::missing(),
+                    0,
+                    pending_test_lease()
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, b"")
+            .await
+            .unwrap();
+        let row = store
+            .read_pending_inbound_bounded(key, 0, pending_test_lease())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(row.bytes().is_empty());
+        assert_ne!(row.revision(), PendingInboundRevision::missing());
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(
+                    key,
+                    PendingInboundRevision::missing(),
+                    0,
+                    pending_test_lease()
+                )
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, row.revision(), 0, pending_test_lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Applied
+        );
+        assert_eq!(
+            store
+                .delete_pending_inbound_if(key, row.revision(), 0, pending_test_lease())
+                .await
+                .unwrap(),
+            PendingInboundMutation::Conflict
+        );
+    }
+
+    struct PendingTestOwner {
+        _lock: tokio::sync::OwnedMutexGuard<()>,
+        charged: Arc<std::sync::atomic::AtomicUsize>,
+        amount: usize,
+        released: std::sync::mpsc::Sender<()>,
+    }
+
+    impl Drop for PendingTestOwner {
+        fn drop(&mut self) {
+            self.charged
+                .fetch_sub(self.amount, std::sync::atomic::Ordering::SeqCst);
+            let _ = self.released.send(());
+        }
+    }
+
+    #[tokio::test]
+    async fn pending_owned_read_result_keeps_budget_and_identity_lock() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::time::Duration;
+        let store = create_test_store().await;
+        let key = PendingInboundKey {
+            chat: "test-chat",
+            sender: "test-sender",
+            id: "owned-read",
+        };
+        store
+            .store_pending_inbound(key.chat, key.sender, key.id, b"raw")
+            .await
+            .unwrap();
+        let lock = Arc::new(tokio::sync::Mutex::new(()));
+        let charged = Arc::new(AtomicUsize::new(16));
+        let (released, completion) = std::sync::mpsc::channel();
+        let lease = PendingInboundLease::new(Arc::new(PendingTestOwner {
+            _lock: lock.clone().lock_owned().await,
+            charged: charged.clone(),
+            amount: 16,
+            released,
+        }));
+        let record = store
+            .read_pending_inbound_bounded(key, 16, lease)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(record.bytes(), b"raw");
+        assert!(
+            lock.try_lock().is_err(),
+            "the returned bytes still own their identity"
+        );
+        assert_eq!(charged.load(Ordering::SeqCst), 16);
+        drop(record);
+        completion.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(lock.try_lock().is_ok());
+        assert_eq!(charged.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn pending_owned_cancelled_cas_keeps_worker_budget_and_excludes_successor() {
+        use std::future::{Future, poll_fn};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::task::Poll;
+        use std::time::Duration;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let store = create_test_store().await;
+            let key = PendingInboundKey {
+                chat: "test-chat",
+                sender: "test-sender",
+                id: "cancelled-cas",
+            };
+            let lock = Arc::new(tokio::sync::Mutex::new(()));
+            let charged = Arc::new(AtomicUsize::new(32));
+            let (released, completion) = std::sync::mpsc::channel();
+            let owner = Arc::new(PendingTestOwner {
+                _lock: lock.clone().lock_owned().await,
+                charged: charged.clone(),
+                amount: 32,
+                released,
+            });
+            let weak = Arc::downgrade(&owner);
+            let request = PendingInboundPayload::new(
+                Bytes::from_static(b"raw"),
+                PendingInboundLease::new(owner),
+            );
+            // One blocking slot makes the actual CAS worker queue deterministic.
+            let (started, entered) = std::sync::mpsc::channel();
+            let (unpark, parked) = std::sync::mpsc::channel();
+            let blocker = tokio::task::spawn_blocking(move || {
+                started.send(()).unwrap();
+                parked.recv_timeout(Duration::from_secs(10)).unwrap();
+            });
+            entered.recv_timeout(Duration::from_secs(5)).unwrap();
+            let mut operation = Box::pin(store.replace_pending_inbound_if(
+                key,
+                PendingInboundRevision::missing(),
+                request,
+                16,
+            ));
+            assert!(poll_fn(|cx| Poll::Ready(operation.as_mut().poll(cx).is_pending())).await);
+            drop(operation);
+            assert!(
+                weak.upgrade().is_some(),
+                "cancelled caller must not release the queued worker"
+            );
+            assert!(
+                lock.try_lock().is_err(),
+                "a successor cannot enter before worker terminal"
+            );
+            assert_eq!(charged.load(Ordering::SeqCst), 32);
+            unpark.send(()).unwrap();
+            completion.recv_timeout(Duration::from_secs(5)).unwrap();
+            blocker.await.unwrap();
+            assert!(weak.upgrade().is_none());
+            assert_eq!(charged.load(Ordering::SeqCst), 0);
+            let successor = lock.clone().lock_owned().await;
+            let record = store
+                .read_pending_inbound_bounded(key, 16, pending_test_lease())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(record.bytes(), b"raw");
+            assert_eq!(
+                store
+                    .delete_pending_inbound_if(key, record.revision(), 16, pending_test_lease())
+                    .await
+                    .unwrap(),
+                PendingInboundMutation::Applied
+            );
+            drop(successor);
+            assert!(
+                store
+                    .read_pending_inbound_bounded(key, 16, pending_test_lease())
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+        });
     }
 }

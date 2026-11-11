@@ -64766,6 +64766,90 @@
               ]
             }
           ]
+        },
+        {
+          "type": "text",
+          "id": "XscAX",
+          "name": "Wallpaper Proof / Eyebrow",
+          "fill": "$wl-accent",
+          "content": "WALLPAPER · DOODLE TILE",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600",
+          "letterSpacing": 0.18
+        },
+        {
+          "type": "text",
+          "id": "B7uhLA",
+          "name": "Wallpaper Proof / Title",
+          "fill": "$wl-text-primary",
+          "content": "One seamless doodle, repeated at 800 pt",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "700",
+          "letterSpacing": -0.02
+        },
+        {
+          "type": "text",
+          "id": "cqcWm",
+          "name": "Wallpaper Proof / Desc",
+          "fill": "$wl-text-secondary",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "1024 × 1024 SVG tile · 300 objects, 846 small icons, 520 dots · light #C9B9A3 60% / dark #D8CCBC 20%. The app rasters the same SVG to alpha masks at build time.",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "frame",
+          "id": "J3jZY",
+          "name": "Wallpaper Proof / Doodle",
+          "clip": true,
+          "width": "fill_container",
+          "height": 420,
+          "fill": [
+            "$wl-bg-conversation",
+            {
+              "type": "image",
+              "enabled": true,
+              "url": "wp38-seamless-light-v19.png",
+              "mode": "cover"
+            }
+          ],
+          "cornerRadius": 12,
+          "stroke": "$wl-border",
+          "strokeWidth": 1,
+          "strokeAlignment": "inner",
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "C2BMK",
+              "x": 16,
+              "y": 16,
+              "name": "Wallpaper Proof / Label",
+              "fill": "#FFFFFFE6",
+              "cornerRadius": 6,
+              "padding": [
+                6,
+                10
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xL4zF",
+                  "name": "Label Text",
+                  "fill": "#0A0A0A",
+                  "content": "LIGHT · 800 PT REPEAT",
+                  "fontFamily": "Inter",
+                  "fontSize": 10,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.08
+                }
+              ]
+            }
+          ]
         }
       ]
     },

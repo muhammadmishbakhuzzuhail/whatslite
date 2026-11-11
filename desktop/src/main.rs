@@ -25,11 +25,21 @@ fn main() {
         };
         theme::apply_theme(cx, theme_mode);
 
+        let (window_width, window_height) = std::env::var("WHATSLITE_WINDOW")
+            .ok()
+            .and_then(|value| {
+                let (width, height) = value.split_once('x')?;
+                Some((
+                    width.trim().parse::<f32>().ok()?,
+                    height.trim().parse::<f32>().ok()?,
+                ))
+            })
+            .unwrap_or((1440., 900.));
         open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                     None,
-                    size(px(1440.), px(900.)),
+                    size(px(window_width), px(window_height)),
                     cx,
                 ))),
                 titlebar: Some(TitlebarOptions {

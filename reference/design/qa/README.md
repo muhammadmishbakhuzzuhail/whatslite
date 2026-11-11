@@ -19,6 +19,8 @@ The app repeats the 800pt source at 800pt; the canvas shows an 800pt proof.
 | `1440-rtl.png` | RTL layout with the same wallpaper and top-aligned avatars. |
 | `1440-text-125.png` | 125% text scale; no clipped bubbles or wallpaper gaps. |
 | `38-wallpaper-doodle.png` | Pencil page 38 canvas proof: light/dark v19 proofs, 1024 × 1024 SVG, 800 pt repeat. |
+| `07-wallpaper-proof.png` | Pencil page 07 Handoff: the doodle wallpaper proof added under the notes row. |
+| `1024-design-125.png` | Design Reference at 1024×700 and 125% text scale; foundation rows and color grid stay inside the content column. |
 | `1920-group-light.png` | 1920-wide layout. The X11 capture is 1920×1008 because the window frame is capped by the 1080px screen. |
 
 ## Reproduce
@@ -38,6 +40,11 @@ WHATSLITE_CHAT=1 WHATSLITE_OVERLAY=demo cargo run -p whatslite-desktop
 WHATSLITE_CHAT=1 WHATSLITE_THEME=dark cargo run -p whatslite-desktop
 WHATSLITE_CHAT=1 WHATSLITE_RTL=1 cargo run -p whatslite-desktop
 WHATSLITE_CHAT=1 WHATSLITE_TEXT_SCALE=1.25 cargo run -p whatslite-desktop
+
+# Design Reference at the minimum window width and 125% text scale
+env -u WAYLAND_DISPLAY WHATSLITE_ROUTE=settings WHATSLITE_SUBPAGE=design \
+  WHATSLITE_TEXT_SCALE=1.25 WHATSLITE_WINDOW=1024x700 \
+  cargo run -p whatslite-desktop
 ```
 
 The 3× path is covered by `wallpaper::tests::picks_the_1x_2x_3x_texture` and

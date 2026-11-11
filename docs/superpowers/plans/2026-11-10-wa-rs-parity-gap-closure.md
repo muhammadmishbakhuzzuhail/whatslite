@@ -634,7 +634,9 @@ Blocked sub-tasks (need a prerequisite subsystem before they can be independent)
 | G10 server_sync handler | needs batched sync engine/client `SyncScope`/`report_background_sync`; belongs with G6 |
 
 
-Remaining workstreams: G3–G7, G8n-3+ social feature APIs/MEX execution, G10 server_sync handler (blocked on G6 sync engine), G11–G16. This is a multi-session effort; the plan is still authoritative.
+Current gate (2026-11-11): `cargo test --workspace -- --test-threads=4` → 1953 passed, 30 ignored; fmt/check/bridge green.
+
+Remaining workstreams: the deep client lifecycle/inbound commit-batch/send pipeline (G2c/G2d-2/G3/G4), full in-memory + signal cache backends, G5 media streaming wiring, G6 reliability/lifecycle, G7 mobile, G8n-3+ feature surfaces that depend on the send/app-state pipeline (newsletter metadata/history, profile, polls, comments, chat actions, labels, favorites, quick replies), G10 server_sync (blocked on G6), full G11–G14 VoIP engine (only the Phase-4 primitive/sans-IO slice is ported), and G15–G16 final wiring/report. This remains a multi-session effort; the plan is still authoritative.
 
 ## Execution Order
 

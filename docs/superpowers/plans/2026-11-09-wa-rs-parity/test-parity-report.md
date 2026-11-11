@@ -104,9 +104,9 @@ still requires a WhatsApp account/phone and is not claimed.
 | Upstream storage/transport reader-lifecycle and dialer suites | deferred | Depend on upstream storage/transport internals; bundled profile, device scoping, TCP dial and byte-stream contracts are covered. |
 | `tests/sqlite-sdk-browser/` | non-goal except WASM check | Browser SDK harness is external; the WASM storage check is covered by the `wasm32` check below. |
 
-Final evidence: workspace 1296 passed/0 failed/29 ignored; clippy 190 baseline
-warnings; desktop 21 passed; bridge 3 passed; 7/7 parity alias test runs; 14/14
-feature-matrix checks; WASM storage check green with
-`--no-default-features --features js`. Live bridge pairing/send/receive/media
-smoke remains blocked on a real WhatsApp account/phone.
+Final evidence (revalidated 2026-11-11): workspace 1953 passed/0 failed/30 ignored;
+fmt clean; workspace check green; bridge 3 passed; desktop 21 passed (previous
+gate); 7/7 parity alias test runs; 14/14 feature-matrix checks; WASM storage
+check green with `--no-default-features --features js`. Live bridge
+pairing/send/receive/media smoke remains blocked on a real WhatsApp account/phone.
 

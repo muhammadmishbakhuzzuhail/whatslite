@@ -97,3 +97,9 @@ at scale 1.
 | File | Size | Proves |
 |---|---|---|
 | `reference/design/qa/07-wallpaper-proof.png` | 1296×420 | Pencil page 07 Handoff carries the doodle wallpaper proof, not only notes. |
+
+## Foundations 07 wallpaper
+
+| File | Size | Proves |
+|---|---|---|
+| `reference/design/qa/01-foundations-wallpaper.png` | 1296×1330 | Pencil page 01 Foundations section 07 uses the seamless 1024 doodle tile, 800 pt repeat, 60%–20% ink. |

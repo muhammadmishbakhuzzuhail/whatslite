@@ -11481,7 +11481,7 @@
                   "type": "frame",
                   "id": "IqUX9",
                   "name": "Wallpaper / Doodle Tile",
-                  "context": "{\"role\":\"wallpaper-tile\",\"size\":\"800x800\",\"source\":\"wallpaper-doodle-source.svg\",\"raster\":\"wp38-seamless-light-v19.png\",\"appRepeat\":\"800pt\",\"line\":\"#C9B9A3\",\"comingSoon\":false}",
+                  "context": "{\"role\":\"wallpaper-tile\",\"size\":\"800x800\",\"source\":\"wallpaper-doodle-source.svg\",\"raster\":\"wp38-master.png\",\"appRepeat\":\"800pt\",\"line\":\"#C9B9A3\",\"comingSoon\":false}",
                   "reusable": true,
                   "clip": true,
                   "width": 800,
@@ -11491,7 +11491,7 @@
                     {
                       "type": "image",
                       "enabled": true,
-                      "url": "wp38-seamless-light-v19.png",
+                      "url": "wp38-master.png",
                       "mode": "cover"
                     }
                   ],

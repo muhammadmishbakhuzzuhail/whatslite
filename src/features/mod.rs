@@ -10,6 +10,11 @@ mod tctoken;
 
 pub use blocking::{Blocking, BlocklistEntry};
 
+pub use bots::{
+    BotDefault, BotList, BotListEntry, BotListSection, BotListVersion, BotSectionDisplayType,
+    BotSectionType, BotTheme, BotThemeMode, Bots,
+};
+
 pub use chatstate::{ChatStateType, Chatstate};
 
 pub use contacts::{ContactInfo, Contacts, IsOnWhatsAppResult, ProfilePicture, UserInfo};
@@ -36,8 +41,7 @@ pub use media_reupload::{
 
 pub use message_edit::{EncryptedEdit, MessageEditError, SecretEncKind, SecretEncrypted};
 
-pub use newsletter::NewsletterPollVote;
-pub use newsletter::NewsletterReactionCount;
+pub use newsletter::{NewsletterPollVote, NewsletterReactionCount};
 
 pub mod app_state_resync;
 pub mod app_state_settings;

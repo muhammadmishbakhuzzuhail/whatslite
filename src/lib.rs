@@ -116,13 +116,15 @@ pub mod mobile;
 #[cfg(feature = "mobile-core")]
 pub mod mobile_session;
 pub use features::{
-    Blocking, BlocklistEntry, CappingMvStatus, CappingOteStatus, CappingStatus, ChatStateType,
-    Chatstate, ContactInfo, Contacts, CreateGroupResult, GroupCreateOptions, GroupDescription,
-    GroupError, GroupMetadata, GroupParticipant, GroupParticipantOptions, GroupSubject, Groups,
-    IsOnWhatsAppResult, MemberAddMode, MemberLinkMode, MembershipApprovalMode, Mex, MexDoc,
-    MexError, MexErrorExtensions, MexFatalError, MexGraphQLError, MexOperation, MexRequest,
-    MexResponse, NewChatMessageCapping, NewsletterPollVote, OwnUsername, ParticipantChangeResponse,
-    Presence, PresenceStatus, ProfilePicture, ReachoutTimelock, TcToken, UserInfo,
+    Blocking, BlocklistEntry, BotDefault, BotList, BotListEntry, BotListSection, BotListVersion,
+    BotSectionDisplayType, BotSectionType, BotTheme, BotThemeMode, Bots, CappingMvStatus,
+    CappingOteStatus, CappingStatus, ChatStateType, Chatstate, ContactInfo, Contacts,
+    CreateGroupResult, GroupCreateOptions, GroupDescription, GroupError, GroupMetadata,
+    GroupParticipant, GroupParticipantOptions, GroupSubject, Groups, IsOnWhatsAppResult,
+    MemberAddMode, MemberLinkMode, MembershipApprovalMode, Mex, MexDoc, MexError,
+    MexErrorExtensions, MexFatalError, MexGraphQLError, MexOperation, MexRequest, MexResponse,
+    NewChatMessageCapping, NewsletterPollVote, OwnUsername, ParticipantChangeResponse, Presence,
+    PresenceStatus, ProfilePicture, ReachoutTimelock, TcToken, UserInfo,
 };
 
 pub mod bot;

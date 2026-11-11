@@ -118,7 +118,7 @@ pub mod mobile_session;
 pub use features::{
     Blocking, BlocklistEntry, CappingMvStatus, CappingOteStatus, CappingStatus, ChatStateType,
     Chatstate, ContactInfo, Contacts, CreateGroupResult, GroupCreateOptions, GroupDescription,
-    GroupMetadata, GroupParticipant, GroupParticipantOptions, GroupSubject, Groups,
+    GroupError, GroupMetadata, GroupParticipant, GroupParticipantOptions, GroupSubject, Groups,
     IsOnWhatsAppResult, MemberAddMode, MemberLinkMode, MembershipApprovalMode, Mex, MexDoc,
     MexError, MexErrorExtensions, MexFatalError, MexGraphQLError, MexOperation, MexRequest,
     MexResponse, NewChatMessageCapping, NewsletterPollVote, OwnUsername, ParticipantChangeResponse,

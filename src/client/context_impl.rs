@@ -26,7 +26,7 @@ impl SendContextResolver for Client {
     }
 
     async fn resolve_group_info(&self, jid: &Jid) -> Result<GroupInfo, anyhow::Error> {
-        self.groups().query_info(jid).await
+        self.groups().query_info(jid).await.map_err(Into::into)
     }
 
     async fn get_lid_for_phone(&self, phone_user: &str) -> Option<String> {

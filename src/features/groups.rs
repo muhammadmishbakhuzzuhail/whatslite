@@ -1,5 +1,8 @@
 use crate::client::Client;
+use crate::features::mex::MexError;
+use crate::request::IqError;
 use std::collections::HashMap;
+use thiserror::Error;
 use wacore::client::context::GroupInfo;
 use wacore::iq::groups::{
     AddParticipantsIq, DemoteParticipantsIq, GetGroupInviteLinkIq, GroupCreateIq,
@@ -14,6 +17,34 @@ pub use wacore::iq::groups::{
     GroupCreateOptions, GroupDescription, GroupParticipantOptions, GroupSubject, MemberAddMode,
     MemberLinkMode, MembershipApprovalMode, ParticipantChangeResponse,
 };
+
+/// Error returned by group operations (metadata queries, participant and
+/// settings mutations, invites).
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum GroupError {
+    /// A `w:g2` IQ to the server failed (transport, timeout, server rejection).
+    #[error("{0}")]
+    Iq(#[from] IqError),
+    /// A MEX (GraphQL) group-property mutation failed.
+    #[error("{0}")]
+    Mex(#[from] MexError),
+    /// Picture data was empty; use the dedicated removal operation instead.
+    #[error("picture data cannot be empty; use remove_profile_picture instead")]
+    EmptyPicture,
+    /// The request was malformed (e.g. empty invite code, non-group JID where
+    /// one is required).
+    #[error("invalid group request: {0}")]
+    InvalidRequest(String),
+    /// The server refused a description update because the `prev` token no
+    /// longer matches the group's current description: another device changed
+    /// it first.
+    #[error("the group description changed since it was read")]
+    DescriptionConflict,
+    /// Catch-all for internal failures (LID/PN resolution, cache plumbing).
+    #[error("{0}")]
+    Internal(#[from] anyhow::Error),
+}
 
 #[derive(Debug, Clone)]
 pub struct GroupMetadata {
@@ -54,7 +85,7 @@ impl<'a> Groups<'a> {
         Self { client }
     }
 
-    pub async fn query_info(&self, jid: &Jid) -> Result<GroupInfo, anyhow::Error> {
+    pub async fn query_info(&self, jid: &Jid) -> Result<GroupInfo, GroupError> {
         if let Some(cached) = self.client.get_group_cache().await.get(jid).await {
             return Ok(cached);
         }
@@ -91,7 +122,7 @@ impl<'a> Groups<'a> {
         Ok(info)
     }
 
-    pub async fn get_participating(&self) -> Result<HashMap<String, GroupMetadata>, anyhow::Error> {
+    pub async fn get_participating(&self) -> Result<HashMap<String, GroupMetadata>, GroupError> {
         let response = self.client.execute(GroupParticipatingIq::new()).await?;
 
         let result = response
@@ -112,7 +143,7 @@ impl<'a> Groups<'a> {
         Ok(result)
     }
 
-    pub async fn get_metadata(&self, jid: &Jid) -> Result<GroupMetadata, anyhow::Error> {
+    pub async fn get_metadata(&self, jid: &Jid) -> Result<GroupMetadata, GroupError> {
         let group = self.client.execute(GroupQueryIq::new(jid)).await?;
 
         Ok(GroupMetadata {
@@ -126,7 +157,7 @@ impl<'a> Groups<'a> {
     pub async fn create_group(
         &self,
         mut options: GroupCreateOptions,
-    ) -> Result<CreateGroupResult, anyhow::Error> {
+    ) -> Result<CreateGroupResult, GroupError> {
         // Resolve phone numbers for LID participants that don't have one
         let mut resolved_participants = Vec::with_capacity(options.participants.len());
 
@@ -153,7 +184,7 @@ impl<'a> Groups<'a> {
         Ok(CreateGroupResult { gid })
     }
 
-    pub async fn set_subject(&self, jid: &Jid, subject: GroupSubject) -> Result<(), anyhow::Error> {
+    pub async fn set_subject(&self, jid: &Jid, subject: GroupSubject) -> Result<(), GroupError> {
         Ok(self
             .client
             .execute(SetGroupSubjectIq::new(jid, subject))
@@ -169,14 +200,14 @@ impl<'a> Groups<'a> {
         jid: &Jid,
         description: Option<GroupDescription>,
         prev: Option<String>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), GroupError> {
         Ok(self
             .client
             .execute(SetGroupDescriptionIq::new(jid, description, prev))
             .await?)
     }
 
-    pub async fn leave(&self, jid: &Jid) -> Result<(), anyhow::Error> {
+    pub async fn leave(&self, jid: &Jid) -> Result<(), GroupError> {
         Ok(self.client.execute(LeaveGroupIq::new(jid)).await?)
     }
 
@@ -184,7 +215,7 @@ impl<'a> Groups<'a> {
         &self,
         jid: &Jid,
         participants: &[Jid],
-    ) -> Result<Vec<ParticipantChangeResponse>, anyhow::Error> {
+    ) -> Result<Vec<ParticipantChangeResponse>, GroupError> {
         Ok(self
             .client
             .execute(AddParticipantsIq::new(jid, participants))
@@ -195,7 +226,7 @@ impl<'a> Groups<'a> {
         &self,
         jid: &Jid,
         participants: &[Jid],
-    ) -> Result<Vec<ParticipantChangeResponse>, anyhow::Error> {
+    ) -> Result<Vec<ParticipantChangeResponse>, GroupError> {
         Ok(self
             .client
             .execute(RemoveParticipantsIq::new(jid, participants))
@@ -206,7 +237,7 @@ impl<'a> Groups<'a> {
         &self,
         jid: &Jid,
         participants: &[Jid],
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), GroupError> {
         Ok(self
             .client
             .execute(PromoteParticipantsIq::new(jid, participants))
@@ -217,14 +248,14 @@ impl<'a> Groups<'a> {
         &self,
         jid: &Jid,
         participants: &[Jid],
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), GroupError> {
         Ok(self
             .client
             .execute(DemoteParticipantsIq::new(jid, participants))
             .await?)
     }
 
-    pub async fn get_invite_link(&self, jid: &Jid, reset: bool) -> Result<String, anyhow::Error> {
+    pub async fn get_invite_link(&self, jid: &Jid, reset: bool) -> Result<String, GroupError> {
         Ok(self
             .client
             .execute(GetGroupInviteLinkIq::new(jid, reset))

@@ -15,8 +15,8 @@ pub use chatstate::{ChatStateType, Chatstate};
 pub use contacts::{ContactInfo, Contacts, IsOnWhatsAppResult, ProfilePicture, UserInfo};
 
 pub use groups::{
-    CreateGroupResult, GroupCreateOptions, GroupDescription, GroupMetadata, GroupParticipant,
-    GroupParticipantOptions, GroupSubject, Groups, MemberAddMode, MemberLinkMode,
+    CreateGroupResult, GroupCreateOptions, GroupDescription, GroupError, GroupMetadata,
+    GroupParticipant, GroupParticipantOptions, GroupSubject, Groups, MemberAddMode, MemberLinkMode,
     MembershipApprovalMode, ParticipantChangeResponse,
 };
 

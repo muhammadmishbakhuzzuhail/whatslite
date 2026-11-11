@@ -619,6 +619,7 @@ Completed sub-tasks (reviewed, committed):
 | G8r typed group errors | `84f29d8` | Approved; 4 tests |
 | G8s error-chain predicates + full IQ test | `0358d7a`, `329159d` | Approved; 4 + 2 tests |
 | G8t bot directory surface | `f67a272` | 1 API test |
+| G8u typed tc-token errors | `7ad9db1` | 1 API test |
 | G8q reachout timelock public API test | `55f0852` | 2 tests |
 
 

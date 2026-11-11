@@ -617,6 +617,7 @@ Completed sub-tasks (reviewed, committed):
 | G6p pending-inbound storage substrate | `e67de6e` | Approved; 14 tests |
 | G3d pending journal + live retention | `9d368d7` | Approved; 9 + 14 tests |
 | G8r typed group errors | `84f29d8` | Approved; 4 tests |
+| G8s error-chain predicates + full IQ test | `0358d7a`, `329159d` | Approved; 4 + 2 tests |
 | G8q reachout timelock public API test | `55f0852` | 2 tests |
 
 

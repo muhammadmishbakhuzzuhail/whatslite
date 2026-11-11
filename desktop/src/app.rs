@@ -15886,4 +15886,41 @@ mod tests {
         assert_eq!(dark.bubble_out, gpui_kit::rgb(0x005C4B));
         assert_eq!(dark.accent, gpui_kit::rgb(0x21C063));
     }
+
+    #[test]
+    fn design_handoff_counts_match_the_rendered_reference() {
+        let screens: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("../../reference/design/machine/screens.json"))
+                .expect("screens.json must parse");
+        assert_eq!(screens.len(), 39, "handoff has 39 pages");
+        assert!(
+            screens
+                .iter()
+                .any(|page| page["name"].as_str() == Some("38 · Wallpaper Doodle")),
+            "page 38 must be registered"
+        );
+
+        let components: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../../reference/design/machine/components.json"
+        ))
+        .expect("components.json must parse");
+        assert_eq!(components.len(), 54, "handoff has 54 masters");
+
+        let theme: serde_json::Value =
+            serde_json::from_str(include_str!("../../reference/design/machine/theme.json"))
+                .expect("theme.json must parse");
+        assert_eq!(
+            theme["theme"]["colors"]
+                .as_object()
+                .expect("colors object")
+                .len(),
+            28,
+            "theme has 28 color tokens"
+        );
+
+        let tokens: serde_json::Value =
+            serde_json::from_str(include_str!("../../reference/design/machine/tokens.json"))
+                .expect("tokens.json must parse");
+        assert_eq!(tokens.as_object().expect("tokens object").len(), 28);
+    }
 }

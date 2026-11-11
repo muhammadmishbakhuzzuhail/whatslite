@@ -1,43 +1,6 @@
 ---
 name: WhatsLite Desktop Design System
 description: WhatsApp-inspired native macOS desktop messenger with Liquid Glass aesthetics
-colors:
-  light-canvas: "#F4F6F8"
-  light-navigation: "#EFF2F5"
-  light-list: "#FFFFFF"
-  light-conversation: "#F7F2EA"
-  light-header: "#FFFFFF"
-  light-surface: "#FFFFFF"
-  light-surface-hover: "#F1F3F5"
-  light-surface-selected: "#E8F5EC"
-  light-divider: "#DDE2E6"
-  light-text-primary: "#182229"
-  light-text-secondary: "#65727B"
-  light-text-muted: "#849099"
-  light-accent: "#17A765"
-  light-accent-hover: "#118551"
-  light-accent-soft: "#D8F5DF"
-  light-bubble-in: "#FFFFFF"
-  light-bubble-out: "#D8FBCB"
-  light-input: "#F6F7F8"
-  dark-canvas: "#11191D"
-  dark-navigation: "#172126"
-  dark-list: "#172126"
-  dark-conversation: "#101A1E"
-  dark-header: "#1D282D"
-  dark-surface: "#243137"
-  dark-surface-hover: "#293940"
-  dark-surface-selected: "#253D35"
-  dark-divider: "#344247"
-  dark-text-primary: "#E9F0F2"
-  dark-text-secondary: "#A7B6BC"
-  dark-text-muted: "#7D929A"
-  dark-accent: "#1DBB73"
-  dark-accent-hover: "#2AC884"
-  dark-accent-soft: "#194E39"
-  dark-bubble-in: "#26363C"
-  dark-bubble-out: "#075E48"
-  dark-input: "#26343A"
 typography:
   family: "SF Pro Text, SF Pro Display, system-ui, -apple-system, sans-serif"
   sizes:
@@ -70,25 +33,10 @@ The design language reflects modern macOS Tahoe aesthetics, Liquid Glass materia
 The visual system strictly avoids generic web dashboard habits, unstyled HTML buttons, and purple/blue AI-slop gradients.
 
 ## Colors
-Derived from `reference/design/machine/theme.json` and `tokens.json`:
-- **Light Theme:**
-  - Navigation Rail: `#EFF2F5`
-  - Chat List: `#FFFFFF`
-  - Conversation Workspace: `#F7F2EA` (warm tint)
-  - Incoming Bubble: `#FFFFFF`
-  - Outgoing Bubble: `#D8FBCB`
-  - Brand Accent: `#17A765` (hover `#118551`, contrast `#075E54`)
-  - Text Primary: `#182229`, Secondary: `#65727B`, Muted: `#849099`
-  - Divider: `#DDE2E6`
-- **Dark Theme:**
-  - Navigation Rail: `#172126`
-  - Chat List: `#172126`
-  - Conversation Workspace: `#101A1E` (deep teal-black)
-  - Incoming Bubble: `#26363C`
-  - Outgoing Bubble: `#075E48`
-  - Brand Accent: `#1DBB73` (hover `#2AC884`, contrast `#075E54`)
-  - Text Primary: `#E9F0F2`, Secondary: `#A7B6BC`, Muted: `#7D929A`
-  - Divider: `#344247`
+The 28 light/dark color tokens live in `reference/design/machine/theme.json`
+and are mirrored in `reference/design/machine/tokens.json`. Do not duplicate
+hex values here; update the machine-readable source and the Pencil page 01
+foundation together.
 
 ## Typography
 - **Font Stack:** SF Pro Text / SF Pro Display on macOS; Segoe UI on Windows; Arial/system-ui fallback.

@@ -379,7 +379,7 @@
     "TOKEN",
     "Text on accent and bubbles",
     "The desktop shell is almost flat. Depth appears in three places only: message bubbles (2px lift), floating popovers (24px blur) and the macOS glass layer. Never a hard offset shadow.",
-    "Tile the conversation stage at 800px offsets, clipped by the window",
+    "Tile the conversation stage at 800 pt offsets, clipped by the window",
     "Timestamps, previews, meta",
     "Toast enter, checkmark on send, unread badge appearance",
     "Translucent fill, 1px white 50% edge, popover shadow.",

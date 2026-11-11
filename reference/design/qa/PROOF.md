@@ -79,3 +79,9 @@ The reference image is not committed to the repository; it stays local.
 They assert texture edges 800/1600/2400, tint channel order, and visible pixels.
 A 3× screenshot cannot be captured in this session because the X11 display runs
 at scale 1.
+
+## Canvas proofs
+
+| File | Size | Proves |
+|---|---|---|
+| `reference/design/qa/38-wallpaper-doodle.png` | 1440×1267 | Pencil page 38: light/dark v19 proofs, 1024 × 1024 SVG spec, 800 pt repeat |

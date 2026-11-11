@@ -616,6 +616,7 @@ Completed sub-tasks (reviewed, committed):
 | G8p MEX operation descriptors | `762ab9c` | Approved; 8 public + 19 feature + 6 core |
 | G6p pending-inbound storage substrate | `e67de6e` | Approved; 14 tests |
 | G3d pending journal + live retention | `9d368d7` | Approved; 9 + 14 tests |
+| G8r typed group errors | `84f29d8` | Approved; 4 tests |
 | G8q reachout timelock public API test | `55f0852` | 2 tests |
 
 

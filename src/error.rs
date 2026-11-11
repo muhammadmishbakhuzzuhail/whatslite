@@ -50,11 +50,12 @@ pub trait ErrorChainExt {
 
     /// The HTTP status behind this error, if any.
     ///
-    /// Reports a status the client refused a *completed* HTTP exchange on —
-    /// today the media download and upload paths. `None` means no HTTP exchange
-    /// got that far: the request never left, or the failure was ours. That
-    /// distinction lets a caller serving media onwards tell "the CDN says this
-    /// is gone" from "we broke".
+    /// Reports a status the client refused a *completed* HTTP exchange on.
+    /// Media paths begin attaching this once the streaming download/upload
+    /// wiring lands (G5/G6). `None` means no HTTP exchange got that far: the
+    /// request never left, or the failure was ours. That distinction lets a
+    /// caller serving media onwards tell "the CDN says this is gone" from "we
+    /// broke".
     fn http_status(&self) -> Option<u16> {
         self.sources()
             .find_map(|cause| cause.downcast_ref::<HttpStatusError>())
@@ -146,5 +147,47 @@ impl ErrorChainExt for dyn StdError + 'static {
 impl ErrorChainExt for dyn StdError + Send + Sync + 'static {
     fn as_dyn_error(&self) -> &(dyn StdError + 'static) {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_http_timeout_and_transport_failures() {
+        let http = crate::http::HttpStatusError { status: 404 };
+        assert_eq!(http.http_status(), Some(404));
+        assert!(!http.is_timeout());
+        assert!(!http.is_transport_unavailable());
+
+        let timeout: anyhow::Error = ClientIqError::Timeout.into();
+        assert!(timeout.is_timeout());
+        assert!(!timeout.is_transport_unavailable());
+
+        let not_connected: anyhow::Error = crate::client::ClientError::NotConnected.into();
+        assert!(not_connected.is_transport_unavailable());
+        assert!(!not_connected.is_timeout());
+
+        let encrypted: anyhow::Error = crate::socket::error::EncryptSendError::transport(
+            anyhow::anyhow!("pipe closed"),
+            Vec::new(),
+            Vec::new(),
+        )
+        .into();
+        assert!(encrypted.is_transport_unavailable());
+    }
+
+    #[test]
+    fn server_rejections_are_not_http_or_transport_failures() {
+        let rejection: anyhow::Error = ClientIqError::ServerError {
+            code: 403,
+            text: "forbidden".into(),
+        }
+        .into();
+        assert_eq!(rejection.server_rejection().map(|r| r.code), Some(403));
+        assert_eq!(rejection.http_status(), None);
+        assert!(!rejection.is_timeout());
+        assert!(!rejection.is_transport_unavailable());
     }
 }

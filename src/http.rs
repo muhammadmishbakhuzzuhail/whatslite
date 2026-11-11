@@ -3,8 +3,8 @@ pub use wacore::net::{HttpClient, HttpRequest, HttpResponse};
 /// An HTTP exchange that completed, carrying the status the client refused it
 /// on.
 ///
-/// Attached as the `source` of the errors the media paths return, so a consumer
-/// recovers the status by type — [`crate::error::ErrorChainExt::http_status`] —
+/// The media paths will attach it as the `source` of their errors (G5/G6), so a
+/// consumer recovers the status by type — [`crate::error::ErrorChainExt::http_status`] —
 /// instead of parsing a message. Kept apart from an IQ `code`: a CDN refusing a
 /// byte range and the chat server refusing a stanza are different layers with
 /// different remedies.

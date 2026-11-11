@@ -41,6 +41,21 @@ fn passive_response_requires_the_requested_child_and_keeps_its_name() {
 }
 
 #[test]
+fn passive_response_with_the_requested_child_is_accepted() {
+    for (passive, expected) in [(true, "passive"), (false, "active")] {
+        let response = NodeBuilder::new("iq")
+            .attr("type", "result")
+            .children([NodeBuilder::new(expected).build()])
+            .build();
+        assert!(
+            PassiveModeSpec::new(passive)
+                .parse_response(&response)
+                .is_ok()
+        );
+    }
+}
+
+#[test]
 fn newsletter_missing_child_and_attribute_remain_distinct() {
     let jid = "120363000000000001@newsletter".parse().unwrap();
     let spec = MyAddOnsSpec::new(&jid, 20);

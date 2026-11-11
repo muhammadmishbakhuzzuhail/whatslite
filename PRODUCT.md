@@ -12,7 +12,7 @@ adaptive
 
 ## Product Purpose
 An independent, WhatsApp-inspired desktop messenger frontend built with Rust and GPUI Kit.
-Provides a responsive desktop messaging experience across 15 functional modules and 120 discoverable interaction states using deterministic fixtures and typed service interfaces.
+Provides a responsive desktop messaging experience across 15 functional modules and a 175-row interaction state matrix using deterministic fixtures and typed service interfaces.
 Success means fluid navigation, fast rendering, tokenized Light and Dark themes, keyboard accessibility, and adherence to layout contracts without backend network dependencies.
 
 ## Positioning
@@ -27,7 +27,7 @@ Unlike Electron- or browser-based wrappers, this is an ultra-fast, GPU-accelerat
 ## Capabilities and Constraints
 - Frontend only: strictly mock data and typed service interfaces. No live WhatsApp Web connection, no real authentication or QR pairing, no background network calls to WhatsApp servers.
 - 15 functional modules: Onboarding/Pairing, Main Window Shell, Chat List, Conversation View, Message Composer, Attachments, Group Chats, Contacts & Profiles, Calls, Media Detail, Special Chats (Locked/Archived), Updates & Communities, Settings, Notifications, System & Error handling.
-- 120 unique registered interaction states specified in `reference/design/machine/screens.json`.
+- 175-row interaction state matrix specified on page 07 · Handoff and `reference/design/01-SCREENS.md`.
 - Canvas dimensions: 1512×982 logical points; wireframe SVGs are structural layout contracts, not pixel-perfect visual art.
 - Reusable component architecture: composable GPUI views rather than 120 rigid page components.
 - Zero hardcoded theme colors in UI implementation; all styling must use tokenized definitions (`reference/design/machine/tokens.json`).

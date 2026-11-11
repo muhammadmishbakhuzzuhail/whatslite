@@ -10424,15 +10424,49 @@ impl App {
                             })),
                     )
                     .child(ui::section_label("FOUNDATIONS · BORDERS & ELEVATION", p))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(10.))
+                            .px(px(20.))
+                            .py(px(10.))
+                            .child(
+                                div()
+                                    .size(px(12.))
+                                    .rounded(px(3.))
+                                    .bg(p.border)
+                                    .border_1()
+                                    .border_color(p.border),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child("Border · active theme"),
+                            )
+                            .child(
+                                div()
+                                    .size(px(12.))
+                                    .rounded_full()
+                                    .bg(p.accent),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child("Accent · active theme"),
+                            ),
+                    )
                     .child(ui::settings_row_field(
                         "Hairline",
-                        "1px inner #E9E9E9",
+                        "1px inner · active theme border",
                         Some("1px inner".into()),
                         p,
                     ))
                     .child(ui::settings_row_field(
                         "Focus ring",
-                        "2px #00AD5A, 2px offset",
+                        "2px accent · 2px offset",
                         Some("Keyboard only".into()),
                         p,
                     ))
@@ -15922,5 +15956,58 @@ mod tests {
             serde_json::from_str(include_str!("../../reference/design/machine/tokens.json"))
                 .expect("tokens.json must parse");
         assert_eq!(tokens.as_object().expect("tokens object").len(), 28);
+
+        let theme_colors = theme["theme"]["colors"].as_object().expect("colors");
+        let token_map = tokens.as_object().expect("tokens");
+        for (name, values) in theme_colors {
+            let token = token_map
+                .get(&format!("wl-{}", name.replace('_', "-")))
+                .unwrap_or_else(|| panic!("tokens.json missing wl-{name}"));
+            assert_eq!(
+                token["light"].as_str(),
+                values["light"].as_str(),
+                "light value for {name}"
+            );
+            assert_eq!(
+                token["dark"].as_str(),
+                values["dark"].as_str(),
+                "dark value for {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn design_docs_match_machine_sources() {
+        let strings: serde_json::Value =
+            serde_json::from_str(include_str!("../../reference/design/machine/strings.json"))
+                .expect("strings.json must parse");
+        let foundations = strings["01 · Foundations"][0]
+            .as_str()
+            .expect("foundation wallpaper copy");
+        assert!(foundations.contains("800 pt"), "wallpaper repeat is 800 pt");
+        assert!(foundations.contains("60%"), "wallpaper light ink is 60%");
+        assert!(
+            !foundations.contains("550"),
+            "stale 550 repeat must be gone"
+        );
+
+        let design = include_str!("../../DESIGN.md");
+        assert!(design.contains("bubble: \"18px\""), "bubble radius is 18px");
+        assert!(design.contains("Inter on Windows"), "Windows font is Inter");
+        assert!(
+            !design.contains("Segoe UI on Windows"),
+            "Segoe UI is not the Windows design font"
+        );
+
+        let product = include_str!("../../PRODUCT.md");
+        assert!(product.contains("175-row"), "state matrix is 175 rows");
+        assert!(
+            !product.contains("120 discoverable"),
+            "stale 120-state claim must be gone"
+        );
+        assert!(
+            product.contains("page 07 · Handoff"),
+            "state matrix points at page 07"
+        );
     }
 }

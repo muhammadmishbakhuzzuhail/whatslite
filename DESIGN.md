@@ -12,10 +12,11 @@ typography:
     heading: "20px"
     page-title: "24px"
 rounded:
-  xs: "5px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
+  sm: "4px"
+  md: "8px"
+  lg: "10px"
+  xl: "12px"
+  bubble: "18px"
   pill: "999px"
 spacing:
   xs: "4px"
@@ -39,7 +40,7 @@ hex values here; update the machine-readable source and the Pencil page 01
 foundation together.
 
 ## Typography
-- **Font Stack:** SF Pro Text / SF Pro Display on macOS; Segoe UI on Windows; Arial/system-ui fallback.
+- **Font Stack:** SF Pro Text / SF Pro Display on macOS; Inter on Windows; Inter fallback.
 - **Hierarchy:**
   - Page Titles: 24pt bold
   - Headings / Chat Titles: 20pt semibold
@@ -71,7 +72,7 @@ foundation together.
 - Window Corner Radius: 12pt (on macOS window container)
 - Modals & Cards: 12pt–16pt rounded corners
 - Avatar Circles: Fully rounded (`rounded_full`)
-- Chat Bubbles: 8pt–12pt rounded corners with directional tail styling
+- Chat Bubbles: 18pt bubble radius with directional tail styling
 - Filter Pills & Badges: Pill radius (999pt)
 - Buttons: 6pt–8pt rounded corners
 

@@ -10423,6 +10423,99 @@ impl App {
                                 ui::chip(format!("r{radius}"), false, p)
                             })),
                     )
+                    .child(ui::section_label("FOUNDATIONS · BORDERS & ELEVATION", p))
+                    .child(ui::settings_row_field(
+                        "Hairline",
+                        "1px inner #E9E9E9",
+                        Some("1px inner".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Focus ring",
+                        "2px #00AD5A, 2px offset",
+                        Some("Keyboard only".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Bubble",
+                        "0 1 2 / 8%",
+                        Some("8%".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Popover",
+                        "0 8 24 / 12%",
+                        Some("12%".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Glass",
+                        "macOS shell · translucent fill · 1px white 50% edge",
+                        Some("macOS".into()),
+                        p,
+                    ))
+                    .child(ui::section_label("FOUNDATIONS · ICONOGRAPHY", p))
+                    .child(ui::settings_row_field(
+                        "Material Symbols Rounded",
+                        "Outlined default · filled selected",
+                        Some("Apache 2.0".into()),
+                        p,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap(px(6.))
+                            .px(px(20.))
+                            .py(px(10.))
+                            .children([
+                                "16 · inline meta",
+                                "18 · row actions",
+                                "20 · navigation",
+                                "24 · headers + composer",
+                                "32 · empty states",
+                            ]
+                            .into_iter()
+                            .map(|label| ui::chip(label, false, p))),
+                    )
+                    .child(ui::section_label("FOUNDATIONS · LOGO", p))
+                    .child(ui::settings_row_field(
+                        "Mark",
+                        "messages-square · Lucide · ISC",
+                        Some("ISC".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "App icon",
+                        "Squircle radius 28% of tile · clear space one stroke width",
+                        Some("28%".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Primary lockup",
+                        "Mark + Inter 700 wordmark · gap = half mark width",
+                        Some("Inter 700".into()),
+                        p,
+                    ))
+                    .child(ui::settings_row_field(
+                        "Monochrome",
+                        "One ink colour · never on the accent",
+                        Some("1 ink".into()),
+                        p,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap(px(6.))
+                            .px(px(20.))
+                            .py(px(10.))
+                            .children(
+                                ["64 px", "40 px", "28 px", "20 px", "16 px · tile only"]
+                                    .into_iter()
+                                    .map(|label| ui::chip(label, false, p)),
+                            ),
+                    )
                     .child(ui::section_label("FOUNDATIONS · MOTION", p))
                     .child(
                         div()

@@ -12,9 +12,8 @@ fn reachout_timelock_push_uses_the_existing_pull_type() {
     state.enforcement_type = Some("BIZ_QUALITY".into());
     state.is_active = Some(true);
     state.time_enforcement_ends = Some("1704153600".into());
-    let event = Event::ReachoutTimelockUpdate(
-        ReachoutTimelockUpdate::builder().state(state).build(),
-    );
+    let event =
+        Event::ReachoutTimelockUpdate(ReachoutTimelockUpdate::builder().state(state).build());
     let interest = EventInterest::of(&[EventKind::ReachoutTimelockUpdate]);
     assert!(interest.wants(event.kind()));
     match &event {

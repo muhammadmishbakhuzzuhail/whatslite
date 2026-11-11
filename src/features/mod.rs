@@ -33,7 +33,7 @@ pub use mex::{
 
 pub use presence::{Presence, PresenceStatus};
 
-pub use tctoken::TcToken;
+pub use tctoken::{TcToken, TcTokenError};
 
 pub use media_reupload::{
     MediaReupload, MediaReuploadError, MediaReuploadPhase, MediaReuploadRequest,

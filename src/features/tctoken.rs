@@ -14,9 +14,23 @@
 
 use crate::client::Client;
 use crate::request::IqError;
+use crate::store::error::StoreError;
+use thiserror::Error;
 use wacore::iq::tctoken::{IssuePrivacyTokensSpec, ReceivedTcToken, tc_token_expiration_cutoff};
 use wacore::store::traits::TcTokenEntry;
 use wacore_binary::jid::Jid;
+
+/// Error returned by trusted-contact token operations.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum TcTokenError {
+    /// The IQ requesting tokens from the server failed.
+    #[error("{0}")]
+    Iq(#[from] IqError),
+    /// A token store (persistence) operation failed.
+    #[error("{0}")]
+    Store(#[from] StoreError),
+}
 
 /// Feature handle for trusted contact token operations.
 pub struct TcToken<'a> {
@@ -32,7 +46,7 @@ impl<'a> TcToken<'a> {
     ///
     /// Sends an IQ to the server requesting tokens for the specified JIDs (should be LID JIDs).
     /// Stores the received tokens and returns them.
-    pub async fn issue_tokens(&self, jids: &[Jid]) -> Result<Vec<ReceivedTcToken>, IqError> {
+    pub async fn issue_tokens(&self, jids: &[Jid]) -> Result<Vec<ReceivedTcToken>, TcTokenError> {
         if jids.is_empty() {
             return Ok(Vec::new());
         }
@@ -64,7 +78,7 @@ impl<'a> TcToken<'a> {
     ///
     /// Deletes all tokens older than the rolling window (28 days by default).
     /// Returns the number of tokens deleted.
-    pub async fn prune_expired(&self) -> Result<u32, anyhow::Error> {
+    pub async fn prune_expired(&self) -> Result<u32, TcTokenError> {
         let backend = self.client.persistence_manager.backend();
         let cutoff = tc_token_expiration_cutoff();
         let deleted = backend.delete_expired_tc_tokens(cutoff).await?;
@@ -77,13 +91,13 @@ impl<'a> TcToken<'a> {
     }
 
     /// Get a stored tc token for a JID.
-    pub async fn get(&self, jid: &str) -> Result<Option<TcTokenEntry>, anyhow::Error> {
+    pub async fn get(&self, jid: &str) -> Result<Option<TcTokenEntry>, TcTokenError> {
         let backend = self.client.persistence_manager.backend();
         Ok(backend.get_tc_token(jid).await?)
     }
 
     /// Get all JIDs that have stored tc tokens.
-    pub async fn get_all_jids(&self) -> Result<Vec<String>, anyhow::Error> {
+    pub async fn get_all_jids(&self) -> Result<Vec<String>, TcTokenError> {
         let backend = self.client.persistence_manager.backend();
         Ok(backend.get_all_tc_token_jids().await?)
     }

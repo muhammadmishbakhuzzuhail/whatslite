@@ -124,7 +124,7 @@ pub use features::{
     MemberAddMode, MemberLinkMode, MembershipApprovalMode, Mex, MexDoc, MexError,
     MexErrorExtensions, MexFatalError, MexGraphQLError, MexOperation, MexRequest, MexResponse,
     NewChatMessageCapping, NewsletterPollVote, OwnUsername, ParticipantChangeResponse, Presence,
-    PresenceStatus, ProfilePicture, ReachoutTimelock, TcToken, UserInfo,
+    PresenceStatus, ProfilePicture, ReachoutTimelock, TcToken, TcTokenError, UserInfo,
 };
 
 pub mod bot;

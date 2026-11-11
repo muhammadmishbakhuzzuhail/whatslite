@@ -41,7 +41,7 @@ machine/tokens.json         28 tokens, light+dark
 machine/tokens.css          same, as CSS variables
 machine/theme.json          same, as a palette for GPUI/other
 machine/components.json     54 masters with ids, sizes, children
-machine/screens.json        38 pages with ids and sections
+machine/screens.json        39 pages with ids and sections
 machine/strings.json        every visible string, grouped by page
 machine/wallpaper-doodle.png  dense seamless 800 pattern used by the .pen image fill
 brand/                      logo: 3 SVG + 3 PNG + ico + README + export.sh
@@ -50,7 +50,8 @@ qa/                         native app QA captures + reproduce flags
 ```
 
 ## Status
-- **38 pages** (00–37), **54 components**, **28 tokens**, **≈13k nodes**
+- **39 pages** (00–38), **54 components**, **28 tokens**, **≈13k nodes**
+- Page **38 · Wallpaper Doodle** is the final seamless wallpaper proof: light/dark v19 panels and the 1024 × 1024 SVG tile, repeated at 800 pt.
 - State matrix: **175 rows** (`docs/WHATSITE-*` and page 07 inside the .pen)
 - Known debt: 44 chat-row/search/chip frames are detached copies (masters exist and are restored); relink them when you refactor.
 

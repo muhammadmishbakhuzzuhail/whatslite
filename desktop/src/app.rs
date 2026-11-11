@@ -9752,7 +9752,7 @@ impl App {
                 .flex_col()
                 .child(self.clickable(
                     cx,
-                    ui::settings_row("Design reference", "Foundations, components, handoff and audit", None, p),
+                    ui::settings_row("Design reference", "Foundations, wallpaper, components, handoff and audit", None, p),
                     Action::OpenSubpage(SettingsSubpage::DesignReference),
                 ))
                 .child(ui::settings_row("How do I link a device?", "Pairing, QR codes and phone numbers", None, p))
@@ -10393,7 +10393,7 @@ impl App {
                             .p(px(20.))
                             .text_size(px(TEXT_SMALL))
                             .text_color(p.text_secondary)
-                            .child("The 38-page handoff package is documentation, not WhatsApp features. This page mirrors its essentials so the build can be checked in-app."),
+                            .child("The 39-page handoff package is documentation, not WhatsApp features. This page mirrors its essentials, including the page 38 doodle wallpaper proof, so the build can be checked in-app."),
                     )
                     .child(ui::section_label("FOUNDATIONS · COLOR TOKENS", p))
                     .child(
@@ -10450,6 +10450,41 @@ impl App {
                             ),
                     )
                     .child(self.toggle_row(cx, p, "reduce_motion", "Reduce motion", "Transitions become instant fades"))
+                    .child(ui::section_label("FOUNDATIONS · WALLPAPER DOODLE", p))
+                    .child(
+                        div()
+                            .px(px(20.))
+                            .py(px(12.))
+                            .flex()
+                            .items_center()
+                            .gap(px(14.))
+                            .child(
+                                div()
+                                    .relative()
+                                    .w(px(168.))
+                                    .h(px(96.))
+                                    .flex_shrink_0()
+                                    .rounded(px(RADIUS_SM))
+                                    .overflow_hidden()
+                                    .border_1()
+                                    .border_color(p.border)
+                                    .bg(p.bg_conversation)
+                                    .child(ui::wallpaper(self.theme == ThemeMode::Dark)),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(4.))
+                                    .text_size(px(TEXT_SMALL))
+                                    .text_color(p.text_secondary)
+                                    .child("1024 × 1024 seamless doodle SVG")
+                                    .child("800 pt repeat · light #C9B9A3 60% · dark #D8CCBC 20%")
+                                    .child("300 objects · 846 small icons · 520 dots · gaps ≥18 px")
+                                    .child("Runtime: build-time alpha mask, tinted from the same SVG source"),
+                            ),
+                    )
                     .child(ui::section_label("COMPONENTS", p))
                     .child(self.clickable(
                         cx,

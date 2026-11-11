@@ -8,7 +8,7 @@ The app repeats the 800pt source at 800pt; the canvas shows an 800pt proof.
 | File | What it proves |
 |---|---|
 | `1440-group-light.png` | Group chat: avatars top-aligned with sender names, dense 800pt doodle repeat (800pt source), 1440 layout. |
-| `1440-group-dark.png` | Same screen in dark mode; doodle at 12% opacity. |
+| `1440-group-dark.png` | Same screen in dark mode; doodle at 20% opacity. |
 | `1440-header-hover.png` | Hover/identity state: chevron visible next to the group name, hover surface. |
 | `1440-header-menu.png` | Hover state chevron and the dropdown beside/under the group title. |
 | `1440-header-menu-dark.png` | Header dropdown in dark mode. |
@@ -18,6 +18,7 @@ The app repeats the 800pt source at 800pt; the canvas shows an 800pt proof.
 | `1440-usecase-demo.png` | 12-scenario demo sheet fits at 1440×900. |
 | `1440-rtl.png` | RTL layout with the same wallpaper and top-aligned avatars. |
 | `1440-text-125.png` | 125% text scale; no clipped bubbles or wallpaper gaps. |
+| `38-wallpaper-doodle.png` | Pencil page 38 canvas proof: light/dark v19 proofs, 1024 × 1024 SVG, 800 pt repeat. |
 | `1920-group-light.png` | 1920-wide layout. The X11 capture is 1920×1008 because the window frame is capped by the 1080px screen. |
 
 ## Reproduce

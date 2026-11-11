@@ -17,6 +17,10 @@ Output:
 
 - `reference/design/machine/wallpaper-doodle-source.svg` — the 1024 x 1024 seamless master.
   Current composition: 300 objects, 846 small icons, 520 dots.
+- `reference/design/wallpaper/_seamless-{light,dark}-v19.svg` — the final 1272 x 1600
+  light/dark proof panels used by Pencil page **38 · Wallpaper Doodle**.
+- `reference/design/wallpaper/seamless-{light,dark}-v19.png` — rasterized copies of
+  the same final proof panels.
 - The script also renders the light/dark page-38 panels into the local `.pencil`
   document folder; adjust the `PEN` constant at the top of the script if your
   document lives elsewhere.

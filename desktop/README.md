@@ -44,6 +44,7 @@ The implementation follows the handoff package in `../reference/design/`:
 - `reference/design/03-BEHAVIOUR-RULES.md` — grouping, media, states, keyboard rules
 - `reference/design/04-COMING-SOON.md` — fallback copy for unwired controls
 - `reference/design/05-BUILD-ORDER.md` — layout and acceptance rules
+- `reference/design/01-SCREENS.md` page 38 — final doodle wallpaper proof (light/dark v19, 1024 × 1024 SVG, 800 pt repeat)
 
 The only colour literals live in `src/theme.rs`; all UI surfaces read the
 palette. Dark mode is a value swap, not a second UI.

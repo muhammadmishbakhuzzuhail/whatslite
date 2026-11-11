@@ -1,7 +1,7 @@
 [
   {
     "id": "JDWI6",
-    "name": "00 \u00b7 READ ME",
+    "name": "00 · READ ME",
     "size": [
       1440,
       null
@@ -17,7 +17,7 @@
   },
   {
     "id": "tKkDk",
-    "name": "01 \u00b7 Foundations",
+    "name": "01 · Foundations",
     "size": [
       1440,
       null
@@ -37,7 +37,7 @@
   },
   {
     "id": "evGp5",
-    "name": "02 \u00b7 Components",
+    "name": "02 · Components",
     "size": [
       1440,
       null
@@ -64,7 +64,7 @@
   },
   {
     "id": "gP495",
-    "name": "03 \u00b7 Shell & Screens",
+    "name": "03 · Shell & Screens",
     "size": [
       1584,
       null
@@ -72,52 +72,52 @@
     "sections": [
       "Screens / Page Header",
       "Windows / Caption",
-      "Chats \u2014 Windows 1440\u00d7900",
+      "Chats — Windows 1440×900",
       "macOS / Caption",
-      "Chats \u2014 macOS 1250\u00d7704",
-      "Group Chat \u2014 Windows 1440\u00d7900",
-      "Calls \u2014 Windows 1440\u00d7900",
-      "Updates \u2014 Windows 1440\u00d7900",
-      "Media \u2014 Windows 1440\u00d7900",
+      "Chats — macOS 1250×704",
+      "Group Chat — Windows 1440×900",
+      "Calls — Windows 1440×900",
+      "Updates — Windows 1440×900",
+      "Media — Windows 1440×900",
       "Media Docs / Caption",
       "Docs Empty Row",
-      "QR Pairing \u2014 Windows 900\u00d7620",
+      "QR Pairing — Windows 900×620",
       "Archived / Caption",
-      "Archived \u2014 Windows 1440\u00d7900",
-      "Starred \u2014 Windows 1440\u00d7900 / Caption",
-      "Starred \u2014 Windows 1440\u00d7900",
-      "Locked \u2014 Windows 1440\u00d7900 / Caption",
-      "Locked \u2014 Windows 1440\u00d7900",
-      "AI \u2014 Windows 1440\u00d7900 / Caption",
-      "AI \u2014 Windows 1440\u00d7900",
-      "Status viewer \u2014 1440\u00d7900 / Caption",
+      "Archived — Windows 1440×900",
+      "Starred — Windows 1440×900 / Caption",
+      "Starred — Windows 1440×900",
+      "Locked — Windows 1440×900 / Caption",
+      "Locked — Windows 1440×900",
+      "AI — Windows 1440×900 / Caption",
+      "AI — Windows 1440×900",
+      "Status viewer — 1440×900 / Caption",
       "Viewer Row",
-      "Call window \u2014 ringing / in call / Caption",
+      "Call window — ringing / in call / Caption",
       "Call Row",
-      "Media \u2014 Links tab / Caption",
+      "Media — Links tab / Caption",
       "Links Row",
-      "AI \u2014 suggested reply / Caption",
+      "AI — suggested reply / Caption",
       "AI Draft Row",
-      "Locked \u2014 unlock prompt / Caption",
+      "Locked — unlock prompt / Caption",
       "Unlock Row",
-      "Archived \u2014 settings / Caption",
+      "Archived — settings / Caption",
       "Archive Settings Row",
-      "Starred \u2014 jump to message / Caption",
+      "Starred — jump to message / Caption",
       "Jump Row"
     ]
   },
   {
     "id": "T2ap0G",
-    "name": "04 \u00b7 States & Overlays",
+    "name": "04 · States & Overlays",
     "size": [
       1440,
       null
     ],
     "sections": [
       "States / Page Header",
-      "Conversation \u2014 text / Caption",
+      "Conversation — text / Caption",
       "Stage Row",
-      "Conversation \u2014 media / Caption",
+      "Conversation — media / Caption",
       "Stage Row",
       "Overlays over the conversation / Caption",
       "Overlay Row 1",
@@ -130,24 +130,24 @@
   },
   {
     "id": "o0BzR",
-    "name": "05 \u00b7 Responsive",
+    "name": "05 · Responsive",
     "size": [
       2064,
       null
     ],
     "sections": [
       "Responsive / Page Header",
-      "Chats \u2014 1920\u00d71080 / Caption",
+      "Chats — 1920×1080 / Caption",
       "Frame Row",
-      "Chats \u2014 1366\u00d7768 / Caption",
+      "Chats — 1366×768 / Caption",
       "Frame Row",
-      "Chats \u2014 1024\u00d7700 / Caption",
+      "Chats — 1024×700 / Caption",
       "Frame Row"
     ]
   },
   {
     "id": "BByv8",
-    "name": "06 \u00b7 Dark",
+    "name": "06 · Dark",
     "size": [
       1440,
       null
@@ -164,7 +164,7 @@
   },
   {
     "id": "J2tOpS",
-    "name": "07 \u00b7 Handoff",
+    "name": "07 · Handoff",
     "size": [
       1440,
       null
@@ -190,7 +190,7 @@
   },
   {
     "id": "Y77rQn",
-    "name": "08 \u00b7 Feature Spec",
+    "name": "08 · Feature Spec",
     "size": [
       1440,
       null
@@ -198,15 +198,15 @@
     "sections": [
       "Features / Page Header",
       "Status Model",
-      "Chats \u2192 Starred / Header",
+      "Chats → Starred / Header",
       "Feature Grid",
       "Do we need skeletons? / Header",
       "Skeleton Rules",
       "Skeleton Demo Row",
-      "Design coverage \u2014 nothing is missing / Header",
+      "Design coverage — nothing is missing / Header",
       "Coverage Table",
-      "D1 \u00b7 Updates canonical",
-      "Sidebar \u2192 status / Header",
+      "D1 · Updates canonical",
+      "Sidebar → status / Header",
       "Nav Status Table",
       "Rules for the implementing agent / Header",
       "Build Rules Row"
@@ -214,7 +214,7 @@
   },
   {
     "id": "Vpw8A",
-    "name": "09 \u00b7 Component Shelf",
+    "name": "09 · Component Shelf",
     "size": [
       1440,
       null
@@ -235,8 +235,8 @@
       "Specimen / App / Info Panel / Community",
       "Specimen / App / Tooltip",
       "Specimen / App / Select",
-      "Specimen / App / Checkbox \u00b7 Radio \u00b7 Progress",
-      "Specimen / App / Avatar Group \u00b7 Badge \u00b7 Keycap",
+      "Specimen / App / Checkbox · Radio · Progress",
+      "Specimen / App / Avatar Group · Badge · Keycap",
       "Specimen / App / Call Bar",
       "Specimen / App / Toast Stack",
       "Specimen / App / Accounts Switcher",
@@ -247,93 +247,93 @@
   },
   {
     "id": "l3iYjX",
-    "name": "10 \u00b7 Settings",
+    "name": "10 · Settings",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Settings / Page Header",
-      "Settings \u2014 Account / Caption",
-      "Settings \u2014 Account / Row",
-      "Settings \u2014 Privacy / Caption",
-      "Settings \u2014 Privacy / Row",
-      "Settings \u2014 Chats / Caption",
-      "Settings \u2014 Chats / Row",
-      "Settings \u2014 Notifications / Caption",
-      "Settings \u2014 Notifications / Row",
-      "Settings \u2014 Storage and data / Caption",
-      "Settings \u2014 Storage and data / Row",
-      "Settings \u2014 Help and feedback / Caption",
-      "Settings \u2014 Help and feedback / Row",
-      "Settings \u2014 Biometric setup \u00b7 5 steps / Caption",
+      "Settings — Account / Caption",
+      "Settings — Account / Row",
+      "Settings — Privacy / Caption",
+      "Settings — Privacy / Row",
+      "Settings — Chats / Caption",
+      "Settings — Chats / Row",
+      "Settings — Notifications / Caption",
+      "Settings — Notifications / Row",
+      "Settings — Storage and data / Caption",
+      "Settings — Storage and data / Row",
+      "Settings — Help and feedback / Caption",
+      "Settings — Help and feedback / Row",
+      "Settings — Biometric setup · 5 steps / Caption",
       "Biometric Row",
-      "Settings \u2014 Sub-pages / Caption",
+      "Settings — Sub-pages / Caption",
       "Sub-pages Row"
     ]
   },
   {
     "id": "KPOlW",
-    "name": "11 \u00b7 Chat Info & Menus",
+    "name": "11 · Chat Info & Menus",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Info / Page Header",
-      "Chat \u2014 contact info open / Caption",
-      "Chat \u2014 Contact Info 1440\u00d7900 / Row",
-      "Chat \u2014 group info open / Caption",
-      "Chat \u2014 Group Info 1440\u00d7900 / Row",
-      "The four \u22ef menus / Caption",
+      "Chat — contact info open / Caption",
+      "Chat — Contact Info 1440×900 / Row",
+      "Chat — group info open / Caption",
+      "Chat — Group Info 1440×900 / Row",
+      "The four ⋯ menus / Caption",
       "Menus Row"
     ]
   },
   {
     "id": "Z8Nsv0",
-    "name": "12 \u00b7 Communities",
+    "name": "12 · Communities",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Communities / Page Header",
-      "Communities \u2014 list / Caption",
-      "Communities \u2014 List 1440\u00d7900 / Row",
+      "Communities — list / Caption",
+      "Communities — List 1440×900 / Row",
       "Community view / Caption",
-      "Community View 1440\u00d7900 / Row",
-      "Community \u2014 info open / Caption",
+      "Community View 1440×900 / Row",
+      "Community — info open / Caption",
       "Community Info / Row"
     ]
   },
   {
     "id": "K7L4s",
-    "name": "13 \u00b7 Interactions",
+    "name": "13 · Interactions",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Interactions / Page Header",
-      "Step 1\u20132 \u00b7 bubble \u2192 \u22ef \u2192 menu / Caption",
+      "Step 1–2 · bubble → ⋯ → menu / Caption",
       "Steps Row",
-      "Step 3 \u00b7 each menu item opens its own surface / Caption",
+      "Step 3 · each menu item opens its own surface / Caption",
       "Results Row 1",
       "Results Row 2"
     ]
   },
   {
     "id": "BUJTz",
-    "name": "14 \u00b7 Status Composer",
+    "name": "14 · Status Composer",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Composer / Page Header",
-      "Composer \u00b7 media status / Caption",
+      "Composer · media status / Caption",
       "Composer Row",
-      "Composer \u00b7 text status / Caption",
+      "Composer · text status / Caption",
       "Text Status Row",
       "Viewer multi-item / Caption",
       "Viewer Row"
@@ -341,7 +341,7 @@
   },
   {
     "id": "llWxm",
-    "name": "15 \u00b7 Media, Calls & Channels",
+    "name": "15 · Media, Calls & Channels",
     "size": [
       1440,
       null
@@ -356,7 +356,7 @@
   },
   {
     "id": "S50Bl",
-    "name": "16 \u00b7 Settings Sub-pages",
+    "name": "16 · Settings Sub-pages",
     "size": [
       1440,
       null
@@ -370,7 +370,7 @@
   },
   {
     "id": "GCuE4",
-    "name": "17 \u00b7 Creation Flows",
+    "name": "17 · Creation Flows",
     "size": [
       1440,
       null
@@ -383,7 +383,7 @@
   },
   {
     "id": "OatW4",
-    "name": "18 \u00b7 System States",
+    "name": "18 · System States",
     "size": [
       1440,
       null
@@ -396,7 +396,7 @@
   },
   {
     "id": "iGky6",
-    "name": "19 \u00b7 Gap Register",
+    "name": "19 · Gap Register",
     "size": [
       1440,
       null
@@ -404,31 +404,31 @@
     "sections": [
       "Gaps / Page Header",
       "Legend",
-      "Section P1 \u00b7 fifteen things that block a believable build",
-      "Section P2 \u00b7 thirty-three missing features",
-      "Section P3 \u00b7 thirty-two polish items",
+      "Section P1 · fifteen things that block a believable build",
+      "Section P2 · thirty-three missing features",
+      "Section P3 · thirty-two polish items",
       "Summary",
-      "Section \u00b7 closed on page 28"
+      "Section · closed on page 28"
     ]
   },
   {
     "id": "okXe5",
-    "name": "20 \u00b7 Conversation Extras",
+    "name": "20 · Conversation Extras",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Extras / Page Header",
-      "Row 1 \u00b7 header affordances",
-      "Row 2 \u00b7 voice",
-      "Row 3 \u00b7 media states",
-      "Row 4 \u00b7 system messages"
+      "Row 1 · header affordances",
+      "Row 2 · voice",
+      "Row 3 · media states",
+      "Row 4 · system messages"
     ]
   },
   {
     "id": "S26pE1",
-    "name": "21 \u00b7 Message Types",
+    "name": "21 · Message Types",
     "size": [
       1440,
       null
@@ -442,7 +442,7 @@
   },
   {
     "id": "f23UO6",
-    "name": "22 \u00b7 System & Management",
+    "name": "22 · System & Management",
     "size": [
       1440,
       null
@@ -456,7 +456,7 @@
   },
   {
     "id": "on99r",
-    "name": "23 \u00b7 List & Info Additions",
+    "name": "23 · List & Info Additions",
     "size": [
       1440,
       null
@@ -470,7 +470,7 @@
   },
   {
     "id": "rIEKj",
-    "name": "24 \u00b7 Primitives & Calls",
+    "name": "24 · Primitives & Calls",
     "size": [
       1440,
       null
@@ -484,7 +484,7 @@
   },
   {
     "id": "xQ6g3",
-    "name": "25 \u00b7 Remaining 20",
+    "name": "25 · Remaining 20",
     "size": [
       1440,
       null
@@ -501,7 +501,7 @@
   },
   {
     "id": "b3YN2",
-    "name": "26 \u00b7 Deep Audit",
+    "name": "26 · Deep Audit",
     "size": [
       1440,
       null
@@ -509,9 +509,9 @@
     "sections": [
       "Deep / Page Header",
       "Stats",
-      "Section P1 \u00b7 26 findings that break the product",
-      "Section P2 \u00b7 62 missing behaviours \u00b7 grouped",
-      "Section D8 \u00b7 Five things I would not ship without",
+      "Section P1 · 26 findings that break the product",
+      "Section P2 · 62 missing behaviours · grouped",
+      "Section D8 · Five things I would not ship without",
       "W1 Status",
       "W2 W3 Status",
       "Section Waves"
@@ -519,7 +519,7 @@
   },
   {
     "id": "LScXG",
-    "name": "27 \u00b7 Accounts, Sync & Network",
+    "name": "27 · Accounts, Sync & Network",
     "size": [
       1440,
       null
@@ -532,35 +532,35 @@
   },
   {
     "id": "k7mGIw",
-    "name": "28 \u00b7 Thread Truth",
+    "name": "28 · Thread Truth",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Thread / Page Header",
-      "Row 1 \u00b7 grouping",
-      "Row 2 \u00b7 media",
-      "Row 3 \u00b7 limits"
+      "Row 1 · grouping",
+      "Row 2 · media",
+      "Row 3 · limits"
     ]
   },
   {
     "id": "J1x0x",
-    "name": "29 \u00b7 Composer & List Edge",
+    "name": "29 · Composer & List Edge",
     "size": [
       1440,
       null
     ],
     "sections": [
       "Edge / Page Header",
-      "Row 1 \u00b7 composer",
-      "Row 2 \u00b7 list edge cases",
-      "Row 3 \u00b7 states"
+      "Row 1 · composer",
+      "Row 2 · list edge cases",
+      "Row 3 · states"
     ]
   },
   {
     "id": "k2BG2S",
-    "name": "30 \u00b7 Keyboard, Focus & Handoff",
+    "name": "30 · Keyboard, Focus & Handoff",
     "size": [
       1440,
       null
@@ -573,7 +573,7 @@
   },
   {
     "id": "TzXgH",
-    "name": "31 \u00b7 W2 States",
+    "name": "31 · W2 States",
     "size": [
       1440,
       null
@@ -588,39 +588,39 @@
   },
   {
     "id": "cpwM0",
-    "name": "32 \u00b7 W2 Remainder & W3",
+    "name": "32 · W2 Remainder & W3",
     "size": [
       1440,
       null
     ],
     "sections": [
       "W3 / Page Header",
-      "Section W2 \u00b7 remaining P2",
-      "Section W3 \u00b7 50 polish items",
+      "Section W2 · remaining P2",
+      "Section W3 · 50 polish items",
       "Closing"
     ]
   },
   {
     "id": "HQxig",
-    "name": "33 \u00b7 Responsive II",
+    "name": "33 · Responsive II",
     "size": [
       1520,
       null
     ],
     "sections": [
       "Responsive2 / Page Header",
-      "1366 \u00d7 768 \u00b7 panel inline / Caption",
-      "Chats 1366\u00d7768 \u2014 panel inline",
-      "1024 \u00d7 700 \u00b7 panel sebagai overlay / Caption",
-      "Chats 1024\u00d7700 \u2014 panel overlay",
-      "1024 \u00d7 700 \u00b7 community / Caption",
-      "Community 1024\u00d7700 \u2014 panel overlay",
+      "1366 × 768 · panel inline / Caption",
+      "Chats 1366×768 — panel inline",
+      "1024 × 700 · panel sebagai overlay / Caption",
+      "Chats 1024×700 — panel overlay",
+      "1024 × 700 · community / Caption",
+      "Community 1024×700 — panel overlay",
       "Breakpoint Note"
     ]
   },
   {
     "id": "m4sAD",
-    "name": "34 \u00b7 Manifest & Map",
+    "name": "34 · Manifest & Map",
     "size": [
       1440,
       null
@@ -635,7 +635,7 @@
   },
   {
     "id": "PhsZY",
-    "name": "35 \u00b7 Broadcast, Windows & Contacts",
+    "name": "35 · Broadcast, Windows & Contacts",
     "size": [
       1440,
       null
@@ -648,7 +648,7 @@
   },
   {
     "id": "vHxwT",
-    "name": "36 \u00b7 List States",
+    "name": "36 · List States",
     "size": [
       1440,
       null
@@ -662,7 +662,7 @@
   },
   {
     "id": "T8344",
-    "name": "37 \u00b7 Atom Proof",
+    "name": "37 · Atom Proof",
     "size": [
       1440,
       null
@@ -671,6 +671,20 @@
       "Atoms / Page Header",
       "Row 1",
       "Row 2"
+    ]
+  },
+  {
+    "id": "k31QYY",
+    "name": "38 · Wallpaper Doodle",
+    "size": [
+      1440,
+      null
+    ],
+    "sections": [
+      "Wallpaper Doodle / Page Header",
+      "Seamless / Light + Dark",
+      "Seamless Spec",
+      "Footer Note"
     ]
   }
 ]

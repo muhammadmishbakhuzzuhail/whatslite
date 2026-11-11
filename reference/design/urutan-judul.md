@@ -121,7 +121,7 @@ Spec:
 - ~100 small objects, symbols, stars, hearts and dots per source tile; most
   objects are 10–50px, packed tightly with no large empty gaps;
 - one stroke `#D8CCBC` at 50% alpha on `$wl-bg-conversation`;
-- dark mode keeps the same pattern at a 12% layer opacity;
+- dark mode keeps the same pattern at a 20% layer opacity;
 - the app repeats the source at a **800pt logical step**. This was selected in
   the doodle preview app after comparing 800/700/600/550/400: 800 was too
   sparse, 400 too repetitive, 550 closest to the reference density;
@@ -130,7 +130,7 @@ Spec:
 - `desktop/build.rs` rasterises the original SVG at 1×, 2× and 3×
   (800/1600/2400); the runtime scales the texture to the 800pt repeat and
   picks the matching texture, so 1440 and 1920 stay sharp at 3× scale;
-- light line `#C9B9A3` at 50% alpha; dark line `#D8CCBC` at 12% layer opacity.
+- light line `#C9B9A3` at 60% alpha; dark line `#D8CCBC` at 20% layer opacity.
 
 Do not re-generate the artwork per screen. It is one reusable `Wallpaper / Doodle
 Tile` (`IqUX9`) instance in the canvas and one texture cache in the app. The

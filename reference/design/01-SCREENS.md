@@ -1,6 +1,6 @@
 # 01 · Screens & pages
 
-Generated from `design/whatslite.pen`. 38 pages, ids are stable.
+Generated from `design/whatslite.pen`. 39 pages, ids are stable.
 
 | # | Page | Size | Sections / surfaces |
 |---|---|---|---|
@@ -42,3 +42,4 @@ Generated from `design/whatslite.pen`. 38 pages, ids are stable.
 | 35 | Broadcast, Windows & Contacts | 1440 | New / Page Header, Row 1, Row 2 |
 | 36 | List States | 1440 | ListStates / Page Header, Row 1, List States Table, Rule |
 | 37 | Atom Proof | 1440 | Atoms / Page Header, Row 1, Row 2 |
+| 38 | Wallpaper Doodle | 1440 | Wallpaper Doodle / Page Header, Seamless / Light + Dark, Seamless Spec, Footer Note |

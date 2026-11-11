@@ -614,6 +614,7 @@ Completed sub-tasks (reviewed, committed):
 | G3c message-edit feature surface | `a0cdd76` | Approved; 24 tests |
 | G8o structured IQ parse errors | `dc18210` | Approved; 3 tests |
 | G8p MEX operation descriptors | `762ab9c` | Approved; 8 public + 19 feature + 6 core |
+| G6p pending-inbound storage substrate | `e67de6e` | Approved; 14 tests |
 | G8q reachout timelock public API test | `55f0852` | 2 tests |
 
 

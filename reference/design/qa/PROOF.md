@@ -90,7 +90,7 @@ at scale 1.
 
 | File | Size | Proves |
 |---|---|---|
-| `reference/design/qa/1024-design-125.png` | 1024×700 | Design Reference fits at minimum window width with 125% text scale; no horizontal clipping. |
+| `reference/design/qa/1024-design-125.png` | 1024×700 | Design Reference at minimum width: settings list collapses, subpage uses full width, no horizontal clipping. |
 
 ## Page 07 wallpaper proof
 

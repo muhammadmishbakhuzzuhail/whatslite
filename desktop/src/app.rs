@@ -2534,15 +2534,16 @@ impl App {
                 row.into_any_element()
             }
             Route::Settings => {
-                let nav = self.render_settings_nav(cx, p);
                 let detail = self.render_settings_detail(cx, p);
-                div()
-                    .flex_1()
-                    .flex()
-                    .min_w(px(0.))
-                    .child(nav)
-                    .child(detail)
-                    .into_any_element()
+                let mut row = div().flex_1().flex().min_w(px(0.));
+                if compact && self.settings_subpage.is_some() {
+                    row = row.child(detail);
+                } else {
+                    row = row
+                        .child(self.render_settings_nav(cx, p))
+                        .child(detail);
+                }
+                row.into_any_element()
             }
             Route::Calls => {
                 let list = self.render_calls_list(cx, p);
@@ -10726,6 +10727,7 @@ impl App {
                     .flex_1()
                     .w_full()
                     .min_w(px(0.))
+                    .min_h(px(0.))
                     .overflow_y_scrollbar()
                     .px(px(24.))
                     .pb(px(24.))

@@ -21,7 +21,7 @@ The app repeats the 800pt source at 800pt; the canvas shows an 800pt proof.
 | `38-wallpaper-doodle.png` | Pencil page 38 canvas proof: light/dark v19 proofs, 1024 × 1024 SVG, 800 pt repeat. |
 | `01-foundations-wallpaper.png` | Pencil page 01 Foundations, section 07: the seamless 1024 doodle tile as an 800 pt wallpaper proof. |
 | `07-wallpaper-proof.png` | Pencil page 07 Handoff: the doodle wallpaper proof added under the notes row. |
-| `1024-design-125.png` | Design Reference at 1024×700 and 125% text scale; foundation rows and color grid stay inside the content column. |
+| `1024-design-125.png` | Design Reference at 1024×700 and 125%: the settings category list collapses away so the subpage uses the full width; back returns to the list. |
 | `1920-group-light.png` | 1920-wide layout. The X11 capture is 1920×1008 because the window frame is capped by the 1080px screen. |
 
 ## Reproduce

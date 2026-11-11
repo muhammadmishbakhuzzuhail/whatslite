@@ -1,3 +1,4 @@
+use crate::stats::HeapSize;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::Serialize;
@@ -258,6 +259,82 @@ pub struct MessageInfo {
     pub meta_info: MsgMetaInfo,
     pub verified_name: Option<wa::VerifiedNameCertificate>,
     pub device_sent_meta: Option<DeviceSentMeta>,
+}
+
+impl crate::stats::HeapSize for MessageSource {
+    fn heap_bytes(&self) -> usize {
+        self.chat.heap_bytes()
+            + self.sender.heap_bytes()
+            + [
+                &self.sender_alt,
+                &self.recipient_alt,
+                &self.broadcast_list_owner,
+                &self.recipient,
+            ]
+            .iter()
+            .filter_map(|jid| jid.as_ref())
+            .map(HeapSize::heap_bytes)
+            .sum::<usize>()
+    }
+}
+
+impl crate::stats::HeapSize for MsgBotInfo {
+    fn heap_bytes(&self) -> usize {
+        self.edit_target_id.as_ref().map_or(0, HeapSize::heap_bytes)
+    }
+}
+
+impl crate::stats::HeapSize for MsgMetaInfo {
+    fn heap_bytes(&self) -> usize {
+        [&self.target_id, &self.thread_message_id]
+            .iter()
+            .filter_map(|value| value.as_ref())
+            .map(HeapSize::heap_bytes)
+            .sum::<usize>()
+            + [&self.target_sender, &self.thread_message_sender_jid]
+                .iter()
+                .filter_map(|jid| jid.as_ref())
+                .map(HeapSize::heap_bytes)
+                .sum::<usize>()
+    }
+}
+
+impl crate::stats::HeapSize for DeviceSentMeta {
+    fn heap_bytes(&self) -> usize {
+        self.destination_jid.heap_bytes() + self.phash.heap_bytes()
+    }
+}
+
+/// Every allocation the message owns, boxed sub-structs included. Admission
+/// accounting for retained messages is the consumer: a report that skipped
+/// these would read quietest exactly while a buffer retains whole messages.
+impl crate::stats::HeapSize for MessageInfo {
+    fn heap_bytes(&self) -> usize {
+        fn boxed<T: HeapSize>(value: &Option<T>) -> usize {
+            value
+                .as_ref()
+                .map_or(0, |value| size_of::<T>() + value.heap_bytes())
+        }
+        self.source.heap_bytes()
+            + self.id.heap_bytes()
+            + self.push_name.heap_bytes()
+            + self.r#type.heap_bytes()
+            + self.category.heap_bytes()
+            + self.media_type.heap_bytes()
+            + match &self.edit {
+                EditAttribute::Unknown(value) => value.heap_bytes(),
+                _ => 0,
+            }
+            + boxed(&self.bot_info)
+            + self.meta_info.heap_bytes()
+            // The generated certificate has no HeapSize walk; its inline size
+            // is the honest lower bound for this advisory report.
+            + self
+                .verified_name
+                .as_ref()
+                .map_or(0, |_| size_of::<wa::VerifiedNameCertificate>())
+            + boxed(&self.device_sent_meta)
+    }
 }
 
 #[cfg(test)]

@@ -26,6 +26,11 @@ use wacore_binary::node::Node;
 use waproto::buffa::Message as _;
 use waproto::whatsapp::{self as wa};
 
+// Pending-inbound journal and live retention are pure modules ported ahead of
+// the commit batch that will wire them into the receive path.
+mod live_retention;
+mod raw_pending;
+
 /// Maximum retry attempts per message (matches WhatsApp Web's MAX_RETRY = 5).
 /// After this many retries, we stop sending retry receipts and rely solely on PDO.
 const MAX_DECRYPT_RETRIES: u8 = 5;

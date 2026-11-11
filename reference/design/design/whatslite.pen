@@ -39874,7 +39874,7 @@
               "id": "RoOX2",
               "name": "Sub",
               "fill": "$wl-text-secondary",
-              "content": "theme = { mode: “dark” } on the root frame · wallpaper opacity 12% · every fill bound to $wl-*",
+              "content": "theme = { mode: “dark” } on the root frame · wallpaper ink 20% · every fill bound to $wl-*",
               "fontFamily": "Inter",
               "fontSize": 12,
               "fontWeight": "normal"

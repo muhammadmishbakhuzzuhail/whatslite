@@ -34,6 +34,11 @@ pub enum ConnectError {
 }
 
 impl ConnectError {
+    /// A step of the connect flow ran out of time.
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, Self::Timeout)
+    }
+
     /// Whether a retry can plausibly succeed without host intervention.
     pub fn is_transient(&self) -> bool {
         matches!(

@@ -2,6 +2,7 @@
 
 use std::error::Error as StdError;
 
+use crate::http::HttpStatusError;
 use crate::request::IqError as ClientIqError;
 use wacore::request::IqError as CoreIqError;
 use wacore::store::error::StoreError;
@@ -45,6 +46,62 @@ pub trait ErrorChainExt {
 
     fn server_rejection(&self) -> Option<ServerRejection<'_>> {
         self.sources().find_map(server_rejection_of)
+    }
+
+    /// The HTTP status behind this error, if any.
+    ///
+    /// Reports a status the client refused a *completed* HTTP exchange on —
+    /// today the media download and upload paths. `None` means no HTTP exchange
+    /// got that far: the request never left, or the failure was ours. That
+    /// distinction lets a caller serving media onwards tell "the CDN says this
+    /// is gone" from "we broke".
+    fn http_status(&self) -> Option<u16> {
+        self.sources()
+            .find_map(|cause| cause.downcast_ref::<HttpStatusError>())
+            .map(|refused| refused.status)
+    }
+
+    /// Whether the operation ran out of time waiting for the server.
+    ///
+    /// Covers a request that got no answer and a connect or handshake step that
+    /// never completed.
+    fn is_timeout(&self) -> bool {
+        self.sources().any(|cause| {
+            if let Some(iq) = cause.downcast_ref::<ClientIqError>() {
+                return iq.is_timeout();
+            }
+            if let Some(iq) = cause.downcast_ref::<CoreIqError>() {
+                return iq.is_timeout();
+            }
+            if let Some(connect) = cause.downcast_ref::<crate::client::lifecycle::ConnectError>() {
+                return connect.is_timeout();
+            }
+            cause
+                .downcast_ref::<crate::handshake::HandshakeError>()
+                .is_some_and(crate::handshake::HandshakeError::is_timeout)
+        })
+    }
+
+    /// Whether the failure was the transport being gone rather than the
+    /// operation being refused.
+    ///
+    /// Mirrors the judgement the send and receive paths already make when
+    /// deciding whether a failure is worth retrying.
+    fn is_transport_unavailable(&self) -> bool {
+        self.sources().any(|cause| {
+            if let Some(client) = cause.downcast_ref::<crate::client::ClientError>() {
+                return client.is_transport_unavailable();
+            }
+            if let Some(iq) = cause.downcast_ref::<ClientIqError>() {
+                return iq.is_transport_unavailable();
+            }
+            if let Some(encrypt) = cause.downcast_ref::<crate::socket::error::EncryptSendError>() {
+                return encrypt.is_transport_unavailable();
+            }
+            cause
+                .downcast_ref::<CoreIqError>()
+                .is_some_and(CoreIqError::is_transport_unavailable)
+        })
     }
 
     fn store_failure(&self) -> Option<&StoreError> {

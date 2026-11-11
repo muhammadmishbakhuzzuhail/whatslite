@@ -94,6 +94,34 @@ pub enum IqError {
     Network(String),
 }
 
+impl IqError {
+    /// The transport is gone rather than the request having been refused.
+    ///
+    /// Sole owner of that judgement for this type: callers that classify an
+    /// error chain read it here instead of restating the variant list.
+    pub fn is_transport_unavailable(&self) -> bool {
+        matches!(
+            self,
+            IqError::NotConnected | IqError::Disconnected(_) | IqError::InternalChannelClosed
+        )
+    }
+
+    /// The request went out and no answer came back in time.
+    ///
+    /// Matched exhaustively so a new variant has to be classified here rather
+    /// than defaulting to "not a timeout" unnoticed.
+    pub fn is_timeout(&self) -> bool {
+        match self {
+            IqError::Timeout => true,
+            IqError::NotConnected
+            | IqError::Disconnected(_)
+            | IqError::ServerError { .. }
+            | IqError::InternalChannelClosed
+            | IqError::Network(_) => false,
+        }
+    }
+}
+
 pub struct RequestUtils {
     unique_id: String,
     id_counter: std::sync::Arc<std::sync::atomic::AtomicU64>,

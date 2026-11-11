@@ -40,6 +40,15 @@ pub struct EncryptSendError {
 }
 
 impl EncryptSendError {
+    /// Whether the failure means the transport is gone rather than the
+    /// operation being refused.
+    pub fn is_transport_unavailable(&self) -> bool {
+        matches!(
+            self.kind,
+            EncryptSendErrorKind::Transport | EncryptSendErrorKind::ChannelClosed
+        )
+    }
+
     pub fn crypto(
         source: impl Into<anyhow::Error>,
         plaintext_buf: Vec<u8>,

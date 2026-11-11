@@ -92,6 +92,16 @@ pub enum ClientError {
     NotLoggedIn,
 }
 
+impl ClientError {
+    pub fn is_transport_unavailable(&self) -> bool {
+        match self {
+            ClientError::NotConnected | ClientError::Socket(_) => true,
+            ClientError::EncryptSend(e) => e.is_transport_unavailable(),
+            ClientError::AlreadyConnected | ClientError::NotLoggedIn => false,
+        }
+    }
+}
+
 use wacore::types::message::StanzaKey;
 
 /// Metrics for tracking offline sync progress

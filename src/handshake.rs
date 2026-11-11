@@ -42,6 +42,11 @@ pub enum HandshakeError {
 }
 
 impl HandshakeError {
+    /// A handshake step ran out of time.
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, Self::Timeout)
+    }
+
     /// Transient errors that are expected during reconnect and will resolve
     /// on retry. These never invalidate the cached server static.
     pub fn is_transient(&self) -> bool {

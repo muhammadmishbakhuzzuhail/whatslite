@@ -27,6 +27,35 @@ pub enum IqError {
     ParseError(#[from] anyhow::Error),
 }
 
+impl IqError {
+    /// The transport is gone rather than the request having been refused.
+    pub(crate) fn is_transport_unavailable(&self) -> bool {
+        matches!(
+            self,
+            IqError::NotConnected
+                | IqError::Disconnected(_)
+                | IqError::InternalChannelClosed
+                | IqError::Socket(_)
+        )
+    }
+
+    /// The request went out and no answer came back in time.
+    ///
+    /// Matched exhaustively so a new variant has to be classified here rather
+    /// than defaulting to "not a timeout" unnoticed.
+    pub(crate) fn is_timeout(&self) -> bool {
+        match self {
+            IqError::Timeout => true,
+            IqError::NotConnected
+            | IqError::Socket(_)
+            | IqError::Disconnected(_)
+            | IqError::ServerError { .. }
+            | IqError::InternalChannelClosed
+            | IqError::ParseError(_) => false,
+        }
+    }
+}
+
 impl From<wacore::request::IqError> for IqError {
     fn from(err: wacore::request::IqError) -> Self {
         match err {
